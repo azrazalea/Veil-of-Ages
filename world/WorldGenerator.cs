@@ -30,43 +30,53 @@ public partial class WorldGenerator : Node
 
     // Terrain tile IDs (these will need to be set based on your actual TileSet)
     [Export]
-    public int GrassTileId = 0;
+    public int GrassSourceId = 0;
+
+    // And you need atlas coordinates for each tile type
+    [Export]
+    public Vector2I GrassAtlasCoords = new Vector2I(1, 3);
 
     [Export]
-    public int DirtTileId = 1;
+    public int DirtSourceId = 0;
 
     [Export]
-    public int WaterTileId = 2;
+    public Vector2I DirtAtlasCoords = new Vector2I(5, 3);
+
+    [Export]
+    public int WaterSourceId = 0;
+
+    [Export]
+    public Vector2I WaterAtlasCoords = new Vector2I(6, 20);
 
     public override void _Ready()
     {
-        // _rng.Randomize();
+        _rng.Randomize();
 
-        // // Find required nodes
-        // var world = GetTree().GetFirstNodeInGroup("World") as World;
-        // if (world == null)
-        // {
-        //     GD.PrintErr("WorldGenerator: Could not find World node!");
-        //     return;
-        // }
+        // Find required nodes
+        var world = GetTree().GetFirstNodeInGroup("World") as World;
+        if (world == null)
+        {
+            GD.PrintErr("WorldGenerator: Could not find World node!");
+            return;
+        }
 
-        // _groundLayer = world.GetNode<TileMapLayer>("GroundLayer");
-        // _objectsLayer = world.GetNode<TileMapLayer>("ObjectsLayer");
-        // _entitiesLayer = world.GetNode<TileMapLayer>("EntitiesLayer");
-        // _gridSystem = world.GetNode<GridSystem>("GridSystem");
-        // _entitiesContainer = world.GetNode<Node2D>("Entities");
+        _groundLayer = world.GetNode<TileMapLayer>("GroundLayer");
+        _objectsLayer = world.GetNode<TileMapLayer>("ObjectsLayer");
+        _entitiesLayer = world.GetNode<TileMapLayer>("EntitiesLayer");
+        _gridSystem = world.GetNode<GridSystem>("GridSystem");
+        _entitiesContainer = world.GetNode<Node2D>("Entities");
 
-        // // Ensure we have all required nodes
-        // if (_groundLayer == null || _gridSystem == null || _entitiesContainer == null)
-        // {
-        //     GD.PrintErr("WorldGenerator: Missing required nodes!");
-        //     return;
-        // }
+        // Ensure we have all required nodes
+        if (_groundLayer == null || _gridSystem == null || _entitiesContainer == null)
+        {
+            GD.PrintErr("WorldGenerator: Missing required nodes!");
+            return;
+        }
 
-        // if (GenerateOnReady)
-        // {
-        //     Generate();
-        // }
+        if (GenerateOnReady)
+        {
+            Generate();
+        }
     }
 
     // Main generation method
@@ -78,11 +88,11 @@ public partial class WorldGenerator : Node
         // Generate terrain
         GenerateTerrain();
 
-        // Generate village first (higher priority)
-        if (BuildingScene != null)
-        {
-            GenerateVillage();
-        }
+        // // Generate village first (higher priority)
+        // if (BuildingScene != null)
+        // {
+        //     GenerateVillage();
+        // }
 
         // Then add trees in unoccupied spaces
         if (TreeScene != null)
@@ -90,8 +100,8 @@ public partial class WorldGenerator : Node
             GenerateTrees();
         }
 
-        // Add some decorative elements
-        GenerateDecorations();
+        // // Add some decorative elements
+        // GenerateDecorations();
     }
 
     // Clear the existing world
@@ -138,7 +148,7 @@ public partial class WorldGenerator : Node
         {
             for (int y = 0; y < _gridSystem.GridSize.Y; y++)
             {
-                _groundLayer.SetCell(new Vector2I(x, y), GrassTileId, Vector2I.Zero);
+                _groundLayer.SetCell(new Vector2I(x, y), GrassSourceId, GrassAtlasCoords);
             }
         }
 
@@ -163,7 +173,7 @@ public partial class WorldGenerator : Node
                         if (pos.X >= 0 && pos.X < _gridSystem.GridSize.X &&
                             pos.Y >= 0 && pos.Y < _gridSystem.GridSize.Y)
                         {
-                            _groundLayer.SetCell(pos, DirtTileId, Vector2I.Zero);
+                            _groundLayer.SetCell(pos, DirtSourceId, DirtAtlasCoords);
                         }
                     }
                 }
@@ -189,7 +199,7 @@ public partial class WorldGenerator : Node
                     if (pos.X >= 0 && pos.X < _gridSystem.GridSize.X &&
                         pos.Y >= 0 && pos.Y < _gridSystem.GridSize.Y)
                     {
-                        _groundLayer.SetCell(pos, WaterTileId, Vector2I.Zero);
+                        _groundLayer.SetCell(pos, WaterSourceId, WaterAtlasCoords);
 
                         // Mark water as impassable in the grid system
                         _gridSystem.SetCellOccupied(pos, true);
@@ -224,7 +234,7 @@ public partial class WorldGenerator : Node
 
             // Skip if it's a water tile
             var tileData = _groundLayer.GetCellTileData(gridPos);
-            if (tileData != null && _groundLayer.GetCellSourceId(gridPos) == WaterTileId)
+            if (tileData != null && _groundLayer.GetCellAtlasCoords(gridPos) == WaterAtlasCoords)
             {
                 continue;
             }
@@ -271,7 +281,7 @@ public partial class WorldGenerator : Node
                 if (pos.X >= 0 && pos.X < _gridSystem.GridSize.X &&
                     pos.Y >= 0 && pos.Y < _gridSystem.GridSize.Y)
                 {
-                    _groundLayer.SetCell(pos, DirtTileId, Vector2I.Zero);
+                    _groundLayer.SetCell(pos, DirtSourceId, DirtAtlasCoords);
                 }
             }
         }
@@ -349,7 +359,7 @@ public partial class WorldGenerator : Node
             }
 
             var tileData = _groundLayer.GetCellTileData(gridPos);
-            if (tileData != null && _groundLayer.GetCellSourceId(gridPos) == WaterTileId)
+            if (tileData != null && _groundLayer.GetCellAtlasCoords(gridPos) == WaterAtlasCoords)
             {
                 continue;
             }

@@ -10,14 +10,10 @@ config_version=5
 
 [application]
 
-config/name="New Game Project"
+config/name="Necromancer Kingdom"
 run/main_scene="uid://ba8h7co1n3v3u"
 config/features=PackedStringArray("4.4", "C#", "Forward Plus")
 config/icon="res://icon.svg"
-
-[display]
-
-window/stretch/mode="viewport"
 
 [dotnet]
 
