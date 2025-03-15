@@ -141,6 +141,9 @@ public partial class WorldGenerator : Node
             for (int y = 0; y < _gridSystem.GridSize.Y; y++)
             {
                 _groundLayer.SetCell(new Vector2I(x, y), GrassSourceId, GrassAtlasCoords);
+
+                // Ensure the grid starts clean - all cells are walkable by default
+                _gridSystem.SetCellOccupied(new Vector2I(x, y), false);
             }
         }
 
@@ -166,6 +169,9 @@ public partial class WorldGenerator : Node
                             pos.Y >= 0 && pos.Y < _gridSystem.GridSize.Y)
                         {
                             _groundLayer.SetCell(pos, DirtSourceId, DirtAtlasCoords);
+
+                            // Dirt is still walkable
+                            _gridSystem.SetCellOccupied(pos, false);
                         }
                     }
                 }
@@ -174,12 +180,15 @@ public partial class WorldGenerator : Node
 
         // Add a water feature (small pond or stream)
         Vector2I waterStart = new Vector2I(
-            _rng.RandiRange(5, _gridSystem.GridSize.X - 15),
-            _rng.RandiRange(5, _gridSystem.GridSize.Y - 15)
+            _rng.RandiRange(15, _gridSystem.GridSize.X - 25),
+            _rng.RandiRange(15, _gridSystem.GridSize.Y - 25)
         );
 
         // Simple pond
         int pondSize = _rng.RandiRange(3, 6);
+        int waterTilesCount = 0;
+
+        // Place water tiles and mark them as occupied in one pass
         for (int x = -pondSize; x <= pondSize; x++)
         {
             for (int y = -pondSize; y <= pondSize; y++)
@@ -191,14 +200,19 @@ public partial class WorldGenerator : Node
                     if (pos.X >= 0 && pos.X < _gridSystem.GridSize.X &&
                         pos.Y >= 0 && pos.Y < _gridSystem.GridSize.Y)
                     {
+                        // Set the water tile visually
                         _groundLayer.SetCell(pos, WaterSourceId, WaterAtlasCoords);
 
                         // Mark water as impassable in the grid system
                         _gridSystem.SetCellOccupied(pos, true);
+
+                        waterTilesCount++;
                     }
                 }
             }
         }
+
+        GD.Print($"Added water pond at {waterStart} with size {pondSize}, created {waterTilesCount} water tiles");
     }
 
     private void GenerateTrees()
@@ -214,21 +228,48 @@ public partial class WorldGenerator : Node
 
             // Generate random grid position
             Vector2I gridPos = new Vector2I(
-                _rng.RandiRange(0, _gridSystem.GridSize.X - 1),
-                _rng.RandiRange(0, _gridSystem.GridSize.Y - 1)
+                _rng.RandiRange(0, _gridSystem.GridSize.X - 5), // Reduced by tree width
+                _rng.RandiRange(0, _gridSystem.GridSize.Y - 6)  // Reduced by tree height
             );
 
-            // Skip if tile is already occupied
-            if (_gridSystem.IsCellOccupied(gridPos))
+            // Create a "temporary" tree to get its size
+            Node2D tempTree = TreeScene.Instantiate<Node2D>();
+            Vector2I treeSize = new Vector2I(1, 1); // Default size
+
+            if (tempTree is Tree typedTree)
             {
-                continue;
+                treeSize = typedTree.GridSize;
+            }
+            tempTree.QueueFree(); // Clean up the temporary instance
+
+            // Check if the entire area needed for the tree is free
+            bool areaIsFree = true;
+            for (int x = 0; x < treeSize.X && areaIsFree; x++)
+            {
+                for (int y = 0; y < treeSize.Y && areaIsFree; y++)
+                {
+                    Vector2I checkPos = new Vector2I(gridPos.X + x, gridPos.Y + y);
+
+                    // Check for occupied cells or water
+                    if (_gridSystem.IsCellOccupied(checkPos))
+                    {
+                        areaIsFree = false;
+                        break;
+                    }
+
+                    // Check for water tiles
+                    var tileData = _groundLayer.GetCellTileData(checkPos);
+                    if (tileData != null && _groundLayer.GetCellAtlasCoords(checkPos) == WaterAtlasCoords)
+                    {
+                        areaIsFree = false;
+                        break;
+                    }
+                }
             }
 
-            // Skip if it's a water tile
-            var tileData = _groundLayer.GetCellTileData(gridPos);
-            if (tileData != null && _groundLayer.GetCellAtlasCoords(gridPos) == WaterAtlasCoords)
+            if (!areaIsFree)
             {
-                continue;
+                continue; // Skip to next attempt if area isn't free
             }
 
             // Place tree at grid position by instancing the scene
@@ -236,15 +277,23 @@ public partial class WorldGenerator : Node
             _entitiesContainer.AddChild(tree);
 
             // Initialize the tree at this position
-            if (tree is Tree typedTree)
+            if (tree is Tree typedTree2)
             {
-                typedTree.Initialize(_gridSystem, gridPos);
+                typedTree2.Initialize(_gridSystem, gridPos);
             }
             else
             {
                 // If for some reason it's not our Tree type, just position it
                 tree.GlobalPosition = _gridSystem.GridToWorld(gridPos);
-                _gridSystem.SetCellOccupied(gridPos, true);
+
+                // Mark all cells the tree occupies as occupied
+                for (int x = 0; x < treeSize.X; x++)
+                {
+                    for (int y = 0; y < treeSize.Y; y++)
+                    {
+                        _gridSystem.SetCellOccupied(new Vector2I(gridPos.X + x, gridPos.Y + y), true);
+                    }
+                }
             }
 
             treesPlaced++;
@@ -255,25 +304,41 @@ public partial class WorldGenerator : Node
 
     private void GenerateVillage()
     {
+        // Define building sizes for each building type
+        Dictionary<string, Vector2I> buildingSizes = new Dictionary<string, Vector2I>()
+    {
+        { "House", new Vector2I(2, 2) },
+        { "Blacksmith", new Vector2I(3, 2) },
+        { "Tavern", new Vector2I(3, 3) },
+        { "Farm", new Vector2I(3, 2) },
+        { "Well", new Vector2I(1, 1) },
+        { "Graveyard", new Vector2I(7, 6) },
+        { "Laboratory", new Vector2I(3, 2) }
+    };
+
         // Define village center (somewhere near the middle of the map)
         Vector2I villageCenter = new Vector2I(
             _gridSystem.GridSize.X / 2,
             _gridSystem.GridSize.Y / 2
         );
 
-        // Mark center as village square (no buildings here)
-        _gridSystem.SetCellOccupied(villageCenter, true);
+        // Make a village square (larger to ensure we have enough room around the center)
+        int squareSize = 15; // Larger to account for building sizes
+        int centralSquareSize = 2; // Size of the actual central square (dirt area)
 
-        // Clear grass in village center to make a small square
-        for (int x = -1; x <= 1; x++)
+        // Create the visual village square (dirt area)
+        for (int x = -centralSquareSize; x <= centralSquareSize; x++)
         {
-            for (int y = -1; y <= 1; y++)
+            for (int y = -centralSquareSize; y <= centralSquareSize; y++)
             {
                 Vector2I pos = new Vector2I(villageCenter.X + x, villageCenter.Y + y);
                 if (pos.X >= 0 && pos.X < _gridSystem.GridSize.X &&
                     pos.Y >= 0 && pos.Y < _gridSystem.GridSize.Y)
                 {
                     _groundLayer.SetCell(pos, DirtSourceId, DirtAtlasCoords);
+
+                    // Do NOT mark the village square as occupied - this is walkable terrain
+                    _gridSystem.SetCellOccupied(pos, false);
                 }
             }
         }
@@ -281,46 +346,109 @@ public partial class WorldGenerator : Node
         // Place buildings around the village center
         string[] buildingTypes = { "Graveyard", "Graveyard", "Graveyard" };
 
-        // Place in a rough circle around the center
-        int numBuildings = buildingTypes.Length;
+        // Calculate minimum safe distance from center for building placement
+        int minDistanceFromCenter = 15; // Based on largest building size + buffer
 
-        for (int i = 0; i < numBuildings; i++)
+        for (int i = 0; i < buildingTypes.Length; i++)
         {
-            // Calculate position in a circle
-            float angle = (float)i / numBuildings * Mathf.Tau;
-            int distance = 5; // Distance from center in tiles
+            string buildingType = buildingTypes[i];
+            Vector2I buildingSize = buildingSizes[buildingType];
 
-            Vector2I offset = new Vector2I(
-                Mathf.RoundToInt(Mathf.Cos(angle) * distance),
-                Mathf.RoundToInt(Mathf.Sin(angle) * distance)
-            );
+            // Calculate position in a circle with increased distance
+            float angle = (float)i / buildingTypes.Length * Mathf.Tau;
+            int distance = minDistanceFromCenter; // Distance from center in tiles
 
-            Vector2I buildingPos = villageCenter + offset;
+            bool foundValidPosition = false;
+            int maxPlacementAttempts = 10;
 
-            // Ensure position is within world bounds
-            buildingPos.X = Mathf.Clamp(buildingPos.X, 0, _gridSystem.GridSize.X - 1);
-            buildingPos.Y = Mathf.Clamp(buildingPos.Y, 0, _gridSystem.GridSize.Y - 1);
-
-            // Find a nearby free cell if this one is occupied
-            if (_gridSystem.IsCellOccupied(buildingPos))
+            for (int attempt = 0; attempt < maxPlacementAttempts && !foundValidPosition; attempt++)
             {
-                buildingPos = _gridSystem.FindNearestFreeCell(buildingPos);
+                // Adjust distance slightly each attempt
+                int adjustedDistance = distance + attempt * 2;
+
+                Vector2I offset = new Vector2I(
+                    Mathf.RoundToInt(Mathf.Cos(angle) * adjustedDistance),
+                    Mathf.RoundToInt(Mathf.Sin(angle) * adjustedDistance)
+                );
+
+                Vector2I buildingPos = villageCenter + offset;
+
+                // Ensure position is within world bounds
+                if (buildingPos.X < 0 || buildingPos.X + buildingSize.X >= _gridSystem.GridSize.X ||
+                    buildingPos.Y < 0 || buildingPos.Y + buildingSize.Y >= _gridSystem.GridSize.Y)
+                {
+                    continue; // Skip this position if out of bounds
+                }
+
+                // Check if the entire building area is free
+                bool areaIsFree = true;
+                for (int x = 0; x < buildingSize.X && areaIsFree; x++)
+                {
+                    for (int y = 0; y < buildingSize.Y && areaIsFree; y++)
+                    {
+                        Vector2I checkPos = new Vector2I(buildingPos.X + x, buildingPos.Y + y);
+
+                        // Check for occupied cells
+                        if (_gridSystem.IsCellOccupied(checkPos))
+                        {
+                            areaIsFree = false;
+                            break;
+                        }
+
+                        // Check for water tiles
+                        var tileData = _groundLayer.GetCellTileData(checkPos);
+                        if (tileData != null && _groundLayer.GetCellAtlasCoords(checkPos) == WaterAtlasCoords)
+                        {
+                            areaIsFree = false;
+                            break;
+                        }
+
+                        // Extra check: ensure we're not too close to the village center
+                        Vector2I relativeToCenter = checkPos - villageCenter;
+                        if (Math.Abs(relativeToCenter.X) <= squareSize &&
+                            Math.Abs(relativeToCenter.Y) <= squareSize)
+                        {
+                            areaIsFree = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (areaIsFree)
+                {
+                    foundValidPosition = true;
+
+                    // Create building by instancing the scene
+                    Node2D building = BuildingScene.Instantiate<Node2D>();
+                    _entitiesContainer.AddChild(building);
+
+                    // Initialize the building at this position
+                    if (building is Building typedBuilding)
+                    {
+                        typedBuilding.Initialize(_gridSystem, buildingPos, buildingType);
+                    }
+                    else
+                    {
+                        // If for some reason it's not our Building type, just position it
+                        building.GlobalPosition = _gridSystem.GridToWorld(buildingPos);
+
+                        // Mark all cells the building occupies as occupied
+                        for (int x = 0; x < buildingSize.X; x++)
+                        {
+                            for (int y = 0; y < buildingSize.Y; y++)
+                            {
+                                _gridSystem.SetCellOccupied(new Vector2I(buildingPos.X + x, buildingPos.Y + y), true);
+                            }
+                        }
+                    }
+
+                    GD.Print($"Placed {buildingType} at {buildingPos}");
+                }
             }
 
-            // Create building by instancing the scene
-            Node2D building = BuildingScene.Instantiate<Node2D>();
-            _entitiesContainer.AddChild(building);
-
-            // Initialize the building at this position
-            if (building is Building typedBuilding)
+            if (!foundValidPosition)
             {
-                typedBuilding.Initialize(_gridSystem, buildingPos, buildingTypes[i]);
-            }
-            else
-            {
-                // If for some reason it's not our Building type, just position it
-                building.GlobalPosition = _gridSystem.GridToWorld(buildingPos);
-                _gridSystem.SetCellOccupied(buildingPos, true);
+                GD.PrintErr($"Failed to place {buildingType} after {maxPlacementAttempts} attempts");
             }
         }
     }

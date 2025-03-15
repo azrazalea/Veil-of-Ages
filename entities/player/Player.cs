@@ -40,6 +40,11 @@ public partial class Player : Node2D
         if (_gridSystem == null)
             return;
 
+        if (Input.IsKeyPressed(Key.D))
+        {
+            _gridSystem.DebugGridCellStatus(_currentGridPos);
+        }
+
         // If we're at the target position, check for new input
         if (_moveProgress >= 1.0f)
         {

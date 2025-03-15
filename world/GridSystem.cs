@@ -9,11 +9,36 @@ public partial class GridSystem : Node
     public int TileSize = 8;
 
     [Export]
+    public int WorldOffset = 5; // Fix visual difference with grid
+
+    [Export]
     public Vector2I GridSize = new Vector2I(100, 100);
+    [Export]
+    public Vector2I WaterAtlasCoords = new Vector2I(3, 16);
 
     // Dictionary to track which grid cells are occupied
     // The bool could be extended to an enum or object to track different types of entities
     private Dictionary<Vector2I, bool> _occupiedCells = new Dictionary<Vector2I, bool>();
+
+    public void DebugGridCellStatus(Vector2I gridPos)
+    {
+        var groundLayer = GetNode<TileMapLayer>("/root/World/GroundLayer");
+
+        if (gridPos.X < 0 || gridPos.X >= GridSize.X ||
+    gridPos.Y < 0 || gridPos.Y >= GridSize.Y)
+        {
+            GD.Print($"Grid position {gridPos} is out of bounds");
+            return;
+        }
+
+        bool isOccupied = IsCellOccupied(gridPos);
+        var atlasCoords = groundLayer.GetCellAtlasCoords(gridPos);
+
+        GD.Print($"Grid position {gridPos}:");
+        GD.Print($"  - Is occupied: {isOccupied}");
+        GD.Print($"  - Tile atlas coords: {atlasCoords}");
+        GD.Print($"  - Is water: {(atlasCoords == WaterAtlasCoords)}");
+    }
 
     public override void _Ready()
     {
@@ -29,22 +54,28 @@ public partial class GridSystem : Node
         GD.Print($"Grid system initialized with size {GridSize.X}x{GridSize.Y}");
     }
 
-    // Convert world position to grid coordinates
+    // Convert world position to grid coordinates, accounting for visual offset
     public Vector2I WorldToGrid(Vector2 worldPos)
     {
+        worldPos.Y += WorldOffset;
+
         return new Vector2I(
             Mathf.FloorToInt(worldPos.X / TileSize),
             Mathf.FloorToInt(worldPos.Y / TileSize)
         );
     }
 
-    // Convert grid coordinates to world position (centered in the tile)
+    // Convert grid coordinates to world position (centered in the tile), accounting for visual offset
     public Vector2 GridToWorld(Vector2I gridPos)
     {
-        return new Vector2(
+        Vector2 worldPos = new Vector2(
             gridPos.X * TileSize + TileSize / 2,
             gridPos.Y * TileSize + TileSize / 2
         );
+
+        worldPos.Y -= WorldOffset;
+
+        return worldPos;
     }
 
     // Check if a grid cell is occupied
