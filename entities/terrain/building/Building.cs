@@ -1,10 +1,11 @@
 using Godot;
 using System;
+using System.Collections.Generic;
 
 public partial class Building : Node2D
 {
     [Export]
-    public string BuildingType = "House";
+    public string BuildingType = "Graveyard";
 
     [Export]
     public bool CanEnter = true;
@@ -14,6 +15,8 @@ public partial class Building : Node2D
 
     private Vector2I _gridPosition;
     private GridSystem _gridSystem;
+    private Dictionary<string, TileMapLayer> _buildingLayers = new Dictionary<string, TileMapLayer>();
+    private TileMapLayer _currentLayer;
 
     // For tracking residents/workers
     private int _capacity = 0;
@@ -33,20 +36,23 @@ public partial class Building : Node2D
             return;
         }
 
+        // Initialize the building layers dictionary
+        foreach (Node child in GetChildren())
+        {
+            if (child is TileMapLayer)
+            {
+                string layerName = child.Name.ToString().Replace("Layer", "");
+                _buildingLayers[layerName] = child as TileMapLayer;
+                GD.Print(layerName);
+                (child as TileMapLayer).Enabled = false; // Hide all initially
+            }
+        }
+
         // Get grid position
         _gridPosition = _gridSystem.WorldToGrid(GlobalPosition);
 
         // Snap to grid
         GlobalPosition = _gridSystem.GridToWorld(_gridPosition);
-
-        // Adjust for buildings larger than 1x1 to center them on their grid cells
-        if (GridSize.X > 1 || GridSize.Y > 1)
-        {
-            GlobalPosition -= new Vector2(
-                (GridSize.X - 1) * _gridSystem.TileSize / 2,
-                (GridSize.Y - 1) * _gridSystem.TileSize / 2
-            );
-        }
 
         // Configure building properties based on type
         ConfigureBuildingType();
@@ -68,20 +74,25 @@ public partial class Building : Node2D
             BuildingType = type;
         }
 
+        // Initialize the building layers dictionary if not done already
+        if (_buildingLayers.Count == 0)
+        {
+            foreach (Node child in GetChildren())
+            {
+                if (child is TileMapLayer)
+                {
+                    string layerName = child.Name.ToString().Replace("Layer", "");
+                    _buildingLayers[layerName] = child as TileMapLayer;
+                    (child as TileMapLayer).Enabled = false; // Hide all initially
+                }
+            }
+        }
+
         // Configure building properties
         ConfigureBuildingType();
 
         // Update the actual position
         GlobalPosition = _gridSystem.GridToWorld(_gridPosition);
-
-        // Adjust for buildings larger than 1x1
-        if (GridSize.X > 1 || GridSize.Y > 1)
-        {
-            GlobalPosition -= new Vector2(
-                (GridSize.X - 1) * _gridSystem.TileSize / 2,
-                (GridSize.Y - 1) * _gridSystem.TileSize / 2
-            );
-        }
 
         // Register with the grid system
         _gridSystem.SetMultipleCellsOccupied(_gridPosition, GridSize, true);
@@ -134,8 +145,8 @@ public partial class Building : Node2D
                 break;
 
             case "Graveyard":
-                GridSize = new Vector2I(3, 3);
-                _capacity = 8; // For undead
+                GridSize = new Vector2I(7, 6);
+                _capacity = 4; // For undead
                 break;
 
             case "Laboratory":
@@ -147,6 +158,31 @@ public partial class Building : Node2D
                 GridSize = new Vector2I(2, 2);
                 _capacity = 2;
                 break;
+        }
+
+        // Update visual representation
+        UpdateBuildingVisual();
+    }
+
+    private void UpdateBuildingVisual()
+    {
+        // Disable all building layers first
+        foreach (var layer in _buildingLayers.Values)
+        {
+            layer.Enabled = false;
+        }
+
+        // Enable the correct layer for this building type
+        if (_buildingLayers.ContainsKey(BuildingType))
+        {
+            _currentLayer = _buildingLayers[BuildingType];
+            _currentLayer.Enabled = true;
+            // Force an immediate update to make sure the tiles appear correctly
+            _currentLayer.UpdateInternals();
+        }
+        else
+        {
+            GD.PrintErr($"No TileMapLayer found for building type: {BuildingType}");
         }
     }
 

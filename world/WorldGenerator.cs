@@ -43,10 +43,10 @@ public partial class WorldGenerator : Node
     public Vector2I DirtAtlasCoords = new Vector2I(5, 3);
 
     [Export]
-    public int WaterSourceId = 0;
+    public int WaterSourceId = 1;
 
     [Export]
-    public Vector2I WaterAtlasCoords = new Vector2I(6, 20);
+    public Vector2I WaterAtlasCoords = new Vector2I(3, 16);
 
     public override void _Ready()
     {
@@ -88,11 +88,11 @@ public partial class WorldGenerator : Node
         // Generate terrain
         GenerateTerrain();
 
-        // // Generate village first (higher priority)
-        // if (BuildingScene != null)
-        // {
-        //     GenerateVillage();
-        // }
+        // Generate village first (higher priority)
+        if (BuildingScene != null)
+        {
+            GenerateVillage();
+        }
 
         // Then add trees in unoccupied spaces
         if (TreeScene != null)
@@ -287,7 +287,7 @@ public partial class WorldGenerator : Node
         }
 
         // Place buildings around the village center
-        string[] buildingTypes = { "House", "House", "House", "Blacksmith", "Tavern", "Farm", "Well" };
+        string[] buildingTypes = { "Graveyard", "Graveyard", "Graveyard" };
 
         // Place in a rough circle around the center
         int numBuildings = buildingTypes.Length;
