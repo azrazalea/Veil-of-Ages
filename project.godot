@@ -11,9 +11,23 @@ config_version=5
 [application]
 
 config/name="New Game Project"
+run/main_scene="uid://ba8h7co1n3v3u"
 config/features=PackedStringArray("4.4", "C#", "Forward Plus")
 config/icon="res://icon.svg"
+
+[display]
+
+window/stretch/mode="viewport"
 
 [dotnet]
 
 project/assembly_name="New Game Project"
+
+[global_group]
+
+World="The world itself"
+
+[rendering]
+
+textures/canvas_textures/default_texture_filter=0
+textures/default_filters/use_nearest_mipmap_filter=true

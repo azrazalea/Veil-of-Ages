@@ -40,33 +40,33 @@ public partial class WorldGenerator : Node
 
     public override void _Ready()
     {
-        _rng.Randomize();
+        // _rng.Randomize();
 
-        // Find required nodes
-        var world = GetTree().GetFirstNodeInGroup("World") as World;
-        if (world == null)
-        {
-            GD.PrintErr("WorldGenerator: Could not find World node!");
-            return;
-        }
+        // // Find required nodes
+        // var world = GetTree().GetFirstNodeInGroup("World") as World;
+        // if (world == null)
+        // {
+        //     GD.PrintErr("WorldGenerator: Could not find World node!");
+        //     return;
+        // }
 
-        _groundLayer = world.GetNode<TileMapLayer>("GroundLayer");
-        _objectsLayer = world.GetNode<TileMapLayer>("ObjectsLayer");
-        _entitiesLayer = world.GetNode<TileMapLayer>("EntitiesLayer");
-        _gridSystem = world.GetNode<GridSystem>("GridSystem");
-        _entitiesContainer = world.GetNode<Node2D>("Entities");
+        // _groundLayer = world.GetNode<TileMapLayer>("GroundLayer");
+        // _objectsLayer = world.GetNode<TileMapLayer>("ObjectsLayer");
+        // _entitiesLayer = world.GetNode<TileMapLayer>("EntitiesLayer");
+        // _gridSystem = world.GetNode<GridSystem>("GridSystem");
+        // _entitiesContainer = world.GetNode<Node2D>("Entities");
 
-        // Ensure we have all required nodes
-        if (_groundLayer == null || _gridSystem == null || _entitiesContainer == null)
-        {
-            GD.PrintErr("WorldGenerator: Missing required nodes!");
-            return;
-        }
+        // // Ensure we have all required nodes
+        // if (_groundLayer == null || _gridSystem == null || _entitiesContainer == null)
+        // {
+        //     GD.PrintErr("WorldGenerator: Missing required nodes!");
+        //     return;
+        // }
 
-        if (GenerateOnReady)
-        {
-            Generate();
-        }
+        // if (GenerateOnReady)
+        // {
+        //     Generate();
+        // }
     }
 
     // Main generation method

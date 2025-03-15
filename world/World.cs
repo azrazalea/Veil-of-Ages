@@ -18,7 +18,7 @@ public partial class World : Node2D
     private Player _player;
 
     [Export]
-    public int TileSize = 32;
+    public int TileSize = 8;
 
     [Export]
     public Vector2I WorldSizeInTiles = new Vector2I(100, 100);
