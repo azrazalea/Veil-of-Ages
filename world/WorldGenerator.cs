@@ -130,14 +130,6 @@ public partial class WorldGenerator : Node
                 _gridSystem.SetCellOccupied(new Vector2I(x, y), false);
             }
         }
-
-        // Reserve the player's position
-        if (_entitiesContainer.HasNode("Player"))
-        {
-            var player = _entitiesContainer.GetNode<Player>("Player");
-            Vector2I playerPos = _gridSystem.WorldToGrid(player.GlobalPosition);
-            _gridSystem.SetCellOccupied(playerPos, true);
-        }
     }
 
     // Generate basic terrain
