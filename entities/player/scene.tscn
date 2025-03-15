@@ -1,0 +1,112 @@
+[gd_scene load_steps=17 format=3 uid="uid://cljvkvv6tomyu"]
+
+[ext_resource type="Script" uid="uid://b1d2etawohilo" path="res://entities/player/Player.cs" id="1_yttx2"]
+[ext_resource type="Texture2D" uid="uid://ce8xwnc3o6cjt" path="res://assets/entities/necromancer/Necromancer_Idle.png" id="2_b2xe3"]
+[ext_resource type="Texture2D" uid="uid://bovgook4t4sw" path="res://assets/entities/necromancer/Necromancer_Walk.png" id="3_d75gg"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bkysp"]
+atlas = ExtResource("2_b2xe3")
+region = Rect2(224, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1jn7u"]
+atlas = ExtResource("2_b2xe3")
+region = Rect2(192, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_b4lqe"]
+atlas = ExtResource("2_b2xe3")
+region = Rect2(160, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xqp55"]
+atlas = ExtResource("2_b2xe3")
+region = Rect2(128, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6p60t"]
+atlas = ExtResource("2_b2xe3")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_e7okm"]
+atlas = ExtResource("2_b2xe3")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6p6se"]
+atlas = ExtResource("2_b2xe3")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_q5b0k"]
+atlas = ExtResource("2_b2xe3")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_f5dcs"]
+atlas = ExtResource("3_d75gg")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_78jff"]
+atlas = ExtResource("3_d75gg")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_02va3"]
+atlas = ExtResource("3_d75gg")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_k6c7w"]
+atlas = ExtResource("3_d75gg")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_ncaad"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bkysp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1jn7u")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_b4lqe")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xqp55")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6p60t")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_e7okm")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6p6se")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_q5b0k")
+}],
+"loop": true,
+"name": &"idle",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_f5dcs")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_78jff")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_02va3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_k6c7w")
+}],
+"loop": true,
+"name": &"walk",
+"speed": 5.0
+}]
+
+[node name="Player" type="CharacterBody2D"]
+script = ExtResource("1_yttx2")
+
+[node name="PlayerNode" type="Node2D" parent="."]
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="PlayerNode"]
+sprite_frames = SubResource("SpriteFrames_ncaad")
+animation = &"walk"
+frame_progress = 0.31782
