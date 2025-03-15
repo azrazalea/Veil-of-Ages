@@ -16,6 +16,9 @@ public partial class WorldGenerator : Node
     [Export]
     public bool GenerateOnReady = true;
 
+    [Export]
+    public PackedScene SkeletonScene;
+
     // References to TileMapLayers
     private TileMapLayer _groundLayer;
     private TileMapLayer _objectsLayer;
@@ -426,6 +429,12 @@ public partial class WorldGenerator : Node
                     if (building is Building typedBuilding)
                     {
                         typedBuilding.Initialize(_gridSystem, buildingPos, buildingType);
+
+                        // If this is a graveyard, spawn a skeleton nearby
+                        if (buildingType == "Graveyard" && SkeletonScene != null)
+                        {
+                            SpawnSkeletonNearGraveyard(buildingPos, buildingSize);
+                        }
                     }
                     else
                     {
@@ -441,6 +450,7 @@ public partial class WorldGenerator : Node
                             }
                         }
                     }
+
 
                     GD.Print($"Placed {buildingType} at {buildingPos}");
                 }
@@ -490,5 +500,118 @@ public partial class WorldGenerator : Node
             // Place decoration
             _objectsLayer.SetCell(gridPos, decorationSourceId, tileCoords);
         }
+    }
+
+    // Add this method to WorldGenerator class
+    private void SpawnSkeletonNearGraveyard(Vector2I buildingPos, Vector2I buildingSize)
+    {
+        // Find a position in front of the graveyard
+        Vector2I skeletonPos = FindPositionInFrontOfBuilding(buildingPos, buildingSize);
+
+        // Ensure the position is valid and not occupied
+        if (skeletonPos != buildingPos && !_gridSystem.IsCellOccupied(skeletonPos))
+        {
+            // Spawn the skeleton
+            if (SkeletonScene != null)
+            {
+                Node2D skeleton = SkeletonScene.Instantiate<Node2D>();
+                _entitiesContainer.AddChild(skeleton);
+
+                // Initialize the skeleton if it has the correct type
+                if (skeleton is MindlessSkeleton typedSkeleton)
+                {
+                    typedSkeleton.Initialize(_gridSystem, skeletonPos);
+                    GD.Print($"Spawned skeleton at {skeletonPos} near graveyard at {buildingPos}");
+                }
+                else
+                {
+                    // Fallback positioning if not the correct type
+                    skeleton.GlobalPosition = _gridSystem.GridToWorld(skeletonPos);
+                    _gridSystem.SetCellOccupied(skeletonPos, true);
+                }
+            }
+            else
+            {
+                GD.PrintErr("SkeletonScene not assigned in WorldGenerator");
+            }
+        }
+        else
+        {
+            GD.PrintErr($"Could not find valid position to spawn skeleton near graveyard at {buildingPos}");
+        }
+    }
+
+    // Add this helper method to WorldGenerator class
+    private Vector2I FindPositionInFrontOfBuilding(Vector2I buildingPos, Vector2I buildingSize)
+    {
+        // Try positions around the building perimeter (prioritize the front/entrance)
+        Vector2I[] possiblePositions = new Vector2I[]
+        {
+            // Bottom (front) - most likely entrance
+            new Vector2I(buildingPos.X + buildingSize.X / 2, buildingPos.Y + buildingSize.Y + 1),
+            
+            // Right side
+            new Vector2I(buildingPos.X + buildingSize.X + 1, buildingPos.Y + buildingSize.Y / 2),
+            
+            // Top
+            new Vector2I(buildingPos.X + buildingSize.X / 2, buildingPos.Y - 1),
+            
+            // Left side
+            new Vector2I(buildingPos.X - 1, buildingPos.Y + buildingSize.Y / 2)
+        };
+
+        // Check each possible position
+        foreach (Vector2I pos in possiblePositions)
+        {
+            if (IsValidSpawnPosition(pos))
+            {
+                return pos;
+            }
+        }
+
+        // If no position directly adjacent works, try in a small radius
+        for (int radius = 2; radius <= 3; radius++)
+        {
+            // Try positions in a square around the building
+            for (int xOffset = -radius; xOffset <= buildingSize.X + radius; xOffset++)
+            {
+                for (int yOffset = -radius; yOffset <= buildingSize.Y + radius; yOffset++)
+                {
+                    // Only check perimeter positions (exclude positions inside the building or in the inner rings)
+                    if (xOffset == -radius || xOffset == buildingSize.X + radius ||
+                        yOffset == -radius || yOffset == buildingSize.Y + radius)
+                    {
+                        Vector2I pos = new Vector2I(buildingPos.X + xOffset, buildingPos.Y + yOffset);
+
+                        if (IsValidSpawnPosition(pos))
+                        {
+                            return pos;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Could not find a valid position
+        return buildingPos; // Return original position as fallback
+    }
+
+    // Helper to check if a position is valid for spawning
+    private bool IsValidSpawnPosition(Vector2I pos)
+    {
+        // Check bounds and occupancy
+        if (pos.X >= 0 && pos.X < _gridSystem.GridSize.X &&
+            pos.Y >= 0 && pos.Y < _gridSystem.GridSize.Y &&
+            !_gridSystem.IsCellOccupied(pos))
+        {
+            // Also check if it's not water
+            var tileData = _groundLayer.GetCellTileData(pos);
+            if (tileData != null && _groundLayer.GetCellAtlasCoords(pos) != WaterAtlasCoords)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

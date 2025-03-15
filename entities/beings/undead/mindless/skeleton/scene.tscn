@@ -1,5 +1,6 @@
-[gd_scene load_steps=10 format=3 uid="uid://o7vxruni6hv"]
+[gd_scene load_steps=11 format=3 uid="uid://o7vxruni6hv"]
 
+[ext_resource type="Script" uid="uid://cyde37wgefh3u" path="res://entities/beings/undead/mindless/skeleton/MindlessSkeleton.cs" id="1_016mr"]
 [ext_resource type="Texture2D" uid="uid://cjywylhsutv6i" path="res://assets/entities/undead/skeleton-warrior/Idle_Activation_Deactivation.png" id="1_ipl4n"]
 [ext_resource type="Texture2D" uid="uid://dobtwebit3n5k" path="res://assets/entities/undead/skeleton-warrior/Walk.png" id="2_016mr"]
 
@@ -59,8 +60,9 @@ animations = [{
 }]
 
 [node name="MindlessSkeleton" type="CharacterBody2D"]
+script = ExtResource("1_016mr")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 sprite_frames = SubResource("SpriteFrames_0h554")
 animation = &"walk"
-frame_progress = 0.96712
+frame_progress = 0.25494
