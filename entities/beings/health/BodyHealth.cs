@@ -15,7 +15,7 @@ namespace NecromancerKingdom.Entities.Beings.Health
             "Stomach", "Heart", "Lungs", "Kidneys", "Liver", "Eyes", "Nose", "Gonads", "Genitals"
         ];
 
-        private Being _owner = owner;
+        private readonly Being _owner = owner;
 
         public void AddBodyPartToGroup(string groupName, BodyPart bodyPart)
         {

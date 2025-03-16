@@ -35,17 +35,17 @@ namespace NecromancerKingdom.Entities.Beings
                 mindlessTrait.WanderRange = 15f; // And further from spawn
             }
 
-            ApplyRandomDecayDamage();
-
             GD.Print("Zombie initialized with traits");
         }
 
         public override void Initialize(GridSystem gridSystem, Vector2I startGridPos, BeingAttributes attributes = null)
         {
             base.Initialize(gridSystem, startGridPos, attributes);
+            ApplyRandomDecayDamage();
 
             // Any zombie-specific initialization after base initialization
             GD.Print($"Zombie spawned at {startGridPos}");
+            Health.PrintSystemStatuses();
         }
 
         // Custom zombie behavior overrides (if needed)
