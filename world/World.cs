@@ -1,6 +1,6 @@
 using Godot;
 using System;
-
+using NecromancerKingdom.Entities;
 public partial class World : Node2D
 {
     // Layers

@@ -1,6 +1,8 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using NecromancerKingdom.Entities;
+using NecromancerKingdom.Entities.Beings;
 
 public partial class WorldGenerator : Node
 {
@@ -18,6 +20,8 @@ public partial class WorldGenerator : Node
 
     [Export]
     public PackedScene SkeletonScene;
+    [Export]
+    public PackedScene ZombieScene;
 
     // References to TileMapLayers
     private TileMapLayer _groundLayer;
@@ -431,9 +435,19 @@ public partial class WorldGenerator : Node
                         typedBuilding.Initialize(_gridSystem, buildingPos, buildingType);
 
                         // If this is a graveyard, spawn a skeleton nearby
-                        if (buildingType == "Graveyard" && SkeletonScene != null)
+                        if (buildingType == "Graveyard" && SkeletonScene != null && ZombieScene != null)
                         {
-                            SpawnSkeletonNearGraveyard(buildingPos, buildingSize);
+                            PackedScene beingScene = null;
+                            if (new RandomNumberGenerator().RandfRange(0f, 1f) < 0.5f)
+                            {
+                                beingScene = SkeletonScene;
+                            }
+                            else
+                            {
+                                beingScene = ZombieScene;
+                            }
+
+                            SpawnBeingNearBuilding(buildingPos, buildingSize, beingScene);
                         }
                     }
                     else
@@ -503,36 +517,30 @@ public partial class WorldGenerator : Node
     }
 
     // Add this method to WorldGenerator class
-    private void SpawnSkeletonNearGraveyard(Vector2I buildingPos, Vector2I buildingSize)
+    private void SpawnBeingNearBuilding(Vector2I buildingPos, Vector2I buildingSize, PackedScene beingScene)
     {
         // Find a position in front of the graveyard
-        Vector2I skeletonPos = FindPositionInFrontOfBuilding(buildingPos, buildingSize);
+        Vector2I beingPos = FindPositionInFrontOfBuilding(buildingPos, buildingSize);
 
         // Ensure the position is valid and not occupied
-        if (skeletonPos != buildingPos && !_gridSystem.IsCellOccupied(skeletonPos))
+        if (beingPos != buildingPos && !_gridSystem.IsCellOccupied(beingPos))
         {
-            // Spawn the skeleton
-            if (SkeletonScene != null)
-            {
-                Node2D skeleton = SkeletonScene.Instantiate<Node2D>();
-                _entitiesContainer.AddChild(skeleton);
 
-                // Initialize the skeleton if it has the correct type
-                if (skeleton is MindlessSkeleton typedSkeleton)
-                {
-                    typedSkeleton.Initialize(_gridSystem, skeletonPos);
-                    GD.Print($"Spawned skeleton at {skeletonPos} near graveyard at {buildingPos}");
-                }
-                else
-                {
-                    // Fallback positioning if not the correct type
-                    skeleton.GlobalPosition = _gridSystem.GridToWorld(skeletonPos);
-                    _gridSystem.SetCellOccupied(skeletonPos, true);
-                }
+            Node2D being = beingScene.Instantiate<Node2D>();
+            GD.Print($"Spawning being of type {being.GetType().Name}");
+            _entitiesContainer.AddChild(being);
+
+            // Initialize the skeleton if it has the correct type
+            if (being is Being typedBeing)
+            {
+                typedBeing.Initialize(_gridSystem, beingPos);
+                GD.Print($"Spawned being at {beingPos} near graveyard at {buildingPos}");
             }
             else
             {
-                GD.PrintErr("SkeletonScene not assigned in WorldGenerator");
+                // Fallback positioning if not the correct type
+                being.GlobalPosition = _gridSystem.GridToWorld(beingPos);
+                _gridSystem.SetCellOccupied(beingPos, true);
             }
         }
         else
