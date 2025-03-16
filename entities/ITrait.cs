@@ -1,4 +1,5 @@
 using Godot;
+using NecromancerKingdom.Entities.Beings.Health;
 using System;
 
 namespace NecromancerKingdom.Entities
@@ -7,7 +8,7 @@ namespace NecromancerKingdom.Entities
     public interface ITrait
     {
         // Initialize the trait with its owner
-        void Initialize(Being owner);
+        void Initialize(Being owner, BodyHealth health);
 
         // Process trait behavior (called every frame/tick)
         void Process(double delta);

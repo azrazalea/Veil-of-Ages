@@ -5,6 +5,7 @@ namespace NecromancerKingdom.Entities
 {
     public partial class Player : Being
     {
+        public override BeingAttributes DefaultAttributes { get; } = BaseAttributesSet;
         public override void _PhysicsProcess(double delta)
         {
             if (_gridSystem == null)

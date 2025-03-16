@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using NecromancerKingdom.Entities;
+using NecromancerKingdom.Entities.Beings.Health;
 
 namespace NecromancerKingdom.Entities.Traits
 {
@@ -19,7 +20,7 @@ namespace NecromancerKingdom.Entities.Traits
         private enum MindlessState { Idle, Wandering }
         private MindlessState _currentState = MindlessState.Idle;
 
-        public virtual void Initialize(Being owner)
+        public virtual void Initialize(Being owner, BodyHealth health)
         {
             _owner = owner;
             _rng.Randomize();

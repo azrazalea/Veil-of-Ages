@@ -51,10 +51,7 @@ public partial class Tree : Node2D
     public override void _ExitTree()
     {
         // When the tree is removed, mark its cells as unoccupied (if grid system exists)
-        if (_gridSystem != null)
-        {
-            _gridSystem.SetMultipleCellsOccupied(_gridPosition, GridSize, false);
-        }
+        _gridSystem?.SetMultipleCellsOccupied(_gridPosition, GridSize, false);
     }
 
     // Method for when player interacts with tree

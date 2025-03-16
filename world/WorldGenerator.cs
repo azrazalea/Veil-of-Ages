@@ -351,7 +351,7 @@ public partial class WorldGenerator : Node
         }
 
         // Place buildings around the village center
-        string[] buildingTypes = { "Graveyard", "Graveyard", "Graveyard" };
+        string[] buildingTypes = ["Graveyard", "Graveyard", "Graveyard"];
 
         // Calculate minimum safe distance from center for building placement
         int minDistanceFromCenter = 15; // Based on largest building size + buffer
@@ -487,7 +487,7 @@ public partial class WorldGenerator : Node
 
         // Set source and atlas IDs based on your actual decoration tiles
         int decorationSourceId = 0; // This would be your decoration tileset ID
-        Vector2I[] decorationTiles = { new(0, 0), new(1, 0), new(2, 0) }; // Example atlas coords
+        Vector2I[] decorationTiles = [new(0, 0), new(1, 0), new(2, 0)]; // Example atlas coords
 
         for (int i = 0; i < numDecorations; i++)
         {
@@ -553,8 +553,8 @@ public partial class WorldGenerator : Node
     private Vector2I FindPositionInFrontOfBuilding(Vector2I buildingPos, Vector2I buildingSize)
     {
         // Try positions around the building perimeter (prioritize the front/entrance)
-        Vector2I[] possiblePositions = new Vector2I[]
-        {
+        Vector2I[] possiblePositions =
+        [
             // Bottom (front) - most likely entrance
             new(buildingPos.X + buildingSize.X / 2, buildingPos.Y + buildingSize.Y + 1),
             
@@ -566,7 +566,7 @@ public partial class WorldGenerator : Node
             
             // Left side
             new(buildingPos.X - 1, buildingPos.Y + buildingSize.Y / 2)
-        };
+        ];
 
         // Check each possible position
         foreach (Vector2I pos in possiblePositions)

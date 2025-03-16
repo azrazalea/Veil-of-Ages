@@ -1,12 +1,20 @@
+using System.Linq;
 using Godot;
-using System;
-using NecromancerKingdom.Entities;
 using NecromancerKingdom.Entities.Traits;
 
 namespace NecromancerKingdom.Entities.Beings
 {
     public partial class MindlessSkeleton : Being
     {
+        public override BeingAttributes DefaultAttributes { get; } = new(
+            12.0f,
+            12.0f,
+            16.0f,
+            4.0f,
+            10.0f,
+            4.0f,
+            1.0f
+        );
         public override void _Ready()
         {
             base._Ready();
@@ -39,12 +47,21 @@ namespace NecromancerKingdom.Entities.Beings
             GD.Print("Skeleton initialized with traits");
         }
 
-        public override void Initialize(GridSystem gridSystem, Vector2I startGridPos)
+        public override void Initialize(GridSystem gridSystem, Vector2I startGridPos, BeingAttributes attributes = null)
         {
-            base.Initialize(gridSystem, startGridPos);
+            base.Initialize(gridSystem, startGridPos, attributes);
 
             // Any skeleton-specific initialization after base initialization
             GD.Print($"Skeleton spawned at {startGridPos}");
+        }
+
+        protected override void InitializeBodyStructure()
+        {
+            // Create base structure
+            Health.InitializeHumanoidBodyStructure();
+
+            // Then modify for skeleton specifics
+            ModifyForSkeletalStructure();
         }
 
         // Custom skeleton behavior overrides (if needed)
@@ -58,6 +75,26 @@ namespace NecromancerKingdom.Entities.Beings
             if (IsMoving() && new RandomNumberGenerator().RandfRange(0f, 1f) < 0.01f)
             {
                 GD.Print($"{Name}: *bones rattle*");
+            }
+        }
+
+        private void ModifyForSkeletalStructure()
+        {
+            // Remove soft tissues from all groups
+            Health.RemoveSoftTissuesAndOrgans();
+
+            // Strengthen bone parts
+            foreach (var group in _bodyPartGroups.Values)
+            {
+                foreach (var part in group.Parts)
+                {
+                    // Enhance bone durability
+                    if (part.IsBonePart())
+                    {
+                        // Skeletons have stronger bones
+                        part.ScaleMaxHealth(1.5f);
+                    }
+                }
             }
         }
     }

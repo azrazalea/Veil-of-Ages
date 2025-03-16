@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using NecromancerKingdom.Entities;
+using NecromancerKingdom.Entities.Beings.Health;
 
 namespace NecromancerKingdom.Entities.Traits
 {
@@ -8,9 +9,11 @@ namespace NecromancerKingdom.Entities.Traits
     {
         protected Being _owner;
 
-        public virtual void Initialize(Being owner)
+        public virtual void Initialize(Being owner, BodyHealth health)
         {
             _owner = owner;
+            health.DisableBodySystem(BodySystemType.Pain);
+            DisableLivingBodySystems(health);
             GD.Print($"{_owner.Name}: Undead trait initialized");
         }
 
@@ -22,6 +25,16 @@ namespace NecromancerKingdom.Entities.Traits
 
         public virtual void OnEvent(string eventName, params object[] args)
         {
+        }
+
+        private static void DisableLivingBodySystems(BodyHealth health)
+        {
+            health.DisableBodySystem(BodySystemType.Breathing);
+            health.DisableBodySystem(BodySystemType.BloodPumping);
+            health.DisableBodySystem(BodySystemType.BloodFiltration);
+            health.DisableBodySystem(BodySystemType.Digestion);
+            health.DisableBodySystem(BodySystemType.Sight);
+            health.DisableBodySystem(BodySystemType.Hearing);
         }
     }
 }

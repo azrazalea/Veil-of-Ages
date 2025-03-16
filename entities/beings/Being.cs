@@ -1,13 +1,52 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using NecromancerKingdom.Entities.Beings.Health;
+using System.Linq;
 
 namespace NecromancerKingdom.Entities
 {
+    public record BeingAttributes(
+        float Strength,
+        float Dexterity,
+        float Constitution,
+        float Intelligence,
+        float Willpower,
+        float Wisdom,
+        float Charisma
+    );
+
     public abstract partial class Being : CharacterBody2D
     {
         [Export]
         public float MoveSpeed = 0.2f; // Time in seconds to move one tile
+
+        /// <summary>
+        /// Attributes for a perfectly "average" Being 
+        /// </summary>
+        public static readonly BeingAttributes BaseAttributesSet = new(
+            10.0f,
+            10.0f,
+            10.0f,
+            10.0f,
+            10.0f,
+            10.0f,
+            10.0f
+        );
+        public abstract BeingAttributes DefaultAttributes { get; }
+
+        public BeingAttributes Attributes { get; protected set; }
+
+        // Body system
+        protected BodyHealth Health;
+        protected Dictionary<string, BodyPartGroup> _bodyPartGroups
+        {
+            get => Health.BodyPartGroups;
+        }
+        protected bool BodyStructureInitialized
+        {
+            get => Health.BodyStructureInitialized;
+        }
 
         protected Vector2 _targetPosition;
         protected Vector2 _startPosition;
@@ -28,7 +67,7 @@ namespace NecromancerKingdom.Entities
             _animatedSprite.Play("idle");
         }
 
-        public virtual void Initialize(GridSystem gridSystem, Vector2I startGridPos)
+        public virtual void Initialize(GridSystem gridSystem, Vector2I startGridPos, BeingAttributes attributes = null)
         {
             _gridSystem = gridSystem;
             _currentGridPos = startGridPos;
@@ -43,12 +82,31 @@ namespace NecromancerKingdom.Entities
             // Mark being's initial position as occupied
             _gridSystem.SetCellOccupied(_currentGridPos, true);
 
+            // Set attributes if provided
+            Attributes = attributes ?? DefaultAttributes;
+
+            Health = new BodyHealth(this);
+
+            // Initialize body structure if not already done
+            if (!BodyStructureInitialized)
+            {
+                InitializeBodyStructure();
+                InitializeBodySystems();
+            }
+
             // Initialize all traits
             foreach (var trait in _traits)
             {
-                trait.Initialize(this);
+                trait.Initialize(this, Health);
             }
+
+            Health.PrintSystemStatuses();
         }
+
+        // Method to handle body structure initialization - can be overridden by subclasses
+        protected virtual void InitializeBodyStructure() => Health.InitializeHumanoidBodyStructure();
+        protected virtual void InitializeBodySystems() => Health.InitializeBodySystems();
+
 
         // Trait management
         public void AddTrait<T>() where T : ITrait, new()
@@ -59,7 +117,7 @@ namespace NecromancerKingdom.Entities
             // If we're already initialized, initialize the trait immediately
             if (_gridSystem != null)
             {
-                trait.Initialize(this);
+                trait.Initialize(this, Health);
             }
         }
 
@@ -70,7 +128,7 @@ namespace NecromancerKingdom.Entities
             // If we're already initialized, initialize the trait immediately
             if (_gridSystem != null)
             {
-                trait.Initialize(this);
+                trait.Initialize(this, Health);
             }
         }
 
@@ -106,6 +164,79 @@ namespace NecromancerKingdom.Entities
             foreach (var trait in _traits)
             {
                 trait.OnEvent(eventName, args);
+            }
+        }
+
+        // Get overall health percentage
+        public float GetHealthPercentage()
+        {
+            float totalHealth = 0;
+            float totalImportance = 0;
+
+            foreach (var group in _bodyPartGroups.Values)
+            {
+                foreach (var part in group.Parts)
+                {
+                    totalHealth += (part.CurrentHealth / part.MaxHealth) * part.Importance;
+                    totalImportance += part.Importance;
+                }
+            }
+
+            return totalImportance > 0 ? totalHealth / totalImportance : 0;
+        }
+
+        // Get health status as string
+        public string GetHealthStatus()
+        {
+            float health = GetHealthPercentage();
+
+            if (health <= 0.1f)
+                return "Critical";
+            else if (health <= 0.3f)
+                return "Severely Injured";
+            else if (health <= 0.6f)
+                return "Injured";
+            else if (health <= 0.9f)
+                return "Lightly Injured";
+            else
+                return "Healthy";
+        }
+
+        // Get overall efficiency for performing tasks
+        public float GetEfficiency()
+        {
+            float efficiency = 0;
+            float totalImportance = 0;
+
+            foreach (var group in _bodyPartGroups.Values)
+            {
+                foreach (var part in group.Parts)
+                {
+                    efficiency += part.GetEfficiency() * part.Importance;
+                    totalImportance += part.Importance;
+                }
+            }
+
+            return totalImportance > 0 ? efficiency / totalImportance : 0;
+        }
+
+        // Apply damage to a specific body part
+        public void DamageBodyPart(string groupName, string partName, float amount)
+        {
+            if (_bodyPartGroups.TryGetValue(groupName, out var group))
+            {
+                var part = group.Parts.FirstOrDefault(p => p.Name == partName);
+                part?.TakeDamage(amount);
+            }
+        }
+
+        // Heal a specific body part
+        public void HealBodyPart(string groupName, string partName, float amount)
+        {
+            if (_bodyPartGroups.TryGetValue(groupName, out var group))
+            {
+                var part = group.Parts.FirstOrDefault(p => p.Name == partName);
+                part?.Heal(amount);
             }
         }
 
