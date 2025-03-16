@@ -43,7 +43,7 @@ namespace NecromancerKingdom.Entities.Beings
 
             // Add any zombie-specific behavior here if needed
             // For example, we could make zombies occasionally groan
-            if (IsMoving() == false && new RandomNumberGenerator().RandfRange(0f, 1f) < 0.01f)
+            if (IsMoving() == true && new RandomNumberGenerator().RandfRange(0f, 1f) < 0.01f)
             {
                 GD.Print($"{Name}: *groans hungrily*");
             }

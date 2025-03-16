@@ -20,7 +20,7 @@ namespace NecromancerKingdom.Entities
         protected GridSystem _gridSystem;
 
         // Trait system
-        protected List<ITrait> _traits = new List<ITrait>();
+        protected List<ITrait> _traits = [];
 
         public override void _Ready()
         {
@@ -32,6 +32,8 @@ namespace NecromancerKingdom.Entities
         {
             _gridSystem = gridSystem;
             _currentGridPos = startGridPos;
+
+            Name = $"{GetType().Name}{Guid.NewGuid().ToString("N")[..8]}";
 
             // Set initial position aligned to the grid
             Position = _gridSystem.GridToWorld(_currentGridPos);

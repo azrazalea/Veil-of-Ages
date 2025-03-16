@@ -33,7 +33,7 @@ public partial class WorldGenerator : Node
     private Node2D _entitiesContainer;
 
     // Random number generator
-    private RandomNumberGenerator _rng = new RandomNumberGenerator();
+    private RandomNumberGenerator _rng = new();
 
     // Terrain tile IDs (these will need to be set based on your actual TileSet)
     [Export]
@@ -41,19 +41,19 @@ public partial class WorldGenerator : Node
 
     // And you need atlas coordinates for each tile type
     [Export]
-    public Vector2I GrassAtlasCoords = new Vector2I(1, 3);
+    public Vector2I GrassAtlasCoords = new(1, 3);
 
     [Export]
     public int DirtSourceId = 0;
 
     [Export]
-    public Vector2I DirtAtlasCoords = new Vector2I(5, 3);
+    public Vector2I DirtAtlasCoords = new(5, 3);
 
     [Export]
     public int WaterSourceId = 1;
 
     [Export]
-    public Vector2I WaterAtlasCoords = new Vector2I(3, 16);
+    public Vector2I WaterAtlasCoords = new(3, 16);
 
     public override void _Ready()
     {
@@ -158,7 +158,7 @@ public partial class WorldGenerator : Node
         int numDirtPatches = _rng.RandiRange(3, 8);
         for (int i = 0; i < numDirtPatches; i++)
         {
-            Vector2I patchCenter = new Vector2I(
+            Vector2I patchCenter = new(
                 _rng.RandiRange(5, _gridSystem.GridSize.X - 5),
                 _rng.RandiRange(5, _gridSystem.GridSize.Y - 5)
             );
@@ -171,7 +171,7 @@ public partial class WorldGenerator : Node
                     // Create a roughly circular patch
                     if (x * x + y * y <= patchSize * patchSize)
                     {
-                        Vector2I pos = new Vector2I(patchCenter.X + x, patchCenter.Y + y);
+                        Vector2I pos = new(patchCenter.X + x, patchCenter.Y + y);
                         if (pos.X >= 0 && pos.X < _gridSystem.GridSize.X &&
                             pos.Y >= 0 && pos.Y < _gridSystem.GridSize.Y)
                         {
@@ -186,7 +186,7 @@ public partial class WorldGenerator : Node
         }
 
         // Add a water feature (small pond or stream)
-        Vector2I waterStart = new Vector2I(
+        Vector2I waterStart = new(
             _rng.RandiRange(15, _gridSystem.GridSize.X - 25),
             _rng.RandiRange(15, _gridSystem.GridSize.Y - 25)
         );
@@ -203,7 +203,7 @@ public partial class WorldGenerator : Node
                 // Create an oval pond
                 if ((x * x) / (float)(pondSize * pondSize) + (y * y) / (float)(pondSize * pondSize) <= 1.0f)
                 {
-                    Vector2I pos = new Vector2I(waterStart.X + x, waterStart.Y + y);
+                    Vector2I pos = new(waterStart.X + x, waterStart.Y + y);
                     if (pos.X >= 0 && pos.X < _gridSystem.GridSize.X &&
                         pos.Y >= 0 && pos.Y < _gridSystem.GridSize.Y)
                     {
@@ -234,14 +234,14 @@ public partial class WorldGenerator : Node
             attempts++;
 
             // Generate random grid position
-            Vector2I gridPos = new Vector2I(
+            Vector2I gridPos = new(
                 _rng.RandiRange(0, _gridSystem.GridSize.X - 5), // Reduced by tree width
                 _rng.RandiRange(0, _gridSystem.GridSize.Y - 6)  // Reduced by tree height
             );
 
             // Create a "temporary" tree to get its size
             Node2D tempTree = TreeScene.Instantiate<Node2D>();
-            Vector2I treeSize = new Vector2I(1, 1); // Default size
+            Vector2I treeSize = new(1, 1); // Default size
 
             if (tempTree is Tree typedTree)
             {
@@ -255,7 +255,7 @@ public partial class WorldGenerator : Node
             {
                 for (int y = 0; y < treeSize.Y && areaIsFree; y++)
                 {
-                    Vector2I checkPos = new Vector2I(gridPos.X + x, gridPos.Y + y);
+                    Vector2I checkPos = new(gridPos.X + x, gridPos.Y + y);
 
                     // Check for occupied cells or water
                     if (_gridSystem.IsCellOccupied(checkPos))
@@ -312,7 +312,7 @@ public partial class WorldGenerator : Node
     private void GenerateVillage()
     {
         // Define building sizes for each building type
-        Dictionary<string, Vector2I> buildingSizes = new Dictionary<string, Vector2I>()
+        Dictionary<string, Vector2I> buildingSizes = new()
     {
         { "House", new Vector2I(2, 2) },
         { "Blacksmith", new Vector2I(3, 2) },
@@ -324,7 +324,7 @@ public partial class WorldGenerator : Node
     };
 
         // Define village center (somewhere near the middle of the map)
-        Vector2I villageCenter = new Vector2I(
+        Vector2I villageCenter = new(
             _gridSystem.GridSize.X / 2,
             _gridSystem.GridSize.Y / 2
         );
@@ -338,7 +338,7 @@ public partial class WorldGenerator : Node
         {
             for (int y = -centralSquareSize; y <= centralSquareSize; y++)
             {
-                Vector2I pos = new Vector2I(villageCenter.X + x, villageCenter.Y + y);
+                Vector2I pos = new(villageCenter.X + x, villageCenter.Y + y);
                 if (pos.X >= 0 && pos.X < _gridSystem.GridSize.X &&
                     pos.Y >= 0 && pos.Y < _gridSystem.GridSize.Y)
                 {
@@ -373,7 +373,7 @@ public partial class WorldGenerator : Node
                 // Adjust distance slightly each attempt
                 int adjustedDistance = distance + attempt * 2;
 
-                Vector2I offset = new Vector2I(
+                Vector2I offset = new(
                     Mathf.RoundToInt(Mathf.Cos(angle) * adjustedDistance),
                     Mathf.RoundToInt(Mathf.Sin(angle) * adjustedDistance)
                 );
@@ -393,7 +393,7 @@ public partial class WorldGenerator : Node
                 {
                     for (int y = 0; y < buildingSize.Y && areaIsFree; y++)
                     {
-                        Vector2I checkPos = new Vector2I(buildingPos.X + x, buildingPos.Y + y);
+                        Vector2I checkPos = new(buildingPos.X + x, buildingPos.Y + y);
 
                         // Check for occupied cells
                         if (_gridSystem.IsCellOccupied(checkPos))
@@ -487,11 +487,11 @@ public partial class WorldGenerator : Node
 
         // Set source and atlas IDs based on your actual decoration tiles
         int decorationSourceId = 0; // This would be your decoration tileset ID
-        Vector2I[] decorationTiles = { new Vector2I(0, 0), new Vector2I(1, 0), new Vector2I(2, 0) }; // Example atlas coords
+        Vector2I[] decorationTiles = { new(0, 0), new(1, 0), new(2, 0) }; // Example atlas coords
 
         for (int i = 0; i < numDecorations; i++)
         {
-            Vector2I gridPos = new Vector2I(
+            Vector2I gridPos = new(
                 _rng.RandiRange(0, _gridSystem.GridSize.X - 1),
                 _rng.RandiRange(0, _gridSystem.GridSize.Y - 1)
             );
@@ -556,16 +556,16 @@ public partial class WorldGenerator : Node
         Vector2I[] possiblePositions = new Vector2I[]
         {
             // Bottom (front) - most likely entrance
-            new Vector2I(buildingPos.X + buildingSize.X / 2, buildingPos.Y + buildingSize.Y + 1),
+            new(buildingPos.X + buildingSize.X / 2, buildingPos.Y + buildingSize.Y + 1),
             
             // Right side
-            new Vector2I(buildingPos.X + buildingSize.X + 1, buildingPos.Y + buildingSize.Y / 2),
+            new(buildingPos.X + buildingSize.X + 1, buildingPos.Y + buildingSize.Y / 2),
             
             // Top
-            new Vector2I(buildingPos.X + buildingSize.X / 2, buildingPos.Y - 1),
+            new(buildingPos.X + buildingSize.X / 2, buildingPos.Y - 1),
             
             // Left side
-            new Vector2I(buildingPos.X - 1, buildingPos.Y + buildingSize.Y / 2)
+            new(buildingPos.X - 1, buildingPos.Y + buildingSize.Y / 2)
         };
 
         // Check each possible position
@@ -589,7 +589,7 @@ public partial class WorldGenerator : Node
                     if (xOffset == -radius || xOffset == buildingSize.X + radius ||
                         yOffset == -radius || yOffset == buildingSize.Y + radius)
                     {
-                        Vector2I pos = new Vector2I(buildingPos.X + xOffset, buildingPos.Y + yOffset);
+                        Vector2I pos = new(buildingPos.X + xOffset, buildingPos.Y + yOffset);
 
                         if (IsValidSpawnPosition(pos))
                         {

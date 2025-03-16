@@ -7,7 +7,7 @@ namespace NecromancerKingdom.Entities.Traits
     public class MindlessTrait : ITrait
     {
         protected Being _owner;
-        private RandomNumberGenerator _rng = new RandomNumberGenerator();
+        private RandomNumberGenerator _rng = new();
 
         // Mindless behavior properties
         public float WanderProbability { get; set; } = 0.2f;

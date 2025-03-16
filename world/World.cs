@@ -21,7 +21,7 @@ public partial class World : Node2D
     public int TileSize = 8;
 
     [Export]
-    public Vector2I WorldSizeInTiles = new Vector2I(100, 100);
+    public Vector2I WorldSizeInTiles = new(100, 100);
 
     public override void _Ready()
     {

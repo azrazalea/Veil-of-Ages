@@ -11,11 +11,11 @@ public partial class Building : Node2D
     public bool CanEnter = true;
 
     [Export]
-    public Vector2I GridSize = new Vector2I(2, 2); // Size in tiles (most buildings are 2x2)
+    public Vector2I GridSize = new(2, 2); // Size in tiles (most buildings are 2x2)
 
     private Vector2I _gridPosition;
     private GridSystem _gridSystem;
-    private Dictionary<string, TileMapLayer> _buildingLayers = new Dictionary<string, TileMapLayer>();
+    private Dictionary<string, TileMapLayer> _buildingLayers = [];
     private TileMapLayer _currentLayer;
 
     // For tracking residents/workers

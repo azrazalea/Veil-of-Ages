@@ -12,13 +12,13 @@ public partial class GridSystem : Node
     public int WorldOffset = 5; // Fix visual difference with grid
 
     [Export]
-    public Vector2I GridSize = new Vector2I(100, 100);
+    public Vector2I GridSize = new(100, 100);
     [Export]
-    public Vector2I WaterAtlasCoords = new Vector2I(3, 16);
+    public Vector2I WaterAtlasCoords = new(3, 16);
 
     // Dictionary to track which grid cells are occupied
     // The bool could be extended to an enum or object to track different types of entities
-    private Dictionary<Vector2I, bool> _occupiedCells = new Dictionary<Vector2I, bool>();
+    private Dictionary<Vector2I, bool> _occupiedCells = [];
 
     public void DebugGridCellStatus(Vector2I gridPos)
     {
@@ -68,7 +68,7 @@ public partial class GridSystem : Node
     // Convert grid coordinates to world position (centered in the tile), accounting for visual offset
     public Vector2 GridToWorld(Vector2I gridPos)
     {
-        Vector2 worldPos = new Vector2(
+        Vector2 worldPos = new(
             gridPos.X * TileSize + TileSize / 2,
             gridPos.Y * TileSize + TileSize / 2
         );
@@ -114,7 +114,7 @@ public partial class GridSystem : Node
         {
             for (int y = 0; y < size.Y; y++)
             {
-                Vector2I gridPos = new Vector2I(baseGridPos.X + x, baseGridPos.Y + y);
+                Vector2I gridPos = new(baseGridPos.X + x, baseGridPos.Y + y);
                 SetCellOccupied(gridPos, occupied);
             }
         }
@@ -135,13 +135,13 @@ public partial class GridSystem : Node
             // Top and bottom rows
             for (int x = -radius; x <= radius; x++)
             {
-                Vector2I topPos = new Vector2I(startPos.X + x, startPos.Y - radius);
+                Vector2I topPos = new(startPos.X + x, startPos.Y - radius);
                 if (!IsCellOccupied(topPos))
                 {
                     return topPos;
                 }
 
-                Vector2I bottomPos = new Vector2I(startPos.X + x, startPos.Y + radius);
+                Vector2I bottomPos = new(startPos.X + x, startPos.Y + radius);
                 if (!IsCellOccupied(bottomPos))
                 {
                     return bottomPos;
@@ -151,13 +151,13 @@ public partial class GridSystem : Node
             // Left and right columns (excluding corners already checked)
             for (int y = -radius + 1; y <= radius - 1; y++)
             {
-                Vector2I leftPos = new Vector2I(startPos.X - radius, startPos.Y + y);
+                Vector2I leftPos = new(startPos.X - radius, startPos.Y + y);
                 if (!IsCellOccupied(leftPos))
                 {
                     return leftPos;
                 }
 
-                Vector2I rightPos = new Vector2I(startPos.X + radius, startPos.Y + y);
+                Vector2I rightPos = new(startPos.X + radius, startPos.Y + y);
                 if (!IsCellOccupied(rightPos))
                 {
                     return rightPos;
@@ -201,7 +201,7 @@ public partial class GridSystem : Node
         {
             for (int x = 0; x < 10; x++)
             {
-                Vector2I pos = new Vector2I(x, y);
+                Vector2I pos = new(x, y);
                 gridString += IsCellOccupied(pos) ? "X " : ". ";
             }
             gridString += "\n";
