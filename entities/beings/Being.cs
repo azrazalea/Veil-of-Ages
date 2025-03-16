@@ -72,7 +72,7 @@ namespace NecromancerKingdom.Entities
             _gridSystem = gridSystem;
             _currentGridPos = startGridPos;
 
-            Name = $"{GetType().Name}{Guid.NewGuid().ToString("N")[..8]}";
+            Name = $"{GetType().Name}-{Guid.NewGuid().ToString("N")[..8]}";
 
             // Set initial position aligned to the grid
             Position = _gridSystem.GridToWorld(_currentGridPos);
