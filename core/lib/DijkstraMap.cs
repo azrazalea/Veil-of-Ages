@@ -46,7 +46,7 @@ namespace NecromancerKingdom.Core.Lib
                     // Find living beings
                     foreach (var entity in _world.GetEntities())
                     {
-                        if (entity is Being being && !being.HasTrait<UndeadTrait>())
+                        if (entity is Being being && !being.selfAsEntity().HasTrait<UndeadTrait>())
                         {
                             _goals.Add(being.GetCurrentGridPosition());
                         }
@@ -57,7 +57,7 @@ namespace NecromancerKingdom.Core.Lib
                     // Invert - undead positions are "anti-goals"
                     foreach (var entity in _world.GetEntities())
                     {
-                        if (entity is Being being && being.HasTrait<UndeadTrait>())
+                        if (entity is Being being && being.selfAsEntity().HasTrait<UndeadTrait>())
                         {
                             // Mark positions around undead
                             var pos = being.GetCurrentGridPosition();

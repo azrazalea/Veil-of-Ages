@@ -25,11 +25,11 @@ namespace NecromancerKingdom.Entities.Beings
             _totalMoveTicks = 10; // Zombies are slow
 
             // Add zombie traits
-            AddTrait<UndeadTrait>();
-            AddTrait<MindlessTrait>();
+            selfAsEntity().AddTrait<UndeadTrait>();
+            selfAsEntity().AddTrait<MindlessTrait>();
 
             // Optional: You can now customize specific settings for each trait
-            if (GetTrait<MindlessTrait>() is MindlessTrait mindlessTrait)
+            if (selfAsEntity().GetTrait<MindlessTrait>() is MindlessTrait mindlessTrait)
             {
                 mindlessTrait.WanderProbability = 0.3f; // Zombies wander more often
                 mindlessTrait.WanderRange = 15f; // And further from spawn

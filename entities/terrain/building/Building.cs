@@ -1,8 +1,9 @@
 using Godot;
-using System;
+using NecromancerKingdom.Entities;
+using NecromancerKingdom.Entities.Sensory;
 using System.Collections.Generic;
 
-public partial class Building : Node2D
+public partial class Building : Node2D, IEntity
 {
     [Export]
     public string BuildingType = "Graveyard";
@@ -14,8 +15,10 @@ public partial class Building : Node2D
     public Vector2I GridSize = new(2, 2); // Size in tiles (most buildings are 2x2)
 
     private Vector2I _gridPosition;
-    private GridSystem _gridSystem;
+    public GridSystem _gridSystem { get; private set; }
+    public List<ITrait> _traits { get; private set; }
     private Dictionary<string, TileMapLayer> _buildingLayers = [];
+    public Dictionary<SenseType, float> DetectionDifficulties { get; protected set; }
     private TileMapLayer _currentLayer;
 
     // For tracking residents/workers
@@ -98,6 +101,14 @@ public partial class Building : Node2D
         _gridSystem.SetMultipleCellsOccupied(_gridPosition, GridSize, true);
     }
 
+    public Vector2I GetGridPosition()
+    {
+        return _gridPosition;
+    }
+    public SensableType GetSensableType()
+    {
+        return SensableType.Building;
+    }
     public override void _ExitTree()
     {
         // When the building is removed, mark its cells as unoccupied (if grid system exists)

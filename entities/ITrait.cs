@@ -8,7 +8,8 @@ namespace NecromancerKingdom.Entities
     public interface ITrait
     {
         // Initialize the trait with its owner
-        void Initialize(Being owner, BodyHealth health);
+        void Initialize(Being owner, BodyHealth health) { }
+        void Initialize(IEntity owner) { }
 
         // Process trait behavior (called every frame/tick)
         void Process(double delta);

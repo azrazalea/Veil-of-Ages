@@ -18,7 +18,7 @@ namespace NecromancerKingdom.Entities
         float Charisma
     );
 
-    public abstract partial class Being : CharacterBody2D
+    public abstract partial class Being : CharacterBody2D, IEntity
     {
         [Export]
         protected uint _totalMoveTicks = 4; // How many ticks it takes to move one tile
@@ -44,7 +44,7 @@ namespace NecromancerKingdom.Entities
         public uint MaxSenseRange = 10;
 
         // Body system
-        protected BodyHealth Health;
+        public BodyHealth Health { get; protected set; }
         protected Dictionary<string, BodyPartGroup> _bodyPartGroups
         {
             get => Health.BodyPartGroups;
@@ -62,10 +62,17 @@ namespace NecromancerKingdom.Entities
         protected Vector2I _currentGridPos;
 
         // Reference to the grid system
-        protected GridSystem _gridSystem;
+        public GridSystem _gridSystem { get; protected set; }
 
         // Trait system
-        protected List<ITrait> _traits = [];
+        public List<ITrait> _traits { get; protected set; } = [];
+        public Dictionary<SenseType, float> DetectionDifficulties { get; protected set; }
+        // Memory system to track what the entity has perceived
+        private Dictionary<Vector2I, Dictionary<string, object>> _memory = new();
+
+        // Track when memory was last updated for each position
+        private Dictionary<Vector2I, uint> _memoryTimestamps = new();
+        protected uint MemoryDuration = 3_000; // Roughly 5 minutes game time
 
         public override void _Ready()
         {
@@ -109,6 +116,21 @@ namespace NecromancerKingdom.Entities
             Health.PrintSystemStatuses();
         }
 
+        // Allows easy calling of Default implemenation methods
+        public IEntity selfAsEntity()
+        {
+            return this;
+        }
+        public Vector2I GetGridPosition()
+        {
+            return _currentGridPos;
+        }
+
+        public SensableType GetSensableType()
+        {
+            return SensableType.Being;
+        }
+
         // Method to handle body structure initialization - can be overridden by subclasses
         protected virtual void InitializeBodyStructure() => Health.InitializeHumanoidBodyStructure();
         protected virtual void InitializeBodySystems() => Health.InitializeBodySystems();
@@ -140,64 +162,159 @@ namespace NecromancerKingdom.Entities
             // Default idle behavior
             return new IdleAction(this);
         }
-
-        // Trait management
-        public void AddTrait<T>() where T : ITrait, new()
+        public virtual int GetSightRange()
         {
-            var trait = new T();
-            _traits.Add(trait);
+            if (!HasSenseType(SenseType.Sight))
+                return 0;
 
-            // If we're already initialized, initialize the trait immediately
-            if (_gridSystem != null)
+            // Base sight range
+            int baseRange = 8;
+
+            // Modify by sight system efficiency
+            float sightEfficiency = Health.GetSystemEfficiency(BodySystemType.Sight);
+
+            // Calculate final range (minimum 1 if has sight)
+            return Math.Max(1, Mathf.RoundToInt(baseRange * sightEfficiency));
+        }
+
+        public virtual bool HasSenseType(SenseType senseType)
+        {
+            switch (senseType)
             {
-                trait.Initialize(this, Health);
+                case SenseType.Sight:
+                    return !Health.BodySystems[BodySystemType.Sight].Disabled;
+
+                case SenseType.Hearing:
+                    return !Health.BodySystems[BodySystemType.Hearing].Disabled;
+
+                case SenseType.Smell:
+                    return !Health.BodySystems[BodySystemType.Smell].Disabled;
+
+                default:
+                    return false;
             }
         }
 
-        public void AddTrait(ITrait trait)
+        public virtual float GetPerceptionLevel(SenseType senseType)
         {
-            _traits.Add(trait);
-
-            // If we're already initialized, initialize the trait immediately
-            if (_gridSystem != null)
-            {
-                trait.Initialize(this, Health);
-            }
+            return 1.0f;
         }
 
-        public T GetTrait<T>() where T : ITrait
+        protected virtual bool IsLOSBlocking(Vector2I position)
         {
-            foreach (var trait in _traits)
+            // Check if the world has terrain that blocks sight at this position
+            var world = GetTree().GetFirstNodeInGroup("World") as World;
+            if (world == null)
+                return false;
+
+            // First check if the cell is occupied (entities block sight)
+            // But we allow seeing the entities themselves
+            if (world.IsCellOccupied(position))
             {
-                if (trait is T typedTrait)
+                // Check if this is an entity or terrain
+                // For now, we'll use a simplified approach:
+                // Check the terrain type at this position
+                var groundLayer = world.GetNode<TileMapLayer>("GroundLayer");
+                if (groundLayer != null)
                 {
-                    return typedTrait;
+                    // Get the tile data at this position
+                    var tileData = groundLayer.GetCellTileData(position);
+
+                    // Check if it's a water tile (special case example)
+                    if (tileData != null && groundLayer.GetCellAtlasCoords(position) == world.GetNode<GridSystem>("GridSystem").WaterAtlasCoords)
+                    {
+                        // Water doesn't block sight
+                        return false;
+                    }
+                }
+
+                // For buildings, walls, trees, etc.
+                // These would block sight, but for now we'll use a simplified check
+                // Are there specific entities at this position that block sight?
+                foreach (var entity in world.GetEntities())
+                {
+                    if (entity.GetCurrentGridPosition() == position)
+                    {
+                        return true;
+                    }
                 }
             }
 
-            return default;
+            // Default: not blocking
+            return false;
         }
 
-        public bool HasTrait<T>() where T : ITrait
+        // Store perception data in memory
+        protected virtual void SetMemory(Vector2 currentPosition, Perception currentPerception)
         {
-            foreach (var trait in _traits)
+            // Store sensed entities in memory
+            foreach (var entityData in currentPerception.GetEntitiesOfType<Being>())
             {
-                if (trait is T)
+                var entity = entityData.entity;
+                var pos = entityData.position;
+
+                // Create or update memory for this position
+                if (!_memory.ContainsKey(pos))
                 {
-                    return true;
+                    _memory[pos] = new Dictionary<string, object>();
+                }
+
+                // Store entity information
+                string entityKey = $"entity_{entity.GetType().Name}";
+                _memory[pos][entityKey] = entity;
+
+                // Update timestamp
+                _memoryTimestamps[pos] = MemoryDuration;
+            }
+
+            // Periodically clean up old memories
+            CleanupOldMemories();
+        }
+
+        // Remove memories that are too old
+        private void CleanupOldMemories()
+        {
+            var posToRemove = new List<Vector2I>();
+
+            foreach (var entry in _memoryTimestamps)
+            {
+                if (entry.Value <= 0)
+                {
+                    _memory.Remove(entry.Key);
+                }
+                else
+                {
+                    _memoryTimestamps[entry.Key]--;
+                }
+            }
+        }
+
+        // Get what the entity remembers about a position
+        public Dictionary<string, object> GetMemoryAt(Vector2I position)
+        {
+            if (_memory.TryGetValue(position, out var memory))
+            {
+                return new Dictionary<string, object>(memory);
+            }
+
+            return new Dictionary<string, object>();
+        }
+
+        // Check if entity has any memory of a specific entity type
+        public bool HasMemoryOfEntityType<T>() where T : Being
+        {
+            foreach (var posMemory in _memory.Values)
+            {
+                foreach (var entry in posMemory)
+                {
+                    if (entry.Key.StartsWith("entity_") && entry.Value is T)
+                    {
+                        return true;
+                    }
                 }
             }
 
             return false;
-        }
-
-        // Event system for traits
-        public void OnTraitEvent(string eventName, params object[] args)
-        {
-            foreach (var trait in _traits)
-            {
-                trait.OnEvent(eventName, args);
-            }
         }
 
         // Get overall health percentage
@@ -492,6 +609,133 @@ namespace NecromancerKingdom.Entities
             }
 
             return true;
+        }
+
+        protected virtual bool CanPerceiveEvent(WorldEvent worldEvent)
+        {
+            // Get distance to event
+            Vector2I myPos = GetCurrentGridPosition();
+            float distance = myPos.DistanceTo(worldEvent.Position);
+
+            // Base detection range is the event radius plus a small buffer
+            float baseDetectionRange = worldEvent.Radius + 1f;
+
+            // Check if event is in range based on event type
+            switch (worldEvent.Type)
+            {
+                case EventType.Visual:
+                    // Visual events require line of sight and sight capability
+                    if (!HasSenseType(SenseType.Sight))
+                        return false;
+
+                    // Check if event is within sight range
+                    if (distance > GetSightRange() + baseDetectionRange)
+                        return false;
+
+                    // Check line of sight to the event's position
+                    if (!HasLineOfSight(worldEvent.Position))
+                        return false;
+
+                    // Higher intensity visual events are more noticeable
+                    float visualDetectionChance = worldEvent.Intensity * GetPerceptionLevel(SenseType.Sight);
+
+                    // Apply distance falloff
+                    visualDetectionChance *= 1.0f - (distance / (GetSightRange() + baseDetectionRange));
+
+                    // Apply trait modifiers
+                    foreach (var trait in _traits)
+                    {
+                        if (trait is Traits.UndeadTrait)
+                        {
+                            // Undead might have worse visual perception
+                            visualDetectionChance *= 0.8f;
+                        }
+                    }
+
+                    // Random chance based on calculated probability
+                    return new RandomNumberGenerator().Randf() < visualDetectionChance;
+
+                case EventType.Sound:
+                    // Sound events don't require line of sight
+                    if (!HasSenseType(SenseType.Hearing))
+                        return false;
+
+                    // Sound range is based on intensity
+                    float soundRange = baseDetectionRange + (worldEvent.Intensity * 15f);
+
+                    // Check if event is within hearing range
+                    if (distance > soundRange)
+                        return false;
+
+                    // Calculate detection chance
+                    float soundDetectionChance = worldEvent.Intensity * GetPerceptionLevel(SenseType.Hearing);
+
+                    // Apply distance falloff (sound drops with square of distance)
+                    soundDetectionChance *= 1.0f - ((distance * distance) / (soundRange * soundRange));
+
+                    // Apply trait modifiers
+                    foreach (var trait in _traits)
+                    {
+                        // Trait-specific modifiers could go here
+                    }
+
+                    // Random chance based on calculated probability
+                    return new RandomNumberGenerator().Randf() < soundDetectionChance;
+
+                case EventType.Smell:
+                    // Smell doesn't require line of sight
+                    if (!HasSenseType(SenseType.Smell))
+                        return false;
+
+                    // Smell range is based on intensity
+                    float smellRange = baseDetectionRange + (worldEvent.Intensity * 8f);
+
+                    // Check if event is within smell range
+                    if (distance > smellRange)
+                        return false;
+
+                    // Calculate detection chance
+                    float smellDetectionChance = worldEvent.Intensity * GetPerceptionLevel(SenseType.Smell);
+
+                    // Apply distance falloff
+                    smellDetectionChance *= 1.0f - (distance / smellRange);
+
+                    // Apply trait modifiers
+                    foreach (var trait in _traits)
+                    {
+                        if (trait is Traits.UndeadTrait)
+                        {
+                            // Undead have heightened sense of smell for certain things
+                            smellDetectionChance *= 1.5f;
+                        }
+                    }
+
+                    // Random chance based on calculated probability
+                    return new RandomNumberGenerator().Randf() < smellDetectionChance;
+
+                case EventType.Environmental:
+                    // Environmental events can be detected by any sense
+                    bool canDetect = false;
+
+                    // Try each sense type
+                    if (HasSenseType(SenseType.Sight) && distance <= GetSightRange())
+                    {
+                        canDetect = true;
+                    }
+                    else if (HasSenseType(SenseType.Hearing) && distance <= baseDetectionRange + (worldEvent.Intensity * 10f))
+                    {
+                        canDetect = true;
+                    }
+                    else if (HasSenseType(SenseType.Smell) && distance <= baseDetectionRange + (worldEvent.Intensity * 5f))
+                    {
+                        canDetect = true;
+                    }
+
+                    return canDetect;
+
+                default:
+                    return false;
+            }
         }
     }
 }

@@ -15,6 +15,8 @@ namespace NecromancerKingdom.Entities.Beings
             4.0f,
             1.0f
         );
+
+
         public override void _Ready()
         {
             base._Ready();
@@ -23,14 +25,14 @@ namespace NecromancerKingdom.Entities.Beings
             _totalMoveTicks = 6; // Skeletons are faster than zombies but slower than living beings
 
             // Add skeleton traits
-            AddTrait<UndeadTrait>();
-            AddTrait<MindlessTrait>();
+            selfAsEntity().AddTrait<UndeadTrait>();
+            selfAsEntity().AddTrait<MindlessTrait>();
 
             // Unlike zombies, skeletons don't have hunger
             // They are animated purely by magic
 
             // Configure mindless trait settings for skeletons
-            if (GetTrait<MindlessTrait>() is MindlessTrait mindlessTrait)
+            if (selfAsEntity().GetTrait<MindlessTrait>() is MindlessTrait mindlessTrait)
             {
                 mindlessTrait.WanderProbability = 0.2f;
                 mindlessTrait.WanderRange = 10f;
@@ -38,7 +40,7 @@ namespace NecromancerKingdom.Entities.Beings
             }
 
             // Configure undead trait specifics for skeletons
-            if (GetTrait<UndeadTrait>() is UndeadTrait undeadTrait)
+            if (selfAsEntity().GetTrait<UndeadTrait>() is UndeadTrait undeadTrait)
             {
                 // Skeletons are more vulnerable to bludgeoning damage
                 // This would be handled if we had a combat system
