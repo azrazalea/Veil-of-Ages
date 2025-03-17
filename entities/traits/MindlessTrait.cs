@@ -1,7 +1,6 @@
 using Godot;
-using System;
-using NecromancerKingdom.Entities;
 using NecromancerKingdom.Entities.Beings.Health;
+using NecromancerKingdom.Entities.Actions;
 
 namespace NecromancerKingdom.Entities.Traits
 {
@@ -13,9 +12,9 @@ namespace NecromancerKingdom.Entities.Traits
         // Mindless behavior properties
         public float WanderProbability { get; set; } = 0.2f;
         public float WanderRange { get; set; } = 10f;
-        public float IdleTime { get; set; } = 2.0f;
+        public uint IdleTime { get; set; } = 10;
 
-        private float _stateTimer = 0f;
+        private uint _stateTimer = 0;
         private Vector2I _spawnGridPos;
         private enum MindlessState { Idle, Wandering }
         private MindlessState _currentState = MindlessState.Idle;
@@ -29,40 +28,43 @@ namespace NecromancerKingdom.Entities.Traits
             // Store spawn position as anchor point
             _spawnGridPos = _owner.GetCurrentGridPosition();
 
+            _currentState = MindlessState.Idle;
             GD.Print($"{_owner.Name}: Mindless trait initialized");
         }
 
         public virtual void Process(double delta)
         {
+
+        }
+        public EntityAction SuggestAction()
+        {
             // Only process AI if movement is complete
             if (_owner.IsMoving())
-                return;
+                return null;
 
-            // Update state timer
-            _stateTimer -= (float)delta;
-
-            switch (_currentState)
+            if (_stateTimer > 0)
             {
-                case MindlessState.Idle:
-                    ProcessIdleState();
-                    break;
-
-                case MindlessState.Wandering:
-                    ProcessWanderingState();
-                    break;
+                _stateTimer--;
             }
+
+            return _currentState switch
+            {
+                MindlessState.Idle => ProcessIdleState(),
+                MindlessState.Wandering => ProcessWanderingState(),
+                _ => new IdleAction(_owner),
+            };
         }
 
-        private void ProcessIdleState()
+        private EntityAction ProcessIdleState()
         {
-            if (_stateTimer <= 0)
+            if (_stateTimer == 0)
             {
                 // Chance to start wandering
                 if (_rng.Randf() < WanderProbability)
                 {
                     _currentState = MindlessState.Wandering;
-                    _stateTimer = _rng.RandfRange(2.0f, 5.0f);
-                    TryToWander();
+                    _stateTimer = (uint)_rng.RandiRange(120, 300);
+                    return TryToWander();
                 }
                 else
                 {
@@ -70,11 +72,13 @@ namespace NecromancerKingdom.Entities.Traits
                     _stateTimer = IdleTime;
                 }
             }
+
+            return new IdleAction(_owner);
         }
 
-        private void ProcessWanderingState()
+        private EntityAction ProcessWanderingState()
         {
-            if (_stateTimer <= 0)
+            if (_stateTimer == 0)
             {
                 // Either continue wandering or return to idle
                 if (_rng.Randf() < 0.3f)
@@ -85,13 +89,15 @@ namespace NecromancerKingdom.Entities.Traits
                 }
                 else
                 {
-                    _stateTimer = _rng.RandfRange(1.0f, 3.0f);
-                    TryToWander();
+                    _stateTimer = (uint)_rng.RandiRange(60, 180);
+                    return TryToWander();
                 }
             }
+
+            return new IdleAction(_owner);
         }
 
-        private void TryToWander()
+        private MoveAction TryToWander()
         {
             // Pick a random direction
             int randomDir = _rng.RandiRange(0, 3);
@@ -145,13 +151,7 @@ namespace NecromancerKingdom.Entities.Traits
             }
 
             // Try to move to the target position
-            if (!_owner.TryMoveToGridPosition(targetGridPos))
-            {
-                // Movement failed, return to idle
-                _currentState = MindlessState.Idle;
-                _stateTimer = IdleTime;
-                _owner.SetDirection(Vector2.Zero);
-            }
+            return new MoveAction(_owner, targetGridPos, 5);
         }
 
         public virtual void OnEvent(string eventName, params object[] args)

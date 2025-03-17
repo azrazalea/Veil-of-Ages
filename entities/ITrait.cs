@@ -14,6 +14,8 @@ namespace NecromancerKingdom.Entities
         void Process(double delta);
 
         // Optional method for handling events
-        void OnEvent(string eventName, params object[] args) { }
+        void OnEvent(string eventName, params object[] args);
+
+        EntityAction SuggestAction();
     }
 }

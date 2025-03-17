@@ -34,7 +34,7 @@ namespace NecromancerKingdom.Entities.Beings
             {
                 mindlessTrait.WanderProbability = 0.2f;
                 mindlessTrait.WanderRange = 10f;
-                mindlessTrait.IdleTime = 3.0f; // Skeletons stand idle longer
+                mindlessTrait.IdleTime = 10; // Skeletons stand idle longer
             }
 
             // Configure undead trait specifics for skeletons

@@ -1,13 +1,45 @@
 using Godot;
-using System;
+using NecromancerKingdom.Entities.Actions;
 
 namespace NecromancerKingdom.Entities
 {
     public partial class Player : Being
     {
         public override BeingAttributes DefaultAttributes { get; } = BaseAttributesSet;
+
+        private EntityAction _nextAction = null;
+
+        public void SetNextAction(EntityAction action)
+        {
+            _nextAction = action;
+        }
+
+        public override EntityAction Think()
+        {
+            // Return the queued action, or default to base behavior
+            if (_nextAction != null)
+            {
+                var action = _nextAction;
+                _nextAction = null;
+                return action;
+            }
+
+            return new IdleAction(this);
+        }
+
+        public Vector2I GetFacingDirection()
+        {
+            // Determine facing direction based on sprite orientation
+            if (_animatedSprite.FlipH)
+                return new Vector2I(-1, 0); // Facing left
+            else
+                return new Vector2I(1, 0);  // Facing right
+        }
+
         public override void _PhysicsProcess(double delta)
         {
+            // Do NOT directly process movement here anymore
+            // Just handle debugging commands or other non-movement functionality
             if (_gridSystem == null)
                 return;
 
@@ -16,52 +48,23 @@ namespace NecromancerKingdom.Entities
                 _gridSystem.DebugGridCellStatus(_currentGridPos);
             }
 
-            // If we're at the target position, check for new input
-            if (_moveProgress >= 1.0f)
-            {
-                _direction = Vector2.Zero;
+            // Update animation state based on movement
+            UpdateAnimation();
 
-                if (Input.IsActionPressed("ui_right"))
-                    _direction = Vector2.Right;
-                else if (Input.IsActionPressed("ui_left"))
-                    _direction = Vector2.Left;
-                else if (Input.IsActionPressed("ui_down"))
-                    _direction = Vector2.Down;
-                else if (Input.IsActionPressed("ui_up"))
-                    _direction = Vector2.Up;
-
-                // If we have a new direction, try to move to the next tile
-                if (_direction != Vector2.Zero)
-                {
-                    Vector2I targetGridPos = _currentGridPos + new Vector2I(
-                        (int)_direction.X,
-                        (int)_direction.Y
-                    );
-
-                    TryMoveToGridPosition(targetGridPos);
-                }
-                else
-                {
-                    _animatedSprite.Play("idle");
-                }
-            }
-
-            // Update position based on movement progress
+            // Update movement position interpolation
             UpdateMovement(delta);
         }
 
-        // Called when the player interacts with objects
-        public void Interact()
+        private void UpdateAnimation()
         {
-            // Get the grid position in front of the player
-            Vector2I interactGridPos = _currentGridPos + new Vector2I(
-                (int)_direction.X,
-                (int)_direction.Y
-            );
-
-            // Check if there's an interactable object at that position
-            // This would be implemented later
-            GD.Print($"Attempting to interact with object at grid position {interactGridPos}");
+            if (IsMoving())
+            {
+                _animatedSprite.Play("walk");
+            }
+            else
+            {
+                _animatedSprite.Play("idle");
+            }
         }
     }
 }

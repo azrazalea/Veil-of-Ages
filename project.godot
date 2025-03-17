@@ -23,6 +23,29 @@ project/assembly_name="New Game Project"
 
 World="The world itself"
 
+[input]
+
+interact={
+"deadzone": 0.2,
+"events": []
+}
+pause_simulation={
+"deadzone": 0.2,
+"events": []
+}
+resume_simulation={
+"deadzone": 0.2,
+"events": []
+}
+speed_up={
+"deadzone": 0.2,
+"events": []
+}
+slow_down={
+"deadzone": 0.2,
+"events": []
+}
+
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0

@@ -2,7 +2,7 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using NecromancerKingdom.Entities;
-using NecromancerKingdom.Entities.Beings;
+using NecromancerKingdom.Core;
 
 public partial class WorldGenerator : Node
 {
@@ -55,8 +55,14 @@ public partial class WorldGenerator : Node
     [Export]
     public Vector2I WaterAtlasCoords = new(3, 16);
 
+
+    private EntityThinkingSystem _entityThinkingSystem;
+
+
     public override void _Ready()
     {
+        _entityThinkingSystem = GetNode<EntityThinkingSystem>("/root/World/EntityThinkingSystem");
+
         _rng.Randomize();
 
         // Find required nodes
@@ -534,6 +540,7 @@ public partial class WorldGenerator : Node
             if (being is Being typedBeing)
             {
                 typedBeing.Initialize(_gridSystem, beingPos);
+                _entityThinkingSystem.RegisterEntity(typedBeing);
                 GD.Print($"Spawned being at {beingPos} near graveyard at {buildingPos}");
             }
             else

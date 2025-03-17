@@ -2,6 +2,7 @@ using Godot;
 using System;
 using NecromancerKingdom.Entities;
 using NecromancerKingdom.Entities.Beings.Health;
+using NecromancerKingdom.Entities.Actions;
 
 namespace NecromancerKingdom.Entities.Traits
 {
@@ -26,7 +27,10 @@ namespace NecromancerKingdom.Entities.Traits
         public virtual void OnEvent(string eventName, params object[] args)
         {
         }
-
+        public EntityAction SuggestAction()
+        {
+            return new IdleAction(_owner);
+        }
         private static void DisableLivingBodySystems(BodyHealth health)
         {
             health.DisableBodySystem(BodySystemType.Breathing);

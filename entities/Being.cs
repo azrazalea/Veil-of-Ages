@@ -2,6 +2,7 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using NecromancerKingdom.Entities.Beings.Health;
+using NecromancerKingdom.Entities.Actions;
 using System.Linq;
 
 namespace NecromancerKingdom.Entities
@@ -107,6 +108,30 @@ namespace NecromancerKingdom.Entities
         protected virtual void InitializeBodyStructure() => Health.InitializeHumanoidBodyStructure();
         protected virtual void InitializeBodySystems() => Health.InitializeBodySystems();
 
+        public virtual EntityAction Think()
+        {
+            // Ask each trait for suggested actions
+            List<EntityAction> possibleActions = [];
+
+            foreach (var trait in _traits)
+            {
+                var suggestedAction = trait.SuggestAction();
+                if (suggestedAction != null)
+                {
+                    possibleActions.Add(suggestedAction);
+                }
+            }
+
+            // Choose the highest priority action or default to idle
+            if (possibleActions.Count > 0)
+            {
+                var action = possibleActions.OrderByDescending(a => a.Priority).First();
+                return action;
+            }
+
+            // Default idle behavior
+            return new IdleAction(this);
+        }
 
         // Trait management
         public void AddTrait<T>() where T : ITrait, new()
