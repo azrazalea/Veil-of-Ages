@@ -27,7 +27,7 @@ namespace NecromancerKingdom.Entities.Traits
         public virtual void OnEvent(string eventName, params object[] args)
         {
         }
-        public EntityAction SuggestAction()
+        public EntityAction SuggestAction(Vector2 currentOwnerPosition)
         {
             return new IdleAction(_owner);
         }

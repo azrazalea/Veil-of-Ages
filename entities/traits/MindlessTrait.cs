@@ -18,6 +18,7 @@ namespace NecromancerKingdom.Entities.Traits
         private Vector2I _spawnGridPos;
         private enum MindlessState { Idle, Wandering }
         private MindlessState _currentState = MindlessState.Idle;
+        private Vector2 CachedOwnerPosition;
 
         public virtual void Initialize(Being owner, BodyHealth health)
         {
@@ -36,11 +37,13 @@ namespace NecromancerKingdom.Entities.Traits
         {
 
         }
-        public EntityAction SuggestAction()
+        public EntityAction SuggestAction(Vector2 currentOwnerPosition)
         {
             // Only process AI if movement is complete
             if (_owner.IsMoving())
                 return null;
+
+            CachedOwnerPosition = currentOwnerPosition;
 
             if (_stateTimer > 0)
             {
@@ -127,7 +130,7 @@ namespace NecromancerKingdom.Entities.Traits
                 Mathf.Abs(distanceFromSpawn.Y) > WanderRange)
             {
                 // Too far from spawn, try to move back toward spawn
-                Vector2 towardSpawn = (_owner.GetGridSystem().GridToWorld(_spawnGridPos) - _owner.Position).Normalized();
+                Vector2 towardSpawn = (_owner.GetGridSystem().GridToWorld(_spawnGridPos) - CachedOwnerPosition).Normalized();
 
                 // Find the cardinal direction closest to the direction to spawn
                 if (Mathf.Abs(towardSpawn.X) > Mathf.Abs(towardSpawn.Y))

@@ -76,7 +76,8 @@ namespace NecromancerKingdom.Core
             // Start thinking tasks for all entities
             foreach (var entity in _entities)
             {
-                tasks.Add(Task.Run(() => ProcessEntityThinking(entity)));
+                var entityPosition = entity.Position;
+                tasks.Add(Task.Run(() => ProcessEntityThinking(entity, entityPosition)));
             }
 
             // Wait for all entities to complete their thinking
@@ -88,7 +89,7 @@ namespace NecromancerKingdom.Core
             _isProcessingTick = false;
         }
 
-        private async Task ProcessEntityThinking(Being entity)
+        private async Task ProcessEntityThinking(Being entity, Vector2 currentPosition)
         {
             // Use semaphore to limit concurrent processing
             await _thinkingSemaphore.WaitAsync();
@@ -96,7 +97,7 @@ namespace NecromancerKingdom.Core
             try
             {
                 // Get the entity's decision
-                var action = entity.Think();
+                var action = entity.Think(currentPosition);
 
                 // Store the action for later execution
                 lock (_lockObject)

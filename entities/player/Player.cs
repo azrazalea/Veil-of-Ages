@@ -14,7 +14,7 @@ namespace NecromancerKingdom.Entities
             _nextAction = action;
         }
 
-        public override EntityAction Think()
+        public override EntityAction Think(Vector2 currentPosition)
         {
             // Return the queued action, or default to base behavior
             if (_nextAction != null)

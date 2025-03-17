@@ -108,14 +108,14 @@ namespace NecromancerKingdom.Entities
         protected virtual void InitializeBodyStructure() => Health.InitializeHumanoidBodyStructure();
         protected virtual void InitializeBodySystems() => Health.InitializeBodySystems();
 
-        public virtual EntityAction Think()
+        public virtual EntityAction Think(Vector2 currentPosition)
         {
             // Ask each trait for suggested actions
             List<EntityAction> possibleActions = [];
 
             foreach (var trait in _traits)
             {
-                var suggestedAction = trait.SuggestAction();
+                var suggestedAction = trait.SuggestAction(currentPosition);
                 if (suggestedAction != null)
                 {
                     possibleActions.Add(suggestedAction);

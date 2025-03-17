@@ -16,6 +16,6 @@ namespace NecromancerKingdom.Entities
         // Optional method for handling events
         void OnEvent(string eventName, params object[] args);
 
-        EntityAction SuggestAction();
+        EntityAction SuggestAction(Vector2 currentOwnerPosition);
     }
 }
