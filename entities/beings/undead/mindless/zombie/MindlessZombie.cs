@@ -22,7 +22,7 @@ namespace NecromancerKingdom.Entities.Beings
             base._Ready();
 
             // Configure zombie specific properties
-            MoveSpeed = 0.5f; // Zombies are slow
+            _totalMoveTicks = 10; // Zombies are slow
 
             // Add zombie traits
             AddTrait<UndeadTrait>();

@@ -11,6 +11,7 @@ namespace NecromancerKingdom.Core
     {
         [Export] public float SimulationTickRate { get; set; } = 10f; // Ticks per second
         [Export] public float TimeScale { get; set; } = 1.0f; // Can be adjusted for speed
+        [Export] public uint MaxPlayerActions { get; set; } = 3;
 
         private float _tickInterval => 1f / SimulationTickRate;
         private float _timeSinceLastTick = 0f;
@@ -82,6 +83,11 @@ namespace NecromancerKingdom.Core
             _pendingPlayerActions.Enqueue(action);
         }
 
+        public bool CanQueuePlayerAction()
+        {
+            return _pendingPlayerActions.Count < MaxPlayerActions;
+        }
+
         // Simulation control
         public void PauseSimulation()
         {
@@ -91,6 +97,11 @@ namespace NecromancerKingdom.Core
         public void ResumeSimulation()
         {
             _simulationPaused = false;
+        }
+
+        public bool SimulationPaused()
+        {
+            return _simulationPaused;
         }
 
         public void SetTimeScale(float scale)

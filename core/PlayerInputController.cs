@@ -21,36 +21,44 @@ namespace NecromancerKingdom.Core
             }
         }
 
-        public override void _Input(InputEvent @event)
+        public override void _PhysicsProcess(double delta)
         {
-            // Skip if simulation is paused
-            if (_gameController == null) return;
+            // Skip if controller or player is not available
+            if (_gameController == null || _player == null) return;
+            if (!CanProcessMovementInput()) return;
+            if (!_gameController.CanQueuePlayerAction()) return;
 
-            // Movement inputs
-            if (@event.IsActionPressed("ui_right"))
+            // Check for held movement keys each frame
+            if (Input.IsActionPressed("ui_right"))
             {
                 Vector2I currentPos = _player.GetCurrentGridPosition();
                 Vector2I targetPos = currentPos + new Vector2I(1, 0);
                 _gameController.QueuePlayerAction(new MoveAction(_player, targetPos));
             }
-            else if (@event.IsActionPressed("ui_left"))
+            else if (Input.IsActionPressed("ui_left"))
             {
                 Vector2I currentPos = _player.GetCurrentGridPosition();
                 Vector2I targetPos = currentPos + new Vector2I(-1, 0);
                 _gameController.QueuePlayerAction(new MoveAction(_player, targetPos));
             }
-            else if (@event.IsActionPressed("ui_down"))
+            else if (Input.IsActionPressed("ui_down"))
             {
                 Vector2I currentPos = _player.GetCurrentGridPosition();
                 Vector2I targetPos = currentPos + new Vector2I(0, 1);
                 _gameController.QueuePlayerAction(new MoveAction(_player, targetPos));
             }
-            else if (@event.IsActionPressed("ui_up"))
+            else if (Input.IsActionPressed("ui_up"))
             {
                 Vector2I currentPos = _player.GetCurrentGridPosition();
                 Vector2I targetPos = currentPos + new Vector2I(0, -1);
                 _gameController.QueuePlayerAction(new MoveAction(_player, targetPos));
             }
+        }
+
+        public override void _Input(InputEvent @event)
+        {
+            // Skip if simulation is paused
+            if (_gameController == null) return;
 
             // Interaction
             else if (@event.IsActionPressed("interact"))
@@ -76,6 +84,11 @@ namespace NecromancerKingdom.Core
             {
                 _gameController.SetTimeScale(_gameController.TimeScale * 0.5f);
             }
+        }
+
+        private bool CanProcessMovementInput()
+        {
+            return !_player.IsMoving();
         }
     }
 }

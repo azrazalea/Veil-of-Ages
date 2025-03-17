@@ -47,24 +47,6 @@ namespace NecromancerKingdom.Entities
             {
                 _gridSystem.DebugGridCellStatus(_currentGridPos);
             }
-
-            // Update animation state based on movement
-            UpdateAnimation();
-
-            // Update movement position interpolation
-            UpdateMovement(delta);
-        }
-
-        private void UpdateAnimation()
-        {
-            if (IsMoving())
-            {
-                _animatedSprite.Play("walk");
-            }
-            else
-            {
-                _animatedSprite.Play("idle");
-            }
         }
     }
 }

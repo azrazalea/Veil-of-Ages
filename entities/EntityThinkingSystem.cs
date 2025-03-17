@@ -125,6 +125,7 @@ namespace NecromancerKingdom.Core
             foreach (var action in _pendingActions)
             {
                 action.Execute();
+                action.Entity.ProcessMovementTick();
             }
         }
 

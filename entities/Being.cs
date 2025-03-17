@@ -20,7 +20,9 @@ namespace NecromancerKingdom.Entities
     public abstract partial class Being : CharacterBody2D
     {
         [Export]
-        public float MoveSpeed = 0.2f; // Time in seconds to move one tile
+        protected uint _totalMoveTicks = 4; // How many ticks it takes to move one tile
+        protected uint _remainingMoveTicks = 0; // Time in seconds to move one tile
+        protected bool _isMoving = false;
 
         /// <summary>
         /// Attributes for a perfectly "average" Being 
@@ -283,7 +285,11 @@ namespace NecromancerKingdom.Entities
                 // Start moving
                 _startPosition = Position;
                 _targetPosition = _gridSystem.GridToWorld(_currentGridPos);
-                _moveProgress = 0.0f;
+                _remainingMoveTicks = _totalMoveTicks;
+                _isMoving = true;
+
+                Vector2 moveDirection = (_targetPosition - _startPosition).Normalized();
+                _direction = moveDirection;
 
                 // Handle animation and facing direction
                 if (_direction.X > 0)
@@ -299,27 +305,36 @@ namespace NecromancerKingdom.Entities
             return false;
         }
 
-        // Update position based on movement progress
-        protected void UpdateMovement(double delta)
+        public void ProcessMovementTick()
         {
-            // If we're moving between tiles
-            if (_moveProgress < 1.0f)
+            if (_isMoving && _remainingMoveTicks > 0)
             {
-                // Update progress
-                _moveProgress += (float)delta / MoveSpeed;
-                _moveProgress = Mathf.Min(_moveProgress, 1.0f);
+                _remainingMoveTicks--;
 
-                // Interpolate position
-                Position = _startPosition.Lerp(_targetPosition, _moveProgress);
-            }
-            else
-            {
-                // If movement complete and no direction, play idle animation
-                if (_direction == Vector2.Zero)
+                // Calculate movement progress
+                float progress = 1.0f - (_remainingMoveTicks / (float)_totalMoveTicks);
+
+                // Update position based on interpolation
+                Position = _startPosition.Lerp(_targetPosition, progress);
+
+                // Check if movement is complete
+                if (_remainingMoveTicks <= 0)
                 {
-                    _animatedSprite.Play("idle");
+                    Position = _targetPosition; // Ensure exact position
+                    _isMoving = false;
+
+                    // If no direction, play idle animation
+                    if (_direction == Vector2.Zero)
+                    {
+                        _animatedSprite.Play("idle");
+                    }
                 }
             }
+        }
+
+        public bool IsMoving()
+        {
+            return _isMoving;
         }
 
         // Set a new direction for the being
@@ -332,12 +347,6 @@ namespace NecromancerKingdom.Entities
         public Vector2I GetCurrentGridPosition()
         {
             return _currentGridPos;
-        }
-
-        // Check if the being is currently moving
-        public bool IsMoving()
-        {
-            return _moveProgress < 1.0f;
         }
 
         // Get the grid system (for traits that need it)
@@ -354,9 +363,6 @@ namespace NecromancerKingdom.Entities
             {
                 trait.Process(delta);
             }
-
-            // Update movement
-            UpdateMovement(delta);
         }
     }
 }

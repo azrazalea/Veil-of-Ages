@@ -20,7 +20,7 @@ namespace NecromancerKingdom.Entities.Beings
             base._Ready();
 
             // Configure skeleton specific properties
-            MoveSpeed = 0.4f; // Skeletons are faster than zombies but slower than living beings
+            _totalMoveTicks = 6; // Skeletons are faster than zombies but slower than living beings
 
             // Add skeleton traits
             AddTrait<UndeadTrait>();
