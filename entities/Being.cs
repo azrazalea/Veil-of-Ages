@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using NecromancerKingdom.Entities.Beings.Health;
 using NecromancerKingdom.Entities.Actions;
 using System.Linq;
+using NecromancerKingdom.Entities.Sensory;
 
 namespace NecromancerKingdom.Entities
 {
@@ -39,6 +40,8 @@ namespace NecromancerKingdom.Entities
         public abstract BeingAttributes DefaultAttributes { get; }
 
         public BeingAttributes Attributes { get; protected set; }
+
+        public uint MaxSenseRange = 10;
 
         // Body system
         protected BodyHealth Health;
@@ -110,14 +113,17 @@ namespace NecromancerKingdom.Entities
         protected virtual void InitializeBodyStructure() => Health.InitializeHumanoidBodyStructure();
         protected virtual void InitializeBodySystems() => Health.InitializeBodySystems();
 
-        public virtual EntityAction Think(Vector2 currentPosition)
+        public virtual EntityAction Think(Vector2 currentPosition, ObservationData observationData)
         {
             // Ask each trait for suggested actions
             List<EntityAction> possibleActions = [];
 
+            var currentPerception = ProcessPerception(observationData);
+            SetMemory(currentPosition, currentPerception);
+
             foreach (var trait in _traits)
             {
-                var suggestedAction = trait.SuggestAction(currentPosition);
+                var suggestedAction = trait.SuggestAction(currentPosition, currentPerception);
                 if (suggestedAction != null)
                 {
                     possibleActions.Add(suggestedAction);
@@ -363,6 +369,129 @@ namespace NecromancerKingdom.Entities
             {
                 trait.Process(delta);
             }
+        }
+        protected virtual Perception ProcessPerception(ObservationData data)
+        {
+            var perception = new Perception();
+
+            // Process grid contents
+            foreach (var pos in data.Grid.GetCoveredPositions())
+            {
+                foreach (var sensable in data.Grid.GetAtPosition(pos))
+                {
+                    // Apply Line of Sight and other filtering
+                    if (CanPerceive(sensable, pos))
+                    {
+                        perception.AddDetectedSensable(sensable, pos);
+                    }
+                }
+            }
+
+            // Process events
+            foreach (var evt in data.Events)
+            {
+                if (CanPerceiveEvent(evt))
+                {
+                    perception.AddPerceivedEvent(evt);
+                }
+            }
+
+            // Process Dijkstra maps (no filtering needed - already relevant)
+            foreach (var map in data.DijkstraMaps)
+            {
+                perception.AddDijkstraMap(map);
+            }
+
+            return perception;
+        }
+
+        // Determines if this entity can perceive a specific sensable
+        protected virtual bool CanPerceive(ISensable sensable, Vector2I position)
+        {
+            // Check sensable type
+            var sensableType = sensable.GetSensableType();
+
+            // Apply different strategies based on sense type
+
+            // Visual perception - requires line of sight
+            if (HasSenseType(SenseType.Sight))
+            {
+                int sightRange = GetSightRange();
+                Vector2I myPos = GetCurrentGridPosition();
+
+                // Check distance
+                int distance = Math.Max(
+                    Math.Abs(position.X - myPos.X),
+                    Math.Abs(position.Y - myPos.Y)
+                );
+
+                if (distance <= sightRange && HasLineOfSight(position))
+                {
+                    // Check detection difficulty
+                    float detectionDifficulty = sensable.GetDetectionDifficulty(SenseType.Sight);
+                    float perceptionLevel = GetPerceptionLevel(SenseType.Sight);
+
+                    if (perceptionLevel >= detectionDifficulty)
+                        return true;
+                }
+            }
+
+            // Hearing - no line of sight needed but affected by distance
+            if (HasSenseType(SenseType.Hearing))
+            {
+                // Similar hearing checks
+            }
+
+            // Smell - affected by wind direction, etc.
+            if (HasSenseType(SenseType.Smell))
+            {
+                // Smell checks
+            }
+
+            return false;
+        }
+
+        // Calculates line of sight using Bresenham's algorithm
+        protected virtual bool HasLineOfSight(Vector2I target)
+        {
+            Vector2I start = GetCurrentGridPosition();
+
+            // Bresenham's line algorithm
+            int x0 = start.X;
+            int y0 = start.Y;
+            int x1 = target.X;
+            int y1 = target.Y;
+
+            int dx = Math.Abs(x1 - x0);
+            int dy = Math.Abs(y1 - y0);
+            int sx = x0 < x1 ? 1 : -1;
+            int sy = y0 < y1 ? 1 : -1;
+            int err = dx - dy;
+
+            while (x0 != x1 || y0 != y1)
+            {
+                int e2 = 2 * err;
+                if (e2 > -dy)
+                {
+                    err -= dy;
+                    x0 += sx;
+                }
+                if (e2 < dx)
+                {
+                    err += dx;
+                    y0 += sy;
+                }
+
+                // Skip starting position
+                if (x0 == start.X && y0 == start.Y)
+                    continue;
+
+                // Check if this position blocks sight
+                if (IsLOSBlocking(new Vector2I(x0, y0)))
+                    return false;
+            }
+
+            return true;
         }
     }
 }

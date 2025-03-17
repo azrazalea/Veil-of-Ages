@@ -19,6 +19,10 @@ config/icon="res://icon.svg"
 
 project/assembly_name="New Game Project"
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
+
 [global_group]
 
 World="The world itself"

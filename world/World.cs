@@ -1,6 +1,7 @@
+using System.Collections.Generic;
 using Godot;
-using System;
 using NecromancerKingdom.Entities;
+using NecromancerKingdom.Entities.Sensory;
 public partial class World : Node2D
 {
     // Layers
@@ -13,6 +14,8 @@ public partial class World : Node2D
 
     // Entities container
     private Node2D _entitiesContainer;
+    private SensorySystem _sensorySystem;
+    private EventSystem _eventSystem;
 
     // References
     private Player _player;
@@ -34,6 +37,9 @@ public partial class World : Node2D
 
         // Get reference to the Player scene instance
         _player = GetNode<Player>("Entities/Player");
+
+        _sensorySystem = new SensorySystem(this);
+        _eventSystem = new EventSystem();
 
         // Initialize grid system with world bounds
         _gridSystem.GridSize = WorldSizeInTiles;
@@ -69,6 +75,14 @@ public partial class World : Node2D
         GD.Print($"Registered {collidableCells.Count} collidable tiles with the grid system");
     }
 
+    public float GetTerrainDifficulty(Vector2I from, Vector2I to)
+    {
+        return 1.0f;
+    }
+
+    public SensorySystem GetSensorySystem() => _sensorySystem;
+    public EventSystem GetEventSystem() => _eventSystem;
+
     // Converts a world position to a grid position
     public Vector2I WorldToGrid(Vector2 worldPosition)
     {
@@ -87,9 +101,25 @@ public partial class World : Node2D
         return _gridSystem.IsCellOccupied(gridPosition);
     }
 
+    public bool IsWalkable(Vector2I gridPosition)
+    {
+        return !_gridSystem.IsCellOccupied(gridPosition);
+    }
+
     // Set a cell as occupied or free in the grid
     public void SetCellOccupied(Vector2I gridPosition, bool occupied)
     {
         _gridSystem.SetCellOccupied(gridPosition, occupied);
+    }
+
+    public List<Being> GetEntities()
+    {
+        var entities = new List<Being>();
+        foreach (Node entity in _entitiesContainer.GetChildren())
+        {
+            if (entity is Being being) entities.Add(being);
+        }
+
+        return entities;
     }
 }

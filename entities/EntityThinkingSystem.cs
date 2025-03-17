@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NecromancerKingdom.Entities;
+using NecromancerKingdom.Entities.Sensory;
 
 namespace NecromancerKingdom.Core
 {
@@ -73,11 +74,14 @@ namespace NecromancerKingdom.Core
 
             var tasks = new List<Task>();
 
+            var world = GetTree().GetFirstNodeInGroup("World") as World;
+            world.GetSensorySystem().PrepareForTick();
             // Start thinking tasks for all entities
             foreach (var entity in _entities)
             {
                 var entityPosition = entity.Position;
-                tasks.Add(Task.Run(() => ProcessEntityThinking(entity, entityPosition)));
+                var currentObservation = world.GetSensorySystem().GetObservationFor(entity);
+                tasks.Add(Task.Run(() => ProcessEntityThinking(entity, entityPosition, currentObservation)));
             }
 
             // Wait for all entities to complete their thinking
@@ -89,7 +93,7 @@ namespace NecromancerKingdom.Core
             _isProcessingTick = false;
         }
 
-        private async Task ProcessEntityThinking(Being entity, Vector2 currentPosition)
+        private async Task ProcessEntityThinking(Being entity, Vector2 currentPosition, ObservationData currentObservation)
         {
             // Use semaphore to limit concurrent processing
             await _thinkingSemaphore.WaitAsync();
@@ -97,7 +101,7 @@ namespace NecromancerKingdom.Core
             try
             {
                 // Get the entity's decision
-                var action = entity.Think(currentPosition);
+                var action = entity.Think(currentPosition, currentObservation);
 
                 // Store the action for later execution
                 lock (_lockObject)

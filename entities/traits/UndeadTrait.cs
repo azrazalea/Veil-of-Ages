@@ -3,6 +3,7 @@ using System;
 using NecromancerKingdom.Entities;
 using NecromancerKingdom.Entities.Beings.Health;
 using NecromancerKingdom.Entities.Actions;
+using NecromancerKingdom.Entities.Sensory;
 
 namespace NecromancerKingdom.Entities.Traits
 {
@@ -27,7 +28,7 @@ namespace NecromancerKingdom.Entities.Traits
         public virtual void OnEvent(string eventName, params object[] args)
         {
         }
-        public EntityAction SuggestAction(Vector2 currentOwnerPosition)
+        public EntityAction SuggestAction(Vector2 currentOwnerPosition, Perception currentPerception)
         {
             return new IdleAction(_owner);
         }

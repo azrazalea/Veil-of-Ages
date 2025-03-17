@@ -1,5 +1,6 @@
 using Godot;
 using NecromancerKingdom.Entities.Actions;
+using NecromancerKingdom.Entities.Sensory;
 
 namespace NecromancerKingdom.Entities
 {
@@ -14,7 +15,7 @@ namespace NecromancerKingdom.Entities
             _nextAction = action;
         }
 
-        public override EntityAction Think(Vector2 currentPosition)
+        public override EntityAction Think(Vector2 currentPosition, ObservationData currentObservation)
         {
             // Return the queued action, or default to base behavior
             if (_nextAction != null)

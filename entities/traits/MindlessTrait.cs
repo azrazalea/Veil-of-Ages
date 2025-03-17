@@ -1,6 +1,7 @@
 using Godot;
 using NecromancerKingdom.Entities.Beings.Health;
 using NecromancerKingdom.Entities.Actions;
+using NecromancerKingdom.Entities.Sensory;
 
 namespace NecromancerKingdom.Entities.Traits
 {
@@ -37,7 +38,7 @@ namespace NecromancerKingdom.Entities.Traits
         {
 
         }
-        public EntityAction SuggestAction(Vector2 currentOwnerPosition)
+        public EntityAction SuggestAction(Vector2 currentOwnerPosition, Perception currentPerception)
         {
             // Only process AI if movement is complete
             if (_owner.IsMoving())

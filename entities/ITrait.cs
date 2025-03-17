@@ -1,6 +1,6 @@
 using Godot;
 using NecromancerKingdom.Entities.Beings.Health;
-using System;
+using NecromancerKingdom.Entities.Sensory;
 
 namespace NecromancerKingdom.Entities
 {
@@ -16,6 +16,6 @@ namespace NecromancerKingdom.Entities
         // Optional method for handling events
         void OnEvent(string eventName, params object[] args);
 
-        EntityAction SuggestAction(Vector2 currentOwnerPosition);
+        EntityAction SuggestAction(Vector2 currentOwnerPosition, Perception currentPerception);
     }
 }
