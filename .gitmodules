@@ -1,0 +1,3 @@
+[submodule "assets/minifantasy"]
+	path = assets/minifantasy
+	url = git@github.com:azrazalea/Veil-of-Ages-Assets.git
