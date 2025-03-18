@@ -1,8 +1,8 @@
 using System.Collections.Generic;
-using NecromancerKingdom.Entities;
-using NecromancerKingdom.Entities.Sensory;
+using VeilOfAges.Entities;
+using VeilOfAges.Entities.Sensory;
 
-namespace NecromancerKingdom.Entities
+namespace VeilOfAges.Entities
 {
     public interface IEntity : ISensable
     {

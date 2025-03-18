@@ -1,6 +1,6 @@
 using Godot;
-using NecromancerKingdom.Entities;
-using NecromancerKingdom.Entities.Sensory;
+using VeilOfAges.Entities;
+using VeilOfAges.Entities.Sensory;
 using System.Collections.Generic;
 
 public partial class Building : Node2D, IEntity

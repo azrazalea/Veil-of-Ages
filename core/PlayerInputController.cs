@@ -1,9 +1,9 @@
 using Godot;
 using System;
-using NecromancerKingdom.Entities.Actions;
-using NecromancerKingdom.Entities;
+using VeilOfAges.Entities.Actions;
+using VeilOfAges.Entities;
 
-namespace NecromancerKingdom.Core
+namespace VeilOfAges.Core
 {
     public partial class PlayerInputController : Node
     {

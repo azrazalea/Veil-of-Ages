@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace NecromancerKingdom.Entities.Beings.Health
+namespace VeilOfAges.Entities.Beings.Health
 {
     public enum BodySystemType
     {

@@ -1,10 +1,10 @@
 using Godot;
 using System.Collections.Generic;
 
-using NecromancerKingdom.Entities;
-using NecromancerKingdom.Entities.Traits;
+using VeilOfAges.Entities;
+using VeilOfAges.Entities.Traits;
 
-namespace NecromancerKingdom.Core.Lib
+namespace VeilOfAges.Core.Lib
 {
     public enum DijkstraGoalType
     {

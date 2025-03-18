@@ -1,7 +1,7 @@
 using Godot;
 using System.Collections.Generic;
 
-namespace NecromancerKingdom.Entities.Sensory
+namespace VeilOfAges.Entities.Sensory
 {
     public enum SensableType
     {

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using NecromancerKingdom.Core.Lib;
+using VeilOfAges.Core.Lib;
 
-namespace NecromancerKingdom.Entities.Sensory
+namespace VeilOfAges.Entities.Sensory
 {
     public class ObservationData
     {

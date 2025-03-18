@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Godot;
-using NecromancerKingdom.Entities;
-using NecromancerKingdom.Entities.Sensory;
+using VeilOfAges.Entities;
+using VeilOfAges.Entities.Sensory;
 public partial class World : Node2D
 {
     // Layers

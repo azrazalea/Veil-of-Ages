@@ -1,8 +1,8 @@
 using Godot;
 using System;
 using System.Collections.Generic;
-using NecromancerKingdom.Entities;
-using NecromancerKingdom.Core;
+using VeilOfAges.Entities;
+using VeilOfAges.Core;
 
 public partial class WorldGenerator : Node
 {

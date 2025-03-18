@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Godot;
 using System.Linq;
 
-namespace NecromancerKingdom.Entities.Beings.Health
+namespace VeilOfAges.Entities.Beings.Health
 {
     public class BodyHealth(Being owner)
     {

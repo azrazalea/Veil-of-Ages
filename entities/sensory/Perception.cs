@@ -1,9 +1,9 @@
 using Godot;
-using NecromancerKingdom.Core.Lib;
+using VeilOfAges.Core.Lib;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace NecromancerKingdom.Entities.Sensory
+namespace VeilOfAges.Entities.Sensory
 {
     // Represents what an entity actually perceives after filtering
     public class Perception

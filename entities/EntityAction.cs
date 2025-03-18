@@ -1,7 +1,7 @@
 using Godot;
 using System;
 
-namespace NecromancerKingdom.Entities
+namespace VeilOfAges.Entities
 {
     public abstract class EntityAction(Being entity, int priority = 0)
     {

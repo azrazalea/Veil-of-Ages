@@ -1,6 +1,6 @@
 using Godot;
 
-namespace NecromancerKingdom.Entities.Actions
+namespace VeilOfAges.Entities.Actions
 {
     public class MoveAction(Being entity, Vector2I targetPosition, int priority = 0) : EntityAction(entity, priority)
     {

@@ -1,6 +1,6 @@
 using Godot;
 
-namespace NecromancerKingdom.Entities.Actions
+namespace VeilOfAges.Entities.Actions
 {
     public class InteractAction : EntityAction
     {

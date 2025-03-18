@@ -1,8 +1,8 @@
 using Godot;
-using NecromancerKingdom.Entities.Beings.Health;
-using NecromancerKingdom.Entities.Sensory;
+using VeilOfAges.Entities.Beings.Health;
+using VeilOfAges.Entities.Sensory;
 
-namespace NecromancerKingdom.Entities
+namespace VeilOfAges.Entities
 {
     // Base interface for all traits
     public interface ITrait

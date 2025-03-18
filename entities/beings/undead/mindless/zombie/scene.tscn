@@ -1,8 +1,8 @@
 [gd_scene load_steps=31 format=3 uid="uid://bjat8y5cn1xb6"]
 
-[ext_resource type="Texture2D" uid="uid://cdutywt00o2n7" path="res://assets/entities/undead/zombie/ZombieIdle.png" id="1_1jdqv"]
+[ext_resource type="Texture2D" uid="uid://cdutywt00o2n7" path="res://assets/minifantasy/entities/undead/zombie/ZombieIdle.png" id="1_1jdqv"]
 [ext_resource type="Script" uid="uid://biyohntoyq1o1" path="res://entities/beings/undead/mindless/zombie/MindlessZombie.cs" id="1_qfcx5"]
-[ext_resource type="Texture2D" uid="uid://3l1ymf2v0eiu" path="res://assets/entities/undead/zombie/ZombieWalk.png" id="2_qfcx5"]
+[ext_resource type="Texture2D" uid="uid://3l1ymf2v0eiu" path="res://assets/minifantasy/entities/undead/zombie/ZombieWalk.png" id="2_qfcx5"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_jftw6"]
 atlas = ExtResource("1_1jdqv")

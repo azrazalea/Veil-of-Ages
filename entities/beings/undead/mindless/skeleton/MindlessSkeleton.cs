@@ -1,8 +1,8 @@
 using System.Linq;
 using Godot;
-using NecromancerKingdom.Entities.Traits;
+using VeilOfAges.Entities.Traits;
 
-namespace NecromancerKingdom.Entities.Beings
+namespace VeilOfAges.Entities.Beings
 {
     public partial class MindlessSkeleton : Being
     {

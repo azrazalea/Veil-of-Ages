@@ -2,7 +2,7 @@ using Godot;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace NecromancerKingdom.Entities.Sensory
+namespace VeilOfAges.Entities.Sensory
 {
     public enum EventType
     {

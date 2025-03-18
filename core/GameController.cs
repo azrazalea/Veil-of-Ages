@@ -2,10 +2,10 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using NecromancerKingdom.Entities.Actions;
-using NecromancerKingdom.Entities;
+using VeilOfAges.Entities.Actions;
+using VeilOfAges.Entities;
 
-namespace NecromancerKingdom.Core
+namespace VeilOfAges.Core
 {
     public partial class GameController : Node
     {

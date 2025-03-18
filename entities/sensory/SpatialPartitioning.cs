@@ -2,7 +2,7 @@ using Godot;
 using System;
 using System.Collections.Generic;
 
-namespace NecromancerKingdom.Entities.Sensory
+namespace VeilOfAges.Entities.Sensory
 {
     // Efficient spatial lookup system
     public class SpatialPartitioning

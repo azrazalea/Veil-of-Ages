@@ -1,8 +1,8 @@
 using Godot;
-using NecromancerKingdom.Entities.Actions;
-using NecromancerKingdom.Entities.Sensory;
+using VeilOfAges.Entities.Actions;
+using VeilOfAges.Entities.Sensory;
 
-namespace NecromancerKingdom.Entities
+namespace VeilOfAges.Entities
 {
     public partial class Player : Being
     {

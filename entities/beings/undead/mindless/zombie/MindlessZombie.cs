@@ -1,10 +1,10 @@
 using Godot;
 using System;
 using System.Collections.Generic;
-using NecromancerKingdom.Entities.Traits;
+using VeilOfAges.Entities.Traits;
 using System.Linq;
 
-namespace NecromancerKingdom.Entities.Beings
+namespace VeilOfAges.Entities.Beings
 {
     public partial class MindlessZombie : Being
     {

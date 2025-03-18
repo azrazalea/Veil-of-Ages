@@ -1,10 +1,10 @@
-using NecromancerKingdom.Core.Lib;
+using VeilOfAges.Core.Lib;
 using System.Collections.Generic;
-using NecromancerKingdom.Entities.Beings;
-using NecromancerKingdom.Entities.Traits;
+using VeilOfAges.Entities.Beings;
+using VeilOfAges.Entities.Traits;
 using Godot;
 
-namespace NecromancerKingdom.Entities.Sensory
+namespace VeilOfAges.Entities.Sensory
 {
     public class SensorySystem
     {

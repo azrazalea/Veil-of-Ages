@@ -1,12 +1,12 @@
 using Godot;
 using System;
 using System.Collections.Generic;
-using NecromancerKingdom.Entities.Beings.Health;
-using NecromancerKingdom.Entities.Actions;
+using VeilOfAges.Entities.Beings.Health;
+using VeilOfAges.Entities.Actions;
 using System.Linq;
-using NecromancerKingdom.Entities.Sensory;
+using VeilOfAges.Entities.Sensory;
 
-namespace NecromancerKingdom.Entities
+namespace VeilOfAges.Entities
 {
     public record BeingAttributes(
         float Strength,

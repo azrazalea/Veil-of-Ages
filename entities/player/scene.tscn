@@ -1,8 +1,8 @@
 [gd_scene load_steps=17 format=3 uid="uid://cljvkvv6tomyu"]
 
 [ext_resource type="Script" uid="uid://b1d2etawohilo" path="res://entities/player/Player.cs" id="1_yttx2"]
-[ext_resource type="Texture2D" uid="uid://ce8xwnc3o6cjt" path="res://assets/entities/necromancer/Necromancer_Idle.png" id="2_b2xe3"]
-[ext_resource type="Texture2D" uid="uid://bovgook4t4sw" path="res://assets/entities/necromancer/Necromancer_Walk.png" id="3_d75gg"]
+[ext_resource type="Texture2D" uid="uid://ce8xwnc3o6cjt" path="res://assets/minifantasy/entities/necromancer/Necromancer_Idle.png" id="2_b2xe3"]
+[ext_resource type="Texture2D" uid="uid://bovgook4t4sw" path="res://assets/minifantasy/entities/necromancer/Necromancer_Walk.png" id="3_d75gg"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_bkysp"]
 atlas = ExtResource("2_b2xe3")

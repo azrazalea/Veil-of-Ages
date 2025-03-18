@@ -3,10 +3,10 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using NecromancerKingdom.Entities;
-using NecromancerKingdom.Entities.Sensory;
+using VeilOfAges.Entities;
+using VeilOfAges.Entities.Sensory;
 
-namespace NecromancerKingdom.Core
+namespace VeilOfAges.Core
 {
     public partial class EntityThinkingSystem : Node
     {

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System;
 using Godot;
 
-namespace NecromancerKingdom.Entities.Sensory
+namespace VeilOfAges.Entities.Sensory
 {
     public class ObservationGrid
     {

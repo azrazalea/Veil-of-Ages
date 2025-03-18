@@ -1,6 +1,6 @@
 ﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Necromancer Kingdom", "Necromancer Kingdom.csproj", "{80F0A0CC-9731-4C1B-91B4-D3B07CA6E2BF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Veil of Ages", "Veil of Ages.csproj", "{80F0A0CC-9731-4C1B-91B4-D3B07CA6E2BF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

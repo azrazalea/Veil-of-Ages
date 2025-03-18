@@ -1,11 +1,11 @@
 using Godot;
 using System;
-using NecromancerKingdom.Entities;
-using NecromancerKingdom.Entities.Beings.Health;
-using NecromancerKingdom.Entities.Actions;
-using NecromancerKingdom.Entities.Sensory;
+using VeilOfAges.Entities;
+using VeilOfAges.Entities.Beings.Health;
+using VeilOfAges.Entities.Actions;
+using VeilOfAges.Entities.Sensory;
 
-namespace NecromancerKingdom.Entities.Traits
+namespace VeilOfAges.Entities.Traits
 {
     public class UndeadTrait : ITrait
     {
