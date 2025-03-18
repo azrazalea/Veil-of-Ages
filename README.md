@@ -97,7 +97,7 @@ Contributions are welcome! Please note:
 
 ## 📜 License
 
-- **Code**: Licensed under [GNU AGPL-3.0](LICENSE.code)
+- **Code**: Licensed under [GNU AGPL-3.0](LICENSE.code.md)
 - **Assets**: Not included in the public repository. The Minifantasy assets used in development are licensed separately and are not redistributable.
 
 ## 📬 Contact
