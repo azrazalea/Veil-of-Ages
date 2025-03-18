@@ -17,11 +17,11 @@ config/icon="res://icon.svg"
 
 [dotnet]
 
-project/assembly_name="New Game Project"
+project/assembly_name="Veil of Ages"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
+enabled=PackedStringArray()
 
 [global_group]
 
