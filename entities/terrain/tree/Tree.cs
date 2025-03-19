@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using VeilOfAges;
 
 public partial class Tree : Node2D
 {
@@ -7,51 +8,41 @@ public partial class Tree : Node2D
     public Vector2I GridSize = new(5, 6); // Size in tiles (most trees are 1x1)
 
     private Vector2I _gridPosition;
-    private GridSystem _gridSystem;
+    private VeilOfAges.Grid.Area GridArea;
 
     public override void _Ready()
     {
         // Find the grid system
-        var world = GetTree().GetFirstNodeInGroup("World") as World;
-        if (world != null)
+        if (GetTree().GetFirstNodeInGroup("World") is not World world)
         {
-            _gridSystem = world.GetNode<GridSystem>("GridSystem");
-        }
-        else
-        {
-            GD.PrintErr("Tree: Could not find World node with GridSystem!");
+            GD.PrintErr("Building: Could not find World node with GridSystem!");
             return;
         }
 
         // Get grid position
-        _gridPosition = _gridSystem.WorldToGrid(GlobalPosition);
+        _gridPosition = VeilOfAges.Grid.Utils.WorldToGrid(GlobalPosition);
 
         // Snap to grid
-        GlobalPosition = _gridSystem.GridToWorld(_gridPosition);
-
-        // Mark the grid cells as occupied
-        _gridSystem.SetMultipleCellsOccupied(_gridPosition, GridSize, true);
-
-        GD.Print($"Tree registered at grid position {_gridPosition}");
+        GlobalPosition = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
     }
 
     // Initialize with an external grid system (useful for programmatic placement)
-    public void Initialize(GridSystem gridSystem, Vector2I gridPos)
+    public void Initialize(VeilOfAges.Grid.Area gridArea, Vector2I gridPos)
     {
-        _gridSystem = gridSystem;
+        GridArea = gridArea;
         _gridPosition = gridPos;
 
-        // Update the actual position
-        GlobalPosition = _gridSystem.GridToWorld(_gridPosition);
+        // Get grid position
+        _gridPosition = VeilOfAges.Grid.Utils.WorldToGrid(GlobalPosition);
 
-        // Register with the grid system
-        _gridSystem.SetMultipleCellsOccupied(_gridPosition, GridSize, true);
+        // Snap to grid
+        GlobalPosition = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
     }
 
     public override void _ExitTree()
     {
         // When the tree is removed, mark its cells as unoccupied (if grid system exists)
-        _gridSystem?.SetMultipleCellsOccupied(_gridPosition, GridSize, false);
+        GridArea?.RemoveEntity(_gridPosition, GridSize);
     }
 
     // Method for when player interacts with tree

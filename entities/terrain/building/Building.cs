@@ -2,6 +2,7 @@ using Godot;
 using VeilOfAges.Entities;
 using VeilOfAges.Entities.Sensory;
 using System.Collections.Generic;
+using VeilOfAges;
 
 public partial class Building : Node2D, IEntity
 {
@@ -15,7 +16,7 @@ public partial class Building : Node2D, IEntity
     public Vector2I GridSize = new(2, 2); // Size in tiles (most buildings are 2x2)
 
     private Vector2I _gridPosition;
-    public GridSystem _gridSystem { get; private set; }
+    public VeilOfAges.Grid.Area GridArea { get; private set; }
     public List<ITrait> _traits { get; private set; }
     private Dictionary<string, TileMapLayer> _buildingLayers = [];
     public Dictionary<SenseType, float> DetectionDifficulties { get; protected set; }
@@ -28,12 +29,7 @@ public partial class Building : Node2D, IEntity
     public override void _Ready()
     {
         // Find the grid system
-        var world = GetTree().GetFirstNodeInGroup("World") as World;
-        if (world != null)
-        {
-            _gridSystem = world.GetNode<GridSystem>("GridSystem");
-        }
-        else
+        if (GetTree().GetFirstNodeInGroup("World") is not World world)
         {
             GD.PrintErr("Building: Could not find World node with GridSystem!");
             return;
@@ -52,24 +48,21 @@ public partial class Building : Node2D, IEntity
         }
 
         // Get grid position
-        _gridPosition = _gridSystem.WorldToGrid(GlobalPosition);
+        _gridPosition = VeilOfAges.Grid.Utils.WorldToGrid(GlobalPosition);
 
         // Snap to grid
-        GlobalPosition = _gridSystem.GridToWorld(_gridPosition);
+        GlobalPosition = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
 
         // Configure building properties based on type
         ConfigureBuildingType();
-
-        // Mark the grid cells as occupied
-        _gridSystem.SetMultipleCellsOccupied(_gridPosition, GridSize, true);
 
         GD.Print($"{BuildingType} registered at grid position {_gridPosition}");
     }
 
     // Initialize with an external grid system (useful for programmatic placement)
-    public void Initialize(GridSystem gridSystem, Vector2I gridPos, string type = "")
+    public void Initialize(VeilOfAges.Grid.Area gridArea, Vector2I gridPos, string type = "")
     {
-        _gridSystem = gridSystem;
+        GridArea = gridArea;
         _gridPosition = gridPos;
 
         if (!string.IsNullOrEmpty(type))
@@ -95,10 +88,7 @@ public partial class Building : Node2D, IEntity
         ConfigureBuildingType();
 
         // Update the actual position
-        GlobalPosition = _gridSystem.GridToWorld(_gridPosition);
-
-        // Register with the grid system
-        _gridSystem.SetMultipleCellsOccupied(_gridPosition, GridSize, true);
+        GlobalPosition = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
     }
 
     public Vector2I GetGridPosition()
@@ -112,7 +102,7 @@ public partial class Building : Node2D, IEntity
     public override void _ExitTree()
     {
         // When the building is removed, mark its cells as unoccupied (if grid system exists)
-        _gridSystem?.SetMultipleCellsOccupied(_gridPosition, GridSize, false);
+        GridArea.RemoveEntity(_gridPosition, GridSize);
     }
 
     // Method for when player interacts with building

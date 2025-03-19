@@ -2,124 +2,95 @@ using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Entities;
 using VeilOfAges.Entities.Sensory;
-public partial class World : Node2D
+
+namespace VeilOfAges
 {
-    // Layers
-    private TileMapLayer _groundLayer;
-    private TileMapLayer _objectsLayer;
-    private TileMapLayer _entitiesLayer;
-
-    // The grid system
-    private GridSystem _gridSystem;
-
-    // Entities container
-    private Node2D _entitiesContainer;
-    private SensorySystem _sensorySystem;
-    private EventSystem _eventSystem;
-
-    // References
-    private Player _player;
-
-    [Export]
-    public int TileSize = 8;
-
-    [Export]
-    public Vector2I WorldSizeInTiles = new(100, 100);
-
-    public override void _Ready()
+    public partial class World : Node2D
     {
-        // Get references to nodes
-        _groundLayer = GetNode<TileMapLayer>("GroundLayer");
-        _objectsLayer = GetNode<TileMapLayer>("ObjectsLayer");
-        _entitiesLayer = GetNode<TileMapLayer>("EntitiesLayer");
-        _entitiesContainer = GetNode<Node2D>("Entities");
-        _gridSystem = GetNode<GridSystem>("GridSystem");
+        // Global world properties
+        [Export] public int WorldSeed { get; set; } = 0;
+        [Export] public float GlobalTimeScale { get; set; } = 1.0f;
+        [Export]
+        public bool GenerateOnReady = true;
+        public Grid.Area ActiveGridArea;
+        private List<Grid.Area> _gridAreas = [];
 
-        // Get reference to the Player scene instance
-        _player = GetNode<Player>("Entities/Player");
+        // Entities container
+        private Node2D _entitiesContainer;
+        private WorldGenerator _worldGenerator;
+        private SensorySystem _sensorySystem;
+        private EventSystem _eventSystem;
 
-        _sensorySystem = new SensorySystem(this);
-        _eventSystem = new EventSystem();
+        // References
+        private Player _player;
 
-        // Initialize grid system with world bounds
-        _gridSystem.GridSize = WorldSizeInTiles;
-        _gridSystem.TileSize = TileSize;
+        [Export]
+        public Vector2I WorldSizeInTiles = new(100, 100);
 
-        // For debugging - register occupied cells from collidable tiles
-        RegisterCollidableTiles();
-
-        // Register the player with the grid system
-        if (_player != null)
+        public override void _Ready()
         {
-            Vector2I playerGridPos = _gridSystem.WorldToGrid(_player.Position);
-            _player.Initialize(_gridSystem, playerGridPos);
-        }
-        else
-        {
-            GD.PrintErr("Player node not found! Make sure you've instanced Player.tscn as a child of Entities.");
-        }
-    }
+            // Get references to nodes
+            _entitiesContainer = GetNode<Node2D>("Entities");
+            _worldGenerator = GetNode<WorldGenerator>("WorldGenerator");
+            var gridAreasContainer = GetNode<Node>("GridAreas");
 
-    // Register all collidable tiles with the grid system
-    private void RegisterCollidableTiles()
-    {
-        // Get all used cells from the collidables layer
-        var collidableCells = _entitiesLayer.GetUsedCells();
+            // Initialize grid system with world bounds
+            ActiveGridArea = new Grid.Area(WorldSizeInTiles);
+            _gridAreas.Add(ActiveGridArea);
+            gridAreasContainer.AddChild(ActiveGridArea);
 
-        // Mark each as occupied in the grid system
-        foreach (Vector2I cellPos in collidableCells)
-        {
-            _gridSystem.SetCellOccupied(cellPos, true);
+            // Get reference to the Player scene instance
+            _player = GetNode<Player>("Entities/Player");
+
+            _sensorySystem = new SensorySystem(this);
+            _eventSystem = new EventSystem();
+
+            // Register the player with the grid system
+            if (_player != null)
+            {
+                Vector2I playerGridPos = Grid.Utils.WorldToGrid(_player.Position);
+                _player.Initialize(ActiveGridArea, playerGridPos);
+                ActiveGridArea.MakePlayerArea(_player, playerGridPos);
+            }
+            else
+            {
+                GD.PrintErr("Player node not found! Make sure you've instanced Player.tscn as a child of Entities.");
+            }
+            if (GenerateOnReady)
+            {
+                _worldGenerator.CallDeferred(WorldGenerator.MethodName.Generate, this);
+            }
         }
 
-        GD.Print($"Registered {collidableCells.Count} collidable tiles with the grid system");
-    }
-
-    public float GetTerrainDifficulty(Vector2I from, Vector2I to)
-    {
-        return 1.0f;
-    }
-
-    public SensorySystem GetSensorySystem() => _sensorySystem;
-    public EventSystem GetEventSystem() => _eventSystem;
-
-    // Converts a world position to a grid position
-    public Vector2I WorldToGrid(Vector2 worldPosition)
-    {
-        return _gridSystem.WorldToGrid(worldPosition);
-    }
-
-    // Converts a grid position to a world position
-    public Vector2 GridToWorld(Vector2I gridPosition)
-    {
-        return _gridSystem.GridToWorld(gridPosition);
-    }
-
-    // Check if a grid cell is occupied
-    public bool IsCellOccupied(Vector2I gridPosition)
-    {
-        return _gridSystem.IsCellOccupied(gridPosition);
-    }
-
-    public bool IsWalkable(Vector2I gridPosition)
-    {
-        return !_gridSystem.IsCellOccupied(gridPosition);
-    }
-
-    // Set a cell as occupied or free in the grid
-    public void SetCellOccupied(Vector2I gridPosition, bool occupied)
-    {
-        _gridSystem.SetCellOccupied(gridPosition, occupied);
-    }
-
-    public List<Being> GetEntities()
-    {
-        var entities = new List<Being>();
-        foreach (Node entity in _entitiesContainer.GetChildren())
+        public float GetTerrainDifficulty(Vector2I from, Vector2I to)
         {
-            if (entity is Being being) entities.Add(being);
+            return 1.0f;
         }
 
-        return entities;
+        public SensorySystem GetSensorySystem() => _sensorySystem;
+        public EventSystem GetEventSystem() => _eventSystem;
+
+        // Converts a world position to a grid position
+        public Vector2I WorldToGrid(Vector2 worldPosition)
+        {
+            return Grid.Utils.WorldToGrid(worldPosition);
+        }
+
+        // Converts a grid position to a world position
+        public Vector2 GridToWorld(Vector2I gridPosition)
+        {
+            return Grid.Utils.GridToWorld(gridPosition);
+        }
+
+        public List<Being> GetEntities()
+        {
+            var entities = new List<Being>();
+            foreach (Node entity in _entitiesContainer.GetChildren())
+            {
+                if (entity is Being being) entities.Add(being);
+            }
+
+            return entities;
+        }
     }
 }

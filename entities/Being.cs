@@ -5,6 +5,7 @@ using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Actions;
 using System.Linq;
 using VeilOfAges.Entities.Sensory;
+using VeilOfAges.Grid;
 
 namespace VeilOfAges.Entities
 {
@@ -62,7 +63,7 @@ namespace VeilOfAges.Entities
         protected Vector2I _currentGridPos;
 
         // Reference to the grid system
-        public GridSystem _gridSystem { get; protected set; }
+        public Grid.Area GridArea { get; protected set; }
 
         // Trait system
         public List<ITrait> _traits { get; protected set; } = [];
@@ -80,20 +81,20 @@ namespace VeilOfAges.Entities
             _animatedSprite.Play("idle");
         }
 
-        public virtual void Initialize(GridSystem gridSystem, Vector2I startGridPos, BeingAttributes attributes = null)
+        public virtual void Initialize(Grid.Area gridArea, Vector2I startGridPos, BeingAttributes attributes = null)
         {
-            _gridSystem = gridSystem;
+            GridArea = gridArea;
             _currentGridPos = startGridPos;
 
             Name = $"{GetType().Name}-{Guid.NewGuid().ToString("N")[..8]}";
 
             // Set initial position aligned to the grid
-            Position = _gridSystem.GridToWorld(_currentGridPos);
+            Position = Grid.Utils.GridToWorld(_currentGridPos);
             _targetPosition = Position;
             _startPosition = Position;
 
             // Mark being's initial position as occupied
-            _gridSystem.SetCellOccupied(_currentGridPos, true);
+            GridArea.AddEntity(_currentGridPos, this);
 
             // Set attributes if provided
             Attributes = attributes ?? DefaultAttributes;
@@ -209,36 +210,36 @@ namespace VeilOfAges.Entities
 
             // First check if the cell is occupied (entities block sight)
             // But we allow seeing the entities themselves
-            if (world.IsCellOccupied(position))
-            {
-                // Check if this is an entity or terrain
-                // For now, we'll use a simplified approach:
-                // Check the terrain type at this position
-                var groundLayer = world.GetNode<TileMapLayer>("GroundLayer");
-                if (groundLayer != null)
-                {
-                    // Get the tile data at this position
-                    var tileData = groundLayer.GetCellTileData(position);
+            // if (world.IsCellOccupied(position))
+            // {
+            //     // Check if this is an entity or terrain
+            //     // For now, we'll use a simplified approach:
+            //     // Check the terrain type at this position
+            //     var groundLayer = world.GetNode<TileMapLayer>("GroundLayer");
+            //     if (groundLayer != null)
+            //     {
+            //         // Get the tile data at this position
+            //         var tileData = groundLayer.GetCellTileData(position);
 
-                    // Check if it's a water tile (special case example)
-                    if (tileData != null && groundLayer.GetCellAtlasCoords(position) == world.GetNode<GridSystem>("GridSystem").WaterAtlasCoords)
-                    {
-                        // Water doesn't block sight
-                        return false;
-                    }
-                }
+            //         // Check if it's a water tile (special case example)
+            //         if (tileData != null && groundLayer.GetCellAtlasCoords(position) == Grid.Utils.WaterAtlasCoords)
+            //         {
+            //             // Water doesn't block sight
+            //             return false;
+            //         }
+            //     }
 
-                // For buildings, walls, trees, etc.
-                // These would block sight, but for now we'll use a simplified check
-                // Are there specific entities at this position that block sight?
-                foreach (var entity in world.GetEntities())
-                {
-                    if (entity.GetCurrentGridPosition() == position)
-                    {
-                        return true;
-                    }
-                }
-            }
+            //     // For buildings, walls, trees, etc.
+            //     // These would block sight, but for now we'll use a simplified check
+            //     // Are there specific entities at this position that block sight?
+            //     foreach (var entity in world.GetEntities())
+            //     {
+            //         if (entity.GetCurrentGridPosition() == position)
+            //         {
+            //             return true;
+            //         }
+            //     }
+            // }
 
             // Default: not blocking
             return false;
@@ -394,20 +395,20 @@ namespace VeilOfAges.Entities
         public bool TryMoveToGridPosition(Vector2I targetGridPos)
         {
             // Check if the target cell is free
-            if (!_gridSystem.IsCellOccupied(targetGridPos))
+            if (GridArea.IsCellWalkable(targetGridPos))
             {
                 // Free the current cell
-                _gridSystem.SetCellOccupied(_currentGridPos, false);
+                GridArea.RemoveEntity(_currentGridPos);
 
                 // Update current grid position
                 _currentGridPos = targetGridPos;
 
                 // Mark new cell as occupied
-                _gridSystem.SetCellOccupied(_currentGridPos, true);
+                GridArea.AddEntity(_currentGridPos, this);
 
                 // Start moving
                 _startPosition = Position;
-                _targetPosition = _gridSystem.GridToWorld(_currentGridPos);
+                _targetPosition = Grid.Utils.GridToWorld(_currentGridPos);
                 _remainingMoveTicks = _totalMoveTicks;
                 _isMoving = true;
 
@@ -472,10 +473,10 @@ namespace VeilOfAges.Entities
             return _currentGridPos;
         }
 
-        // Get the grid system (for traits that need it)
-        public GridSystem GetGridSystem()
+        // Get the grid area (for traits that need it)
+        public Grid.Area GetGridArea()
         {
-            return _gridSystem;
+            return GridArea;
         }
 
         // Process traits in the physics update

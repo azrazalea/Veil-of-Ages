@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using VeilOfAges.Entities;
 using VeilOfAges.Core;
+using VeilOfAges;
 
 public partial class WorldGenerator : Node
 {
@@ -16,21 +17,12 @@ public partial class WorldGenerator : Node
     public int NumberOfTrees = 20;
 
     [Export]
-    public bool GenerateOnReady = true;
-
-    [Export]
     public PackedScene SkeletonScene;
     [Export]
     public PackedScene ZombieScene;
 
-    // References to TileMapLayers
-    private TileMapLayer _groundLayer;
-    private TileMapLayer _objectsLayer;
-    private TileMapLayer _entitiesLayer;
-
-    // Reference to the grid system and entities container
-    private GridSystem _gridSystem;
     private Node2D _entitiesContainer;
+    private VeilOfAges.Grid.Area _activeGridArea;
 
     // Random number generator
     private RandomNumberGenerator _rng = new();
@@ -58,45 +50,21 @@ public partial class WorldGenerator : Node
 
     private EntityThinkingSystem _entityThinkingSystem;
 
-
-    public override void _Ready()
+    // Main generation method
+    public void Generate(World world)
     {
         _entityThinkingSystem = GetNode<EntityThinkingSystem>("/root/World/EntityThinkingSystem");
-
         _rng.Randomize();
 
-        // Find required nodes
-        var world = GetTree().GetFirstNodeInGroup("World") as World;
-        if (world == null)
-        {
-            GD.PrintErr("WorldGenerator: Could not find World node!");
-            return;
-        }
-
-        _groundLayer = world.GetNode<TileMapLayer>("GroundLayer");
-        _objectsLayer = world.GetNode<TileMapLayer>("ObjectsLayer");
-        _entitiesLayer = world.GetNode<TileMapLayer>("EntitiesLayer");
-        _gridSystem = world.GetNode<GridSystem>("GridSystem");
+        _activeGridArea = world.ActiveGridArea;
         _entitiesContainer = world.GetNode<Node2D>("Entities");
 
         // Ensure we have all required nodes
-        if (_groundLayer == null || _gridSystem == null || _entitiesContainer == null)
+        if (_entitiesContainer == null)
         {
             GD.PrintErr("WorldGenerator: Missing required nodes!");
             return;
         }
-
-        if (GenerateOnReady)
-        {
-            Generate();
-        }
-    }
-
-    // Main generation method
-    public void Generate()
-    {
-        // Clear existing world
-        ClearWorld();
 
         // Generate terrain
         GenerateTerrain();
@@ -117,46 +85,15 @@ public partial class WorldGenerator : Node
         // GenerateDecorations();
     }
 
-    // Clear the existing world
-    private void ClearWorld()
-    {
-        // Clear the TileMapLayers
-        _groundLayer.Clear();
-        _objectsLayer.Clear();
-        _entitiesLayer.Clear();
-
-        // Remove all entities except the player
-        foreach (Node child in _entitiesContainer.GetChildren())
-        {
-            if (child is Player)
-            {
-                continue; // Don't remove the player
-            }
-            child.QueueFree();
-        }
-
-        // Reset the grid system
-        for (int x = 0; x < _gridSystem.GridSize.X; x++)
-        {
-            for (int y = 0; y < _gridSystem.GridSize.Y; y++)
-            {
-                _gridSystem.SetCellOccupied(new Vector2I(x, y), false);
-            }
-        }
-    }
-
     // Generate basic terrain
     private void GenerateTerrain()
     {
         // Fill the ground with grass by default
-        for (int x = 0; x < _gridSystem.GridSize.X; x++)
+        for (int x = 0; x < _activeGridArea.GridSize.X; x++)
         {
-            for (int y = 0; y < _gridSystem.GridSize.Y; y++)
+            for (int y = 0; y < _activeGridArea.GridSize.Y; y++)
             {
-                _groundLayer.SetCell(new Vector2I(x, y), GrassSourceId, GrassAtlasCoords);
-
-                // Ensure the grid starts clean - all cells are walkable by default
-                _gridSystem.SetCellOccupied(new Vector2I(x, y), false);
+                _activeGridArea.SetGroundCell(new Vector2I(x, y), GrassSourceId, GrassAtlasCoords);
             }
         }
 
@@ -165,8 +102,8 @@ public partial class WorldGenerator : Node
         for (int i = 0; i < numDirtPatches; i++)
         {
             Vector2I patchCenter = new(
-                _rng.RandiRange(5, _gridSystem.GridSize.X - 5),
-                _rng.RandiRange(5, _gridSystem.GridSize.Y - 5)
+                _rng.RandiRange(5, _activeGridArea.GridSize.X - 5),
+                _rng.RandiRange(5, _activeGridArea.GridSize.Y - 5)
             );
 
             int patchSize = _rng.RandiRange(2, 5);
@@ -178,13 +115,10 @@ public partial class WorldGenerator : Node
                     if (x * x + y * y <= patchSize * patchSize)
                     {
                         Vector2I pos = new(patchCenter.X + x, patchCenter.Y + y);
-                        if (pos.X >= 0 && pos.X < _gridSystem.GridSize.X &&
-                            pos.Y >= 0 && pos.Y < _gridSystem.GridSize.Y)
+                        if (pos.X >= 0 && pos.X < _activeGridArea.GridSize.X &&
+                            pos.Y >= 0 && pos.Y < _activeGridArea.GridSize.Y)
                         {
-                            _groundLayer.SetCell(pos, DirtSourceId, DirtAtlasCoords);
-
-                            // Dirt is still walkable
-                            _gridSystem.SetCellOccupied(pos, false);
+                            _activeGridArea.SetGroundCell(pos, DirtSourceId, DirtAtlasCoords);
                         }
                     }
                 }
@@ -193,8 +127,8 @@ public partial class WorldGenerator : Node
 
         // Add a water feature (small pond or stream)
         Vector2I waterStart = new(
-            _rng.RandiRange(15, _gridSystem.GridSize.X - 25),
-            _rng.RandiRange(15, _gridSystem.GridSize.Y - 25)
+            _rng.RandiRange(15, _activeGridArea.GridSize.X - 25),
+            _rng.RandiRange(15, _activeGridArea.GridSize.Y - 25)
         );
 
         // Simple pond
@@ -210,14 +144,14 @@ public partial class WorldGenerator : Node
                 if ((x * x) / (float)(pondSize * pondSize) + (y * y) / (float)(pondSize * pondSize) <= 1.0f)
                 {
                     Vector2I pos = new(waterStart.X + x, waterStart.Y + y);
-                    if (pos.X >= 0 && pos.X < _gridSystem.GridSize.X &&
-                        pos.Y >= 0 && pos.Y < _gridSystem.GridSize.Y)
+                    if (pos.X >= 0 && pos.X < _activeGridArea.GridSize.X &&
+                        pos.Y >= 0 && pos.Y < _activeGridArea.GridSize.Y)
                     {
                         // Set the water tile visually
-                        _groundLayer.SetCell(pos, WaterSourceId, WaterAtlasCoords);
+                        _activeGridArea.SetGroundCell(pos, WaterSourceId, WaterAtlasCoords);
 
                         // Mark water as impassable in the grid system
-                        _gridSystem.SetCellOccupied(pos, true);
+                        // _gridSystem.SetCellOccupied(pos, true);
 
                         waterTilesCount++;
                     }
@@ -241,8 +175,8 @@ public partial class WorldGenerator : Node
 
             // Generate random grid position
             Vector2I gridPos = new(
-                _rng.RandiRange(0, _gridSystem.GridSize.X - 5), // Reduced by tree width
-                _rng.RandiRange(0, _gridSystem.GridSize.Y - 6)  // Reduced by tree height
+                _rng.RandiRange(0, _activeGridArea.GridSize.X - 5), // Reduced by tree width
+                _rng.RandiRange(0, _activeGridArea.GridSize.Y - 6)  // Reduced by tree height
             );
 
             // Create a "temporary" tree to get its size
@@ -264,19 +198,20 @@ public partial class WorldGenerator : Node
                     Vector2I checkPos = new(gridPos.X + x, gridPos.Y + y);
 
                     // Check for occupied cells or water
-                    if (_gridSystem.IsCellOccupied(checkPos))
+                    if (!_activeGridArea.IsCellWalkable(checkPos))
                     {
                         areaIsFree = false;
                         break;
                     }
 
                     // Check for water tiles
-                    var tileData = _groundLayer.GetCellTileData(checkPos);
-                    if (tileData != null && _groundLayer.GetCellAtlasCoords(checkPos) == WaterAtlasCoords)
-                    {
-                        areaIsFree = false;
-                        break;
-                    }
+                    // TODO: Add this back
+                    // var tileData = _groundLayer.GetCellTileData(checkPos);
+                    // if (tileData != null && _groundLayer.GetCellAtlasCoords(checkPos) == WaterAtlasCoords)
+                    // {
+                    //     areaIsFree = false;
+                    //     break;
+                    // }
                 }
             }
 
@@ -292,21 +227,15 @@ public partial class WorldGenerator : Node
             // Initialize the tree at this position
             if (tree is Tree typedTree2)
             {
-                typedTree2.Initialize(_gridSystem, gridPos);
+                typedTree2.Initialize(_activeGridArea, gridPos);
             }
             else
             {
                 // If for some reason it's not our Tree type, just position it
-                tree.GlobalPosition = _gridSystem.GridToWorld(gridPos);
+                tree.GlobalPosition = VeilOfAges.Grid.Utils.GridToWorld(gridPos);
 
                 // Mark all cells the tree occupies as occupied
-                for (int x = 0; x < treeSize.X; x++)
-                {
-                    for (int y = 0; y < treeSize.Y; y++)
-                    {
-                        _gridSystem.SetCellOccupied(new Vector2I(gridPos.X + x, gridPos.Y + y), true);
-                    }
-                }
+                _activeGridArea.AddEntity(gridPos, tree, treeSize);
             }
 
             treesPlaced++;
@@ -331,8 +260,8 @@ public partial class WorldGenerator : Node
 
         // Define village center (somewhere near the middle of the map)
         Vector2I villageCenter = new(
-            _gridSystem.GridSize.X / 2,
-            _gridSystem.GridSize.Y / 2
+            _activeGridArea.GridSize.X / 2,
+            _activeGridArea.GridSize.Y / 2
         );
 
         // Make a village square (larger to ensure we have enough room around the center)
@@ -345,13 +274,10 @@ public partial class WorldGenerator : Node
             for (int y = -centralSquareSize; y <= centralSquareSize; y++)
             {
                 Vector2I pos = new(villageCenter.X + x, villageCenter.Y + y);
-                if (pos.X >= 0 && pos.X < _gridSystem.GridSize.X &&
-                    pos.Y >= 0 && pos.Y < _gridSystem.GridSize.Y)
+                if (pos.X >= 0 && pos.X < _activeGridArea.GridSize.X &&
+                    pos.Y >= 0 && pos.Y < _activeGridArea.GridSize.Y)
                 {
-                    _groundLayer.SetCell(pos, DirtSourceId, DirtAtlasCoords);
-
-                    // Do NOT mark the village square as occupied - this is walkable terrain
-                    _gridSystem.SetCellOccupied(pos, false);
+                    _activeGridArea.SetGroundCell(pos, DirtSourceId, DirtAtlasCoords);
                 }
             }
         }
@@ -387,8 +313,8 @@ public partial class WorldGenerator : Node
                 Vector2I buildingPos = villageCenter + offset;
 
                 // Ensure position is within world bounds
-                if (buildingPos.X < 0 || buildingPos.X + buildingSize.X >= _gridSystem.GridSize.X ||
-                    buildingPos.Y < 0 || buildingPos.Y + buildingSize.Y >= _gridSystem.GridSize.Y)
+                if (buildingPos.X < 0 || buildingPos.X + buildingSize.X >= _activeGridArea.GridSize.X ||
+                    buildingPos.Y < 0 || buildingPos.Y + buildingSize.Y >= _activeGridArea.GridSize.Y)
                 {
                     continue; // Skip this position if out of bounds
                 }
@@ -402,19 +328,19 @@ public partial class WorldGenerator : Node
                         Vector2I checkPos = new(buildingPos.X + x, buildingPos.Y + y);
 
                         // Check for occupied cells
-                        if (_gridSystem.IsCellOccupied(checkPos))
+                        if (!_activeGridArea.IsCellWalkable(checkPos))
                         {
                             areaIsFree = false;
                             break;
                         }
 
                         // Check for water tiles
-                        var tileData = _groundLayer.GetCellTileData(checkPos);
-                        if (tileData != null && _groundLayer.GetCellAtlasCoords(checkPos) == WaterAtlasCoords)
-                        {
-                            areaIsFree = false;
-                            break;
-                        }
+                        // var tileData = _groundLayer.GetCellTileData(checkPos);
+                        // if (tileData != null && _groundLayer.GetCellAtlasCoords(checkPos) == WaterAtlasCoords)
+                        // {
+                        //     areaIsFree = false;
+                        //     break;
+                        // }
 
                         // Extra check: ensure we're not too close to the village center
                         Vector2I relativeToCenter = checkPos - villageCenter;
@@ -438,7 +364,7 @@ public partial class WorldGenerator : Node
                     // Initialize the building at this position
                     if (building is Building typedBuilding)
                     {
-                        typedBuilding.Initialize(_gridSystem, buildingPos, buildingType);
+                        typedBuilding.Initialize(_activeGridArea, buildingPos, buildingType);
 
                         // If this is a graveyard, spawn a skeleton nearby
                         if (buildingType == "Graveyard" && SkeletonScene != null && ZombieScene != null)
@@ -459,16 +385,8 @@ public partial class WorldGenerator : Node
                     else
                     {
                         // If for some reason it's not our Building type, just position it
-                        building.GlobalPosition = _gridSystem.GridToWorld(buildingPos);
-
-                        // Mark all cells the building occupies as occupied
-                        for (int x = 0; x < buildingSize.X; x++)
-                        {
-                            for (int y = 0; y < buildingSize.Y; y++)
-                            {
-                                _gridSystem.SetCellOccupied(new Vector2I(buildingPos.X + x, buildingPos.Y + y), true);
-                            }
-                        }
+                        building.GlobalPosition = VeilOfAges.Grid.Utils.GridToWorld(buildingPos);
+                        _activeGridArea.AddEntity(buildingPos, building, buildingSize);
                     }
 
 
@@ -492,33 +410,33 @@ public partial class WorldGenerator : Node
         int numDecorations = _rng.RandiRange(30, 50);
 
         // Set source and atlas IDs based on your actual decoration tiles
-        int decorationSourceId = 0; // This would be your decoration tileset ID
+        // int decorationSourceId = 0; // This would be your decoration tileset ID
         Vector2I[] decorationTiles = [new(0, 0), new(1, 0), new(2, 0)]; // Example atlas coords
 
         for (int i = 0; i < numDecorations; i++)
         {
             Vector2I gridPos = new(
-                _rng.RandiRange(0, _gridSystem.GridSize.X - 1),
-                _rng.RandiRange(0, _gridSystem.GridSize.Y - 1)
+                _rng.RandiRange(0, _activeGridArea.GridSize.X - 1),
+                _rng.RandiRange(0, _activeGridArea.GridSize.Y - 1)
             );
 
             // Skip if cell is occupied by entities or is water
-            if (_gridSystem.IsCellOccupied(gridPos))
+            if (!_activeGridArea.IsCellWalkable(gridPos))
             {
                 continue;
             }
 
-            var tileData = _groundLayer.GetCellTileData(gridPos);
-            if (tileData != null && _groundLayer.GetCellAtlasCoords(gridPos) == WaterAtlasCoords)
-            {
-                continue;
-            }
+            // var tileData = _groundLayer.GetCellTileData(gridPos);
+            // if (tileData != null && _groundLayer.GetCellAtlasCoords(gridPos) == WaterAtlasCoords)
+            // {
+            //     continue;
+            // }
 
             // Choose a random decoration tile
             Vector2I tileCoords = decorationTiles[_rng.RandiRange(0, decorationTiles.Length - 1)];
 
             // Place decoration
-            _objectsLayer.SetCell(gridPos, decorationSourceId, tileCoords);
+            // _objectsLayer.SetCell(gridPos, decorationSourceId, tileCoords);
         }
     }
 
@@ -529,7 +447,7 @@ public partial class WorldGenerator : Node
         Vector2I beingPos = FindPositionInFrontOfBuilding(buildingPos, buildingSize);
 
         // Ensure the position is valid and not occupied
-        if (beingPos != buildingPos && !_gridSystem.IsCellOccupied(beingPos))
+        if (beingPos != buildingPos && _activeGridArea.IsCellWalkable(beingPos))
         {
 
             Node2D being = beingScene.Instantiate<Node2D>();
@@ -539,15 +457,15 @@ public partial class WorldGenerator : Node
             // Initialize the skeleton if it has the correct type
             if (being is Being typedBeing)
             {
-                typedBeing.Initialize(_gridSystem, beingPos);
+                typedBeing.Initialize(_activeGridArea, beingPos);
                 _entityThinkingSystem.RegisterEntity(typedBeing);
                 GD.Print($"Spawned being at {beingPos} near graveyard at {buildingPos}");
             }
             else
             {
                 // Fallback positioning if not the correct type
-                being.GlobalPosition = _gridSystem.GridToWorld(beingPos);
-                _gridSystem.SetCellOccupied(beingPos, true);
+                being.GlobalPosition = VeilOfAges.Grid.Utils.GridToWorld(beingPos);
+                _activeGridArea.AddEntity(beingPos, being);
             }
         }
         else
@@ -615,16 +533,16 @@ public partial class WorldGenerator : Node
     private bool IsValidSpawnPosition(Vector2I pos)
     {
         // Check bounds and occupancy
-        if (pos.X >= 0 && pos.X < _gridSystem.GridSize.X &&
-            pos.Y >= 0 && pos.Y < _gridSystem.GridSize.Y &&
-            !_gridSystem.IsCellOccupied(pos))
+        if (pos.X >= 0 && pos.X < _activeGridArea.GridSize.X &&
+            pos.Y >= 0 && pos.Y < _activeGridArea.GridSize.Y &&
+            _activeGridArea.IsCellWalkable(pos))
         {
             // Also check if it's not water
-            var tileData = _groundLayer.GetCellTileData(pos);
-            if (tileData != null && _groundLayer.GetCellAtlasCoords(pos) != WaterAtlasCoords)
-            {
-                return true;
-            }
+            // var tileData = _groundLayer.GetCellTileData(pos);
+            // if (tileData != null && _groundLayer.GetCellAtlasCoords(pos) != WaterAtlasCoords)
+            // {
+            //     return true;
+            // }
         }
 
         return false;

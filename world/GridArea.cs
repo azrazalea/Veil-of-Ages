@@ -1,0 +1,154 @@
+using System;
+using System.Linq;
+using Godot;
+using VeilOfAges.Entities;
+
+namespace VeilOfAges.Grid
+{
+    /// <summary>
+    /// Handles the graphics display of an area
+    /// </summary>
+    public partial class Area(Vector2I worldSize) : Node2D
+    {
+        [Export] public string AreaName { get; set; } = "Default Area";
+        [Export] public Vector2I GridSize { get; set; } = new(100, 100);
+
+        private TileMapLayer _groundLayer;
+        private TileMapLayer _objectsLayer;
+        // TODO: We need to properly implement terrain and make this
+        // a proper object that has a texture associated with it
+        private GroundSystem _groundGridSystem = new(worldSize);
+        // TODO: We need to properly implement items and make this
+        // a proper object that has a texture assoiciated with it
+        private GroundSystem _objectGridSystem = new(worldSize);
+        public Node2DSystem EntitiesGridSystem { get; private set; } = new Node2DSystem(worldSize);
+
+        private Node2D _entitiesContainer;
+        /// <summary>
+        /// Is area in full detail mode with all AI active?
+        /// </summary>
+        private bool _isActive = false;
+        /// <summary>
+        /// Is this the area the player is in currently?
+        /// </summary>
+        private bool _isPlayerArea = false;
+
+        private World _gameWorld;
+
+        public void SetActive()
+        {
+            _isActive = true;
+        }
+
+        public override void _Ready()
+        {
+            base._Ready();
+
+            GD.Print("Hello!");
+            // TODO: Update to not be hard coded in this way
+            var tileSet = GetNode<TileMapLayer>("/root/World/GroundLayer").TileSet;
+            _groundLayer = new TileMapLayer
+            {
+                TileSet = tileSet
+            };
+            _objectsLayer = new TileMapLayer();
+        }
+
+        public void MakePlayerArea(Player _player, Vector2I playerStartingLocation)
+        {
+            // Disable existing player GridArea
+            var playerArea = GetNode<Node>("/root/World/GridAreas/PlayerArea");
+
+            foreach (TileMapLayer child in playerArea.GetChildren().Cast<TileMapLayer>())
+            {
+                playerArea.RemoveChild(child);
+                child.Enabled = false;
+            }
+
+            // Add scene items to Tile Layers
+            PopulateLayersFromGrid();
+
+            // Add our tile layers to scene tree and enable
+            playerArea.AddChild(_groundLayer);
+            playerArea.AddChild(_objectsLayer);
+            _groundLayer.Enabled = true;
+            _objectsLayer.Enabled = true;
+
+            // Declare we are active
+            _isActive = true;
+            _isPlayerArea = true;
+            _player.Position = playerStartingLocation;
+        }
+
+        public void SetGroundCell(Vector2I groundPos, int sourceId, Vector2I atlasCoords)
+        {
+            _groundGridSystem.SetCell(groundPos, (sourceId, atlasCoords));
+
+            if (_groundLayer.Enabled)
+            {
+                _groundLayer.SetCell(groundPos, sourceId, atlasCoords);
+            }
+        }
+
+        public void AddEntity(Vector2I entityPos, Node2D entity, Vector2I? entitySize = null)
+        {
+            if (entitySize is Vector2I size)
+            {
+                for (int x = 0; x < size.X; x++)
+                {
+                    for (int y = 0; y < size.Y; y++)
+                    {
+                        EntitiesGridSystem.SetCell(new Vector2I(size.X + x, size.Y + y), entity);
+                    }
+                }
+            }
+            else
+            {
+                EntitiesGridSystem.SetCell(entityPos, entity);
+            }
+
+        }
+
+        public void RemoveEntity(Vector2I entityPos, Vector2I? entitySize = null)
+        {
+            if (entitySize is Vector2I size)
+            {
+                for (int x = 0; x < size.X; x++)
+                {
+                    for (int y = 0; y < size.Y; y++)
+                    {
+                        EntitiesGridSystem.RemoveCell(new Vector2I(size.X + x, size.Y + y));
+                    }
+                }
+            }
+            else
+            {
+                EntitiesGridSystem.RemoveCell(entityPos);
+            }
+        }
+
+        // TODO: We need to handle unwalkable objects and terrain here
+        public bool IsCellWalkable(Vector2I entityPos)
+        {
+            return EntitiesGridSystem.IsCellOccupied(entityPos);
+        }
+
+        public void PopulateLayersFromGrid()
+        {
+            foreach (var kvp in _groundGridSystem.OccupiedCells)
+            {
+                SetGroundCell(kvp.Key, kvp.Value.Item1, kvp.Value.Item2);
+            }
+
+            foreach (var kvp in _objectGridSystem.OccupiedCells)
+            {
+                _objectsLayer.SetCell(kvp.Key, kvp.Value.Item1, kvp.Value.Item2);
+            }
+
+            foreach (var (key, entity) in EntitiesGridSystem.OccupiedCells)
+            {
+                AddEntity(key, entity);
+            }
+        }
+    }
+}

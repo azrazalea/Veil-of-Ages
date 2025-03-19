@@ -41,13 +41,13 @@ namespace VeilOfAges.Entities
         {
             // Do NOT directly process movement here anymore
             // Just handle debugging commands or other non-movement functionality
-            if (_gridSystem == null)
-                return;
+            // if (GridArea == null)
+            //     return;
 
-            if (Input.IsKeyPressed(Key.D))
-            {
-                _gridSystem.DebugGridCellStatus(_currentGridPos);
-            }
+            // if (Input.IsKeyPressed(Key.D))
+            // {
+            //     GridArea.DebugGridCellStatus(_currentGridPos);
+            // }
         }
     }
 }

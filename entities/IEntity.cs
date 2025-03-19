@@ -1,12 +1,13 @@
 using System.Collections.Generic;
 using VeilOfAges.Entities;
 using VeilOfAges.Entities.Sensory;
+using VeilOfAges.Grid;
 
 namespace VeilOfAges.Entities
 {
     public interface IEntity : ISensable
     {
-        public GridSystem _gridSystem { get; }
+        public Grid.Area GridArea { get; }
         public List<ITrait> _traits { get; }
 
         public void AddTrait<T>() where T : ITrait, new()
@@ -15,7 +16,7 @@ namespace VeilOfAges.Entities
             _traits.Add(trait);
 
             // If we're already initialized, initialize the trait immediately
-            if (_gridSystem != null)
+            if (GridArea != null)
             {
                 trait.Initialize(this);
             }
@@ -26,7 +27,7 @@ namespace VeilOfAges.Entities
             _traits.Add(trait);
 
             // If we're already initialized, initialize the trait immediately
-            if (_gridSystem != null)
+            if (GridArea != null)
             {
                 trait.Initialize(this);
             }

@@ -38,9 +38,9 @@ namespace VeilOfAges.Entities.Beings
             GD.Print("Zombie initialized with traits");
         }
 
-        public override void Initialize(GridSystem gridSystem, Vector2I startGridPos, BeingAttributes attributes = null)
+        public override void Initialize(Grid.Area gridArea, Vector2I startGridPos, BeingAttributes attributes = null)
         {
-            base.Initialize(gridSystem, startGridPos, attributes);
+            base.Initialize(gridArea, startGridPos, attributes);
             ApplyRandomDecayDamage();
 
             // Any zombie-specific initialization after base initialization

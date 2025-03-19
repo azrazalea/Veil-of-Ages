@@ -155,7 +155,7 @@ namespace VeilOfAges.Core.Lib
             };
 
             // Filter out unwalkable tiles
-            neighbors.RemoveAll(pos => !_world.IsWalkable(pos));
+            // neighbors.RemoveAll(pos => !_world.IsWalkable(pos));
 
             return neighbors;
         }
