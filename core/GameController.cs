@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities;
+using System.Threading;
 
 namespace VeilOfAges.Core
 {
@@ -38,22 +39,31 @@ namespace VeilOfAges.Core
 
         public override void _Process(double delta)
         {
+            GD.Print("_Process!");
+            GD.Print($"Simulation paused: {_simulationPaused}");
+            GD.Print($"Processing tick {_processingTick}");
             if (_simulationPaused || _processingTick)
                 return;
 
+            GD.Print($"Time since last tick: {_timeSinceLastTick}");
+            GD.Print($"Delta {delta}");
+            GD.Print($"delta * timescale: {(float)delta * TimeScale}");
             _timeSinceLastTick += (float)delta * TimeScale;
 
             if (_timeSinceLastTick >= _tickInterval)
             {
+                GD.Print("Going to do a tick!");
                 _timeSinceLastTick -= _tickInterval;
                 ProcessNextTick();
             }
+
+            GD.Print("Done with _Process");
         }
 
         private async void ProcessNextTick()
         {
             _processingTick = true;
-
+            GD.Print("Starting tick");
             // Feed any pending player actions to the player entity
             if (_pendingPlayerActions.Count > 0)
             {
@@ -68,7 +78,7 @@ namespace VeilOfAges.Core
 
             // Process the tick with all entities (including player)
             await _thinkingSystem.ProcessGameTick();
-
+            GD.Print("Done thinking!");
             // Update world state, UI, and advance time
             // _world.UpdateWorldState();
             // _world.UpdateUI();

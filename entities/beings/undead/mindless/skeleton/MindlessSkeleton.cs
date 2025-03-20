@@ -69,9 +69,9 @@ namespace VeilOfAges.Entities.Beings
         // Custom skeleton behavior overrides (if needed)
         public override void _PhysicsProcess(double delta)
         {
+            GD.Print("Processing skeleton!");
             // Let the traits and base class handle most behavior
             base._PhysicsProcess(delta);
-
             // Add any skeleton-specific behavior here if needed
             // For example, we could make skeletons occasionally make bone rattling sounds
             if (IsMoving() && new RandomNumberGenerator().RandfRange(0f, 1f) < 0.01f)

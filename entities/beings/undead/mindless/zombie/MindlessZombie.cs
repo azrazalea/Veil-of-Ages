@@ -51,6 +51,7 @@ namespace VeilOfAges.Entities.Beings
         // Custom zombie behavior overrides (if needed)
         public override void _PhysicsProcess(double delta)
         {
+            GD.Print("Processing zombie!");
             // Let the traits and base class handle most behavior
             base._PhysicsProcess(delta);
 

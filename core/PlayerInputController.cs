@@ -27,7 +27,7 @@ namespace VeilOfAges.Core
             if (_gameController == null || _player == null) return;
             if (!CanProcessMovementInput()) return;
             if (!_gameController.CanQueuePlayerAction()) return;
-
+            GD.Print("Processing player input!");
             // Check for held movement keys each frame
             if (Input.IsActionPressed("ui_right"))
             {

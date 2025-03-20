@@ -449,7 +449,6 @@ public partial class WorldGenerator : Node
 
             Node2D being = beingScene.Instantiate<Node2D>();
             GD.Print($"Spawning being of type {being.GetType().Name}");
-            _entitiesContainer.AddChild(being);
 
             // Initialize the skeleton if it has the correct type
             if (being is Being typedBeing)
@@ -462,12 +461,14 @@ public partial class WorldGenerator : Node
             {
                 // Fallback positioning if not the correct type
                 being.GlobalPosition = VeilOfAges.Grid.Utils.GridToWorld(beingPos);
-                _activeGridArea.AddEntity(beingPos, being);
             }
+
+            _activeGridArea.AddEntity(beingPos, being);
+            _entitiesContainer.AddChild(being);
         }
         else
         {
-            GD.PrintErr($"Could not find valid position to spawn skeleton near graveyard at {buildingPos}");
+            GD.PrintErr($"Could not find valid position to spawn being near graveyard at {buildingPos}");
         }
     }
 

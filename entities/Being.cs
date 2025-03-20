@@ -476,10 +476,12 @@ namespace VeilOfAges.Entities
         // Process traits in the physics update
         public override void _PhysicsProcess(double delta)
         {
+            GD.Print("Processing traits!");
             // Process all traits
             foreach (var trait in _traits)
             {
                 trait.Process(delta);
+                GD.Print("Processed a trait!");
             }
         }
         protected virtual Perception ProcessPerception(ObservationData data)
