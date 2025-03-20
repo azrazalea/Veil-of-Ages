@@ -16,5 +16,5 @@ mono_crash.*.json
 
 .vscode/
 
-assets/*
+assets/minifantasy
 !assets/README.md
