@@ -89,7 +89,8 @@ namespace VeilOfAges.Entities
             Name = $"{GetType().Name}-{Guid.NewGuid().ToString("N")[..8]}";
 
             // Set initial position aligned to the grid
-            Position = Grid.Utils.GridToWorld(_currentGridPos);
+            // GlobalPosition = Grid.Utils.GridToWorld(_currentGridPos);
+            Position = _currentGridPos;
             _targetPosition = Position;
             _startPosition = Position;
 
@@ -180,20 +181,13 @@ namespace VeilOfAges.Entities
 
         public virtual bool HasSenseType(SenseType senseType)
         {
-            switch (senseType)
+            return senseType switch
             {
-                case SenseType.Sight:
-                    return !Health.BodySystems[BodySystemType.Sight].Disabled;
-
-                case SenseType.Hearing:
-                    return !Health.BodySystems[BodySystemType.Hearing].Disabled;
-
-                case SenseType.Smell:
-                    return !Health.BodySystems[BodySystemType.Smell].Disabled;
-
-                default:
-                    return false;
-            }
+                SenseType.Sight => !Health.BodySystems[BodySystemType.Sight].Disabled,
+                SenseType.Hearing => !Health.BodySystems[BodySystemType.Hearing].Disabled,
+                SenseType.Smell => !Health.BodySystems[BodySystemType.Smell].Disabled,
+                _ => false,
+            };
         }
 
         public virtual float GetPerceptionLevel(SenseType senseType)

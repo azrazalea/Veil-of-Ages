@@ -28,6 +28,8 @@ public partial class Building : Node2D, IEntity
 
     public override void _Ready()
     {
+        GD.Print($"Building grid position _Ready: {_gridPosition}");
+
         // Find the grid system
         if (GetTree().GetFirstNodeInGroup("World") is not World world)
         {
@@ -47,11 +49,8 @@ public partial class Building : Node2D, IEntity
             }
         }
 
-        // Get grid position
-        _gridPosition = VeilOfAges.Grid.Utils.WorldToGrid(GlobalPosition);
-
         // Snap to grid
-        GlobalPosition = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
+        Position = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
 
         // Configure building properties based on type
         ConfigureBuildingType();
@@ -84,11 +83,13 @@ public partial class Building : Node2D, IEntity
             }
         }
 
+        ZIndex = 1;
         // Configure building properties
         ConfigureBuildingType();
 
+        GD.Print($"Building grid position Initialize: {_gridPosition}");
         // Update the actual position
-        GlobalPosition = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
+        Position = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
     }
 
     public Vector2I GetGridPosition()

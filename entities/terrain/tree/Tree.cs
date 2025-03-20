@@ -19,11 +19,8 @@ public partial class Tree : Node2D
             return;
         }
 
-        // Get grid position
-        _gridPosition = VeilOfAges.Grid.Utils.WorldToGrid(GlobalPosition);
-
         // Snap to grid
-        GlobalPosition = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
+        Position = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
     }
 
     // Initialize with an external grid system (useful for programmatic placement)
@@ -32,11 +29,8 @@ public partial class Tree : Node2D
         GridArea = gridArea;
         _gridPosition = gridPos;
 
-        // Get grid position
-        _gridPosition = VeilOfAges.Grid.Utils.WorldToGrid(GlobalPosition);
-
-        // Snap to grid
-        GlobalPosition = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
+        ZIndex = 1;
+        Position = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
     }
 
     public override void _ExitTree()

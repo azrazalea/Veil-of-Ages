@@ -19,15 +19,6 @@ namespace VeilOfAges.Grid
                 GridSize = (Vector2I)gridSize;
             }
 
-            // Initialize the grid as empty
-            for (int x = 0; x < GridSize.X; x++)
-            {
-                for (int y = 0; y < GridSize.Y; y++)
-                {
-                    OccupiedCells[new Vector2I(x, y)] = default;
-                }
-            }
-
             GD.Print($"Grid system initialized with size {GridSize.X}x{GridSize.Y}");
         }
 
@@ -69,6 +60,7 @@ namespace VeilOfAges.Grid
             if (gridPos.X < 0 || gridPos.X >= GridSize.X ||
                 gridPos.Y < 0 || gridPos.Y >= GridSize.Y)
             {
+                GD.Print("Out of bounds!");
                 return true; // Consider out-of-bounds as occupied
             }
 

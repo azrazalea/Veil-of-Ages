@@ -44,7 +44,6 @@ namespace VeilOfAges.Grid
         {
             base._Ready();
 
-            GD.Print("Hello!");
             // TODO: Update to not be hard coded in this way
             var tileSet = GetNode<TileMapLayer>("/root/World/GroundLayer").TileSet;
             _groundLayer = new TileMapLayer
@@ -77,7 +76,7 @@ namespace VeilOfAges.Grid
             // Declare we are active
             _isActive = true;
             _isPlayerArea = true;
-            _player.Position = playerStartingLocation;
+            _player.Position = Grid.Utils.GridToWorld(playerStartingLocation);
         }
 
         public void SetGroundCell(Vector2I groundPos, int sourceId, Vector2I atlasCoords)
@@ -98,7 +97,7 @@ namespace VeilOfAges.Grid
                 {
                     for (int y = 0; y < size.Y; y++)
                     {
-                        EntitiesGridSystem.SetCell(new Vector2I(size.X + x, size.Y + y), entity);
+                        EntitiesGridSystem.SetCell(new Vector2I(entityPos.X + x, entityPos.Y + y), entity);
                     }
                 }
             }
@@ -117,7 +116,7 @@ namespace VeilOfAges.Grid
                 {
                     for (int y = 0; y < size.Y; y++)
                     {
-                        EntitiesGridSystem.RemoveCell(new Vector2I(size.X + x, size.Y + y));
+                        EntitiesGridSystem.RemoveCell(new Vector2I(entityPos.X + x, entityPos.Y + y));
                     }
                 }
             }
@@ -128,9 +127,9 @@ namespace VeilOfAges.Grid
         }
 
         // TODO: We need to handle unwalkable objects and terrain here
-        public bool IsCellWalkable(Vector2I entityPos)
+        public bool IsCellWalkable(Vector2I gridPos)
         {
-            return EntitiesGridSystem.IsCellOccupied(entityPos);
+            return !EntitiesGridSystem.IsCellOccupied(gridPos);
         }
 
         public void PopulateLayersFromGrid()

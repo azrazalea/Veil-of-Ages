@@ -233,10 +233,8 @@ public partial class WorldGenerator : Node
             {
                 // If for some reason it's not our Tree type, just position it
                 tree.GlobalPosition = VeilOfAges.Grid.Utils.GridToWorld(gridPos);
-
-                // Mark all cells the tree occupies as occupied
-                _activeGridArea.AddEntity(gridPos, tree, treeSize);
             }
+            _activeGridArea.AddEntity(gridPos, tree, treeSize);
 
             treesPlaced++;
         }
@@ -386,10 +384,9 @@ public partial class WorldGenerator : Node
                     {
                         // If for some reason it's not our Building type, just position it
                         building.GlobalPosition = VeilOfAges.Grid.Utils.GridToWorld(buildingPos);
-                        _activeGridArea.AddEntity(buildingPos, building, buildingSize);
                     }
 
-
+                    _activeGridArea.AddEntity(buildingPos, building, buildingSize);
                     GD.Print($"Placed {buildingType} at {buildingPos}");
                 }
             }
@@ -537,6 +534,7 @@ public partial class WorldGenerator : Node
             pos.Y >= 0 && pos.Y < _activeGridArea.GridSize.Y &&
             _activeGridArea.IsCellWalkable(pos))
         {
+            return true;
             // Also check if it's not water
             // var tileData = _groundLayer.GetCellTileData(pos);
             // if (tileData != null && _groundLayer.GetCellAtlasCoords(pos) != WaterAtlasCoords)
