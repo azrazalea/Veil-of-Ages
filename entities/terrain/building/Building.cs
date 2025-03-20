@@ -63,7 +63,7 @@ public partial class Building : Node2D, IEntity
     {
         GridArea = gridArea;
         _gridPosition = gridPos;
-
+        DetectionDifficulties = [];
         if (!string.IsNullOrEmpty(type))
         {
             BuildingType = type;

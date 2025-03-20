@@ -83,6 +83,8 @@ public partial class WorldGenerator : Node
 
         // // Add some decorative elements
         // GenerateDecorations();
+
+        GD.Print("Done generating!");
     }
 
     // Generate basic terrain

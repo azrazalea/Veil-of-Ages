@@ -74,17 +74,17 @@ namespace VeilOfAges.Entities.Sensory
         {
             var relevantMaps = new List<DijkstraMap>();
 
-            // Add maps based on entity traits and needs
-            if (entity.selfAsEntity().HasTrait<UndeadTrait>() && entity is MindlessZombie)
-            {
-                // Zombies care about living beings (food)
-                relevantMaps.Add(GetDijkstraMap(DijkstraGoalType.LivingBeings));
-            }
-            else if (!entity.selfAsEntity().HasTrait<UndeadTrait>())
-            {
-                // Living beings might care about safety from undead
-                relevantMaps.Add(GetDijkstraMap(DijkstraGoalType.DistanceFromUndead));
-            }
+            // // Add maps based on entity traits and needs
+            // if (entity.selfAsEntity().HasTrait<UndeadTrait>() && entity is MindlessZombie)
+            // {
+            //     // Zombies care about living beings (food)
+            //     relevantMaps.Add(GetDijkstraMap(DijkstraGoalType.LivingBeings));
+            // }
+            // else if (!entity.selfAsEntity().HasTrait<UndeadTrait>())
+            // {
+            //     // Living beings might care about safety from undead
+            //     relevantMaps.Add(GetDijkstraMap(DijkstraGoalType.DistanceFromUndead));
+            // }
 
             return relevantMaps;
         }

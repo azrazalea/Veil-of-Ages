@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using VeilOfAges;
+using VeilOfAges.Entities;
 
 public partial class Tree : Node2D
 {

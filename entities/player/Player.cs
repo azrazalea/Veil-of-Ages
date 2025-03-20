@@ -36,18 +36,5 @@ namespace VeilOfAges.Entities
             else
                 return new Vector2I(1, 0);  // Facing right
         }
-
-        public override void _PhysicsProcess(double delta)
-        {
-            // Do NOT directly process movement here anymore
-            // Just handle debugging commands or other non-movement functionality
-            // if (GridArea == null)
-            //     return;
-
-            // if (Input.IsKeyPressed(Key.D))
-            // {
-            //     GridArea.DebugGridCellStatus(_currentGridPos);
-            // }
-        }
     }
 }

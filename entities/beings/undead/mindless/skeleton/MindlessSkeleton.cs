@@ -19,7 +19,6 @@ namespace VeilOfAges.Entities.Beings
 
         public override void _Ready()
         {
-            base._Ready();
 
             // Configure skeleton specific properties
             _totalMoveTicks = 6; // Skeletons are faster than zombies but slower than living beings
@@ -46,6 +45,8 @@ namespace VeilOfAges.Entities.Beings
                 // This would be handled if we had a combat system
             }
 
+            base._Ready();
+
             GD.Print("Skeleton initialized with traits");
         }
 
@@ -69,7 +70,6 @@ namespace VeilOfAges.Entities.Beings
         // Custom skeleton behavior overrides (if needed)
         public override void _PhysicsProcess(double delta)
         {
-            GD.Print("Processing skeleton!");
             // Let the traits and base class handle most behavior
             base._PhysicsProcess(delta);
             // Add any skeleton-specific behavior here if needed

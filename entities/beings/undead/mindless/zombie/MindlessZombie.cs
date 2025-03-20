@@ -19,7 +19,6 @@ namespace VeilOfAges.Entities.Beings
         );
         public override void _Ready()
         {
-            base._Ready();
 
             // Configure zombie specific properties
             _totalMoveTicks = 10; // Zombies are slow
@@ -35,6 +34,7 @@ namespace VeilOfAges.Entities.Beings
                 mindlessTrait.WanderRange = 15f; // And further from spawn
             }
 
+            base._Ready();
             GD.Print("Zombie initialized with traits");
         }
 
@@ -51,7 +51,6 @@ namespace VeilOfAges.Entities.Beings
         // Custom zombie behavior overrides (if needed)
         public override void _PhysicsProcess(double delta)
         {
-            GD.Print("Processing zombie!");
             // Let the traits and base class handle most behavior
             base._PhysicsProcess(delta);
 

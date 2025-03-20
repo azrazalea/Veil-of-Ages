@@ -79,12 +79,20 @@ namespace VeilOfAges.Entities
         {
             _animatedSprite = GetNode<AnimatedSprite2D>("AnimatedSprite2D");
             _animatedSprite.Play("idle");
+
+            // Initialize all traits
+            foreach (var trait in _traits)
+            {
+                trait.Initialize(this, Health);
+            }
+            ZIndex = 1;
         }
 
         public virtual void Initialize(Grid.Area gridArea, Vector2I startGridPos, BeingAttributes attributes = null)
         {
             GridArea = gridArea;
             _currentGridPos = startGridPos;
+            DetectionDifficulties = [];
 
             Name = $"{GetType().Name}-{Guid.NewGuid().ToString("N")[..8]}";
 
@@ -107,12 +115,6 @@ namespace VeilOfAges.Entities
             {
                 InitializeBodyStructure();
                 InitializeBodySystems();
-            }
-
-            // Initialize all traits
-            foreach (var trait in _traits)
-            {
-                trait.Initialize(this, Health);
             }
 
             Health.PrintSystemStatuses();
@@ -476,12 +478,10 @@ namespace VeilOfAges.Entities
         // Process traits in the physics update
         public override void _PhysicsProcess(double delta)
         {
-            GD.Print("Processing traits!");
             // Process all traits
             foreach (var trait in _traits)
             {
                 trait.Process(delta);
-                GD.Print("Processed a trait!");
             }
         }
         protected virtual Perception ProcessPerception(ObservationData data)
