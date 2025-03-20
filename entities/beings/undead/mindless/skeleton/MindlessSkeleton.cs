@@ -16,6 +16,7 @@ namespace VeilOfAges.Entities.Beings
             1.0f
         );
 
+        private AudioStreamPlayer2D _skeletonRattle;
 
         public override void _Ready()
         {
@@ -37,6 +38,8 @@ namespace VeilOfAges.Entities.Beings
                 mindlessTrait.WanderRange = 10f;
                 mindlessTrait.IdleTime = 10; // Skeletons stand idle longer
             }
+
+            _skeletonRattle = GetNode<AudioStreamPlayer2D>("AudioStreamPlayer2D");
 
             // Configure undead trait specifics for skeletons
             if (selfAsEntity().GetTrait<UndeadTrait>() is UndeadTrait undeadTrait)
@@ -76,6 +79,8 @@ namespace VeilOfAges.Entities.Beings
             // For example, we could make skeletons occasionally make bone rattling sounds
             if (IsMoving() && new RandomNumberGenerator().RandfRange(0f, 1f) < 0.01f)
             {
+                _skeletonRattle.Position = Grid.Utils.GridToWorld(_currentGridPos);
+                _skeletonRattle.Play();
                 GD.Print($"{Name}: *bones rattle*");
             }
         }
