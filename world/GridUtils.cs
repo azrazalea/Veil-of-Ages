@@ -56,6 +56,5 @@ namespace VeilOfAges.Grid
             return worldPath;
         }
 
-
     }
 }

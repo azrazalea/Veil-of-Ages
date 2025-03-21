@@ -1,6 +1,8 @@
 using Godot;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using VeilOfAges.Entities;
@@ -14,8 +16,8 @@ namespace VeilOfAges.Core
         public int MaxThreads { get; set; } = Math.Max(1, System.Environment.ProcessorCount - 1);
 
         private List<Being> _entities = new();
-        private HashSet<Being> _entitiesProcessed = new();
-        private List<EntityAction> _pendingActions = new();
+        private ConcurrentDictionary<Being, Byte> _entitiesProcessed = [];
+        private ConcurrentQueue<EntityAction> _pendingActions = [];
 
         private SemaphoreSlim _thinkingSemaphore;
         private object _lockObject = new object();
@@ -32,8 +34,7 @@ namespace VeilOfAges.Core
 
         private void RegisterExistingEntities()
         {
-            var world = GetTree().GetFirstNodeInGroup("World") as World;
-            if (world != null)
+            if (GetTree().GetFirstNodeInGroup("World") is World world)
             {
                 var entitiesNode = world.GetNode<Node2D>("Entities");
                 foreach (Node child in entitiesNode.GetChildren())
@@ -104,14 +105,12 @@ namespace VeilOfAges.Core
                 var action = entity.Think(currentPosition, currentObservation);
 
                 // Store the action for later execution
-                lock (_lockObject)
+                if (action != null)
                 {
-                    if (action != null)
-                    {
-                        _pendingActions.Add(action);
-                    }
-                    _entitiesProcessed.Add(entity);
+                    _pendingActions.Enqueue(action);
                 }
+                _entitiesProcessed.TryAdd(entity, 0);
+
             }
             finally
             {
@@ -123,14 +122,16 @@ namespace VeilOfAges.Core
         private void ApplyAllPendingActions()
         {
             // Sort actions by priority if needed
-            _pendingActions.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+            var pendingActions = _pendingActions.ToList();
+            pendingActions.Sort((a, b) => b.Priority.CompareTo(a.Priority));
 
             // Apply each action
-            foreach (var action in _pendingActions)
+            foreach (var action in pendingActions)
             {
                 action.Execute();
                 action.Entity.ProcessMovementTick();
             }
+            _pendingActions.Clear();
         }
 
         public override void _ExitTree()
