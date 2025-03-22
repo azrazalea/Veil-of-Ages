@@ -42,19 +42,22 @@ namespace VeilOfAges.Grid
         public static Tile GrassTile = new(
             0,
             new(1, 3),
-            true
+            true,
+            1.0f
         );
 
         public static Tile DirtTile = new(
             0,
             new(5, 3),
-            true
+            true,
+            0.8f
         );
 
         public static Tile PathTile = new(
             0,
             new(6, 21),
-            true
+            true,
+            0.5f
         );
 
         private World _gameWorld;
@@ -174,6 +177,11 @@ namespace VeilOfAges.Grid
             {
                 AddEntity(key, entity);
             }
+        }
+
+        public float GetTerrainDifficulty(Vector2I from, Vector2I to)
+        {
+            return (_groundGridSystem.GetCell(from).WalkDifficulty + _groundGridSystem.GetCell(to).WalkDifficulty) / 2;
         }
     }
 }

@@ -20,6 +20,7 @@ namespace VeilOfAges.Entities.Traits
         private enum MindlessState { Idle, Wandering }
         private MindlessState _currentState = MindlessState.Idle;
         private Vector2 CachedOwnerPosition;
+        public bool IsInitialized { get; protected set; }
 
         public virtual void Initialize(Being owner, BodyHealth health)
         {
@@ -32,6 +33,7 @@ namespace VeilOfAges.Entities.Traits
 
             _currentState = MindlessState.Idle;
             GD.Print($"{_owner.Name}: Mindless trait initialized");
+            IsInitialized = true;
         }
 
         public virtual void Process(double delta)

@@ -22,22 +22,10 @@ namespace VeilOfAges.Entities.Beings
         {
 
             // Configure skeleton specific properties
-            _totalMoveTicks = 6; // Skeletons are faster than zombies but slower than living beings
+            _baseMoveTicks = 6; // Skeletons are faster than zombies but slower than living beings
 
             // Add skeleton traits
-            selfAsEntity().AddTrait<UndeadTrait>();
-            selfAsEntity().AddTrait<MindlessTrait>();
-
-            // Unlike zombies, skeletons don't have hunger
-            // They are animated purely by magic
-
-            // Configure mindless trait settings for skeletons
-            if (selfAsEntity().GetTrait<MindlessTrait>() is MindlessTrait mindlessTrait)
-            {
-                mindlessTrait.WanderProbability = 0.2f;
-                mindlessTrait.WanderRange = 10f;
-                mindlessTrait.IdleTime = 10; // Skeletons stand idle longer
-            }
+            selfAsEntity().AddTrait<SkeletonTrait>();
 
             _skeletonRattle = GetNode<AudioStreamPlayer2D>("AudioStreamPlayer2D");
 

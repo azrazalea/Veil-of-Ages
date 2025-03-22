@@ -1,6 +1,7 @@
 using Godot;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Sensory;
+using VeilOfAges.Grid;
 
 namespace VeilOfAges.Entities
 {
@@ -13,6 +14,12 @@ namespace VeilOfAges.Entities
         public void SetNextAction(EntityAction action)
         {
             _nextAction = action;
+        }
+
+        public override void Initialize(Area gridArea, Vector2I startGridPos, BeingAttributes attributes = null)
+        {
+            _baseMoveTicks = 3;
+            base.Initialize(gridArea, startGridPos, attributes);
         }
 
         public override EntityAction Think(Vector2 currentPosition, ObservationData currentObservation)

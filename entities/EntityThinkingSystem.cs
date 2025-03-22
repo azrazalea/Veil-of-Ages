@@ -20,7 +20,6 @@ namespace VeilOfAges.Core
         private ConcurrentQueue<EntityAction> _pendingActions = [];
 
         private SemaphoreSlim _thinkingSemaphore;
-        private object _lockObject = new object();
 
         private bool _isProcessingTick = false;
 

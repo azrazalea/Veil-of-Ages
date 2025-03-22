@@ -21,20 +21,11 @@ namespace VeilOfAges.Entities.Beings
         );
         public override void _Ready()
         {
-
             // Configure zombie specific properties
-            _totalMoveTicks = 10; // Zombies are slow
+            _baseMoveTicks = 8; // Zombies are slow
 
             // Add zombie traits
-            selfAsEntity().AddTrait<UndeadTrait>();
-            selfAsEntity().AddTrait<MindlessTrait>();
-
-            // Optional: You can now customize specific settings for each trait
-            if (selfAsEntity().GetTrait<MindlessTrait>() is MindlessTrait mindlessTrait)
-            {
-                mindlessTrait.WanderProbability = 0.3f; // Zombies wander more often
-                mindlessTrait.WanderRange = 15f; // And further from spawn
-            }
+            selfAsEntity().AddTrait<ZombieTrait>();
 
             _zombieGroan = GetNode<AudioStreamPlayer2D>("AudioStreamPlayer2D");
 

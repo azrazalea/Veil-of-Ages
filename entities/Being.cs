@@ -22,7 +22,7 @@ namespace VeilOfAges.Entities
     public abstract partial class Being : CharacterBody2D, IEntity
     {
         [Export]
-        protected uint _totalMoveTicks = 4; // How many ticks it takes to move one tile
+        protected uint _baseMoveTicks = 4; // How many ticks it takes to move one tile
         protected uint _remainingMoveTicks = 0; // Time in seconds to move one tile
         protected bool _isMoving = false;
 
@@ -85,6 +85,7 @@ namespace VeilOfAges.Entities
             {
                 trait.Initialize(this, Health);
             }
+
             ZIndex = 1;
         }
 
@@ -98,7 +99,7 @@ namespace VeilOfAges.Entities
 
             // Set initial position aligned to the grid
             // GlobalPosition = Grid.Utils.GridToWorld(_currentGridPos);
-            Position = Grid.Utils.GridToWorld(_currentGridPos);
+            Position = Utils.GridToWorld(_currentGridPos);
             _targetPosition = Position;
             _startPosition = Position;
 
@@ -149,6 +150,8 @@ namespace VeilOfAges.Entities
 
             foreach (var trait in _traits)
             {
+                if (!trait.IsInitialized) continue;
+
                 var suggestedAction = trait.SuggestAction(currentPosition, currentPerception);
                 if (suggestedAction != null)
                 {
@@ -168,8 +171,8 @@ namespace VeilOfAges.Entities
         }
         public virtual int GetSightRange()
         {
-            if (!HasSenseType(SenseType.Sight))
-                return 0;
+            // if (!HasSenseType(SenseType.Sight))
+            //     return 0;
 
             // Base sight range
             int baseRange = 8;
@@ -405,7 +408,7 @@ namespace VeilOfAges.Entities
                 // Start moving
                 _startPosition = Position;
                 _targetPosition = Grid.Utils.GridToWorld(_currentGridPos);
-                _remainingMoveTicks = _totalMoveTicks;
+                _remainingMoveTicks = _baseMoveTicks;
                 _isMoving = true;
 
                 Vector2 moveDirection = (_targetPosition - _startPosition).Normalized();
@@ -432,7 +435,7 @@ namespace VeilOfAges.Entities
                 _remainingMoveTicks--;
 
                 // Calculate movement progress
-                float progress = 1.0f - (_remainingMoveTicks / (float)_totalMoveTicks);
+                float progress = 1.0f - (_remainingMoveTicks / (float)_baseMoveTicks);
 
                 // Update position based on interpolation
                 Position = _startPosition.Lerp(_targetPosition, progress);
@@ -528,27 +531,27 @@ namespace VeilOfAges.Entities
             // Apply different strategies based on sense type
 
             // Visual perception - requires line of sight
-            if (HasSenseType(SenseType.Sight))
+            // if (HasSenseType(SenseType.Sight))
+            // {
+            int sightRange = GetSightRange();
+            Vector2I myPos = GetCurrentGridPosition();
+
+            // Check distance
+            int distance = Math.Max(
+                Math.Abs(position.X - myPos.X),
+                Math.Abs(position.Y - myPos.Y)
+            );
+
+            if (distance <= sightRange && HasLineOfSight(position))
             {
-                int sightRange = GetSightRange();
-                Vector2I myPos = GetCurrentGridPosition();
+                // Check detection difficulty
+                float detectionDifficulty = sensable.GetDetectionDifficulty(SenseType.Sight);
+                float perceptionLevel = GetPerceptionLevel(SenseType.Sight);
 
-                // Check distance
-                int distance = Math.Max(
-                    Math.Abs(position.X - myPos.X),
-                    Math.Abs(position.Y - myPos.Y)
-                );
-
-                if (distance <= sightRange && HasLineOfSight(position))
-                {
-                    // Check detection difficulty
-                    float detectionDifficulty = sensable.GetDetectionDifficulty(SenseType.Sight);
-                    float perceptionLevel = GetPerceptionLevel(SenseType.Sight);
-
-                    if (perceptionLevel >= detectionDifficulty)
-                        return true;
-                }
+                if (perceptionLevel >= detectionDifficulty)
+                    return true;
             }
+            // }
 
             // Hearing - no line of sight needed but affected by distance
             if (HasSenseType(SenseType.Hearing))

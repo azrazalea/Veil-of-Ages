@@ -7,6 +7,8 @@ namespace VeilOfAges.Entities
     // Base interface for all traits
     public interface ITrait
     {
+        public bool IsInitialized { get; }
+
         // Initialize the trait with its owner
         void Initialize(Being owner, BodyHealth health) { }
         void Initialize(IEntity owner) { }

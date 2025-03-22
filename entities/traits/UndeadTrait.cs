@@ -10,6 +10,7 @@ namespace VeilOfAges.Entities.Traits
     public class UndeadTrait : ITrait
     {
         protected Being _owner;
+        public bool IsInitialized { get; protected set; }
 
         public virtual void Initialize(Being owner, BodyHealth health)
         {
@@ -17,6 +18,7 @@ namespace VeilOfAges.Entities.Traits
             health.DisableBodySystem(BodySystemType.Pain);
             DisableLivingBodySystems(health);
             GD.Print($"{_owner.Name}: Undead trait initialized");
+            IsInitialized = true;
         }
 
         public virtual void Process(double delta)
@@ -28,7 +30,7 @@ namespace VeilOfAges.Entities.Traits
         public virtual void OnEvent(string eventName, params object[] args)
         {
         }
-        public EntityAction SuggestAction(Vector2 currentOwnerPosition, Perception currentPerception)
+        public virtual EntityAction SuggestAction(Vector2 currentOwnerPosition, Perception currentPerception)
         {
             return new IdleAction(_owner);
         }
