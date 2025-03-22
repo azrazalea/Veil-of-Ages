@@ -119,7 +119,7 @@ public partial class Building : Node2D, IEntity
         switch (BuildingType)
         {
             case "House":
-                GridSize = new Vector2I(2, 2);
+                GridSize = new Vector2I(10, 7);
                 _capacity = 4;
                 break;
 

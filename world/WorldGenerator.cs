@@ -21,6 +21,8 @@ public partial class WorldGenerator : Node
     public PackedScene SkeletonScene;
     [Export]
     public PackedScene ZombieScene;
+    [Export]
+    public PackedScene TownsfolkScene;
 
     private Node2D _entitiesContainer;
     private VeilOfAges.Grid.Area _activeGridArea;
@@ -50,10 +52,8 @@ public partial class WorldGenerator : Node
         GenerateTerrain();
 
         // Generate village first (higher priority)
-        if (BuildingScene != null)
-        {
-            GenerateVillage();
-        }
+        GenerateVillage();
+
 
         // Then add trees in unoccupied spaces
         if (TreeScene != null)
@@ -216,7 +216,7 @@ public partial class WorldGenerator : Node
         // Define building sizes for each building type
         Dictionary<string, Vector2I> buildingSizes = new()
     {
-        { "House", new Vector2I(2, 2) },
+        { "House", new Vector2I(10, 7) },
         { "Blacksmith", new Vector2I(3, 2) },
         { "Tavern", new Vector2I(3, 3) },
         { "Farm", new Vector2I(3, 2) },
@@ -250,7 +250,7 @@ public partial class WorldGenerator : Node
         }
 
         // Place buildings around the village center
-        string[] buildingTypes = ["Graveyard", "Graveyard", "Graveyard"];
+        string[] buildingTypes = ["Graveyard", "House", "Graveyard"];
 
         // Calculate minimum safe distance from center for building placement
         int minDistanceFromCenter = 15; // Based on largest building size + buffer
@@ -326,25 +326,21 @@ public partial class WorldGenerator : Node
                         typedBuilding.Initialize(_activeGridArea, buildingPos, buildingType);
 
                         // If this is a graveyard, spawn a skeleton nearby
-                        if (buildingType == "Graveyard" && SkeletonScene != null && ZombieScene != null)
+                        if (buildingType == "Graveyard")
                         {
-                            PackedScene beingScene = null;
-                            if (new RandomNumberGenerator().RandfRange(0f, 1f) < 0.5f)
-                            {
-                                beingScene = SkeletonScene;
-                            }
-                            else
-                            {
-                                beingScene = ZombieScene;
-                            }
-
-                            SpawnBeingNearBuilding(buildingPos, buildingSize, beingScene);
+                            SpawnBeingNearBuilding(buildingPos, buildingSize, SkeletonScene);
+                            SpawnBeingNearBuilding(buildingPos, buildingSize, ZombieScene);
+                        }
+                        else if (buildingType == "House")
+                        {
+                            SpawnBeingNearBuilding(buildingPos, buildingSize, TownsfolkScene);
+                            SpawnBeingNearBuilding(buildingPos, buildingSize, TownsfolkScene);
                         }
                     }
                     else
                     {
                         // If for some reason it's not our Building type, just position it
-                        building.GlobalPosition = VeilOfAges.Grid.Utils.GridToWorld(buildingPos);
+                        building.Position = Utils.GridToWorld(buildingPos);
                     }
 
                     _activeGridArea.AddEntity(buildingPos, building, buildingSize);
@@ -410,12 +406,12 @@ public partial class WorldGenerator : Node
             {
                 typedBeing.Initialize(_activeGridArea, beingPos);
                 _entityThinkingSystem.RegisterEntity(typedBeing);
-                GD.Print($"Spawned being at {beingPos} near graveyard at {buildingPos}");
+                GD.Print($"Spawned being at {beingPos} near building at {buildingPos}");
             }
             else
             {
                 // Fallback positioning if not the correct type
-                being.GlobalPosition = VeilOfAges.Grid.Utils.GridToWorld(beingPos);
+                being.Position = Utils.GridToWorld(beingPos);
             }
 
             _activeGridArea.AddEntity(beingPos, being);

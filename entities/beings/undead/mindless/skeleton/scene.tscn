@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://o7vxruni6hv"]
+[gd_scene load_steps=18 format=3 uid="uid://o7vxruni6hv"]
 
 [ext_resource type="Script" uid="uid://cyde37wgefh3u" path="res://entities/beings/undead/mindless/skeleton/MindlessSkeleton.cs" id="1_016mr"]
 [ext_resource type="Texture2D" uid="uid://cjywylhsutv6i" path="res://assets/minifantasy/entities/undead/skeleton-warrior/Idle_Activation_Deactivation.png" id="1_ipl4n"]
@@ -16,6 +16,30 @@ region = Rect2(96, 32, 32, 32)
 [sub_resource type="AtlasTexture" id="AtlasTexture_17cuy"]
 atlas = ExtResource("1_ipl4n")
 region = Rect2(128, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_b3nt7"]
+atlas = ExtResource("1_ipl4n")
+region = Rect2(64, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qx7mb"]
+atlas = ExtResource("1_ipl4n")
+region = Rect2(96, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fa6hp"]
+atlas = ExtResource("1_ipl4n")
+region = Rect2(128, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xbyll"]
+atlas = ExtResource("1_ipl4n")
+region = Rect2(0, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6aaul"]
+atlas = ExtResource("1_ipl4n")
+region = Rect2(32, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mpivo"]
+atlas = ExtResource("1_ipl4n")
+region = Rect2(64, 64, 32, 32)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_3j3gx"]
 atlas = ExtResource("2_016mr")
@@ -35,15 +59,33 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_qq57i")
 }, {
-"duration": 2.0,
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_t8sxh")
 }, {
-"duration": 3.0,
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_17cuy")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_b3nt7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qx7mb")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fa6hp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_xbyll")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6aaul")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mpivo")
 }],
 "loop": true,
 "name": &"idle",
-"speed": 2.0
+"speed": 3.0
 }, {
 "frames": [{
 "duration": 1.0,

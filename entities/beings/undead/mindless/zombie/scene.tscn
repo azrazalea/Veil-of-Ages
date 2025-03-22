@@ -180,7 +180,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"idle",
-"speed": 2.0
+"speed": 5.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -211,4 +211,3 @@ animation = &"idle"
 stream = ExtResource("4_jftw6")
 volume_db = 0.99
 attenuation = 19.6984
-area_mask = 0

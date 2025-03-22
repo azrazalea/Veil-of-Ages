@@ -1,0 +1,111 @@
+[gd_scene load_steps=17 format=3 uid="uid://byov4a2whfiqj"]
+
+[ext_resource type="Script" uid="uid://cxddb4yge1j50" path="res://entities/beings/human/HumanTownsfolk.cs" id="1_0p0wy"]
+[ext_resource type="Texture2D" uid="uid://cyi2cauxh316s" path="res://assets/minifantasy/entities/human/HumanTownsfolkIdle.png" id="1_ycppt"]
+[ext_resource type="Texture2D" uid="uid://csqk5bhfpvoex" path="res://assets/minifantasy/entities/human/HumanTownsfolkWalk.png" id="2_4p4mo"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_p6hxg"]
+atlas = ExtResource("1_ycppt")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rds3k"]
+atlas = ExtResource("1_ycppt")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gihq2"]
+atlas = ExtResource("1_ycppt")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3osid"]
+atlas = ExtResource("1_ycppt")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8q7rx"]
+atlas = ExtResource("1_ycppt")
+region = Rect2(128, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pu6lc"]
+atlas = ExtResource("1_ycppt")
+region = Rect2(160, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_a5grs"]
+atlas = ExtResource("1_ycppt")
+region = Rect2(192, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_i4rar"]
+atlas = ExtResource("1_ycppt")
+region = Rect2(224, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_w04db"]
+atlas = ExtResource("2_4p4mo")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tgr1a"]
+atlas = ExtResource("2_4p4mo")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cd1kn"]
+atlas = ExtResource("2_4p4mo")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4g0le"]
+atlas = ExtResource("2_4p4mo")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_qdbwm"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_p6hxg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_rds3k")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gihq2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_3osid")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8q7rx")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pu6lc")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_a5grs")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_i4rar")
+}],
+"loop": true,
+"name": &"idle",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_w04db")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_tgr1a")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cd1kn")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4g0le")
+}],
+"loop": true,
+"name": &"walk",
+"speed": 5.0
+}]
+
+[node name="Townsfolk" type="CharacterBody2D"]
+script = ExtResource("1_0p0wy")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+sprite_frames = SubResource("SpriteFrames_qdbwm")
+animation = &"walk"
+frame = 3
+frame_progress = 0.10883

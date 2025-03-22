@@ -98,7 +98,7 @@ namespace VeilOfAges.Entities
 
             // Set initial position aligned to the grid
             // GlobalPosition = Grid.Utils.GridToWorld(_currentGridPos);
-            Position = _currentGridPos;
+            Position = Grid.Utils.GridToWorld(_currentGridPos);
             _targetPosition = Position;
             _startPosition = Position;
 
@@ -106,7 +106,7 @@ namespace VeilOfAges.Entities
             GridArea.AddEntity(_currentGridPos, this);
 
             // Set attributes if provided
-            Attributes = attributes ?? DefaultAttributes;
+            Attributes = attributes ?? DefaultAttributes with { };
 
             Health = new BodyHealth(this);
 
