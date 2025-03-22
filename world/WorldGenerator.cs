@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using VeilOfAges.Entities;
 using VeilOfAges.Core;
+using VeilOfAges.Grid;
 using VeilOfAges;
 
 public partial class WorldGenerator : Node
@@ -26,27 +27,6 @@ public partial class WorldGenerator : Node
 
     // Random number generator
     private RandomNumberGenerator _rng = new();
-
-    // Terrain tile IDs (these will need to be set based on your actual TileSet)
-    [Export]
-    public int GrassSourceId = 0;
-
-    // And you need atlas coordinates for each tile type
-    [Export]
-    public Vector2I GrassAtlasCoords = new(1, 3);
-
-    [Export]
-    public int DirtSourceId = 0;
-
-    [Export]
-    public Vector2I DirtAtlasCoords = new(5, 3);
-
-    [Export]
-    public int WaterSourceId = 1;
-
-    [Export]
-    public Vector2I WaterAtlasCoords = new(3, 16);
-
 
     private EntityThinkingSystem _entityThinkingSystem;
 
@@ -95,7 +75,7 @@ public partial class WorldGenerator : Node
         {
             for (int y = 0; y < _activeGridArea.GridSize.Y; y++)
             {
-                _activeGridArea.SetGroundCell(new Vector2I(x, y), GrassSourceId, GrassAtlasCoords);
+                _activeGridArea.SetGroundCell(new Vector2I(x, y), Area.GrassTile);
             }
         }
 
@@ -120,7 +100,7 @@ public partial class WorldGenerator : Node
                         if (pos.X >= 0 && pos.X < _activeGridArea.GridSize.X &&
                             pos.Y >= 0 && pos.Y < _activeGridArea.GridSize.Y)
                         {
-                            _activeGridArea.SetGroundCell(pos, DirtSourceId, DirtAtlasCoords);
+                            _activeGridArea.SetGroundCell(pos, Area.DirtTile);
                         }
                     }
                 }
@@ -150,11 +130,7 @@ public partial class WorldGenerator : Node
                         pos.Y >= 0 && pos.Y < _activeGridArea.GridSize.Y)
                     {
                         // Set the water tile visually
-                        _activeGridArea.SetGroundCell(pos, WaterSourceId, WaterAtlasCoords);
-
-                        // Mark water as impassable in the grid system
-                        // _gridSystem.SetCellOccupied(pos, true);
-
+                        _activeGridArea.SetGroundCell(pos, Area.WaterTile);
                         waterTilesCount++;
                     }
                 }
@@ -205,15 +181,6 @@ public partial class WorldGenerator : Node
                         areaIsFree = false;
                         break;
                     }
-
-                    // Check for water tiles
-                    // TODO: Add this back
-                    // var tileData = _groundLayer.GetCellTileData(checkPos);
-                    // if (tileData != null && _groundLayer.GetCellAtlasCoords(checkPos) == WaterAtlasCoords)
-                    // {
-                    //     areaIsFree = false;
-                    //     break;
-                    // }
                 }
             }
 
@@ -277,7 +244,7 @@ public partial class WorldGenerator : Node
                 if (pos.X >= 0 && pos.X < _activeGridArea.GridSize.X &&
                     pos.Y >= 0 && pos.Y < _activeGridArea.GridSize.Y)
                 {
-                    _activeGridArea.SetGroundCell(pos, DirtSourceId, DirtAtlasCoords);
+                    _activeGridArea.SetGroundCell(pos, Area.DirtTile);
                 }
             }
         }
@@ -333,14 +300,6 @@ public partial class WorldGenerator : Node
                             areaIsFree = false;
                             break;
                         }
-
-                        // Check for water tiles
-                        // var tileData = _groundLayer.GetCellTileData(checkPos);
-                        // if (tileData != null && _groundLayer.GetCellAtlasCoords(checkPos) == WaterAtlasCoords)
-                        // {
-                        //     areaIsFree = false;
-                        //     break;
-                        // }
 
                         // Extra check: ensure we're not too close to the village center
                         Vector2I relativeToCenter = checkPos - villageCenter;
@@ -424,12 +383,6 @@ public partial class WorldGenerator : Node
             {
                 continue;
             }
-
-            // var tileData = _groundLayer.GetCellTileData(gridPos);
-            // if (tileData != null && _groundLayer.GetCellAtlasCoords(gridPos) == WaterAtlasCoords)
-            // {
-            //     continue;
-            // }
 
             // Choose a random decoration tile
             Vector2I tileCoords = decorationTiles[_rng.RandiRange(0, decorationTiles.Length - 1)];
@@ -538,12 +491,6 @@ public partial class WorldGenerator : Node
             _activeGridArea.IsCellWalkable(pos))
         {
             return true;
-            // Also check if it's not water
-            // var tileData = _groundLayer.GetCellTileData(pos);
-            // if (tileData != null && _groundLayer.GetCellAtlasCoords(pos) != WaterAtlasCoords)
-            // {
-            //     return true;
-            // }
         }
 
         return false;

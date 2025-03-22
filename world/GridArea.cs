@@ -33,6 +33,24 @@ namespace VeilOfAges.Grid
         /// </summary>
         private bool _isPlayerArea = false;
 
+        public static Tile WaterTile = new(
+            1,
+            new(3, 16),
+            false
+        );
+
+        public static Tile GrassTile = new(
+            0,
+            new(1, 3),
+            true
+        );
+
+        public static Tile DirtTile = new(
+            0,
+            new(5, 3),
+            true
+        );
+
         private World _gameWorld;
 
         public void SetActive()
@@ -79,13 +97,13 @@ namespace VeilOfAges.Grid
             _player.Position = Grid.Utils.GridToWorld(playerStartingLocation);
         }
 
-        public void SetGroundCell(Vector2I groundPos, int sourceId, Vector2I atlasCoords)
+        public void SetGroundCell(Vector2I groundPos, Tile tile)
         {
-            _groundGridSystem.SetCell(groundPos, (sourceId, atlasCoords));
+            _groundGridSystem.SetCell(groundPos, tile);
 
             if (_groundLayer.Enabled)
             {
-                _groundLayer.SetCell(groundPos, sourceId, atlasCoords);
+                _groundLayer.SetCell(groundPos, tile.SourceId, tile.AtlasCoords);
             }
         }
 
@@ -126,22 +144,24 @@ namespace VeilOfAges.Grid
             }
         }
 
-        // TODO: We need to handle unwalkable objects and terrain here
+        // TODO: We need to handle unwalkable objects here if any
         public bool IsCellWalkable(Vector2I gridPos)
         {
-            return !EntitiesGridSystem.IsCellOccupied(gridPos);
+            return !EntitiesGridSystem.IsCellOccupied(gridPos) && (
+                !_groundGridSystem.IsCellOccupied(gridPos) || _groundGridSystem.GetCell(gridPos).IsWalkable
+            );
         }
 
         public void PopulateLayersFromGrid()
         {
             foreach (var kvp in _groundGridSystem.OccupiedCells)
             {
-                SetGroundCell(kvp.Key, kvp.Value.Item1, kvp.Value.Item2);
+                SetGroundCell(kvp.Key, kvp.Value);
             }
 
             foreach (var kvp in _objectGridSystem.OccupiedCells)
             {
-                _objectsLayer.SetCell(kvp.Key, kvp.Value.Item1, kvp.Value.Item2);
+                _objectsLayer.SetCell(kvp.Key, kvp.Value.SourceId, kvp.Value.AtlasCoords);
             }
 
             foreach (var (key, entity) in EntitiesGridSystem.OccupiedCells)
