@@ -29,7 +29,7 @@ public partial class Building : Node2D, IEntity
     // Define building sizes for each building type
     public static readonly Dictionary<string, Vector2I> BuildingSizes = new()
         {
-            { "House", new Vector2I(6, 5) },
+            { "House", new Vector2I(6, 4) },
             { "Blacksmith", new Vector2I(3, 2) },
             { "Tavern", new Vector2I(3, 3) },
             { "Farm", new Vector2I(3, 2) },

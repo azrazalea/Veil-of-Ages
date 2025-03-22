@@ -112,4 +112,3 @@ animation = &"idle"
 [node name="AudioStreamPlayer2D" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("4_qq57i")
 volume_db = 0.229
-attenuation = 20.3929

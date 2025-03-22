@@ -8,7 +8,7 @@ namespace VeilOfAges.Entities.Beings
 {
     public partial class MindlessZombie : Being
     {
-        private AudioStreamPlayer2D _zombieGroan;
+        public AudioStreamPlayer2D _zombieGroan;
 
         public override BeingAttributes DefaultAttributes { get; } = new(
             12.0f,
@@ -53,10 +53,15 @@ namespace VeilOfAges.Entities.Beings
             // For example, we could make zombies occasionally groan
             if (IsMoving() == true && new RandomNumberGenerator().RandfRange(0f, 1f) < 0.01f)
             {
-                _zombieGroan.Position = Grid.Utils.GridToWorld(_currentGridPos);
-                _zombieGroan.Play();
+                PlayZombieGroan();
                 GD.Print("Zombie groan!");
             }
+        }
+
+        public void PlayZombieGroan()
+        {
+            _zombieGroan.Position = Grid.Utils.GridToWorld(_currentGridPos);
+            _zombieGroan.Play();
         }
 
         private void ApplyRandomDecayDamage()

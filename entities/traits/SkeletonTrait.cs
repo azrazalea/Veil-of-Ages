@@ -1,5 +1,6 @@
 using Godot;
 using VeilOfAges.Entities.Actions;
+using VeilOfAges.Entities.Beings;
 using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Sensory;
 
@@ -212,11 +213,7 @@ namespace VeilOfAges.Entities.Traits
         private void PlayBoneRattle()
         {
             // Access the AudioStreamPlayer2D component
-            var audioPlayer = _owner.GetNode<AudioStreamPlayer2D>("AudioStreamPlayer2D");
-            if (audioPlayer != null)
-            {
-                audioPlayer.Play();
-            }
+            (_owner as MindlessSkeleton).CallDeferred("PlayBoneRattle");
         }
     }
 }

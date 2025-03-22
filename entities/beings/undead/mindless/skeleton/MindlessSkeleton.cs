@@ -16,7 +16,7 @@ namespace VeilOfAges.Entities.Beings
             1.0f
         );
 
-        private AudioStreamPlayer2D _skeletonRattle;
+        public AudioStreamPlayer2D _skeletonRattle;
 
         public override void _Ready()
         {
@@ -67,10 +67,15 @@ namespace VeilOfAges.Entities.Beings
             // For example, we could make skeletons occasionally make bone rattling sounds
             if (IsMoving() && new RandomNumberGenerator().RandfRange(0f, 1f) < 0.01f)
             {
-                _skeletonRattle.Position = Grid.Utils.GridToWorld(_currentGridPos);
-                _skeletonRattle.Play();
+                PlayBoneRattle();
                 GD.Print($"{Name}: *bones rattle*");
             }
+        }
+
+        public void PlayBoneRattle()
+        {
+            _skeletonRattle.Position = Grid.Utils.GridToWorld(_currentGridPos);
+            _skeletonRattle.Play();
         }
 
         private void ModifyForSkeletalStructure()
