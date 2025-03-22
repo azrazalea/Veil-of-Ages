@@ -51,6 +51,12 @@ namespace VeilOfAges.Grid
             true
         );
 
+        public static Tile PathTile = new(
+            0,
+            new(6, 21),
+            true
+        );
+
         private World _gameWorld;
 
         public void SetActive()

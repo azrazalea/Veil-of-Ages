@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Entities;
 using VeilOfAges.Entities.Sensory;
+using VeilOfAges.WorldGeneration;
 
 namespace VeilOfAges
 {
@@ -17,7 +18,7 @@ namespace VeilOfAges
 
         // Entities container
         private Node2D _entitiesContainer;
-        private WorldGenerator _worldGenerator;
+        private GridGenerator _gridGenerator;
         private SensorySystem _sensorySystem;
         private EventSystem _eventSystem;
 
@@ -31,7 +32,7 @@ namespace VeilOfAges
         {
             // Get references to nodes
             _entitiesContainer = GetNode<Node2D>("Entities");
-            _worldGenerator = GetNode<WorldGenerator>("WorldGenerator");
+            _gridGenerator = GetNode<GridGenerator>("GridGenerator");
             var gridAreasContainer = GetNode<Node>("GridAreas");
 
             // Initialize grid system with world bounds
@@ -58,7 +59,7 @@ namespace VeilOfAges
             }
             if (GenerateOnReady)
             {
-                _worldGenerator.CallDeferred(WorldGenerator.MethodName.Generate, this);
+                _gridGenerator.CallDeferred(GridGenerator.MethodName.Generate, this);
             }
         }
 

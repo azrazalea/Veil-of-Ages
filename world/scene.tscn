@@ -3,8 +3,8 @@
 [ext_resource type="Script" uid="uid://bw48w31c0qjor" path="res://world/World.cs" id="1_qt6d3"]
 [ext_resource type="PackedScene" uid="uid://cljvkvv6tomyu" path="res://entities/player/scene.tscn" id="2_2fjkk"]
 [ext_resource type="Texture2D" uid="uid://csppu3jscariw" path="res://assets/minifantasy/terrain/forest/Ground_dark.png" id="2_jbmir"]
+[ext_resource type="Script" uid="uid://d3b0rnoskomhw" path="res://world/generation/GridGenerator.cs" id="2_ob0ca"]
 [ext_resource type="Texture2D" uid="uid://j2448x7luda5" path="res://assets/minifantasy/terrain/water/Shallow_Water_Tileset.png" id="3_ivx4l"]
-[ext_resource type="Script" uid="uid://fnfd3cbwy2we" path="res://world/WorldGenerator.cs" id="4_2fjkk"]
 [ext_resource type="PackedScene" uid="uid://b7m4w78tk21cj" path="res://entities/terrain/tree/scene.tscn" id="6_7s53g"]
 [ext_resource type="PackedScene" uid="uid://cyq2ntvw2iake" path="res://entities/building/scene.tscn" id="7_ivx4l"]
 [ext_resource type="PackedScene" uid="uid://byov4a2whfiqj" path="res://entities/beings/human/HumanTownsfolk.tscn" id="7_ob0ca"]
@@ -462,8 +462,8 @@ sources/1 = SubResource("TileSetAtlasSource_bkv64")
 [node name="World" type="Node2D" groups=["World"]]
 script = ExtResource("1_qt6d3")
 
-[node name="WorldGenerator" type="Node" parent="."]
-script = ExtResource("4_2fjkk")
+[node name="GridGenerator" type="Node" parent="."]
+script = ExtResource("2_ob0ca")
 TreeScene = ExtResource("6_7s53g")
 BuildingScene = ExtResource("7_ivx4l")
 SkeletonScene = ExtResource("9_bkv64")

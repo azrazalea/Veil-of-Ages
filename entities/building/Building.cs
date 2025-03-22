@@ -26,6 +26,25 @@ public partial class Building : Node2D, IEntity
     private int _capacity = 0;
     private int _occupants = 0;
 
+    // Define building sizes for each building type
+    public static readonly Dictionary<string, Vector2I> BuildingSizes = new()
+        {
+            { "House", new Vector2I(5, 4) },
+            { "Blacksmith", new Vector2I(3, 2) },
+            { "Tavern", new Vector2I(3, 3) },
+            { "Farm", new Vector2I(3, 2) },
+            { "Well", new Vector2I(1, 1) },
+            { "Graveyard", new Vector2I(14, 8) },
+            { "Church", new Vector2I(9, 8) }
+        };
+
+    public static readonly Dictionary<string, Vector2I> BuildingEntranceVectors = new()
+    {
+        { "House", new Vector2I(3, 4) },
+        { "Graveyard", new Vector2I(5, 8) },
+        { "Church", new Vector2I(4, 8) },
+    };
+
     public override void _Ready()
     {
         GD.Print($"Building grid position _Ready: {_gridPosition}");
@@ -106,6 +125,11 @@ public partial class Building : Node2D, IEntity
         GridArea.RemoveEntity(_gridPosition, GridSize);
     }
 
+    public static Vector2I BuildingEntrancePos(Vector2I buildingPos, string buildingType)
+    {
+        return buildingPos + BuildingEntranceVectors[buildingType];
+    }
+
     // Method for when player interacts with building
     public void Interact()
     {
@@ -116,48 +140,7 @@ public partial class Building : Node2D, IEntity
     // Configure properties based on building type
     private void ConfigureBuildingType()
     {
-        switch (BuildingType)
-        {
-            case "House":
-                GridSize = new Vector2I(10, 7);
-                _capacity = 4;
-                break;
-
-            case "Blacksmith":
-                GridSize = new Vector2I(3, 2);
-                _capacity = 2;
-                break;
-
-            case "Tavern":
-                GridSize = new Vector2I(3, 3);
-                _capacity = 8;
-                break;
-
-            case "Farm":
-                GridSize = new Vector2I(3, 2);
-                _capacity = 3;
-                break;
-
-            case "Well":
-                GridSize = new Vector2I(1, 1);
-                _capacity = 0;
-                break;
-
-            case "Graveyard":
-                GridSize = new Vector2I(7, 6);
-                _capacity = 4; // For undead
-                break;
-
-            case "Laboratory":
-                GridSize = new Vector2I(3, 2);
-                _capacity = 2;
-                break;
-
-            default:
-                GridSize = new Vector2I(2, 2);
-                _capacity = 2;
-                break;
-        }
+        GridSize = BuildingSizes[BuildingType];
 
         // Update visual representation
         UpdateBuildingVisual();
