@@ -8,7 +8,7 @@ namespace VeilOfAges.Entities.Beings
 {
     public partial class MindlessZombie : Being
     {
-        public AudioStreamPlayer2D _zombieGroan;
+        public AudioStreamPlayer2D? _zombieGroan;
 
         public override BeingAttributes DefaultAttributes { get; } = new(
             12.0f,
@@ -25,7 +25,9 @@ namespace VeilOfAges.Entities.Beings
             _baseMoveTicks = 8; // Zombies are slow
 
             // Add zombie traits
-            selfAsEntity().AddTrait<ZombieTrait>();
+            selfAsEntity().AddTrait<MindlessTrait>(1);
+            selfAsEntity().AddTrait<ZombieTrait>(2);
+
 
             _zombieGroan = GetNode<AudioStreamPlayer2D>("AudioStreamPlayer2D");
 
@@ -33,14 +35,14 @@ namespace VeilOfAges.Entities.Beings
             GD.Print("Zombie initialized with traits");
         }
 
-        public override void Initialize(Grid.Area gridArea, Vector2I startGridPos, BeingAttributes attributes = null)
+        public override void Initialize(Grid.Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null)
         {
             base.Initialize(gridArea, startGridPos, attributes);
             ApplyRandomDecayDamage();
 
             // Any zombie-specific initialization after base initialization
             GD.Print($"Zombie spawned at {startGridPos}");
-            Health.PrintSystemStatuses();
+            Health?.PrintSystemStatuses();
         }
 
         // Custom zombie behavior overrides (if needed)
@@ -60,12 +62,16 @@ namespace VeilOfAges.Entities.Beings
 
         public void PlayZombieGroan()
         {
+            if (_zombieGroan == null) return;
+
             _zombieGroan.Position = Grid.Utils.GridToWorld(_currentGridPos);
             _zombieGroan.Play();
         }
 
         private void ApplyRandomDecayDamage()
         {
+            if (_bodyPartGroups == null) return;
+
             // Simulate zombie decay with random damage
             var rng = new RandomNumberGenerator();
             rng.Randomize();

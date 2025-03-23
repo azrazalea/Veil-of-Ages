@@ -19,9 +19,9 @@ namespace VeilOfAges.Core
         private bool _simulationPaused = false;
         private bool _processingTick = false;
 
-        private World _world;
-        private Player _player;
-        private EntityThinkingSystem _thinkingSystem;
+        private World? _world;
+        private Player? _player;
+        private EntityThinkingSystem? _thinkingSystem;
 
         private Queue<EntityAction> _pendingPlayerActions = new();
 
@@ -58,16 +58,16 @@ namespace VeilOfAges.Core
             if (_pendingPlayerActions.Count > 0)
             {
                 var nextAction = _pendingPlayerActions.Dequeue();
-                _player.SetNextAction(nextAction);
+                _player?.SetNextAction(nextAction);
             }
             else
             {
                 // If no explicit player action, player gets an idle action
-                _player.SetNextAction(new IdleAction(_player));
+                _player?.SetNextAction(new IdleAction(_player));
             }
 
             // Process the tick with all entities (including player)
-            await _thinkingSystem.ProcessGameTick();
+            if (_thinkingSystem != null) await _thinkingSystem.ProcessGameTick();
             // Update world state, UI, and advance time
             // _world.UpdateWorldState();
             // _world.UpdateUI();
@@ -168,10 +168,10 @@ namespace VeilOfAges.Core
             _processingTick = true;
 
             // Player idles during skipped time
-            _player.SetNextAction(new IdleAction(_player));
+            _player?.SetNextAction(new IdleAction(_player));
 
             // Process the tick
-            await _thinkingSystem.ProcessGameTick();
+            if (_thinkingSystem != null) await _thinkingSystem.ProcessGameTick();
             // _world.UpdateWorldState();
             // _world.UpdateUI();
             // _world.AdvanceTime();

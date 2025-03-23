@@ -16,11 +16,11 @@ public partial class Building : Node2D, IEntity
     public Vector2I GridSize = new(2, 2); // Size in tiles (most buildings are 2x2)
 
     private Vector2I _gridPosition;
-    public VeilOfAges.Grid.Area GridArea { get; private set; }
-    public List<ITrait> _traits { get; private set; }
+    public VeilOfAges.Grid.Area? GridArea { get; private set; }
+    public SortedSet<ITrait> _traits { get; private set; } = [];
     private Dictionary<string, TileMapLayer> _buildingLayers = [];
-    public Dictionary<SenseType, float> DetectionDifficulties { get; protected set; }
-    private TileMapLayer _currentLayer;
+    public Dictionary<SenseType, float> DetectionDifficulties { get; protected set; } = [];
+    private TileMapLayer? _currentLayer;
 
     // For tracking residents/workers
     private int _capacity = 0;
@@ -59,12 +59,12 @@ public partial class Building : Node2D, IEntity
         // Initialize the building layers dictionary
         foreach (Node child in GetChildren())
         {
-            if (child is TileMapLayer)
+            if (child is TileMapLayer tileMapLayer)
             {
                 string layerName = child.Name.ToString().Replace("Layer", "");
-                _buildingLayers[layerName] = child as TileMapLayer;
+                _buildingLayers[layerName] = tileMapLayer;
                 GD.Print(layerName);
-                (child as TileMapLayer).Enabled = false; // Hide all initially
+                tileMapLayer.Enabled = false; // Hide all initially
             }
         }
 
@@ -93,11 +93,11 @@ public partial class Building : Node2D, IEntity
         {
             foreach (Node child in GetChildren())
             {
-                if (child is TileMapLayer)
+                if (child is TileMapLayer tileMapLayer)
                 {
                     string layerName = child.Name.ToString().Replace("Layer", "");
-                    _buildingLayers[layerName] = child as TileMapLayer;
-                    (child as TileMapLayer).Enabled = false; // Hide all initially
+                    _buildingLayers[layerName] = tileMapLayer;
+                    tileMapLayer.Enabled = false; // Hide all initially
                 }
             }
         }
@@ -122,7 +122,7 @@ public partial class Building : Node2D, IEntity
     public override void _ExitTree()
     {
         // When the building is removed, mark its cells as unoccupied (if grid system exists)
-        GridArea.RemoveEntity(_gridPosition, GridSize);
+        GridArea?.RemoveEntity(_gridPosition, GridSize);
     }
 
     public static Vector2I BuildingEntrancePos(Vector2I buildingPos, string buildingType)

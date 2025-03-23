@@ -23,10 +23,12 @@ namespace VeilOfAges.Core
 
         private bool _isProcessingTick = false;
 
-        public override void _Ready()
+        public EntityThinkingSystem()
         {
             _thinkingSemaphore = new SemaphoreSlim(MaxThreads, MaxThreads);
-
+        }
+        public override void _Ready()
+        {
             // Automatically find and register all beings in the scene
             RegisterExistingEntities();
         }
@@ -75,12 +77,12 @@ namespace VeilOfAges.Core
             var tasks = new List<Task>();
 
             var world = GetTree().GetFirstNodeInGroup("World") as World;
-            world.GetSensorySystem().PrepareForTick();
+            world?.GetSensorySystem().PrepareForTick();
             // Start thinking tasks for all entities
             foreach (var entity in _entities)
             {
                 var entityPosition = entity.Position;
-                var currentObservation = world.GetSensorySystem().GetObservationFor(entity);
+                var currentObservation = world?.GetSensorySystem().GetObservationFor(entity);
                 tasks.Add(Task.Run(() => ProcessEntityThinking(entity, entityPosition, currentObservation)));
             }
 
@@ -93,8 +95,10 @@ namespace VeilOfAges.Core
             _isProcessingTick = false;
         }
 
-        private async Task ProcessEntityThinking(Being entity, Vector2 currentPosition, ObservationData currentObservation)
+        private async Task ProcessEntityThinking(Being entity, Vector2 currentPosition, ObservationData? currentObservation)
         {
+            if (currentObservation == null) return;
+
             // Use semaphore to limit concurrent processing
             await _thinkingSemaphore.WaitAsync();
 

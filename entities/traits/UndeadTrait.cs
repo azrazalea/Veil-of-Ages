@@ -4,13 +4,16 @@ using VeilOfAges.Entities;
 using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Sensory;
+using VeilOfAges.UI;
 
 namespace VeilOfAges.Entities.Traits
 {
     public class UndeadTrait : ITrait
     {
-        protected Being _owner;
+        protected Being? _owner;
         public bool IsInitialized { get; protected set; }
+        public int Priority { get; set; }
+
 
         public virtual void Initialize(Being owner, BodyHealth health)
         {
@@ -30,9 +33,21 @@ namespace VeilOfAges.Entities.Traits
         public virtual void OnEvent(string eventName, params object[] args)
         {
         }
-        public virtual EntityAction SuggestAction(Vector2 currentOwnerPosition, Perception currentPerception)
+
+        public bool RefusesCommand(EntityCommand command)
         {
-            return new IdleAction(_owner);
+            return false;
+        }
+
+        public bool IsOptionAvailable(DialogueOption option)
+        {
+            return true;
+        }
+
+        public virtual EntityAction? SuggestAction(Vector2 currentOwnerPosition, Perception currentPerception)
+        {
+            if (_owner == null) return null;
+            return new IdleAction(_owner, -1);
         }
         private static void DisableLivingBodySystems(BodyHealth health)
         {
@@ -42,6 +57,23 @@ namespace VeilOfAges.Entities.Traits
             health.DisableBodySystem(BodySystemType.Digestion);
             health.DisableBodySystem(BodySystemType.Sight);
             health.DisableBodySystem(BodySystemType.Hearing);
+        }
+
+        public string? GetSuccessResponse(EntityCommand command)
+        {
+            return null;
+        }
+        public string? GetFailureResponse(EntityCommand command)
+        {
+            return null;
+        }
+        public string? GetSuccessResponse(string text)
+        {
+            return null;
+        }
+        public string? GetFailureResponse(string text)
+        {
+            return null;
         }
     }
 }

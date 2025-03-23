@@ -1,0 +1,29 @@
+[gd_scene format=3 uid="uid://cgnn5ytban4uo"]
+
+[node name="Dialogue" type="CanvasLayer"]
+
+[node name="Dialogue Panel" type="PanelContainer" parent="."]
+offset_left = 406.0
+offset_top = 222.0
+offset_right = 662.0
+offset_bottom = 426.0
+
+[node name="Dialogue Box" type="VBoxContainer" parent="Dialogue Panel"]
+layout_mode = 2
+
+[node name="Top Box" type="HBoxContainer" parent="Dialogue Panel/Dialogue Box"]
+layout_mode = 2
+
+[node name="Name Label" type="RichTextLabel" parent="Dialogue Panel/Dialogue Box/Top Box"]
+layout_mode = 2
+text = "Name"
+fit_content = true
+autowrap_mode = 0
+
+[node name="Dialogue Text Label" type="RichTextLabel" parent="Dialogue Panel/Dialogue Box"]
+layout_mode = 2
+text = "Dialogue text here"
+fit_content = true
+
+[node name="Dialogue Choices" type="HBoxContainer" parent="Dialogue Panel/Dialogue Box"]
+layout_mode = 2

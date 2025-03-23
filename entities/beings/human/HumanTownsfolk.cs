@@ -10,12 +10,12 @@ namespace VeilOfAges.Entities.Beings
 
 		public override void _Ready()
 		{
-			selfAsEntity().AddTrait<VillagerTrait>();
+			selfAsEntity().AddTrait<VillagerTrait>(1);
 
 			base._Ready();
 
 		}
-		public override void Initialize(Area gridArea, Vector2I startGridPos, BeingAttributes attributes = null)
+		public override void Initialize(Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null)
 		{
 			_baseMoveTicks = 5;
 			base.Initialize(gridArea, startGridPos, attributes);

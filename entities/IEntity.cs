@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using VeilOfAges.Entities;
+using Godot;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.Grid;
 
@@ -7,12 +7,16 @@ namespace VeilOfAges.Entities
 {
     public interface IEntity : ISensable
     {
-        public Grid.Area GridArea { get; }
-        public List<ITrait> _traits { get; }
+        public Area? GridArea { get; }
+        public SortedSet<ITrait> _traits { get; }
 
-        public void AddTrait<T>() where T : ITrait, new()
+        public void AddTrait<T>(int priority) where T : ITrait, new()
         {
-            var trait = new T();
+            var trait = new T
+            {
+                Priority = priority
+            };
+
             _traits.Add(trait);
 
             // If we're already initialized, initialize the trait immediately
@@ -22,8 +26,9 @@ namespace VeilOfAges.Entities
             }
         }
 
-        public void AddTrait(ITrait trait)
+        public void AddTrait(ITrait trait, int priority)
         {
+            trait.Priority = priority;
             _traits.Add(trait);
 
             // If we're already initialized, initialize the trait immediately
@@ -33,7 +38,7 @@ namespace VeilOfAges.Entities
             }
         }
 
-        public T GetTrait<T>() where T : ITrait
+        public T? GetTrait<T>() where T : ITrait
         {
             foreach (var trait in _traits)
             {

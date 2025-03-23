@@ -16,7 +16,7 @@ namespace VeilOfAges.Entities.Beings
             1.0f
         );
 
-        public AudioStreamPlayer2D _skeletonRattle;
+        public AudioStreamPlayer2D? _skeletonRattle;
 
         public override void _Ready()
         {
@@ -25,7 +25,8 @@ namespace VeilOfAges.Entities.Beings
             _baseMoveTicks = 6; // Skeletons are faster than zombies but slower than living beings
 
             // Add skeleton traits
-            selfAsEntity().AddTrait<SkeletonTrait>();
+            selfAsEntity().AddTrait<MindlessTrait>(1);
+            selfAsEntity().AddTrait<SkeletonTrait>(2);
 
             _skeletonRattle = GetNode<AudioStreamPlayer2D>("AudioStreamPlayer2D");
 
@@ -41,7 +42,7 @@ namespace VeilOfAges.Entities.Beings
             GD.Print("Skeleton initialized with traits");
         }
 
-        public override void Initialize(Grid.Area gridArea, Vector2I startGridPos, BeingAttributes attributes = null)
+        public override void Initialize(Grid.Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null)
         {
             base.Initialize(gridArea, startGridPos, attributes);
 
@@ -52,7 +53,7 @@ namespace VeilOfAges.Entities.Beings
         protected override void InitializeBodyStructure()
         {
             // Create base structure
-            Health.InitializeHumanoidBodyStructure();
+            Health?.InitializeHumanoidBodyStructure();
 
             // Then modify for skeleton specifics
             ModifyForSkeletalStructure();
@@ -74,6 +75,8 @@ namespace VeilOfAges.Entities.Beings
 
         public void PlayBoneRattle()
         {
+            if (_skeletonRattle == null) return;
+
             _skeletonRattle.Position = Grid.Utils.GridToWorld(_currentGridPos);
             _skeletonRattle.Play();
         }
@@ -81,7 +84,9 @@ namespace VeilOfAges.Entities.Beings
         private void ModifyForSkeletalStructure()
         {
             // Remove soft tissues from all groups
-            Health.RemoveSoftTissuesAndOrgans();
+            Health?.RemoveSoftTissuesAndOrgans();
+
+            if (_bodyPartGroups == null) return;
 
             // Strengthen bone parts
             foreach (var group in _bodyPartGroups.Values)

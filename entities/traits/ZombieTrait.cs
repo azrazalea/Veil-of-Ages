@@ -16,7 +16,7 @@ namespace VeilOfAges.Entities.Traits
         private enum ZombieState { Idle, Wandering, Chasing }
         private ZombieState _currentState = ZombieState.Idle;
 
-        private Being _chaseTarget;
+        private Being? _chaseTarget;
         private uint _chaseTimer = 0;
         private bool _hasGroaned = false;
 
@@ -28,11 +28,13 @@ namespace VeilOfAges.Entities.Traits
             WanderProbability = 0.3f; // Zombies wander more often
             WanderRange = 15.0f;      // And further from spawn
 
-            GD.Print($"{_owner.Name}: Zombie behavior initialized");
+            GD.Print($"{_owner?.Name}: Zombie behavior initialized");
         }
 
-        protected override EntityAction ProcessState(Vector2 currentPosition, Perception currentPerception)
+        protected override EntityAction? ProcessState(Vector2 currentPosition, Perception currentPerception)
         {
+            if (_owner == null) return null;
+
             // Update chase timer
             if (_chaseTimer > 0)
                 _chaseTimer--;
@@ -75,7 +77,7 @@ namespace VeilOfAges.Entities.Traits
                 // Make a zombie groan when first seeing a living being
                 if (!_hasGroaned)
                 {
-                    GD.Print($"{_owner.Name}: *groans hungrily*");
+                    GD.Print($"{_owner?.Name}: *groans hungrily*");
                     // Play sound effect
                     PlayZombieGroan();
                     _hasGroaned = true;
@@ -85,13 +87,14 @@ namespace VeilOfAges.Entities.Traits
                 _currentPath = FindPathTo(position);
                 _currentPathIndex = 0;
 
-                GD.Print($"{_owner.Name}: Spotted living being, starting chase!");
+                GD.Print($"{_owner?.Name}: Spotted living being, starting chase!");
                 return;
             }
         }
 
-        private EntityAction ProcessIdleState()
+        private EntityAction? ProcessIdleState()
         {
+            if (_owner == null) return null;
             if (_stateTimer == 0)
             {
                 // Chance to start wandering
@@ -111,8 +114,10 @@ namespace VeilOfAges.Entities.Traits
             return new IdleAction(_owner);
         }
 
-        private EntityAction ProcessWanderingState()
+        private EntityAction? ProcessWanderingState()
         {
+            if (_owner == null) return null;
+
             if (_stateTimer == 0)
             {
                 // Either continue wandering or return to idle
@@ -132,8 +137,10 @@ namespace VeilOfAges.Entities.Traits
             return new IdleAction(_owner);
         }
 
-        private EntityAction ProcessChasingState(Perception currentPerception)
+        private EntityAction? ProcessChasingState(Perception currentPerception)
         {
+            if (_owner == null) return null;
+
             // Check if we've lost interest or gone too far
             if (_chaseTimer == 0 || IsOutsideChaseRange())
             {
@@ -185,6 +192,8 @@ namespace VeilOfAges.Entities.Traits
 
         private bool IsOutsideChaseRange()
         {
+            if (_owner == null) return true;
+
             Vector2I currentPos = _owner.GetCurrentGridPosition();
             Vector2I distanceFromSpawn = currentPos - _spawnPosition;
 
@@ -195,7 +204,7 @@ namespace VeilOfAges.Entities.Traits
         private void PlayZombieGroan()
         {
             // Access the AudioStreamPlayer2D component
-            (_owner as MindlessZombie).CallDeferred("PlayZombieGroan");
+            (_owner as MindlessZombie)?.CallDeferred("PlayZombieGroan");
         }
     }
 }

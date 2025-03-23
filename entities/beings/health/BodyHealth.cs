@@ -19,7 +19,7 @@ namespace VeilOfAges.Entities.Beings.Health
 
         public void AddBodyPartToGroup(string groupName, BodyPart bodyPart)
         {
-            if (BodyPartGroups.TryGetValue(groupName, out BodyPartGroup value))
+            if (BodyPartGroups.TryGetValue(groupName, out BodyPartGroup? value))
             {
                 value.AddPart(bodyPart);
             }
@@ -31,7 +31,7 @@ namespace VeilOfAges.Entities.Beings.Health
 
         public void RemoveBodyPartFromGroup(string groupName, string bodyPartName)
         {
-            if (BodyPartGroups.TryGetValue(groupName, out BodyPartGroup value))
+            if (BodyPartGroups.TryGetValue(groupName, out BodyPartGroup? value))
             {
                 value.RemovePart(bodyPartName);
             }
@@ -87,7 +87,7 @@ namespace VeilOfAges.Entities.Beings.Health
                 float weight = contributor.Value;
 
                 // Find the part in body part groups
-                BodyPart part = FindBodyPart(partName);
+                BodyPart? part = FindBodyPart(partName);
 
                 if (part != null && part.Status != BodyPartStatus.Destroyed && part.Status != BodyPartStatus.Missing)
                 {
@@ -126,7 +126,7 @@ namespace VeilOfAges.Entities.Beings.Health
         }
 
         // Helper method to find a body part by name
-        private BodyPart FindBodyPart(string partName)
+        private BodyPart? FindBodyPart(string partName)
         {
             foreach (var group in BodyPartGroups.Values)
             {

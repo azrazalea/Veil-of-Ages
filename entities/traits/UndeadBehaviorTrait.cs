@@ -21,7 +21,7 @@ namespace VeilOfAges.Entities.Traits
         protected int _currentPathIndex = 0;
 
         // Override this to implement different behavior states
-        protected abstract EntityAction ProcessState(Vector2 currentPosition, Perception currentPerception);
+        protected abstract EntityAction? ProcessState(Vector2 currentPosition, Perception currentPerception);
 
         public override void Initialize(Being owner, BodyHealth health)
         {
@@ -29,13 +29,13 @@ namespace VeilOfAges.Entities.Traits
             _rng.Randomize();
             _spawnPosition = owner.GetCurrentGridPosition();
             _stateTimer = IdleTime;
-            GD.Print($"{_owner.Name}: UndeadBehavior trait initialized");
+            GD.Print($"{owner.Name}: UndeadBehavior trait initialized");
         }
 
-        public override EntityAction SuggestAction(Vector2 currentOwnerPosition, Perception currentPerception)
+        public override EntityAction? SuggestAction(Vector2 currentOwnerPosition, Perception currentPerception)
         {
             // Only process AI if movement is complete
-            if (_owner.IsMoving())
+            if (_owner?.IsMoving() != false)
                 return null;
 
             // Decrement the timer
@@ -47,8 +47,9 @@ namespace VeilOfAges.Entities.Traits
         }
 
         // Common method for wandering behavior used by all undead
-        protected EntityAction TryToWander()
+        protected EntityAction? TryToWander()
         {
+            if (_owner == null) return null;
             // Pick a random direction
             int randomDir = _rng.RandiRange(0, 3);
             Vector2 newDirection = Vector2.Zero;
@@ -105,8 +106,10 @@ namespace VeilOfAges.Entities.Traits
         }
 
         // Common method for following a path
-        protected EntityAction MoveToNextPathPosition(int priority = 5)
+        protected EntityAction? MoveToNextPathPosition(int priority = 5)
         {
+            if (_owner == null) return null;
+
             if (_currentPath.Count == 0 || _currentPathIndex >= _currentPath.Count)
             {
                 return new IdleAction(_owner);
@@ -116,7 +119,7 @@ namespace VeilOfAges.Entities.Traits
             _currentPathIndex++;
 
             // Check if the next position is walkable
-            if (_owner.GetGridArea().IsCellWalkable(nextPos))
+            if (_owner.GetGridArea()?.IsCellWalkable(nextPos) == true)
             {
                 return new MoveAction(_owner, nextPos, priority);
             }
@@ -130,13 +133,18 @@ namespace VeilOfAges.Entities.Traits
         // Common method for finding a path
         protected List<Vector2I> FindPathTo(Vector2I target)
         {
+            var gridArea = _owner?.GetGridArea();
+            if (gridArea == null || _owner == null) return [];
+
             Vector2I currentPos = _owner.GetCurrentGridPosition();
-            return PathFinder.FindPath(_owner.GetGridArea(), currentPos, target);
+            return PathFinder.FindPath(gridArea, currentPos, target);
         }
 
         // Check if current position is outside wander range
         protected bool IsOutsideWanderRange()
         {
+            if (_owner == null) return true;
+
             Vector2I currentPos = _owner.GetCurrentGridPosition();
             Vector2I distanceFromSpawn = currentPos - _spawnPosition;
 

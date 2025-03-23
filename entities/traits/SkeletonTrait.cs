@@ -16,7 +16,7 @@ namespace VeilOfAges.Entities.Traits
         private enum SkeletonState { Idle, Wandering, Defending }
         private SkeletonState _currentState = SkeletonState.Idle;
 
-        private Being _intruder;
+        private Being? _intruder;
         private uint _intimidationTimer = 0;
         private bool _hasRattled = false;
 
@@ -29,11 +29,13 @@ namespace VeilOfAges.Entities.Traits
             WanderRange = 10.0f;      // And stay closer to their area
             IdleTime = 15;            // Stand idle longer
 
-            GD.Print($"{_owner.Name}: Skeleton behavior initialized");
+            GD.Print($"{owner.Name}: Skeleton behavior initialized");
         }
 
-        protected override EntityAction ProcessState(Vector2 currentPosition, Perception currentPerception)
+        protected override EntityAction? ProcessState(Vector2 currentPosition, Perception currentPerception)
         {
+            if (_owner == null) return null;
+
             // Update intimidation timer
             if (_intimidationTimer > 0)
                 _intimidationTimer--;
@@ -84,7 +86,7 @@ namespace VeilOfAges.Entities.Traits
                     // Make a skeleton rattle when first seeing an intruder
                     if (!_hasRattled)
                     {
-                        GD.Print($"{_owner.Name}: *bones rattle menacingly*");
+                        GD.Print($"{_owner?.Name}: *bones rattle menacingly*");
                         // Play sound effect
                         PlayBoneRattle();
                         _hasRattled = true;
@@ -94,14 +96,16 @@ namespace VeilOfAges.Entities.Traits
                     _currentPath = FindPathTo(position);
                     _currentPathIndex = 0;
 
-                    GD.Print($"{_owner.Name}: Intruder detected in territory!");
+                    GD.Print($"{_owner?.Name}: Intruder detected in territory!");
                     return;
                 }
             }
         }
 
-        private EntityAction ProcessIdleState()
+        private EntityAction? ProcessIdleState()
         {
+            if (_owner == null) return null;
+
             if (_stateTimer == 0)
             {
                 // Chance to start wandering
@@ -121,8 +125,10 @@ namespace VeilOfAges.Entities.Traits
             return new IdleAction(_owner);
         }
 
-        private EntityAction ProcessWanderingState()
+        private EntityAction? ProcessWanderingState()
         {
+            if (_owner == null) return null;
+
             if (_stateTimer == 0)
             {
                 // Either continue wandering or return to idle
@@ -142,8 +148,10 @@ namespace VeilOfAges.Entities.Traits
             return new IdleAction(_owner);
         }
 
-        private EntityAction ProcessDefendingState(Perception currentPerception)
+        private EntityAction? ProcessDefendingState(Perception currentPerception)
         {
+            if (_owner == null) return null;
+
             // Check if we've lost interest or the intruder left the territory
             if (_intimidationTimer == 0 || !IsIntruderInTerritory())
             {
@@ -213,7 +221,7 @@ namespace VeilOfAges.Entities.Traits
         private void PlayBoneRattle()
         {
             // Access the AudioStreamPlayer2D component
-            (_owner as MindlessSkeleton).CallDeferred("PlayBoneRattle");
+            (_owner as MindlessSkeleton)?.CallDeferred("PlayBoneRattle");
         }
     }
 }

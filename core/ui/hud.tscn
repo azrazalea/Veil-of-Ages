@@ -78,9 +78,3 @@ grow_vertical = 0
 
 [node name="Quick Actions" type="Panel" parent="Quick Actions Container"]
 layout_mode = 2
-
-[node name="Button" type="Button" parent="Quick Actions Container/Quick Actions"]
-layout_mode = 0
-offset_right = 43.0
-offset_bottom = 40.0
-text = "Hi"

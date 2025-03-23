@@ -7,8 +7,8 @@ namespace VeilOfAges.Core
 {
     public partial class PlayerInputController : Node
     {
-        private GameController _gameController;
-        private Player _player;
+        private GameController? _gameController;
+        private Player? _player;
 
         public override void _Ready()
         {
@@ -57,7 +57,7 @@ namespace VeilOfAges.Core
         public override void _Input(InputEvent @event)
         {
             // Skip if simulation is paused
-            if (_gameController == null) return;
+            if (_gameController == null || _player == null) return;
 
             // Interaction
             else if (@event.IsActionPressed("interact"))
@@ -87,7 +87,7 @@ namespace VeilOfAges.Core
 
         private bool CanProcessMovementInput()
         {
-            return !_player.IsMoving();
+            return !_player?.IsMoving() ?? false;
         }
     }
 }

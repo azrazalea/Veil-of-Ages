@@ -6,6 +6,8 @@ using VeilOfAges.Entities.Actions;
 using System.Linq;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.Grid;
+using VeilOfAges.UI;
+using System.Xml.XPath;
 
 namespace VeilOfAges.Entities
 {
@@ -25,6 +27,8 @@ namespace VeilOfAges.Entities
         protected uint _baseMoveTicks = 4; // How many ticks it takes to move one tile
         protected uint _remainingMoveTicks = 0; // Time in seconds to move one tile
         protected bool _isMoving = false;
+        protected bool _isInDialogue = false;
+        protected EntityCommand? _currentCommand;
 
         /// <summary>
         /// Attributes for a perfectly "average" Being 
@@ -40,34 +44,34 @@ namespace VeilOfAges.Entities
         );
         public abstract BeingAttributes DefaultAttributes { get; }
 
-        public BeingAttributes Attributes { get; protected set; }
+        public BeingAttributes Attributes { get; protected set; } = BaseAttributesSet;
 
         public uint MaxSenseRange = 10;
 
         // Body system
-        public BodyHealth Health { get; protected set; }
-        protected Dictionary<string, BodyPartGroup> _bodyPartGroups
+        public BodyHealth? Health { get; protected set; }
+        protected Dictionary<string, BodyPartGroup>? _bodyPartGroups
         {
-            get => Health.BodyPartGroups;
+            get => Health?.BodyPartGroups;
         }
         protected bool BodyStructureInitialized
         {
-            get => Health.BodyStructureInitialized;
+            get => Health?.BodyStructureInitialized ?? false;
         }
 
         protected Vector2 _targetPosition;
         protected Vector2 _startPosition;
         protected float _moveProgress = 1.0f; // 1.0 means movement complete
         protected Vector2 _direction = Vector2.Zero;
-        protected AnimatedSprite2D _animatedSprite;
+        protected AnimatedSprite2D? _animatedSprite;
         protected Vector2I _currentGridPos;
 
         // Reference to the grid system
-        public Grid.Area GridArea { get; protected set; }
+        public Area? GridArea { get; protected set; }
 
         // Trait system
-        public List<ITrait> _traits { get; protected set; } = [];
-        public Dictionary<SenseType, float> DetectionDifficulties { get; protected set; }
+        public SortedSet<ITrait> _traits { get; protected set; } = [];
+        public Dictionary<SenseType, float> DetectionDifficulties { get; protected set; } = [];
         // Memory system to track what the entity has perceived
         private Dictionary<Vector2I, Dictionary<string, object>> _memory = new();
 
@@ -83,13 +87,20 @@ namespace VeilOfAges.Entities
             // Initialize all traits
             foreach (var trait in _traits)
             {
-                trait.Initialize(this, Health);
+                if (Health != null)
+                {
+                    trait.Initialize(this, Health);
+                }
+                else
+                {
+                    trait.Initialize(this);
+                }
             }
 
             ZIndex = 1;
         }
 
-        public virtual void Initialize(Grid.Area gridArea, Vector2I startGridPos, BeingAttributes attributes = null)
+        public virtual void Initialize(Grid.Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null)
         {
             GridArea = gridArea;
             _currentGridPos = startGridPos;
@@ -121,6 +132,17 @@ namespace VeilOfAges.Entities
             Health.PrintSystemStatuses();
         }
 
+        public virtual string GenerateInitialDialogue(Being speaker)
+        {
+            foreach (var trait in _traits)
+            {
+                var dialogue = trait.InitialDialogue(speaker);
+                if (dialogue != null) return dialogue;
+            }
+
+            return $"Hello {speaker.Name}";
+        }
+
         // Allows easy calling of Default implemenation methods
         public IEntity selfAsEntity()
         {
@@ -136,14 +158,107 @@ namespace VeilOfAges.Entities
             return SensableType.Being;
         }
 
+        /// <summary>
+        /// Assign a command to an entity.
+        /// This will fail if any trait refuses the command.
+        /// </summary>
+        /// <param name="command">The command to assign</param>
+        /// <returns>Whether or not the command was assigned successfully</returns>
+        public bool AssignCommand(EntityCommand command)
+        {
+            foreach (var trait in _traits)
+            {
+                if (trait.RefusesCommand(command))
+                {
+                    return false;
+                }
+            }
+
+            _currentCommand = command;
+            return true;
+        }
+
+        /// <summary>
+        /// Can we even try to give this command? If command is null return true. If this is false the dialog option will not show.
+        /// </summary>
+        /// <returns>Whether or not we can try to give `command` to `this` being</returns>
+        public bool IsOptionAvailable(DialogueOption option)
+        {
+            foreach (var trait in _traits)
+            {
+                if (trait.IsOptionAvailable(option))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public string? GetSuccessResponse(EntityCommand command)
+        {
+            foreach (var trait in _traits)
+            {
+                string? response;
+                if ((response = trait.GetSuccessResponse(command)) != null)
+                {
+                    return response;
+                }
+            }
+
+            return null;
+        }
+
+        public string? GetSuccessResponse(string text)
+        {
+            foreach (var trait in _traits)
+            {
+                string? response;
+                if ((response = trait.GetSuccessResponse(text)) != null)
+                {
+                    return response;
+                }
+            }
+
+            return null;
+        }
+
+        public string? GetFailureResponse(EntityCommand command)
+        {
+            foreach (var trait in _traits)
+            {
+                string? response;
+                if ((response = trait.GetFailureResponse(command)) != null)
+                {
+                    return response;
+                }
+            }
+
+            return null;
+        }
+
+        public string? GetFailureResponse(string text)
+        {
+            foreach (var trait in _traits)
+            {
+                string? response;
+                if ((response = trait.GetFailureResponse(text)) != null)
+                {
+                    return response;
+                }
+            }
+
+            return null;
+        }
+
         // Method to handle body structure initialization - can be overridden by subclasses
-        protected virtual void InitializeBodyStructure() => Health.InitializeHumanoidBodyStructure();
-        protected virtual void InitializeBodySystems() => Health.InitializeBodySystems();
+        protected virtual void InitializeBodyStructure() => Health?.InitializeHumanoidBodyStructure();
+        protected virtual void InitializeBodySystems() => Health?.InitializeBodySystems();
 
         public virtual EntityAction Think(Vector2 currentPosition, ObservationData observationData)
         {
             // Ask each trait for suggested actions
-            List<EntityAction> possibleActions = [];
+            PriorityQueue<EntityAction, int> possibleActions = new();
 
             var currentPerception = ProcessPerception(observationData);
             SetMemory(currentPosition, currentPerception);
@@ -155,14 +270,14 @@ namespace VeilOfAges.Entities
                 var suggestedAction = trait.SuggestAction(currentPosition, currentPerception);
                 if (suggestedAction != null)
                 {
-                    possibleActions.Add(suggestedAction);
+                    possibleActions.Enqueue(suggestedAction, suggestedAction.Priority);
                 }
             }
 
             // Choose the highest priority action or default to idle
             if (possibleActions.Count > 0)
             {
-                var action = possibleActions.OrderByDescending(a => a.Priority).First();
+                var action = possibleActions.Dequeue();
                 return action;
             }
 
@@ -178,7 +293,7 @@ namespace VeilOfAges.Entities
             int baseRange = 8;
 
             // Modify by sight system efficiency
-            float sightEfficiency = Health.GetSystemEfficiency(BodySystemType.Sight);
+            float sightEfficiency = Health?.GetSystemEfficiency(BodySystemType.Sight) ?? 0;
 
             // Calculate final range (minimum 1 if has sight)
             return Math.Max(1, Mathf.RoundToInt(baseRange * sightEfficiency));
@@ -188,9 +303,9 @@ namespace VeilOfAges.Entities
         {
             return senseType switch
             {
-                SenseType.Sight => !Health.BodySystems[BodySystemType.Sight].Disabled,
-                SenseType.Hearing => !Health.BodySystems[BodySystemType.Hearing].Disabled,
-                SenseType.Smell => !Health.BodySystems[BodySystemType.Smell].Disabled,
+                SenseType.Sight => !Health?.BodySystems[BodySystemType.Sight].Disabled ?? false,
+                SenseType.Hearing => !Health?.BodySystems[BodySystemType.Hearing].Disabled ?? false,
+                SenseType.Smell => !Health?.BodySystems[BodySystemType.Smell].Disabled ?? false,
                 _ => false,
             };
         }
@@ -323,6 +438,8 @@ namespace VeilOfAges.Entities
             float totalHealth = 0;
             float totalImportance = 0;
 
+            if (_bodyPartGroups == null) return 0;
+
             foreach (var group in _bodyPartGroups.Values)
             {
                 foreach (var part in group.Parts)
@@ -358,6 +475,8 @@ namespace VeilOfAges.Entities
             float efficiency = 0;
             float totalImportance = 0;
 
+            if (_bodyPartGroups == null) return 0;
+
             foreach (var group in _bodyPartGroups.Values)
             {
                 foreach (var part in group.Parts)
@@ -373,9 +492,9 @@ namespace VeilOfAges.Entities
         // Apply damage to a specific body part
         public void DamageBodyPart(string groupName, string partName, float amount)
         {
-            if (_bodyPartGroups.TryGetValue(groupName, out var group))
+            if (_bodyPartGroups?.TryGetValue(groupName, out var group) != null)
             {
-                var part = group.Parts.FirstOrDefault(p => p.Name == partName);
+                var part = group?.Parts.FirstOrDefault(p => p.Name == partName);
                 part?.TakeDamage(amount);
             }
         }
@@ -383,9 +502,9 @@ namespace VeilOfAges.Entities
         // Heal a specific body part
         public void HealBodyPart(string groupName, string partName, float amount)
         {
-            if (_bodyPartGroups.TryGetValue(groupName, out var group))
+            if (_bodyPartGroups?.TryGetValue(groupName, out var group) != null)
             {
-                var part = group.Parts.FirstOrDefault(p => p.Name == partName);
+                var part = group?.Parts.FirstOrDefault(p => p.Name == partName);
                 part?.Heal(amount);
             }
         }
@@ -394,7 +513,7 @@ namespace VeilOfAges.Entities
         public bool TryMoveToGridPosition(Vector2I targetGridPos)
         {
             // Check if the target cell is free
-            if (GridArea.IsCellWalkable(targetGridPos))
+            if (GridArea != null && GridArea.IsCellWalkable(targetGridPos))
             {
                 // Free the current cell
                 GridArea.RemoveEntity(_currentGridPos);
@@ -415,12 +534,15 @@ namespace VeilOfAges.Entities
                 _direction = moveDirection;
 
                 // Handle animation and facing direction
-                if (_direction.X > 0)
-                    _animatedSprite.FlipH = false;
-                else if (_direction.X < 0)
-                    _animatedSprite.FlipH = true;
+                if (_animatedSprite != null)
+                {
+                    if (_direction.X > 0)
+                        _animatedSprite.FlipH = false;
+                    else if (_direction.X < 0)
+                        _animatedSprite.FlipH = true;
 
-                _animatedSprite.Play("walk");
+                    _animatedSprite.Play("walk");
+                }
 
                 return true;
             }
@@ -449,7 +571,7 @@ namespace VeilOfAges.Entities
                     // If no direction, play idle animation
                     if (_direction == Vector2.Zero)
                     {
-                        _animatedSprite.Play("idle");
+                        _animatedSprite?.Play("idle");
                     }
                 }
             }
@@ -473,7 +595,7 @@ namespace VeilOfAges.Entities
         }
 
         // Get the grid area (for traits that need it)
-        public Grid.Area GetGridArea()
+        public Area? GetGridArea()
         {
             return GridArea;
         }

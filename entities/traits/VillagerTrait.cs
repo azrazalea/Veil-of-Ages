@@ -5,12 +5,14 @@ using VeilOfAges.Entities.Sensory;
 using VeilOfAges.Core.Lib;
 using System.Collections.Generic;
 using System;
+using System.Runtime.CompilerServices;
+using VeilOfAges.UI;
 
 namespace VeilOfAges.Entities.Traits
 {
     public class VillagerTrait : ITrait
     {
-        protected Being _owner;
+        protected Being? _owner;
         public bool IsInitialized { get; protected set; }
 
         private RandomNumberGenerator _rng = new();
@@ -29,7 +31,7 @@ namespace VeilOfAges.Entities.Traits
         private Vector2I _homePosition;
         private Vector2I _squarePosition;
         private List<Building> _knownBuildings = new();
-        private Building _currentDestinationBuilding;
+        private Building? _currentDestinationBuilding;
 
         // Path and movement tracking
         private List<Vector2I> _currentPath = new();
@@ -37,6 +39,7 @@ namespace VeilOfAges.Entities.Traits
         private uint _stateTimer = 0;
         private uint _currentFleeDelay = 0;
         private bool _hasSeenUndead = false;
+        public int Priority { get; set; }
 
         public void Initialize(Being owner, BodyHealth health)
         {
@@ -48,9 +51,12 @@ namespace VeilOfAges.Entities.Traits
             _homePosition = _owner.GetCurrentGridPosition();
 
             // Find village square (assume it's near the center of the map)
+            if (owner?.GridArea != null)
+            {
+                _squarePosition = new Vector2I(owner.GridArea.GridSize.X / 2, owner.GridArea.GridSize.Y / 2);
+                GD.Print($"Grid of size {owner.GridArea.GridSize} position at {_squarePosition}");
+            }
 
-            _squarePosition = new Vector2I(owner.GridArea.GridSize.X / 2, owner.GridArea.GridSize.Y / 2);
-            GD.Print($"Grid of size {owner.GridArea.GridSize} position at {_squarePosition}");
 
             // Discover buildings in the world
             DiscoverBuildings();
@@ -63,7 +69,7 @@ namespace VeilOfAges.Entities.Traits
         private void DiscoverBuildings()
         {
             // Find all buildings in the scene
-            var world = _owner.GetTree().GetFirstNodeInGroup("World") as World;
+            var world = _owner?.GetTree().GetFirstNodeInGroup("World") as World;
             if (world == null) return;
 
             var entitiesNode = world.GetNode<Node2D>("Entities");
@@ -75,7 +81,7 @@ namespace VeilOfAges.Entities.Traits
                 }
             }
 
-            GD.Print($"{_owner.Name}: Discovered {_knownBuildings.Count} buildings");
+            GD.Print($"{_owner?.Name}: Discovered {_knownBuildings.Count} buildings");
         }
 
         public void Process(double delta)
@@ -83,8 +89,10 @@ namespace VeilOfAges.Entities.Traits
             // No per-frame processing needed, handled by SuggestAction
         }
 
-        public EntityAction SuggestAction(Vector2 currentOwnerPosition, Perception currentPerception)
+        public EntityAction? SuggestAction(Vector2 currentOwnerPosition, Perception currentPerception)
         {
+            if (_owner == null) return null;
+
             // Only process AI if movement is complete
             if (_owner.IsMoving())
                 return null;
@@ -152,8 +160,10 @@ namespace VeilOfAges.Entities.Traits
             return false;
         }
 
-        private EntityAction ProcessIdleAtHomeState()
+        private EntityAction? ProcessIdleAtHomeState()
         {
+            if (_owner == null) return null;
+
             if (_stateTimer == 0)
             {
                 // Chance to go to the village square
@@ -213,8 +223,10 @@ namespace VeilOfAges.Entities.Traits
             return new IdleAction(_owner);
         }
 
-        private EntityAction ProcessIdleAtSquareState()
+        private EntityAction? ProcessIdleAtSquareState()
         {
+            if (_owner == null) return null;
+
             if (_stateTimer == 0)
             {
                 // Time to go back home
@@ -252,7 +264,7 @@ namespace VeilOfAges.Entities.Traits
                 int dy = _rng.RandiRange(-1, 1);
                 Vector2I targetPos = currentPos + new Vector2I(dx, dy);
 
-                if (_owner.GetGridArea().IsCellWalkable(targetPos))
+                if (_owner.GetGridArea()?.IsCellWalkable(targetPos) == true)
                 {
                     return new MoveAction(_owner, targetPos);
                 }
@@ -261,8 +273,10 @@ namespace VeilOfAges.Entities.Traits
             return new IdleAction(_owner);
         }
 
-        private EntityAction ProcessVisitingBuildingState()
+        private EntityAction? ProcessVisitingBuildingState()
         {
+            if (_owner == null) return null;
+
             if (_stateTimer == 0 || _currentDestinationBuilding == null)
             {
                 // Time to go back home
@@ -277,6 +291,8 @@ namespace VeilOfAges.Entities.Traits
                     return MoveToNextPathPosition();
                 }
             }
+
+            if (_currentDestinationBuilding == null) return null;
 
             // Check if we're at the building
             Vector2I currentPos = _owner.GetCurrentGridPosition();
@@ -315,8 +331,10 @@ namespace VeilOfAges.Entities.Traits
             return new IdleAction(_owner);
         }
 
-        private EntityAction ProcessFleeingState()
+        private EntityAction? ProcessFleeingState()
         {
+            if (_owner == null) return null;
+
             // Check if we've reached safety (home)
             Vector2I currentPos = _owner.GetCurrentGridPosition();
             if (currentPos == _homePosition)
@@ -346,12 +364,12 @@ namespace VeilOfAges.Entities.Traits
 
             // If we still have no path, just try to move away from current position towards home
             Vector2 directionToHome = (VeilOfAges.Grid.Utils.GridToWorld(_homePosition) - _owner.Position).Normalized();
-            Vector2I nextPos = new Vector2I(
+            Vector2I nextPos = new(
                 currentPos.X + Mathf.RoundToInt(directionToHome.X),
                 currentPos.Y + Mathf.RoundToInt(directionToHome.Y)
             );
 
-            if (_owner.GetGridArea().IsCellWalkable(nextPos))
+            if (_owner.GetGridArea()?.IsCellWalkable(nextPos) == true)
             {
                 return new MoveAction(_owner, nextPos);
             }
@@ -360,8 +378,10 @@ namespace VeilOfAges.Entities.Traits
             return new IdleAction(_owner);
         }
 
-        protected EntityAction MoveToNextPathPosition(int priority = 5)
+        protected EntityAction? MoveToNextPathPosition(int priority = 5)
         {
+            if (_owner == null) return null;
+
             if (_currentPath.Count == 0 || _currentPathIndex >= _currentPath.Count)
             {
                 return new IdleAction(_owner);
@@ -386,7 +406,7 @@ namespace VeilOfAges.Entities.Traits
             }
 
             // Check if the next position is walkable
-            if (_owner.GetGridArea().IsCellWalkable(nextPos))
+            if (_owner.GetGridArea()?.IsCellWalkable(nextPos) == true)
             {
                 return new MoveAction(_owner, nextPos, priority);
             }
@@ -399,16 +419,50 @@ namespace VeilOfAges.Entities.Traits
             }
         }
 
+        public bool RefusesCommand(EntityCommand command)
+        {
+            return false;
+        }
+
+        public bool IsOptionAvailable(DialogueOption option)
+        {
+            return true;
+        }
 
         private List<Vector2I> FindPathTo(Vector2I target)
         {
+            var gridArea = _owner?.GetGridArea();
+            if (gridArea == null || _owner == null) return [];
+
             Vector2I currentPos = _owner.GetCurrentGridPosition();
-            return PathFinder.FindPath(_owner.GetGridArea(), currentPos, target);
+            return PathFinder.FindPath(gridArea, currentPos, target);
+        }
+
+        public string InitialDialogue(Being speaker)
+        {
+            return $"Hello there {speaker.Name}";
         }
 
         public void OnEvent(string eventName, params object[] args)
         {
             // Handle events
+        }
+
+        public string? GetSuccessResponse(EntityCommand command)
+        {
+            return null;
+        }
+        public string? GetFailureResponse(EntityCommand command)
+        {
+            return null;
+        }
+        public string? GetSuccessResponse(string text)
+        {
+            return null;
+        }
+        public string? GetFailureResponse(string text)
+        {
+            return null;
         }
     }
 }

@@ -9,14 +9,14 @@ namespace VeilOfAges.Entities
     {
         public override BeingAttributes DefaultAttributes { get; } = BaseAttributesSet;
 
-        private EntityAction _nextAction = null;
+        private EntityAction? _nextAction = null;
 
         public void SetNextAction(EntityAction action)
         {
             _nextAction = action;
         }
 
-        public override void Initialize(Area gridArea, Vector2I startGridPos, BeingAttributes attributes = null)
+        public override void Initialize(Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null)
         {
             _baseMoveTicks = 3;
             base.Initialize(gridArea, startGridPos, attributes);
@@ -38,7 +38,7 @@ namespace VeilOfAges.Entities
         public Vector2I GetFacingDirection()
         {
             // Determine facing direction based on sprite orientation
-            if (_animatedSprite.FlipH)
+            if (_animatedSprite?.FlipH == true)
                 return new Vector2I(-1, 0); // Facing left
             else
                 return new Vector2I(1, 0);  // Facing right
