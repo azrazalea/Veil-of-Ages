@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://ba8h7co1n3v3u"]
+[gd_scene load_steps=18 format=3 uid="uid://ba8h7co1n3v3u"]
 
 [ext_resource type="Script" uid="uid://bw48w31c0qjor" path="res://world/World.cs" id="1_qt6d3"]
 [ext_resource type="PackedScene" uid="uid://cljvkvv6tomyu" path="res://entities/player/scene.tscn" id="2_2fjkk"]
@@ -13,6 +13,7 @@
 [ext_resource type="Script" uid="uid://barxyo8p3oyvt" path="res://entities/EntityThinkingSystem.cs" id="11_bad00"]
 [ext_resource type="PackedScene" uid="uid://ceu0upqbs404d" path="res://core/PlayerInputController.tscn" id="12_ob0ca"]
 [ext_resource type="PackedScene" uid="uid://dnseqlvnfuids" path="res://core/GameController.tscn" id="13_liapn"]
+[ext_resource type="PackedScene" uid="uid://blrrhyix46g18" path="res://core/hud.tscn" id="14_liapn"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_jsbcd"]
 resource_name = "Dark Forest"
@@ -499,3 +500,5 @@ current = true
 [node name="GroundLayer" type="TileMapLayer" parent="."]
 tile_set = SubResource("TileSet_7s53g")
 collision_enabled = false
+
+[node name="HUD" parent="." instance=ExtResource("14_liapn")]
