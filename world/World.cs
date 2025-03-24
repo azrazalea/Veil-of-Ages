@@ -13,17 +13,17 @@ namespace VeilOfAges
         [Export] public float GlobalTimeScale { get; set; } = 1.0f;
         [Export]
         public bool GenerateOnReady = true;
-        public Grid.Area ActiveGridArea;
+        public Grid.Area? ActiveGridArea;
         private List<Grid.Area> _gridAreas = [];
 
         // Entities container
-        private Node2D _entitiesContainer;
-        private GridGenerator _gridGenerator;
-        private SensorySystem _sensorySystem;
-        private EventSystem _eventSystem;
+        private Node2D? _entitiesContainer;
+        private GridGenerator? _gridGenerator;
+        private SensorySystem? _sensorySystem;
+        private EventSystem? _eventSystem;
 
         // References
-        private Player _player;
+        private Player? _player;
 
         [Export]
         public Vector2I WorldSizeInTiles = new(100, 100);
@@ -68,8 +68,8 @@ namespace VeilOfAges
             return 1.0f;
         }
 
-        public SensorySystem GetSensorySystem() => _sensorySystem;
-        public EventSystem GetEventSystem() => _eventSystem;
+        public SensorySystem? GetSensorySystem() => _sensorySystem;
+        public EventSystem? GetEventSystem() => _eventSystem;
 
         // Converts a world position to a grid position
         public Vector2I WorldToGrid(Vector2 worldPosition)
@@ -86,7 +86,7 @@ namespace VeilOfAges
         public List<Being> GetEntities()
         {
             var entities = new List<Being>();
-            foreach (Node entity in _entitiesContainer.GetChildren())
+            foreach (Node entity in _entitiesContainer?.GetChildren() ?? [])
             {
                 if (entity is Being being) entities.Add(being);
             }

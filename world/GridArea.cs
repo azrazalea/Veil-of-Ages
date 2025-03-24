@@ -13,17 +13,15 @@ namespace VeilOfAges.Grid
         [Export] public string AreaName { get; set; } = "Default Area";
         [Export] public Vector2I GridSize { get; set; } = new(100, 100);
 
-        private TileMapLayer _groundLayer;
-        private TileMapLayer _objectsLayer;
-        // TODO: We need to properly implement terrain and make this
-        // a proper object that has a texture associated with it
+        private TileMapLayer? _groundLayer;
+        private TileMapLayer? _objectsLayer;
         private GroundSystem _groundGridSystem = new(worldSize);
         // TODO: We need to properly implement items and make this
         // a proper object that has a texture assoiciated with it
         private GroundSystem _objectGridSystem = new(worldSize);
         public Node2DSystem EntitiesGridSystem { get; private set; } = new Node2DSystem(worldSize);
 
-        private Node2D _entitiesContainer;
+        private Node2D? _entitiesContainer;
         /// <summary>
         /// Is area in full detail mode with all AI active?
         /// </summary>
@@ -60,7 +58,7 @@ namespace VeilOfAges.Grid
             0.5f
         );
 
-        private World _gameWorld;
+        private World? _gameWorld;
 
         public void SetActive()
         {
@@ -97,8 +95,9 @@ namespace VeilOfAges.Grid
             // Add our tile layers to scene tree and enable
             playerArea.AddChild(_groundLayer);
             playerArea.AddChild(_objectsLayer);
-            _groundLayer.Enabled = true;
-            _objectsLayer.Enabled = true;
+
+            if (_groundLayer != null) _groundLayer.Enabled = true;
+            if (_objectsLayer != null) _objectsLayer.Enabled = true;
 
             // Declare we are active
             _isActive = true;
@@ -110,7 +109,7 @@ namespace VeilOfAges.Grid
         {
             _groundGridSystem.SetCell(groundPos, tile);
 
-            if (_groundLayer.Enabled)
+            if (_groundLayer?.Enabled == true)
             {
                 _groundLayer.SetCell(groundPos, tile.SourceId, tile.AtlasCoords);
             }
@@ -168,9 +167,12 @@ namespace VeilOfAges.Grid
                 SetGroundCell(kvp.Key, kvp.Value);
             }
 
-            foreach (var kvp in _objectGridSystem.OccupiedCells)
+            if (_objectsLayer != null)
             {
-                _objectsLayer.SetCell(kvp.Key, kvp.Value.SourceId, kvp.Value.AtlasCoords);
+                foreach (var kvp in _objectGridSystem.OccupiedCells)
+                {
+                    _objectsLayer.SetCell(kvp.Key, kvp.Value.SourceId, kvp.Value.AtlasCoords);
+                }
             }
 
             foreach (var (key, entity) in EntitiesGridSystem.OccupiedCells)

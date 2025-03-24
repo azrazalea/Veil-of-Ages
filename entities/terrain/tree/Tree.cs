@@ -9,7 +9,7 @@ public partial class Tree : Node2D
     public Vector2I GridSize = new(5, 6); // Size in tiles (most trees are 1x1)
 
     private Vector2I _gridPosition;
-    private VeilOfAges.Grid.Area GridArea;
+    private VeilOfAges.Grid.Area? GridArea;
 
     public override void _Ready()
     {

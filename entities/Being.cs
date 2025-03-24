@@ -7,7 +7,7 @@ using System.Linq;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.Grid;
 using VeilOfAges.UI;
-using System.Xml.XPath;
+using VeilOfAges.UI.Commands;
 
 namespace VeilOfAges.Entities
 {
@@ -249,6 +249,33 @@ namespace VeilOfAges.Entities
             }
 
             return null;
+        }
+
+        public void AddDialogueOptions(Being speaker, List<DialogueOption> options)
+        {
+            foreach (var trait in _traits)
+            {
+                options.AddRange(trait.GenerateDialogueOptions(speaker));
+            }
+
+            if (_currentCommand != null)
+            {
+                options.Add(new("Cancel current orders.", new CancelCommand(this, speaker)));
+            }
+        }
+
+        public virtual string GetDialogueDescription()
+        {
+            string description = "";
+            foreach (var trait in _traits)
+            {
+                var traitDescription = trait.GenerateDialogueDescription();
+                if (traitDescription != null) description += $"{traitDescription}\n";
+            }
+
+            if (description == "") return "A being.";
+
+            return description;
         }
 
         // Method to handle body structure initialization - can be overridden by subclasses

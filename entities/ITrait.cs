@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Entities.Beings.Health;
@@ -7,7 +8,7 @@ using VeilOfAges.UI;
 namespace VeilOfAges.Entities
 {
     // Base interface for all traits
-    public interface ITrait
+    public interface ITrait : IComparable
     {
         public bool IsInitialized { get; }
         public int Priority { get; set; }
@@ -30,22 +31,22 @@ namespace VeilOfAges.Entities
         string? GetFailureResponse(EntityCommand command);
         string? GetSuccessResponse(string text);
         string? GetFailureResponse(string text);
+        List<DialogueOption> GenerateDialogueOptions(Being speaker);
+        string? GenerateDialogueDescription();
 
         // Optional method for handling events
         void OnEvent(string eventName, params object[] args);
 
         EntityAction? SuggestAction(Vector2 currentOwnerPosition, Perception currentPerception);
-    }
 
-    public class TraitPriorityComparer : IComparer<ITrait>
-    {
-        public int Compare(ITrait? x, ITrait? y)
+        public int GeneralCompareTo(object? obj)
         {
-            if (x == null && y == null) return 0;
-            if (x == null) return 1;
-            if (y == null) return -1;
+            if (obj is ITrait otherTrait)
+            {
+                return Priority.CompareTo(otherTrait?.Priority ?? -1);
+            }
 
-            return x.Priority.CompareTo(y.Priority);
+            return -1;
         }
     }
 }

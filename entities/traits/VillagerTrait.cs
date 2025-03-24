@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System;
 using System.Runtime.CompilerServices;
 using VeilOfAges.UI;
+using VeilOfAges.UI.Commands;
 
 namespace VeilOfAges.Entities.Traits
 {
@@ -363,7 +364,7 @@ namespace VeilOfAges.Entities.Traits
             }
 
             // If we still have no path, just try to move away from current position towards home
-            Vector2 directionToHome = (VeilOfAges.Grid.Utils.GridToWorld(_homePosition) - _owner.Position).Normalized();
+            Vector2 directionToHome = (Grid.Utils.GridToWorld(_homePosition) - Grid.Utils.GridToWorld(currentPos)).Normalized();
             Vector2I nextPos = new(
                 currentPos.X + Mathf.RoundToInt(directionToHome.X),
                 currentPos.Y + Mathf.RoundToInt(directionToHome.Y)
@@ -463,6 +464,25 @@ namespace VeilOfAges.Entities.Traits
         public string? GetFailureResponse(string text)
         {
             return null;
+        }
+
+        public List<DialogueOption> GenerateDialogueOptions(Being speaker)
+        {
+            if (_owner == null) return [];
+
+            return [
+                new("Return home", new ReturnHomeCommand(_owner, speaker))
+            ];
+        }
+
+        public string? GenerateDialogueDescription()
+        {
+            return null;
+        }
+
+        public int CompareTo(object? obj)
+        {
+            return (this as ITrait).GeneralCompareTo(obj);
         }
     }
 }

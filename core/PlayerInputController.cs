@@ -2,6 +2,7 @@ using Godot;
 using System;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities;
+using VeilOfAges.UI;
 
 namespace VeilOfAges.Core
 {
@@ -9,11 +10,13 @@ namespace VeilOfAges.Core
     {
         private GameController? _gameController;
         private Player? _player;
+        private Dialogue? _dialogueUI;
 
         public override void _Ready()
         {
             _gameController = GetNode<GameController>("/root/World/GameController");
             _player = GetNode<Player>("/root/World/Entities/Player");
+            _dialogueUI = GetNode<Dialogue>("/root/World/HUD/Dialogue/Dialogue Panel");
 
             if (_gameController == null || _player == null)
             {
@@ -62,8 +65,11 @@ namespace VeilOfAges.Core
             // Interaction
             else if (@event.IsActionPressed("interact"))
             {
-                Vector2I interactPos = _player.GetCurrentGridPosition() + _player.GetFacingDirection();
-                _gameController.QueuePlayerAction(new InteractAction(_player, interactPos));
+                TryInteractWithNearbyEntity();
+            }
+            else if (@event.IsActionPressed("exit"))
+            {
+                _dialogueUI?.Close();
             }
 
             // Simulation controls
@@ -85,9 +91,42 @@ namespace VeilOfAges.Core
             }
         }
 
+        private void TryInteractWithNearbyEntity()
+        {
+            if (_player == null) return;
+
+            // Get player's current position and facing direction
+            Vector2I playerPos = _player.GetCurrentGridPosition();
+            Vector2I facingDir = _player.GetFacingDirection();
+            Vector2I interactPos = playerPos + facingDir;
+
+            // Check if there's an entity at the interaction position
+            if (GetEntityAtPosition(interactPos) is Being entity)
+            {
+                // Interact with the entity by showing dialogue
+                _dialogueUI?.ShowDialogue(_player, entity);
+                GD.Print($"Interacting with {entity.Name}");
+            }
+        }
+
         private bool CanProcessMovementInput()
         {
             return !_player?.IsMoving() ?? false;
+        }
+
+        private Being? GetEntityAtPosition(Vector2I position)
+        {
+            // Get all entities from the world
+            if (GetTree().GetFirstNodeInGroup("World") is World world)
+            {
+                var entity = world.ActiveGridArea?.EntitiesGridSystem.GetCell(position);
+                if (entity is Being being)
+                {
+                    return being;
+                }
+            }
+
+            return null;
         }
     }
 }

@@ -7,9 +7,9 @@ namespace VeilOfAges.UI
 {
     public partial class Dialogue : PanelContainer
     {
-        [Export] private Label? _nameLabel;
+        [Export] private RichTextLabel? _nameLabel;
         [Export] private RichTextLabel? _dialogueText;
-        [Export] private HBoxContainer? _optionsContainer;
+        [Export] private HFlowContainer? _optionsContainer;
         private Being? _currentTarget;
         private Being? _currentSpeaker;
         private List<DialogueOption> _currentOptions = new();
@@ -61,18 +61,36 @@ namespace VeilOfAges.UI
             }
         }
 
+        /// <summary>
+        /// Process the selected option
+        /// Possible outcomes for dialogue text:
+        /// 1. If data isn't present then we do nothing
+        //  2. The command associated with the option is refused, command is not assigned, and we return the failure response
+        /// 3. The command associated with the option is accepted, command is assigned, and we return success response
+        /// 4. There is no command associated with the option, so we just return the successful response.
+        /// 
+        /// Possible outcomes for dialogue choices:
+        /// 1. If GenerateFollowUpOptions returns nothing then we close the Dialog (this typically happens with the player says goodbye)
+        /// 2. Otherwise we refresh the options with whatever GenerateFollowupOptions returns.
+        /// </summary>
+        /// <param name="option">The option that was selected</param>
         private void OnOptionSelected(DialogueOption option)
         {
             if (_currentSpeaker == null || _currentTarget == null) return;
             // Check if command is valid for entity and process it
-            bool accepted = option.Command != null &&
-                           _dialogueController.ProcessCommand(_currentSpeaker, _currentTarget, option.Command);
+            bool accepted = option.Command == null ||
+                           _dialogueController.ProcessCommand(_currentTarget, option.Command);
 
             // Update dialogue text based on acceptance
             if (_dialogueText != null) _dialogueText.Text = accepted ? option.SuccessResponse(_currentTarget) : option.FailureResponse(_currentTarget);
 
             // Generate new options based on the new state
-            _currentOptions = _dialogueController.GenerateFollowUpOptions(_currentSpeaker, _currentTarget, option, accepted);
+            _currentOptions = _dialogueController.GenerateFollowUpOptions(_currentSpeaker, _currentTarget, option);
+
+            if (_currentOptions.Count == 0)
+            {
+                Close();
+            }
 
             // Refresh the option buttons
             RefreshOptions();

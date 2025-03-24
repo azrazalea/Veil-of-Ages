@@ -39,7 +39,7 @@ namespace VeilOfAges.Entities.Sensory
             var maps = GetRelevantDijkstraMaps(entity);
 
             // Get relevant events in range
-            var events = _world.GetEventSystem().GetEventsInRange(position, senseRange);
+            var events = _world?.GetEventSystem()?.GetEventsInRange(position, senseRange) ?? [];
 
             // Return all observation data as read-only
             return new ObservationData(grid, maps, events);

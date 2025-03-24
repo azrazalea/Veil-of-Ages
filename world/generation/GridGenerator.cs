@@ -10,28 +10,28 @@ namespace VeilOfAges.WorldGeneration
     public partial class GridGenerator : Node
     {
         [Export]
-        public PackedScene TreeScene;
+        public PackedScene? TreeScene;
 
         [Export]
-        public PackedScene BuildingScene;
+        public PackedScene? BuildingScene;
 
         [Export]
         public int NumberOfTrees = 20;
 
         [Export]
-        public PackedScene SkeletonScene;
+        public PackedScene? SkeletonScene;
         [Export]
-        public PackedScene ZombieScene;
+        public PackedScene? ZombieScene;
         [Export]
-        public PackedScene TownsfolkScene;
+        public PackedScene? TownsfolkScene;
 
-        private Node2D _entitiesContainer;
-        private VeilOfAges.Grid.Area _activeGridArea;
+        private Node2D? _entitiesContainer;
+        private Area? _activeGridArea;
 
         // Random number generator
         private RandomNumberGenerator _rng = new();
 
-        private EntityThinkingSystem _entityThinkingSystem;
+        private EntityThinkingSystem? _entityThinkingSystem;
 
         // Main generation method
         public void Generate(World world)
@@ -43,7 +43,8 @@ namespace VeilOfAges.WorldGeneration
             _entitiesContainer = world.GetNode<Node2D>("Entities");
 
             // Ensure we have all required nodes
-            if (_entitiesContainer == null)
+            if (_entitiesContainer == null || _activeGridArea == null || _entitiesContainer == null ||
+                BuildingScene == null || SkeletonScene == null || ZombieScene == null || TownsfolkScene == null)
             {
                 GD.PrintErr("WorldGenerator: Missing required nodes!");
                 return;
@@ -81,6 +82,8 @@ namespace VeilOfAges.WorldGeneration
         // Generate basic terrain
         private void GenerateTerrain()
         {
+            if (_activeGridArea == null) return;
+
             // Fill the ground with grass by default
             for (int x = 0; x < _activeGridArea.GridSize.X; x++)
             {
@@ -153,6 +156,8 @@ namespace VeilOfAges.WorldGeneration
 
         private void GenerateTrees()
         {
+            if (_activeGridArea == null || TreeScene == null || _entitiesContainer == null) return;
+
             // Try to place the requested number of trees
             int treesPlaced = 0;
             int maxAttempts = NumberOfTrees * 3; // Allow some failed attempts
@@ -224,6 +229,7 @@ namespace VeilOfAges.WorldGeneration
 
         private void GenerateVillage()
         {
+            if (_activeGridArea == null || BuildingScene == null || _entitiesContainer == null) return;
 
             // Define village center (somewhere near the middle of the map)
             Vector2I villageCenter = new(
@@ -326,12 +332,12 @@ namespace VeilOfAges.WorldGeneration
                             typedBuilding.Initialize(_activeGridArea, buildingPos, buildingType);
 
                             // If this is a graveyard, spawn a skeleton nearby
-                            if (buildingType == "Graveyard")
+                            if (buildingType == "Graveyard" && SkeletonScene != null && ZombieScene != null)
                             {
                                 SpawnBeingNearBuilding(buildingPos, buildingSize, SkeletonScene);
                                 SpawnBeingNearBuilding(buildingPos, buildingSize, ZombieScene);
                             }
-                            else if (buildingType == "House")
+                            else if (buildingType == "House" && TownsfolkScene != null)
                             {
                                 SpawnBeingNearBuilding(buildingPos, buildingSize, TownsfolkScene);
                                 SpawnBeingNearBuilding(buildingPos, buildingSize, TownsfolkScene);
@@ -357,6 +363,8 @@ namespace VeilOfAges.WorldGeneration
 
         private void GenerateDecorations()
         {
+            if (_activeGridArea == null) return;
+
             // Add some small decorations to the decoration layer
             // This could be flowers, small rocks, etc.
             // For now, we'll just add placeholder decorations
@@ -391,6 +399,8 @@ namespace VeilOfAges.WorldGeneration
         // Add this method to WorldGenerator class
         private void SpawnBeingNearBuilding(Vector2I buildingPos, Vector2I buildingSize, PackedScene beingScene)
         {
+            if (_activeGridArea == null || _entityThinkingSystem == null || _entitiesContainer == null) return;
+
             // Find a position in front of the graveyard
             Vector2I beingPos = FindPositionInFrontOfBuilding(buildingPos, buildingSize);
 
@@ -481,6 +491,8 @@ namespace VeilOfAges.WorldGeneration
         // Helper to check if a position is valid for spawning
         private bool IsValidSpawnPosition(Vector2I pos)
         {
+            if (_activeGridArea == null) return false;
+
             // Check bounds and occupancy
             if (pos.X >= 0 && pos.X < _activeGridArea.GridSize.X &&
                 pos.Y >= 0 && pos.Y < _activeGridArea.GridSize.Y &&

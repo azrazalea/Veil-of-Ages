@@ -78,7 +78,7 @@ namespace VeilOfAges.Entities.Traits
                 Mathf.Abs(distanceFromSpawn.Y) > WanderRange)
             {
                 // Too far from spawn, try to move back toward spawn
-                Vector2 towardSpawn = (VeilOfAges.Grid.Utils.GridToWorld(_spawnPosition) - _owner.Position).Normalized();
+                Vector2 towardSpawn = (Grid.Utils.GridToWorld(_spawnPosition) - Grid.Utils.GridToWorld(currentPos)).Normalized();
 
                 // Find the cardinal direction closest to the direction to spawn
                 if (Mathf.Abs(towardSpawn.X) > Mathf.Abs(towardSpawn.Y))

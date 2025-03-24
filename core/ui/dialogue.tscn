@@ -25,5 +25,5 @@ layout_mode = 2
 text = "Dialogue text here"
 fit_content = true
 
-[node name="Dialogue Choices" type="HBoxContainer" parent="Dialogue Panel/Dialogue Box"]
+[node name="Dialogue Choices" type="HFlowContainer" parent="Dialogue Panel/Dialogue Box"]
 layout_mode = 2

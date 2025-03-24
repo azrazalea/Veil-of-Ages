@@ -3,6 +3,7 @@ using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.UI;
+using System.Collections.Generic;
 
 namespace VeilOfAges.Entities.Traits
 {
@@ -52,6 +53,11 @@ namespace VeilOfAges.Entities.Traits
         {
         }
 
+        public List<DialogueOption> GenerateDialogueOptions(Being speaker)
+        {
+            return [];
+        }
+
         public string? GetSuccessResponse(EntityCommand command)
         {
             return "The being silently begins doing as you asked.";
@@ -67,6 +73,16 @@ namespace VeilOfAges.Entities.Traits
         public string? GetFailureResponse(string text)
         {
             return "The being does not move to obey.";
+        }
+
+        public string? GenerateDialogueDescription()
+        {
+            return null;
+        }
+
+        public int CompareTo(object? obj)
+        {
+            return (this as ITrait).GeneralCompareTo(obj);
         }
     }
 }

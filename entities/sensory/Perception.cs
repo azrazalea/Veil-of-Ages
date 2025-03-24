@@ -75,7 +75,7 @@ namespace VeilOfAges.Entities.Sensory
                 return FindPathBetween(start, closest.position);
             }
 
-            return null;
+            return [];
         }
 
         // Helper to convert entity type to goal type
@@ -89,7 +89,7 @@ namespace VeilOfAges.Entities.Sensory
         {
             // A* implementation would go here
             // This runs in the entity's thread where it's OK to be computationally expensive
-            return null;  // Placeholder
+            return [];  // Placeholder
         }
     }
 }
