@@ -123,15 +123,11 @@ namespace VeilOfAges.Core
             if (_awaitingLocationSelection && @event is InputEventMouseButton mouseEvent &&
     mouseEvent.ButtonIndex == MouseButton.Left && mouseEvent.Pressed)
             {
-                // Get mouse position and convert to world space
-                Vector2 worldPos = GetViewport().GetCamera2D().GetGlobalMousePosition();
-                // Convert to grid position
-                Vector2I gridPos = Grid.Utils.WorldToGrid(worldPos);
+                Vector2I gridPos = GetCurrentMouseGridPosition();
 
                 // Check if the position is valid
                 var gridArea = _commandTarget?.GetGridArea();
-                if (gridArea != null && gridPos.X >= 0 && gridPos.Y >= 0 &&
-                    gridPos.X < gridArea.GridSize.X && gridPos.Y < gridArea.GridSize.Y)
+                if (gridArea != null && gridArea.IsCellWalkable(gridPos))
                 {
                     // Add position parameter to command
                     if (_pendingCommand != null)
@@ -220,6 +216,14 @@ namespace VeilOfAges.Core
 
             // Notify player
             if (_chooseLocationPrompt != null) _chooseLocationPrompt.Visible = true;
+        }
+
+        public Vector2I GetCurrentMouseGridPosition()
+        {
+            // Get mouse position and convert to world space
+            Vector2 worldPos = GetViewport().GetCamera2D().GetGlobalMousePosition();
+            // Convert to grid position
+            return Grid.Utils.WorldToGrid(worldPos);
         }
     }
 }
