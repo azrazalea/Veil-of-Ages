@@ -90,7 +90,7 @@ namespace VeilOfAges.Entities.Traits
             // No per-frame processing needed, handled by SuggestAction
         }
 
-        public EntityAction? SuggestAction(Vector2 currentOwnerPosition, Perception currentPerception)
+        public EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
         {
             if (_owner == null) return null;
 

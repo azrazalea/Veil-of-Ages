@@ -38,7 +38,9 @@ namespace VeilOfAges.UI
         /// <summary>
         /// This is modeled after the ITrait SuggestAction and should perform similarly.
         /// The command should keep track of its own state as needed and suggest actions one at a time
-        /// until the command is completed.
+        /// until the command is completed. Keep in mind default trait actions are priority 1 so you should
+        /// typically use a priority of 0 for command actions so they take priority. Cruicial commands should be -10 priority
+        /// so that traits/entities can suggest actions at -1 if they want it to override normal commands.
         /// </summary>
         /// <param name="currentGridPos">The current grid position of _owner</param>
         /// <param name="currentPerception">The current perception of _owner</param>

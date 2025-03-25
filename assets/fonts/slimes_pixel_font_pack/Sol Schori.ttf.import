@@ -1,0 +1,35 @@
+[remap]
+
+importer="font_data_dynamic"
+type="FontFile"
+uid="uid://chyfqv5twkt27"
+path="res://.godot/imported/Sol Schori.ttf-5c5a3d46d9f670413bf6cdbfc3779fa3.fontdata"
+
+[deps]
+
+source_file="res://assets/fonts/slimes_pixel_font_pack/Sol Schori.ttf"
+dest_files=["res://.godot/imported/Sol Schori.ttf-5c5a3d46d9f670413bf6cdbfc3779fa3.fontdata"]
+
+[params]
+
+Rendering=null
+antialiasing=1
+generate_mipmaps=false
+disable_embedded_bitmaps=true
+multichannel_signed_distance_field=false
+msdf_pixel_range=8
+msdf_size=48
+allow_system_fallback=true
+force_autohinter=false
+hinting=1
+subpixel_positioning=4
+keep_rounding_remainders=true
+oversampling=0.0
+Fallbacks=null
+fallbacks=[]
+Compress=null
+compress=true
+preload=[]
+language_support={}
+script_support={}
+opentype_features={}

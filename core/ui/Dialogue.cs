@@ -2,14 +2,18 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using VeilOfAges.Entities;
+using VeilOfAges.UI.Commands;
 
 namespace VeilOfAges.UI
 {
-    public partial class Dialogue : PanelContainer
+    public partial class Dialogue : CanvasLayer
     {
         [Export] private RichTextLabel? _nameLabel;
         [Export] private RichTextLabel? _dialogueText;
-        [Export] private HFlowContainer? _optionsContainer;
+        [Export] private GridContainer? _optionsContainer;
+        [Export] private PanelContainer? _minimap;
+        [Export] private PanelContainer? _quickActions;
+
         private Being? _currentTarget;
         private Being? _currentSpeaker;
         private List<DialogueOption> _currentOptions = new();
@@ -20,10 +24,20 @@ namespace VeilOfAges.UI
             Visible = false; // Start hidden
         }
 
-        public void ShowDialogue(Being speaker, Being target)
+        public bool ShowDialogue(Being speaker, Being target)
         {
+            if (target.WillRefuseCommand(new TalkCommand(target, speaker)))
+            {
+                GD.Print($"{target.Name} does not want to talk right now.");
+                return false; // The target doesn't want to talk right now
+                // TODO: Tell the player about this response.
+            }
+
             _currentTarget = target;
             _currentSpeaker = speaker;
+
+            // Get the target's attention
+            _currentTarget.BeginDialogue(_currentSpeaker);
 
             // Update name label
             if (_nameLabel != null) _nameLabel.Text = target.Name;
@@ -39,6 +53,8 @@ namespace VeilOfAges.UI
 
             // Show the dialogue UI
             Visible = true;
+
+            return true;
         }
 
         private void RefreshOptions()
@@ -81,6 +97,13 @@ namespace VeilOfAges.UI
             bool accepted = option.Command == null ||
                            _dialogueController.ProcessCommand(_currentTarget, option.Command);
 
+            // End dialogue if we've assigned a command
+            if (option.Command != null && accepted)
+            {
+                Close();
+                return;
+            }
+
             // Update dialogue text based on acceptance
             if (_dialogueText != null) _dialogueText.Text = accepted ? option.SuccessResponse(_currentTarget) : option.FailureResponse(_currentTarget);
 
@@ -90,6 +113,7 @@ namespace VeilOfAges.UI
             if (_currentOptions.Count == 0)
             {
                 Close();
+                return;
             }
 
             // Refresh the option buttons
@@ -98,9 +122,16 @@ namespace VeilOfAges.UI
 
         public void Close()
         {
+            _currentTarget?.EndDialogue(_currentSpeaker);
+
             _currentTarget = null;
             _currentSpeaker = null;
             Visible = false;
+            if (_minimap != null && _quickActions != null)
+            {
+                _minimap.Visible = true;
+                _quickActions.Visible = true;
+            }
         }
     }
 }

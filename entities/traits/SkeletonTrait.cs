@@ -32,7 +32,7 @@ namespace VeilOfAges.Entities.Traits
             GD.Print($"{owner.Name}: Skeleton behavior initialized");
         }
 
-        protected override EntityAction? ProcessState(Vector2 currentPosition, Perception currentPerception)
+        protected override EntityAction? ProcessState(Vector2I currentOwnerGridPosition, Perception currentPerception)
         {
             if (_owner == null) return null;
 

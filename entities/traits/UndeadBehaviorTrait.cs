@@ -21,7 +21,7 @@ namespace VeilOfAges.Entities.Traits
         protected int _currentPathIndex = 0;
 
         // Override this to implement different behavior states
-        protected abstract EntityAction? ProcessState(Vector2 currentPosition, Perception currentPerception);
+        protected abstract EntityAction? ProcessState(Vector2I currentOwnerGridPosition, Perception currentPerception);
 
         public override void Initialize(Being owner, BodyHealth health)
         {
@@ -32,7 +32,7 @@ namespace VeilOfAges.Entities.Traits
             GD.Print($"{owner.Name}: UndeadBehavior trait initialized");
         }
 
-        public override EntityAction? SuggestAction(Vector2 currentOwnerPosition, Perception currentPerception)
+        public override EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
         {
             // Only process AI if movement is complete
             if (_owner?.IsMoving() != false)
@@ -43,7 +43,7 @@ namespace VeilOfAges.Entities.Traits
                 _stateTimer--;
 
             // Let derived classes handle their specific behaviors
-            return ProcessState(currentOwnerPosition, currentPerception);
+            return ProcessState(currentOwnerGridPosition, currentPerception);
         }
 
         // Common method for wandering behavior used by all undead

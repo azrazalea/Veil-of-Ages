@@ -1,5 +1,6 @@
-[gd_scene load_steps=3 format=3 uid="uid://cmmglr0mto4me"]
+[gd_scene load_steps=4 format=3 uid="uid://cmmglr0mto4me"]
 
+[ext_resource type="FontFile" uid="uid://cm65kg1osflue" path="res://assets/fonts/slimes_pixel_font_pack/Corvid Conspirator v1.1.ttf" id="1_l3ow8"]
 [ext_resource type="PackedScene" uid="uid://cgnn5ytban4uo" path="res://core/ui/dialogue.tscn" id="1_rn0xv"]
 [ext_resource type="Script" uid="uid://b26u0pft2ej7f" path="res://core/ui/Dialogue.cs" id="2_a8e1d"]
 
@@ -12,9 +13,6 @@ anchor_bottom = 1.0
 offset_right = 127.0
 grow_vertical = 2
 
-[node name="Character Panel" type="Panel" parent="Character Container"]
-layout_mode = 2
-
 [node name="Kingdom Container" type="PanelContainer" parent="."]
 z_index = 1
 anchors_preset = 11
@@ -25,9 +23,6 @@ offset_left = -127.0
 grow_horizontal = 0
 grow_vertical = 2
 
-[node name="Kingdom Panel" type="Panel" parent="Kingdom Container"]
-layout_mode = 2
-
 [node name="Top Bar Container" type="PanelContainer" parent="."]
 anchors_preset = 5
 anchor_left = 0.5
@@ -37,18 +32,11 @@ offset_right = 449.5
 offset_bottom = 40.0
 grow_horizontal = 2
 
-[node name="Top Bar" type="Panel" parent="Top Bar Container"]
+[node name="Location Name" type="Label" parent="Top Bar Container"]
 layout_mode = 2
-
-[node name="Location Name" type="Label" parent="Top Bar Container/Top Bar"]
-layout_mode = 1
-anchors_preset = 4
-anchor_top = 0.5
-anchor_bottom = 0.5
-offset_top = -11.5
-offset_right = 97.0
-offset_bottom = 11.5
-grow_vertical = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.658824)
+theme_override_fonts/font = ExtResource("1_l3ow8")
+theme_override_font_sizes/font_size = 21
 text = "Greyhaven"
 
 [node name="Minimap Container" type="PanelContainer" parent="."]
@@ -64,9 +52,6 @@ offset_bottom = -40.0
 grow_horizontal = 2
 grow_vertical = 0
 
-[node name="Minimap" type="Panel" parent="Minimap Container"]
-layout_mode = 2
-
 [node name="Quick Actions Container" type="PanelContainer" parent="."]
 anchors_preset = 7
 anchor_left = 0.5
@@ -79,16 +64,18 @@ offset_right = 106.0
 grow_horizontal = 2
 grow_vertical = 0
 
-[node name="Quick Actions" type="Panel" parent="Quick Actions Container"]
-layout_mode = 2
-
-[node name="Dialogue" parent="." instance=ExtResource("1_rn0xv")]
-
-[node name="Dialogue Panel" parent="Dialogue" index="0" node_paths=PackedStringArray("_nameLabel", "_dialogueText", "_optionsContainer")]
+[node name="Dialogue" parent="." node_paths=PackedStringArray("_nameLabel", "_dialogueText", "_optionsContainer", "_minimap", "_quickActions") instance=ExtResource("1_rn0xv")]
 visible = false
 script = ExtResource("2_a8e1d")
-_nameLabel = NodePath("Dialogue Box/Top Box/Name Label")
-_dialogueText = NodePath("Dialogue Box/Dialogue Text Label")
-_optionsContainer = NodePath("Dialogue Box/Dialogue Choices")
+_nameLabel = NodePath("Name Container/Name Label")
+_dialogueText = NodePath("Dialogue Panel/Dialogue Box/Dialogue Text Label")
+_optionsContainer = NodePath("Dialogue Panel/Dialogue Box/Dialogue Choices")
+_minimap = NodePath("../Minimap Container")
+_quickActions = NodePath("../Quick Actions Container")
+
+[node name="Dialogue Panel" parent="Dialogue" index="0"]
+offset_left = -449.0
+offset_right = 451.0
+offset_bottom = 1.0
 
 [editable path="Dialogue"]

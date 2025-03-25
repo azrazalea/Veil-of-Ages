@@ -27,7 +27,7 @@ namespace VeilOfAges.Entities.Traits
         {
 
         }
-        public EntityAction? SuggestAction(Vector2 currentOwnerPosition, Perception currentPerception)
+        public EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
         {
             return null;
         }

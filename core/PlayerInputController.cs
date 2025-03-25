@@ -11,12 +11,16 @@ namespace VeilOfAges.Core
         private GameController? _gameController;
         private Player? _player;
         private Dialogue? _dialogueUI;
+        private PanelContainer? _quickActions;
+        private PanelContainer? _minimap;
 
         public override void _Ready()
         {
             _gameController = GetNode<GameController>("/root/World/GameController");
             _player = GetNode<Player>("/root/World/Entities/Player");
-            _dialogueUI = GetNode<Dialogue>("/root/World/HUD/Dialogue/Dialogue Panel");
+            _dialogueUI = GetNode<Dialogue>("/root/World/HUD/Dialogue");
+            _quickActions = GetNode<PanelContainer>("/root/World/HUD/Quick Actions Container");
+            _minimap = GetNode<PanelContainer>("/root/World/HUD/Minimap Container");
 
             if (_gameController == null || _player == null)
             {
@@ -104,7 +108,14 @@ namespace VeilOfAges.Core
             if (GetEntityAtPosition(interactPos) is Being entity)
             {
                 // Interact with the entity by showing dialogue
-                _dialogueUI?.ShowDialogue(_player, entity);
+                var didStartDialogue = _dialogueUI?.ShowDialogue(_player, entity);
+                if (didStartDialogue != true) return;
+
+                if (_minimap != null && _quickActions != null)
+                {
+                    _minimap.Visible = false;
+                    _quickActions.Visible = false;
+                }
                 GD.Print($"Interacting with {entity.Name}");
             }
         }

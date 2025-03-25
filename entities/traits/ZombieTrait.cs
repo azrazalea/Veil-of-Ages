@@ -31,7 +31,7 @@ namespace VeilOfAges.Entities.Traits
             GD.Print($"{_owner?.Name}: Zombie behavior initialized");
         }
 
-        protected override EntityAction? ProcessState(Vector2 currentPosition, Perception currentPerception)
+        protected override EntityAction? ProcessState(Vector2I currentOwnerGridPosition, Perception currentPerception)
         {
             if (_owner == null) return null;
 

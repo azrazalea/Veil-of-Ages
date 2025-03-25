@@ -49,7 +49,7 @@ namespace VeilOfAges.Entities.Traits
             return [];
         }
 
-        public virtual EntityAction? SuggestAction(Vector2 currentOwnerPosition, Perception currentPerception)
+        public virtual EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
         {
             if (_owner == null) return null;
             return new IdleAction(_owner, -1);

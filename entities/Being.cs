@@ -166,16 +166,33 @@ namespace VeilOfAges.Entities
         /// <returns>Whether or not the command was assigned successfully</returns>
         public bool AssignCommand(EntityCommand command)
         {
-            foreach (var trait in _traits)
+            if (WillRefuseCommand(command))
             {
-                if (trait.RefusesCommand(command))
-                {
-                    return false;
-                }
+                return false;
             }
 
             _currentCommand = command;
             return true;
+        }
+        /// <summary>
+        /// Check if you can assign a command.
+        /// This will fail if any trait refuses the command.
+        /// The purpose of this over AssignCommand is if you don't want to replace someone's command with a new one
+        /// if they refuse. It is also used to attempt to start a dialogue.
+        /// </summary>
+        /// <param name="command">The command to assign</param>
+        /// <returns>Whether or not the command can be assigned successfully</returns>
+        public bool WillRefuseCommand(EntityCommand command)
+        {
+            foreach (var trait in _traits)
+            {
+                if (trait.RefusesCommand(command))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -273,7 +290,7 @@ namespace VeilOfAges.Entities
                 if (traitDescription != null) description += $"{traitDescription}\n";
             }
 
-            if (description == "") return "A being.";
+            if (description == "") return "I am a being.";
 
             return description;
         }
@@ -284,20 +301,50 @@ namespace VeilOfAges.Entities
 
         public virtual EntityAction Think(Vector2 currentPosition, ObservationData observationData)
         {
-            // Ask each trait for suggested actions
+
             PriorityQueue<EntityAction, int> possibleActions = new();
 
             var currentPerception = ProcessPerception(observationData);
             SetMemory(currentPosition, currentPerception);
 
+            if (_currentCommand != null)
+            {
+                var suggestedAction = _currentCommand.SuggestAction(_currentGridPos, currentPerception);
+                if (suggestedAction == null) // command complete
+                {
+                    _currentCommand = null;
+                }
+                else
+                {
+                    possibleActions.Enqueue(suggestedAction, suggestedAction.Priority);
+                }
+            }
+
             foreach (var trait in _traits)
             {
                 if (!trait.IsInitialized) continue;
 
-                var suggestedAction = trait.SuggestAction(currentPosition, currentPerception);
+                var suggestedAction = trait.SuggestAction(_currentGridPos, currentPerception);
                 if (suggestedAction != null)
                 {
                     possibleActions.Enqueue(suggestedAction, suggestedAction.Priority);
+                }
+            }
+
+            // This is a bit complicated but basically allows the entity to run away from an active conversation
+            // if something more important is requested. This should generally be emergencies.
+            if (_isInDialogue)
+            {
+                possibleActions.TryPeek(out var entityAction, out var priority);
+
+                if (priority >= TalkCommand.Priority)
+                {
+                    return new IdleAction(this);
+                }
+                else
+                {
+                    GD.Print($"Sorry player, I have to run because {entityAction?.GetType()} is more important");
+                    EndDialogue(null);
                 }
             }
 
@@ -885,6 +932,17 @@ namespace VeilOfAges.Entities
                 default:
                     return false;
             }
+        }
+
+        public void BeginDialogue(Being speaker)
+        {
+            _isInDialogue = true;
+            // Todo: Stand in front of speaker facing them.
+        }
+
+        public void EndDialogue(Being? speaker)
+        {
+            _isInDialogue = false;
         }
     }
 }

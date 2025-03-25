@@ -29,6 +29,8 @@ World="The world itself"
 
 [gui]
 
+theme/custom="uid://cd64idurw2veb"
+theme/custom_font="uid://chyfqv5twkt27"
 theme/default_font_antialiasing=2
 theme/default_font_hinting=2
 

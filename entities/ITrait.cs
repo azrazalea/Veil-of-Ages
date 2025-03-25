@@ -37,7 +37,7 @@ namespace VeilOfAges.Entities
         // Optional method for handling events
         void OnEvent(string eventName, params object[] args);
 
-        EntityAction? SuggestAction(Vector2 currentOwnerPosition, Perception currentPerception);
+        EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception);
 
         public int GeneralCompareTo(object? obj)
         {
