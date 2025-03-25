@@ -469,11 +469,7 @@ namespace VeilOfAges.Entities.Traits
 
         public List<DialogueOption> GenerateDialogueOptions(Being speaker)
         {
-            if (_owner == null) return [];
-
-            return [
-                new("Return home", new ReturnHomeCommand(_owner, speaker))
-            ];
+            return [];
         }
 
         public string? GenerateDialogueDescription()

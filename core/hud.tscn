@@ -1,8 +1,24 @@
-[gd_scene load_steps=4 format=3 uid="uid://cmmglr0mto4me"]
+[gd_scene load_steps=5 format=3 uid="uid://cmmglr0mto4me"]
 
 [ext_resource type="FontFile" uid="uid://cm65kg1osflue" path="res://assets/fonts/slimes_pixel_font_pack/Corvid Conspirator v1.1.ttf" id="1_l3ow8"]
 [ext_resource type="PackedScene" uid="uid://cgnn5ytban4uo" path="res://core/ui/dialogue.tscn" id="1_rn0xv"]
 [ext_resource type="Script" uid="uid://b26u0pft2ej7f" path="res://core/ui/Dialogue.cs" id="2_a8e1d"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_l3ow8"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
+bg_color = Color(0.176471, 0.176471, 0.258824, 0.831373)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.482353, 0.352941, 0.678431, 0.960784)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
 
 [node name="HUD" type="CanvasLayer"]
 
@@ -77,5 +93,20 @@ _quickActions = NodePath("../Quick Actions Container")
 offset_left = -449.0
 offset_right = 451.0
 offset_bottom = 1.0
+
+[node name="Choose Location Prompt" type="PanelContainer" parent="."]
+visible = false
+offset_left = 473.0
+offset_top = 56.0
+offset_right = 669.0
+offset_bottom = 102.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_l3ow8")
+
+[node name="Choose Location Label" type="RichTextLabel" parent="Choose Location Prompt"]
+layout_mode = 2
+text = "Choose a location
+to continue"
+scroll_active = false
+autowrap_mode = 0
 
 [editable path="Dialogue"]

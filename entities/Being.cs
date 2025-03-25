@@ -302,6 +302,11 @@ namespace VeilOfAges.Entities
         public virtual EntityAction Think(Vector2 currentPosition, ObservationData observationData)
         {
 
+            if (_isMoving)
+            {
+                return new IdleAction(this);
+            }
+
             PriorityQueue<EntityAction, int> possibleActions = new();
 
             var currentPerception = ProcessPerception(observationData);

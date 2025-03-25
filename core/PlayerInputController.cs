@@ -3,6 +3,7 @@ using System;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities;
 using VeilOfAges.UI;
+using VeilOfAges.UI.Commands;
 
 namespace VeilOfAges.Core
 {
@@ -13,6 +14,10 @@ namespace VeilOfAges.Core
         private Dialogue? _dialogueUI;
         private PanelContainer? _quickActions;
         private PanelContainer? _minimap;
+        private PanelContainer? _chooseLocationPrompt;
+        private EntityCommand? _pendingCommand = null;
+        private Being? _commandTarget = null;
+        private bool _awaitingLocationSelection = false;
 
         public override void _Ready()
         {
@@ -21,6 +26,7 @@ namespace VeilOfAges.Core
             _dialogueUI = GetNode<Dialogue>("/root/World/HUD/Dialogue");
             _quickActions = GetNode<PanelContainer>("/root/World/HUD/Quick Actions Container");
             _minimap = GetNode<PanelContainer>("/root/World/HUD/Minimap Container");
+            _chooseLocationPrompt = GetNode<PanelContainer>("/root/World/HUD/Choose Location Prompt");
 
             if (_gameController == null || _player == null)
             {
@@ -89,6 +95,49 @@ namespace VeilOfAges.Core
             {
                 _gameController.SetTimeScale(_gameController.TimeScale * 0.5f);
             }
+
+            if (_awaitingLocationSelection && @event is InputEventMouseButton mouseEvent &&
+    mouseEvent.ButtonIndex == MouseButton.Left && mouseEvent.Pressed)
+            {
+                // Get mouse position and convert to world space
+                Vector2 worldPos = GetViewport().GetCamera2D().GetGlobalMousePosition();
+                // Convert to grid position
+                Vector2I gridPos = Grid.Utils.WorldToGrid(worldPos);
+
+                // Check if the position is valid
+                var gridArea = _commandTarget?.GetGridArea();
+                if (gridArea != null && gridPos.X >= 0 && gridPos.Y >= 0 &&
+                    gridPos.X < gridArea.GridSize.X && gridPos.Y < gridArea.GridSize.Y)
+                {
+                    // Add position parameter to command
+                    if (_pendingCommand != null)
+                    {
+                        if (_pendingCommand is MoveToCommand)
+                        {
+                            _pendingCommand.WithParameter("targetPos", gridPos);
+                        }
+                        else if (_pendingCommand is GuardCommand)
+                        {
+                            _pendingCommand.WithParameter("guardPos", gridPos);
+                        }
+
+                        // Resume simulation
+                        _gameController?.ResumeSimulation();
+
+                        GD.Print($"Command target location set to {gridPos}");
+                    }
+                }
+                else
+                {
+                    GD.Print("Invalid location selected");
+                }
+
+                // Clear selection state
+                _pendingCommand = null;
+                _commandTarget = null;
+                _awaitingLocationSelection = false;
+                if (_chooseLocationPrompt != null) _chooseLocationPrompt.Visible = false;
+            }
         }
 
         private void TryInteractWithNearbyEntity()
@@ -134,6 +183,19 @@ namespace VeilOfAges.Core
             }
 
             return null;
+        }
+
+        public void StartLocationSelection(EntityCommand command, Being target)
+        {
+            _pendingCommand = command;
+            _commandTarget = target;
+            _awaitingLocationSelection = true;
+
+            // Optionally pause simulation
+            _gameController?.PauseSimulation();
+
+            // Notify player
+            if (_chooseLocationPrompt != null) _chooseLocationPrompt.Visible = true;
         }
     }
 }

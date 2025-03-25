@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using VeilOfAges.Core;
 using VeilOfAges.Entities;
 using VeilOfAges.UI.Commands;
 
@@ -74,7 +75,7 @@ namespace VeilOfAges.UI
                 };
 
                 // Disable commands that the entity will refuse
-                if (option.Command != null && _currentTarget?.WillRefuseCommand(option.Command) != true)
+                if (option.Command != null && _currentTarget?.WillRefuseCommand(option.Command) != false)
                 {
                     button.Disabled = true;
                     button.TooltipText = "I will refuse this command.";
@@ -104,6 +105,20 @@ namespace VeilOfAges.UI
             // Check if command is valid for entity and process it
             bool accepted = option.Command == null ||
                            _dialogueController.ProcessCommand(_currentTarget, option.Command);
+
+            // Handle commands that need location selection
+            if (option.Command is MoveToCommand || option.Command is GuardCommand)
+            {
+                // Get player input controller
+                var inputController = GetNode<PlayerInputController>("/root/World/PlayerInputController");
+                if (inputController != null)
+                {
+                    inputController.StartLocationSelection(option.Command, _currentTarget);
+
+                    Close();
+                    return;
+                }
+            }
 
             // End dialogue if we've assigned a command
             if (option.Command != null && accepted)

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using VeilOfAges.Entities;
+using VeilOfAges.UI.Commands;
 
 
 namespace VeilOfAges.UI
@@ -13,6 +14,12 @@ namespace VeilOfAges.UI
             {
                 // Common options for all entities
                 new("Tell me about yourself.", null, GetEntityDescription(entity), isSimpleOption: true),
+
+                new("Follow me.", new FollowCommand(entity, speaker)),
+                new("Move to a location.", new MoveToCommand(entity, speaker)),
+                new("Guard an area.", new GuardCommand(entity, speaker)),
+                new("Return home.", new ReturnHomeCommand(entity, speaker)),
+
                 // Close dialogue option
                 new("Goodbye.", null, "Farewell.", "Farewell.")
             };
