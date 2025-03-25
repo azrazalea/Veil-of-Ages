@@ -72,6 +72,14 @@ namespace VeilOfAges.UI
                 {
                     Text = option.Text
                 };
+
+                // Disable commands that the entity will refuse
+                if (option.Command != null && _currentTarget?.WillRefuseCommand(option.Command) != true)
+                {
+                    button.Disabled = true;
+                    button.TooltipText = "I will refuse this command.";
+                }
+
                 button.Pressed += () => OnOptionSelected(option);
                 _optionsContainer?.AddChild(button);
             }
