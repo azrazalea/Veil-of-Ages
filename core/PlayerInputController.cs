@@ -77,13 +77,9 @@ namespace VeilOfAges.Core
             }
 
             // Simulation controls
-            else if (@event.IsActionPressed("pause_simulation"))
+            else if (@event.IsActionPressed("toggle_simulation_pause"))
             {
-                _gameController.PauseSimulation();
-            }
-            else if (@event.IsActionPressed("resume_simulation"))
-            {
-                _gameController.ResumeSimulation();
+                _gameController.ToggleSimulationPause();
             }
             else if (@event.IsActionPressed("speed_up"))
             {

@@ -50,14 +50,6 @@ namespace VeilOfAges.Entities.Beings
         {
             // Let the traits and base class handle most behavior
             base._PhysicsProcess(delta);
-
-            // Add any zombie-specific behavior here if needed
-            // For example, we could make zombies occasionally groan
-            if (IsMoving() == true && new RandomNumberGenerator().RandfRange(0f, 1f) < 0.01f)
-            {
-                PlayZombieGroan();
-                GD.Print("Zombie groan!");
-            }
         }
 
         public void PlayZombieGroan()

@@ -98,6 +98,11 @@ namespace VeilOfAges.Core
             _simulationPaused = false;
         }
 
+        public void ToggleSimulationPause()
+        {
+            _simulationPaused = !_simulationPaused;
+        }
+
         public bool SimulationPaused()
         {
             return _simulationPaused;
