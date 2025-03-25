@@ -403,6 +403,7 @@ namespace VeilOfAges.Entities.Traits
             {
                 GD.Print($"Warning: Non-adjacent move detected from {currentPos} to {nextPos}");
                 // Recalculate path if we got an invalid step
+                _currentPath.Clear();
                 return new IdleAction(_owner);
             }
 
