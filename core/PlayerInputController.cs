@@ -45,8 +45,6 @@ namespace VeilOfAges.Core
             if (!CanProcessMovementInput()) return;
             if (!_gameController.CanQueuePlayerAction()) return;
 
-            // Get previous input state
-            Vector2 previousInput = inputDirection;
             bool wasDiagonal = inputDirection.X != 0 && inputDirection.Y != 0;
 
             Vector2I movementVector = new(0, 0);
@@ -68,6 +66,8 @@ namespace VeilOfAges.Core
                 movementVector.Y -= 1;
             }
 
+            inputDirection = movementVector;
+
             // Check if we're transitioning from diagonal to single direction
             if (wasDiagonal && inputDirection != Vector2.Zero && (inputDirection.X == 0 || inputDirection.Y == 0))
             {
@@ -85,7 +85,10 @@ namespace VeilOfAges.Core
                 lastKeyReleaseTime = Time.GetTicksMsec();
             }
 
-            _gameController.QueuePlayerAction(new MoveAction(_player, this, _player.GetCurrentGridPosition() + movementVector));
+            if (movementVector != Vector2I.Zero)
+            {
+                _gameController.QueuePlayerAction(new MoveAction(_player, this, _player.GetCurrentGridPosition() + movementVector));
+            }
         }
 
         public override void _Input(InputEvent @event)
