@@ -32,7 +32,7 @@ namespace VeilOfAges.Entities
                 return action;
             }
 
-            return new IdleAction(this);
+            return new IdleAction(this, this);
         }
 
         public Vector2I GetFacingDirection()

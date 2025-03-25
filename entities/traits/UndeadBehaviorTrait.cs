@@ -102,7 +102,7 @@ namespace VeilOfAges.Entities.Traits
             }
 
             // Try to move to the target position
-            return new MoveAction(_owner, targetGridPos, 5);
+            return new MoveAction(_owner, this, targetGridPos, 5);
         }
 
         // Common method for following a path
@@ -112,7 +112,7 @@ namespace VeilOfAges.Entities.Traits
 
             if (_currentPath.Count == 0 || _currentPathIndex >= _currentPath.Count)
             {
-                return new IdleAction(_owner);
+                return new IdleAction(_owner, this);
             }
 
             Vector2I nextPos = _currentPath[_currentPathIndex];
@@ -121,12 +121,12 @@ namespace VeilOfAges.Entities.Traits
             // Check if the next position is walkable
             if (_owner.GetGridArea()?.IsCellWalkable(nextPos) == true)
             {
-                return new MoveAction(_owner, nextPos, priority);
+                return new MoveAction(_owner, this, nextPos, priority);
             }
             else
             {
                 // If obstacle encountered, just stop
-                return new IdleAction(_owner);
+                return new IdleAction(_owner, this);
             }
         }
 

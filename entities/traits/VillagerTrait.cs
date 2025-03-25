@@ -141,7 +141,7 @@ namespace VeilOfAges.Entities.Traits
                 case VillagerState.Fleeing:
                     return ProcessFleeingState();
                 default:
-                    return new IdleAction(_owner);
+                    return new IdleAction(_owner, this);
             }
         }
 
@@ -221,7 +221,7 @@ namespace VeilOfAges.Entities.Traits
                 }
             }
 
-            return new IdleAction(_owner);
+            return new IdleAction(_owner, this);
         }
 
         private EntityAction? ProcessIdleAtSquareState()
@@ -267,11 +267,11 @@ namespace VeilOfAges.Entities.Traits
 
                 if (_owner.GetGridArea()?.IsCellWalkable(targetPos) == true)
                 {
-                    return new MoveAction(_owner, targetPos);
+                    return new MoveAction(_owner, this, targetPos);
                 }
             }
 
-            return new IdleAction(_owner);
+            return new IdleAction(_owner, this);
         }
 
         private EntityAction? ProcessVisitingBuildingState()
@@ -329,7 +329,7 @@ namespace VeilOfAges.Entities.Traits
             }
 
             // If we're at the building, just idle
-            return new IdleAction(_owner);
+            return new IdleAction(_owner, this);
         }
 
         private EntityAction? ProcessFleeingState()
@@ -345,7 +345,7 @@ namespace VeilOfAges.Entities.Traits
                 _stateTimer = (uint)_rng.RandiRange(200, 400); // Long rest after fleeing
                 _hasSeenUndead = false;
                 GD.Print($"{_owner.Name}: Reached safety!");
-                return new IdleAction(_owner);
+                return new IdleAction(_owner, this);
             }
 
             // Continue following flee path
@@ -372,11 +372,11 @@ namespace VeilOfAges.Entities.Traits
 
             if (_owner.GetGridArea()?.IsCellWalkable(nextPos) == true)
             {
-                return new MoveAction(_owner, nextPos);
+                return new MoveAction(_owner, this, nextPos);
             }
 
             // If all else fails, just idle (we're stuck)
-            return new IdleAction(_owner);
+            return new IdleAction(_owner, this);
         }
 
         protected EntityAction? MoveToNextPathPosition(int priority = 5)
@@ -385,7 +385,7 @@ namespace VeilOfAges.Entities.Traits
 
             if (_currentPath.Count == 0 || _currentPathIndex >= _currentPath.Count)
             {
-                return new IdleAction(_owner);
+                return new IdleAction(_owner, this);
             }
 
             Vector2I nextPos = _currentPath[_currentPathIndex];
@@ -404,20 +404,20 @@ namespace VeilOfAges.Entities.Traits
                 GD.Print($"Warning: Non-adjacent move detected from {currentPos} to {nextPos}");
                 // Recalculate path if we got an invalid step
                 _currentPath.Clear();
-                return new IdleAction(_owner);
+                return new IdleAction(_owner, this);
             }
 
             // Check if the next position is walkable
             if (_owner.GetGridArea()?.IsCellWalkable(nextPos) == true)
             {
-                return new MoveAction(_owner, nextPos, priority);
+                return new MoveAction(_owner, this, nextPos, priority);
             }
             else
             {
                 // If obstacle encountered, recalculate path in next tick
                 GD.Print($"{_owner.Name}: Path blocked at {nextPos}, will recalculate");
                 _currentPath.Clear();
-                return new IdleAction(_owner);
+                return new IdleAction(_owner, this);
             }
         }
 

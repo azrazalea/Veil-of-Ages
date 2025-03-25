@@ -304,7 +304,7 @@ namespace VeilOfAges.Entities
 
             if (_isMoving)
             {
-                return new IdleAction(this);
+                return new IdleAction(this, this);
             }
 
             PriorityQueue<EntityAction, int> possibleActions = new();
@@ -344,7 +344,7 @@ namespace VeilOfAges.Entities
 
                 if (priority >= TalkCommand.Priority)
                 {
-                    return new IdleAction(this);
+                    return new IdleAction(this, this);
                 }
                 else
                 {
@@ -361,7 +361,7 @@ namespace VeilOfAges.Entities
             }
 
             // Default idle behavior
-            return new IdleAction(this);
+            return new IdleAction(this, this);
         }
         public virtual int GetSightRange()
         {

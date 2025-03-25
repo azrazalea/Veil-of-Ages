@@ -49,7 +49,7 @@ namespace VeilOfAges.UI.Commands
                 {
                     // Clear path and wait
                     _currentPath.Clear();
-                    return new IdleAction(_owner, -1);
+                    return new IdleAction(_owner, this, -1);
                 }
 
                 // Update path if needed
@@ -78,11 +78,11 @@ namespace VeilOfAges.UI.Commands
                 Vector2I nextPos = _currentPath[_currentPathIndex];
                 _currentPathIndex++;
 
-                return new MoveAction(_owner, nextPos, -1);
+                return new MoveAction(_owner, this, nextPos, -1);
             }
 
             // Default to idle
-            return new IdleAction(_owner, -1);
+            return new IdleAction(_owner, this, -1);
         }
     }
 }

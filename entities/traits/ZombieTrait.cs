@@ -55,7 +55,7 @@ namespace VeilOfAges.Entities.Traits
                 case ZombieState.Chasing:
                     return ProcessChasingState(currentPerception);
                 default:
-                    return new IdleAction(_owner);
+                    return new IdleAction(_owner, this);
             }
         }
 
@@ -111,7 +111,7 @@ namespace VeilOfAges.Entities.Traits
                 }
             }
 
-            return new IdleAction(_owner);
+            return new IdleAction(_owner, this);
         }
 
         private EntityAction? ProcessWanderingState()
@@ -134,7 +134,7 @@ namespace VeilOfAges.Entities.Traits
                 }
             }
 
-            return new IdleAction(_owner);
+            return new IdleAction(_owner, this);
         }
 
         private EntityAction? ProcessChasingState(Perception currentPerception)
@@ -158,7 +158,7 @@ namespace VeilOfAges.Entities.Traits
                 {
                     return MoveToNextPathPosition();
                 }
-                return new IdleAction(_owner);
+                return new IdleAction(_owner, this);
             }
 
             // Check if target is still visible
@@ -187,7 +187,7 @@ namespace VeilOfAges.Entities.Traits
             }
 
             // If we have no path, just idle
-            return new IdleAction(_owner);
+            return new IdleAction(_owner, this);
         }
 
         private bool IsOutsideChaseRange()

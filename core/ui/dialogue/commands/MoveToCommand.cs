@@ -21,7 +21,7 @@ namespace VeilOfAges.UI.Commands
             if (!Parameters.TryGetValue("targetPos", out var targetPosObj))
             {
                 // Wait for target position to be set
-                return new IdleAction(_owner, -1);
+                return new IdleAction(_owner, this, -1);
             }
 
             // Check if we have a target position
@@ -64,7 +64,7 @@ namespace VeilOfAges.UI.Commands
                     Vector2I nextPos = _path[_pathIndex];
                     _pathIndex++;
 
-                    return new MoveAction(_owner, nextPos, -1);
+                    return new MoveAction(_owner, this, nextPos, -1);
                 }
             }
 

@@ -63,7 +63,7 @@ namespace VeilOfAges.Core
             else
             {
                 // If no explicit player action, player gets an idle action
-                _player?.SetNextAction(new IdleAction(_player));
+                _player?.SetNextAction(new IdleAction(_player, this));
             }
 
             // Process the tick with all entities (including player)
@@ -173,7 +173,7 @@ namespace VeilOfAges.Core
             _processingTick = true;
 
             // Player idles during skipped time
-            _player?.SetNextAction(new IdleAction(_player));
+            _player?.SetNextAction(new IdleAction(_player, this));
 
             // Process the tick
             if (_thinkingSystem != null) await _thinkingSystem.ProcessGameTick();

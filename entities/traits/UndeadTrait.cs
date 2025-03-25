@@ -52,7 +52,7 @@ namespace VeilOfAges.Entities.Traits
         public virtual EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
         {
             if (_owner == null) return null;
-            return new IdleAction(_owner, -1);
+            return new IdleAction(_owner, this, -1);
         }
         private static void DisableLivingBodySystems(BodyHealth health)
         {

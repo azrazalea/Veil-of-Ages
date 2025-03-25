@@ -45,25 +45,25 @@ namespace VeilOfAges.Core
             {
                 Vector2I currentPos = _player.GetCurrentGridPosition();
                 Vector2I targetPos = currentPos + new Vector2I(1, 0);
-                _gameController.QueuePlayerAction(new MoveAction(_player, targetPos));
+                _gameController.QueuePlayerAction(new MoveAction(_player, this, targetPos));
             }
             else if (Input.IsActionPressed("ui_left"))
             {
                 Vector2I currentPos = _player.GetCurrentGridPosition();
                 Vector2I targetPos = currentPos + new Vector2I(-1, 0);
-                _gameController.QueuePlayerAction(new MoveAction(_player, targetPos));
+                _gameController.QueuePlayerAction(new MoveAction(_player, this, targetPos));
             }
             else if (Input.IsActionPressed("ui_down"))
             {
                 Vector2I currentPos = _player.GetCurrentGridPosition();
                 Vector2I targetPos = currentPos + new Vector2I(0, 1);
-                _gameController.QueuePlayerAction(new MoveAction(_player, targetPos));
+                _gameController.QueuePlayerAction(new MoveAction(_player, this, targetPos));
             }
             else if (Input.IsActionPressed("ui_up"))
             {
                 Vector2I currentPos = _player.GetCurrentGridPosition();
                 Vector2I targetPos = currentPos + new Vector2I(0, -1);
-                _gameController.QueuePlayerAction(new MoveAction(_player, targetPos));
+                _gameController.QueuePlayerAction(new MoveAction(_player, this, targetPos));
             }
         }
 

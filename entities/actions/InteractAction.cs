@@ -6,8 +6,8 @@ namespace VeilOfAges.Entities.Actions
     {
         private Vector2I _targetPosition;
 
-        public InteractAction(Being entity, Vector2I targetPosition, int priority = 0)
-            : base(entity, priority)
+        public InteractAction(Being entity, object source, Vector2I targetPosition, int priority = 0)
+            : base(entity, source, priority)
         {
             _targetPosition = targetPosition;
         }
