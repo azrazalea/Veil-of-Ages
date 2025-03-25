@@ -105,16 +105,14 @@ namespace VeilOfAges.Core.Lib
             // Cardinal directions (4-way movement)
             Vector2I[] directions =
             {
-                new Vector2I(1, 0),  // Right
-                new Vector2I(-1, 0), // Left
-                new Vector2I(0, 1),  // Down
-                new Vector2I(0, -1), // Up
-                
-                // Uncomment for diagonal movement if needed
-                // new Vector2I(1, 1),  // Down-Right
-                // new Vector2I(-1, 1), // Down-Left
-                // new Vector2I(1, -1), // Up-Right
-                // new Vector2I(-1, -1) // Up-Left
+                new(1, 0),  // Right
+                new(-1, 0), // Left
+                new(0, 1),  // Down
+                new(0, -1), // Up              
+                new(1, 1),  // Down-Right
+                new(-1, 1), // Down-Left
+                new(1, -1), // Up-Right
+                new(-1, -1) // Up-Left
             };
 
             foreach (var dir in directions)
@@ -169,10 +167,11 @@ namespace VeilOfAges.Core.Lib
 
         private static List<Vector2I> ReconstructPath(Dictionary<Vector2I, Vector2I> cameFrom, Vector2I current)
         {
-            var totalPath = new List<Vector2I>();
-
-            // Add the endpoint
-            totalPath.Add(current);
+            var totalPath = new List<Vector2I>
+            {
+                // Add the endpoint
+                current
+            };
 
             // Reconstruct path by following parent pointers
             while (cameFrom.ContainsKey(current))
@@ -203,10 +202,20 @@ namespace VeilOfAges.Core.Lib
                 // Try to make at least one step in the right direction
                 Vector2I next = current;
 
-                // First try horizontal movement
-                if (dx != 0)
+                // First try diagonal
+                if (dx != 0 && dy != 0)
                 {
-                    Vector2I horizontalStep = new Vector2I(current.X + dx, current.Y);
+                    Vector2I diagonalStep = new Vector2I(current.X + dx, current.Y + dy);
+                    if (IsPositionValid(gridArea, diagonalStep))
+                    {
+                        next = diagonalStep;
+                    }
+                }
+
+                // Then try horizontal movement
+                if (next == current && dx != 0)
+                {
+                    Vector2I horizontalStep = new(current.X + dx, current.Y);
                     if (IsPositionValid(gridArea, horizontalStep))
                     {
                         next = horizontalStep;
@@ -216,14 +225,14 @@ namespace VeilOfAges.Core.Lib
                 // If no horizontal movement was possible, try vertical
                 if (next == current && dy != 0)
                 {
-                    Vector2I verticalStep = new Vector2I(current.X, current.Y + dy);
+                    Vector2I verticalStep = new(current.X, current.Y + dy);
                     if (IsPositionValid(gridArea, verticalStep))
                     {
                         next = verticalStep;
                     }
                 }
 
-                // If we couldn't move in either direction, we're stuck
+                // If we couldn't move in any direction, we're stuck
                 if (next == current)
                     break;
 

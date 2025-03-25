@@ -396,10 +396,9 @@ namespace VeilOfAges.Entities.Traits
 
             // Verify the next position is adjacent to current position
             Vector2I currentPos = _owner.GetCurrentGridPosition();
-            int dx = Math.Abs(nextPos.X - currentPos.X);
-            int dy = Math.Abs(nextPos.Y - currentPos.Y);
+            var distance = currentPos.DistanceSquaredTo(nextPos);
 
-            if (dx > 1 || dy > 1 || (dx == 1 && dy == 1))
+            if (distance > 2)
             {
                 GD.Print($"Warning: Non-adjacent move detected from {currentPos} to {nextPos}");
                 // Recalculate path if we got an invalid step

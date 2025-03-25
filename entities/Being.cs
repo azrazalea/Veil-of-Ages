@@ -25,6 +25,7 @@ namespace VeilOfAges.Entities
     {
         [Export]
         protected uint _baseMoveTicks = 4; // How many ticks it takes to move one tile
+        protected uint _currentBaseMoveTicks;
         protected uint _remainingMoveTicks = 0; // Time in seconds to move one tile
         protected bool _isMoving = false;
         protected bool _isInDialogue = false;
@@ -591,9 +592,23 @@ namespace VeilOfAges.Entities
         // Move to a specific grid position if possible
         public bool TryMoveToGridPosition(Vector2I targetGridPos)
         {
+            // Check we are only moving one distance at a time
+            float distanceTo = _currentGridPos.DistanceSquaredTo(targetGridPos);
+            if (distanceTo == 2)
+            {
+                distanceTo = 1.5f; // normalize cost to a distinct value 
+            }
+            else if (distanceTo > 2)
+            {
+                return false; // We are trying to move too far in one step
+            }
+
             // Check if the target cell is free
             if (GridArea != null && GridArea.IsCellWalkable(targetGridPos))
             {
+                // Average terrain difficultly between source and destination cell
+                var difficulty = (GridArea.GetTerrainDifficulty(targetGridPos) + GridArea.GetTerrainDifficulty(_currentGridPos)) / 2;
+
                 // Free the current cell
                 GridArea.RemoveEntity(_currentGridPos);
 
@@ -605,11 +620,13 @@ namespace VeilOfAges.Entities
 
                 // Start moving
                 _startPosition = Position;
-                _targetPosition = Grid.Utils.GridToWorld(_currentGridPos);
-                _remainingMoveTicks = _baseMoveTicks;
+                _targetPosition = Utils.GridToWorld(_currentGridPos);
+                // This should calculate via difficulty and account for higher cost for diagonal movement
+                _remainingMoveTicks = (uint)float.Round(_baseMoveTicks * distanceTo * difficulty);
+                _currentBaseMoveTicks = _remainingMoveTicks;
                 _isMoving = true;
 
-                Vector2 moveDirection = (_targetPosition - _startPosition).Normalized();
+                Vector2 moveDirection = _currentGridPos - targetGridPos;
                 _direction = moveDirection;
 
                 // Handle animation and facing direction
@@ -636,7 +653,7 @@ namespace VeilOfAges.Entities
                 _remainingMoveTicks--;
 
                 // Calculate movement progress
-                float progress = 1.0f - (_remainingMoveTicks / (float)_baseMoveTicks);
+                float progress = 1.0f - (_remainingMoveTicks / (float)_currentBaseMoveTicks);
 
                 // Update position based on interpolation
                 Position = _startPosition.Lerp(_targetPosition, progress);
@@ -646,6 +663,7 @@ namespace VeilOfAges.Entities
                 {
                     Position = _targetPosition; // Ensure exact position
                     _isMoving = false;
+                    _currentBaseMoveTicks = _baseMoveTicks;
 
                     // If no direction, play idle animation
                     if (_direction == Vector2.Zero)

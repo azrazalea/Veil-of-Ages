@@ -160,6 +160,11 @@ namespace VeilOfAges.Grid
             );
         }
 
+        public float GetTerrainDifficulty(Vector2I gridPos)
+        {
+            return _groundGridSystem.GetCell(gridPos).WalkDifficulty;
+        }
+
         public void PopulateLayersFromGrid()
         {
             foreach (var kvp in _groundGridSystem.OccupiedCells)

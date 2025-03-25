@@ -18,6 +18,10 @@ namespace VeilOfAges.Core
         private EntityCommand? _pendingCommand = null;
         private Being? _commandTarget = null;
         private bool _awaitingLocationSelection = false;
+        private Vector2I inputDirection = Vector2I.Zero;
+        private bool wasMovingDiagonally = false;
+        private float diagonalReleaseTimeThreshold = 0.1f; // Adjust as needed
+        private float lastKeyReleaseTime = 0f;
 
         public override void _Ready()
         {
@@ -40,31 +44,48 @@ namespace VeilOfAges.Core
             if (_gameController == null || _player == null) return;
             if (!CanProcessMovementInput()) return;
             if (!_gameController.CanQueuePlayerAction()) return;
+
+            // Get previous input state
+            Vector2 previousInput = inputDirection;
+            bool wasDiagonal = inputDirection.X != 0 && inputDirection.Y != 0;
+
+            Vector2I movementVector = new(0, 0);
             // Check for held movement keys each frame
             if (Input.IsActionPressed("ui_right"))
             {
-                Vector2I currentPos = _player.GetCurrentGridPosition();
-                Vector2I targetPos = currentPos + new Vector2I(1, 0);
-                _gameController.QueuePlayerAction(new MoveAction(_player, this, targetPos));
+                movementVector.X += 1;
             }
-            else if (Input.IsActionPressed("ui_left"))
+            if (Input.IsActionPressed("ui_left"))
             {
-                Vector2I currentPos = _player.GetCurrentGridPosition();
-                Vector2I targetPos = currentPos + new Vector2I(-1, 0);
-                _gameController.QueuePlayerAction(new MoveAction(_player, this, targetPos));
+                movementVector.X -= 1;
             }
-            else if (Input.IsActionPressed("ui_down"))
+            if (Input.IsActionPressed("ui_down"))
             {
-                Vector2I currentPos = _player.GetCurrentGridPosition();
-                Vector2I targetPos = currentPos + new Vector2I(0, 1);
-                _gameController.QueuePlayerAction(new MoveAction(_player, this, targetPos));
+                movementVector.Y += 1;
             }
-            else if (Input.IsActionPressed("ui_up"))
+            if (Input.IsActionPressed("ui_up"))
             {
-                Vector2I currentPos = _player.GetCurrentGridPosition();
-                Vector2I targetPos = currentPos + new Vector2I(0, -1);
-                _gameController.QueuePlayerAction(new MoveAction(_player, this, targetPos));
+                movementVector.Y -= 1;
             }
+
+            // Check if we're transitioning from diagonal to single direction
+            if (wasDiagonal && inputDirection != Vector2.Zero && (inputDirection.X == 0 || inputDirection.Y == 0))
+            {
+                // If we recently released a key while moving diagonally
+                if (Time.GetTicksMsec() - lastKeyReleaseTime < diagonalReleaseTimeThreshold * 1000)
+                {
+                    // Ignore this input frame - stop movement completely
+                    inputDirection = Vector2I.Zero;
+                }
+            }
+
+            // Update last key release time if we're transitioning from diagonal to something else
+            if (wasDiagonal && (inputDirection.X == 0 || inputDirection.Y == 0))
+            {
+                lastKeyReleaseTime = Time.GetTicksMsec();
+            }
+
+            _gameController.QueuePlayerAction(new MoveAction(_player, this, _player.GetCurrentGridPosition() + movementVector));
         }
 
         public override void _Input(InputEvent @event)

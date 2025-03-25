@@ -34,10 +34,6 @@ namespace VeilOfAges.Entities.Traits
 
         public override EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
         {
-            // Only process AI if movement is complete
-            if (_owner?.IsMoving() != false)
-                return null;
-
             // Decrement the timer
             if (_stateTimer > 0)
                 _stateTimer--;
@@ -51,53 +47,40 @@ namespace VeilOfAges.Entities.Traits
         {
             if (_owner == null) return null;
             // Pick a random direction
-            int randomDir = _rng.RandiRange(0, 3);
-            Vector2 newDirection = Vector2.Zero;
+            int randomDir = _rng.RandiRange(0, 7);
+            Vector2I newDirection = Vector2I.Zero;
 
             switch (randomDir)
             {
-                case 0: newDirection = Vector2.Right; break;
-                case 1: newDirection = Vector2.Left; break;
-                case 2: newDirection = Vector2.Down; break;
-                case 3: newDirection = Vector2.Up; break;
-            }
+                case 0: newDirection = Vector2I.Right; break;
+                case 1: newDirection = Vector2I.Left; break;
+                case 2: newDirection = Vector2I.Down; break;
+                case 3: newDirection = Vector2I.Up; break;
+                case 4: newDirection = Vector2I.Left + Vector2I.Up; break;
+                case 5: newDirection = Vector2I.Left + Vector2I.Down; break;
+                case 6: newDirection = Vector2I.Right + Vector2I.Up; break;
+                case 7: newDirection = Vector2I.Right + Vector2I.Down; break;
 
-            _owner.SetDirection(newDirection);
+            }
 
             // Calculate target grid position
             Vector2I currentPos = _owner.GetCurrentGridPosition();
             Vector2I targetGridPos = currentPos + new Vector2I(
-                (int)newDirection.X,
-                (int)newDirection.Y
+                newDirection.X,
+                newDirection.Y
             );
 
             // Check if the target position is within wander range
-            Vector2I distanceFromSpawn = targetGridPos - _spawnPosition;
-
-            if (Mathf.Abs(distanceFromSpawn.X) > WanderRange ||
-                Mathf.Abs(distanceFromSpawn.Y) > WanderRange)
+            var distanceFromSpawn = targetGridPos.DistanceSquaredTo(_spawnPosition);
+            if (distanceFromSpawn > WanderRange * WanderRange)
             {
                 // Too far from spawn, try to move back toward spawn
-                Vector2 towardSpawn = (Grid.Utils.GridToWorld(_spawnPosition) - Grid.Utils.GridToWorld(currentPos)).Normalized();
-
-                // Find the cardinal direction closest to the direction to spawn
-                if (Mathf.Abs(towardSpawn.X) > Mathf.Abs(towardSpawn.Y))
-                {
-                    // Move horizontally
-                    newDirection = new Vector2(Mathf.Sign(towardSpawn.X), 0);
-                }
-                else
-                {
-                    // Move vertically
-                    newDirection = new Vector2(0, Mathf.Sign(towardSpawn.Y));
-                }
-
-                _owner.SetDirection(newDirection);
+                Vector2 towardSpawn = (_spawnPosition - currentPos).Sign();
 
                 // Recalculate target position
                 targetGridPos = currentPos + new Vector2I(
-                    (int)newDirection.X,
-                    (int)newDirection.Y
+                    (int)towardSpawn.X,
+                    (int)towardSpawn.Y
                 );
             }
 
