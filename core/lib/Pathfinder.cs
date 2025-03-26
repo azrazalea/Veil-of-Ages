@@ -3,30 +3,229 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using VeilOfAges.Entities;
-using VeilOfAges.Entities.Beings;
 
 namespace VeilOfAges.Core.Lib
 {
     public class PathFinder
     {
-        private const int MAX_PATH_LENGTH = 100;
         public List<Vector2I> CurrentPath { get; private set; } = [];
         public int PathIndex { get; private set; } = 0;
+        public int MAX_PATH_LENGTH = 100;
+
+        // Add new fields for lazy evaluation
+        private PathGoalType _goalType = PathGoalType.None;
+        private object? _goalTarget = null;
+        private Being? _targetEntity = null;
+        private Vector2I _targetPosition;
+        private int _proximityRange = 1;
+        private bool _pathNeedsCalculation = false;
+
+        // Path state tracking
+        private int _recalculationAttempts = 0;
+        private const int MAX_RECALCULATION_ATTEMPTS = 3;
+        private uint _lastRecalculationTick = 0;
+        private const uint RECALCULATION_COOLDOWN = 5;
+
+        // Current game tick (set by GameController)
+        public static uint CurrentTick { get; set; } = 0;
+
+        // Simple enum to track goal type
+        public enum PathGoalType
+        {
+            None,
+            Position,
+            EntityProximity,
+            Area
+        }
 
         public void ClearPath()
         {
             CurrentPath = [];
+            PathIndex = 0;
+            _pathNeedsCalculation = true;
+        }
+        // New method to check if path is valid
+        public bool HasValidPath()
+        {
+            return !_pathNeedsCalculation && CurrentPath.Count > 0 && PathIndex < CurrentPath.Count;
         }
 
+        // New method to set a position goal
+        public void SetPositionGoal(Being entity, Vector2I position)
+        {
+            _goalType = PathGoalType.Position;
+            _targetPosition = position;
+            _goalTarget = position;
+            _pathNeedsCalculation = true;
+            _recalculationAttempts = 0;
+        }
+
+        // New method to set an entity proximity goal
+        public void SetEntityProximityGoal(Being entity, Being targetEntity, int proximityRange = 1)
+        {
+            _goalType = PathGoalType.EntityProximity;
+            _targetEntity = targetEntity;
+            _proximityRange = proximityRange;
+            _goalTarget = targetEntity;
+            _pathNeedsCalculation = true;
+            _recalculationAttempts = 0;
+        }
+
+        // New method to set an area goal
+        public void SetAreaGoal(Being entity, Vector2I centerPosition, int radius)
+        {
+            _goalType = PathGoalType.Area;
+            _targetPosition = centerPosition;
+            _proximityRange = radius;
+            _goalTarget = centerPosition;
+            _pathNeedsCalculation = true;
+            _recalculationAttempts = 0;
+        }
+
+        // Check if goal is reached
+        public bool IsGoalReached(Being entity)
+        {
+            // Verify by goal type
+            return _goalType switch
+            {
+                PathGoalType.None => true,
+                PathGoalType.Position => entity.GetCurrentGridPosition() == _targetPosition,
+                PathGoalType.EntityProximity => _targetEntity != null &&
+                                               entity.GetCurrentGridPosition().DistanceTo(
+                                                   _targetEntity.GetCurrentGridPosition()) <= _proximityRange,
+                PathGoalType.Area => entity.GetCurrentGridPosition().DistanceTo(_targetPosition) <= _proximityRange,
+                _ => false
+            };
+        }
+
+        // New method for lazy path following with calculation as needed
+        public bool TryFollowPath(Being entity)
+        {
+            // First check if we've reached the goal directly
+            if (IsGoalReached(entity))
+                return true;
+
+            // Calculate path if needed and not on cooldown
+            if (_pathNeedsCalculation &&
+                CurrentTick - _lastRecalculationTick >= RECALCULATION_COOLDOWN &&
+                _recalculationAttempts < MAX_RECALCULATION_ATTEMPTS)
+            {
+                CalculatePathForCurrentGoal(entity);
+            }
+
+            // If no valid path, can't follow
+            if (_pathNeedsCalculation || PathIndex >= CurrentPath.Count || CurrentPath.Count == 0)
+                return false;
+
+            // Try to move along the path
+            Vector2I nextPos = CurrentPath[PathIndex];
+            bool moveSuccessful = entity.TryMoveToGridPosition(nextPos);
+
+            if (moveSuccessful)
+            {
+                PathIndex++;
+
+                // Check if we've completed the path
+                if (PathIndex >= CurrentPath.Count)
+                {
+                    // We've reached the end but maybe not the goal
+                    if (!IsGoalReached(entity))
+                    {
+                        _pathNeedsCalculation = true;
+                    }
+                    return true;
+                }
+            }
+            else
+            {
+                // Path is blocked, mark for recalculation
+                _pathNeedsCalculation = true;
+                return false;
+            }
+
+            return moveSuccessful;
+        }
+
+        // Private method to calculate path based on current goal
+        private void CalculatePathForCurrentGoal(Being entity)
+        {
+            var gridArea = entity.GetGridArea();
+            if (gridArea == null) return;
+
+            Vector2I startPos = entity.GetCurrentGridPosition();
+            _lastRecalculationTick = CurrentTick;
+            _recalculationAttempts++;
+
+            // Calculate based on goal type
+            switch (_goalType)
+            {
+                case PathGoalType.Position:
+                    // Use existing SetPath method you already have
+                    SetPath(gridArea, startPos, _targetPosition);
+                    break;
+
+                case PathGoalType.EntityProximity:
+                    if (_targetEntity != null)
+                    {
+                        // Use existing SetPathToWithinRange method
+                        SetPathToWithinRange(entity, _targetEntity, _proximityRange);
+                    }
+                    break;
+
+                case PathGoalType.Area:
+                    // Find a valid position in the area
+                    List<Vector2I> validPositions = GetValidPositionsInArea(_targetPosition, _proximityRange, gridArea);
+
+                    if (validPositions.Count > 0)
+                    {
+                        // Sort by distance
+                        validPositions.Sort((a, b) =>
+                            startPos.DistanceSquaredTo(a).CompareTo(startPos.DistanceSquaredTo(b)));
+
+                        // Try closest positions
+                        foreach (var pos in validPositions)
+                        {
+                            if (SetPath(gridArea, startPos, pos))
+                                break;
+                        }
+                    }
+                    break;
+            }
+
+            _pathNeedsCalculation = false; // Mark as calculated
+        }
+
+        // Helper for area goals
+        private List<Vector2I> GetValidPositionsInArea(Vector2I center, int radius, Grid.Area gridArea)
+        {
+            List<Vector2I> positions = [];
+
+            for (int x = -radius; x <= radius; x++)
+            {
+                for (int y = -radius; y <= radius; y++)
+                {
+                    if (x * x + y * y <= radius * radius)
+                    {
+                        Vector2I pos = new(center.X + x, center.Y + y);
+                        if (gridArea.IsCellWalkable(pos))
+                        {
+                            positions.Add(pos);
+                        }
+                    }
+                }
+            }
+
+            return positions;
+        }
         // Finds a path between two points using A* algorithm
-        public void SetPath(Grid.Area gridArea, Vector2I start, Vector2I target)
+        public bool SetPath(Grid.Area gridArea, Vector2I start, Vector2I target)
         {
             PathIndex = 0;
             // If start and target are the same, return empty path
             if (start == target)
             {
                 CurrentPath = [];
-                return;
+                return false;
             }
 
             // Basic variables for A* algorithm
@@ -59,7 +258,7 @@ namespace VeilOfAges.Core.Lib
                 if (current == target)
                 {
                     CurrentPath = ReconstructPath(cameFrom, current);
-                    return;
+                    return true;
                 }
 
                 openSet.Remove(current);
@@ -92,7 +291,7 @@ namespace VeilOfAges.Core.Lib
             // If we get here, no path was found - return fallback path
             // GD.Print($"No path found from {start} to {target}, using fallback");
             CurrentPath = CreateFallbackPath(gridArea, start, target);
-            return;
+            return CurrentPath.Count > 0;
         }
 
 

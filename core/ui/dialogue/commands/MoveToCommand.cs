@@ -35,34 +35,16 @@ namespace VeilOfAges.UI.Commands
             {
                 Vector2I targetPos = _targetPos.Value;
 
+
                 // Check if we've reached the target
                 if (currentGridPos == targetPos)
                 {
                     return null; // Command complete
                 }
 
-                // Check if we need to calculate a path
-                if (MyPathfinder.IsPathComplete())
-                {
-                    var gridArea = _owner.GetGridArea();
-                    if (gridArea != null)
-                    {
-                        MyPathfinder.SetPath(gridArea, currentGridPos, targetPos);
-                        // If no path could be found, end command
-                        if (MyPathfinder.CurrentPath.Count == 0)
-                        {
-                            return null;
-                        }
-                    }
-                }
-
-                // Follow the path
-                if (MyPathfinder.PathIndex < MyPathfinder.CurrentPath.Count)
-                {
-                    return new MoveAlongPathAction(_owner, this, priority: 0);
-                }
+                MyPathfinder.SetPositionGoal(_owner, targetPos);
+                return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: -1);
             }
-
             // No target or no path available, end command
             return null;
         }

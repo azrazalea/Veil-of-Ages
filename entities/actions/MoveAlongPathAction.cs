@@ -1,12 +1,19 @@
-using System;
+using VeilOfAges.Core.Lib;
+using VeilOfAges.Entities;
 
-namespace VeilOfAges.Entities.Actions
+public class MoveAlongPathAction : EntityAction
 {
-    public class MoveAlongPathAction(Being entity, object source, Action<EntityAction>? onSuccessful = null, Action<EntityAction>? onSelected = null, int priority = 1) : EntityAction(entity, source, onSelected, onSuccessful, priority)
+    private PathFinder _pathFinder;
+
+    public MoveAlongPathAction(Being entity, object source, PathFinder pathFinder, int priority = 1)
+        : base(entity, source, priority: priority)
     {
-        public override bool Execute()
-        {
-            return Entity.MoveAlongPath();
-        }
+        _pathFinder = pathFinder;
+    }
+
+    public override bool Execute()
+    {
+        // The PathFinder knows the goal and handles calculation on demand
+        return _pathFinder.TryFollowPath(Entity);
     }
 }

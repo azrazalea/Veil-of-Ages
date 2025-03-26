@@ -24,14 +24,12 @@ namespace VeilOfAges.UI.Commands
 
             // Try to find the commander in perception
             bool commanderVisible = false;
-            Vector2I commanderPos = new(0, 0);
 
             foreach (var (entity, position) in currentPerception.GetEntitiesOfType<Being>())
             {
                 if (entity == _commander)
                 {
                     commanderVisible = true;
-                    commanderPos = position;
                     break;
                 }
             }
@@ -39,41 +37,16 @@ namespace VeilOfAges.UI.Commands
             // Check if commander is visible
             if (commanderVisible)
             {
-                // Check if we're already close enough
-                int distance = Math.Max(
-                    Math.Abs(commanderPos.X - currentGridPos.X),
-                    Math.Abs(commanderPos.Y - currentGridPos.Y)
-                );
+                // Set the goal but don't calculate the path yet
+                MyPathfinder.SetEntityProximityGoal(_owner, _commander, 1);
 
-                if (distance <= 1)
-                {
-                    // Clear path and wait
-                    MyPathfinder.ClearPath();
-                    return new IdleAction(_owner, this, -1);
-                }
-
-                // Update path if needed
-                if (MyPathfinder.IsPathComplete() || _updateTicks >= _pathUpdateFrequency)
-                {
-                    // Use PathFinder to get a proper path
-                    var gridArea = _owner.GetGridArea();
-                    if (gridArea != null)
-                    {
-                        MyPathfinder.SetPath(gridArea, currentGridPos, commanderPos);
-                        _updateTicks = 0;
-                    }
-                }
+                // Pass the pathfinder to the action
+                return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: -1);
             }
             else if (_updateTicks >= _pathUpdateFrequency * 3)
             {
                 // If commander hasn't been seen for a while, command is complete
                 return null;
-            }
-
-            // If we have a path, follow it
-            if (MyPathfinder.CurrentPath.Count > 0 && MyPathfinder.PathIndex < MyPathfinder.CurrentPath.Count)
-            {
-                return new MoveAlongPathAction(_owner, this, priority: -1);
             }
 
             // Default to idle
