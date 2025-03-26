@@ -4,109 +4,89 @@
 ![Godot: 4.4](https://img.shields.io/badge/Godot-4.4-blue)
 ![Status: Early Development](https://img.shields.io/badge/Status-Early%20Development-yellow)
 
-A 2D tile-based simulation game where you build and manage a unique fantasy kingdom. Initially focused on necromancy, allowing you to lead a settlement with both living and undead citizens, but designed to expand with additional gameplay paths in future updates.
+**Veil of Ages** is a 2D necromancy kingdom simulation where you build a realm where the living and undead coexist. 
 
-## 🌟 Features
+## 🌙 Vision
 
-- **Modular Faction System**: Initially focused on necromancy, with plans to add nature-based, elemental, and other faction types in future updates.
-- **Morally Nuanced Gameplay**: Make meaningful choices that shape your character and kingdom without forced alignment.
-- **Mixed Population Management**: Maintain a kingdom with diverse citizens coexisting based on your faction type.
-- **Strategy & Base Building**: Construct and upgrade buildings, manage resources, and expand your domain.
-- **Character Development**: Progress your character with skills and specializations through an RPG-like system.
-- **Personality System**: Followers have distinct personalities, needs, and desires - not just mindless pawns.
-- **Multi-Path Progression**: Research different specializations with unique abilities and effects.
+Lead a necromancer's journey from outcast to ruler, creating a unique society where undead serve alongside living citizens. Make meaningful moral choices that shape your character and kingdom without forced alignment. Will you be a benevolent scholar of death magic, a practical survivalist, or a dark overlord? The choice is yours.
 
-## 📋 Requirements
+While the initial focus is on necromancy, the game's architecture is designed to eventually support multiple faction types, including nature-focused druids, elemental mages, and more.
 
-- [Godot 4.4+](https://godotengine.org/download) with Mono/.NET support 
-- .NET SDK 8.0 or later
-- Visual Studio Code (recommended) with the following extensions:
-  - C# Dev Kit
-  - Godot Tools
+## 🎮 Current Features
+
+- **Player Character**: Control a necromancer in a reactive tile-based world
+- **Undead Creation**: Command skeletons and zombies with distinct behaviors
+- **Living NPCs**: Citizens from both your and other kingdoms with personalities that respond to their environment
+- **Turn-Based Gameplay**: Hybrid system supporting both direct control and simulation
+- **Dynamic World**: Procedurally generated settlements and environments
+
+## 🔮 Planned Features
+
+- **Modular Faction System**: Expand beyond necromancy with multiple magical paths
+- **Kingdom Management**: Construct and upgrade buildings, manage resources, research
+- **Deep Character Development**: Progress through magical specializations with meaningful choices
+- **Rich Personality System**: Followers with distinct needs, desires, and relationships
+- **Moral Choice Framework**: Shape your kingdom's philosophy through your actions
+
+## 💻 Technical Highlights
+
+- **Performance-Focused Design**: Multi-threaded entity simulation to handle large kingdoms
+- **Agent-Based Architecture**: Autonomous entities with rich behavior systems
+- **Trait-Based Character System**: Modular components for complex entity behaviors
+- **Data-Driven Design**: Extensive configuration options for modding and expansion
 
 ## 🚀 Getting Started
 
+### Requirements
+
+- [Godot 4.4+](https://godotengine.org/download) with Mono/.NET support 
+- .NET SDK 8.0 or later
+- Visual Studio Code (recommended) with C# Dev Kit and Godot Tools extensions
+
 ### Installation
 
-1. Clone the repository (note: assets are not included in the public repository):
+1. Clone the repository:
    ```
    git clone https://github.com/azrazalea/Veil-of-Ages.git
    ```
 
-2. Open the project in Godot 4.4+:
-   - Launch Godot Engine
-   - Select "Import Project"
-   - Navigate to the cloned repository folder
-   - Open the `project.godot` file
+2. Open the project in Godot 4.4+ by selecting the `project.godot` file
 
-### Building From Source
-
-1. Build the C# solution:
+3. Build the C# solution:
    ```
    dotnet build
    ```
 
-2. Run the game from Godot Editor or build it:
-   - Press F5 in the Godot Editor to run
-   - Or use Project > Export to build for your target platform
+4. Run the game from the Godot Editor (F5)
 
-## 🎮 Gameplay Guide
-
-### Main Game Modes
-
-- **Simulation Mode**: Time advances automatically while you watch your kingdom develop
-- **Manual Control Mode**: Take direct control of your character to explore, interact, and build
-
-### Key Controls
+### Basic Controls
 
 - WASD / Arrow Keys: Move character
 - E: Interact with objects and characters
 - Space: Pause/resume simulation
-- Tab: Speed up/slow down time
+- -/=: Speed up/slow down time
 
-## 🧪 Development 
+## 🔧 Development Status
 
-### Project Structure
+Veil of Ages is in **early development**. Current focus areas:
 
-- `/core/` - Core game systems and controllers
-- `/entities/` - All entity-related code (beings, buildings, etc.)
-- `/world/` - World generation and management
-- `/assets/` - Game assets (not included in public repository)
-
-### Architecture
-
-The game uses a component-based architecture with these key systems:
-
-- **World System**: Manages the tile-based map, zones, and resources
-- **Entity System**: Handles all entities including characters and buildings
-- **Turn Management**: Controls simulation ticks and action priority
-- **Personality System**: Governs traits, relationships, and memory
-- **Magic System**: Handles spellcasting, research, and magical effects
-- **Faction System**: Provides modular framework for different gameplay styles and kingdom types
-
-While the initial release focuses on necromancy, the architecture is designed to support multiple faction types. This modular approach will allow the addition of nature-focused druids, elemental mages, and other faction types in future updates without requiring major code restructuring.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please note:
-
-1. Make sure to follow the coding style and conventions used in the project
-2. Create a branch for your feature or fix
-3. Open a pull request with a detailed description
-4. Be aware that assets are not included in the public repository and need to be obtained separately
+- Core entity and trait systems
+- Basic necromancer gameplay loop
+- Town generation with living and undead inhabitants
+- Resource gathering and storage systems
+- Building foundation systems
 
 ## 📜 License
 
 - **Code**: Licensed under [GNU AGPL-3.0](LICENSE.code.md)
-- **Assets**: Not included in the public repository. The Minifantasy assets used in development are licensed separately and are not redistributable.
+- **Assets**: The Minifantasy assets are licensed separately and are not redistributable.
 
-## 📬 Contact
+## 🤝 Contributing
 
-- Project Lead: [Your Name](mailto:your.email@example.com)
-- GitHub Issues: [Issue Tracker](https://github.com/yourusername/veil-of-ages/issues)
+Contributions are welcome! Please see our [contributing guidelines](CONTRIBUTING.md) for details.
 
 ## 🙏 Acknowledgments
 
-- Krishna Palacio for the Minifantasy asset pack used in development
+- Krishna Palacio for the Minifantasy asset packs used in development
 - The Godot Engine community for their invaluable resources and support
 - Inspiration from games like KeeperRL, Rimworld, and Dwarf Fortress
