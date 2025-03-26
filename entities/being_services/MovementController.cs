@@ -144,11 +144,6 @@ namespace VeilOfAges.Entities.BeingServices
             }
         }
 
-        public bool MoveAlongPath()
-        {
-            return MyPathfinder.MoveAlongPath(_owner);
-        }
-
         public PathFinder GetPathfinder()
         {
             return MyPathfinder;

@@ -52,34 +52,200 @@ namespace VeilOfAges.Entities
             IsInitialized = true;
         }
 
-        #region Dialogue
+        #region Perception Helpers
 
         /// <summary>
-        /// Method to suggest actions for the entity
+        /// Find entities of a specific type in perception
         /// </summary>
-        public virtual EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
+        protected List<(T entity, Vector2I position)> FindEntitiesOfType<T>(Perception perception) where T : Being
         {
-            return null;
+            return perception.GetEntitiesOfType<T>();
         }
 
-        // Dialogue-related methods with default implementations
-        public virtual bool RefusesCommand(EntityCommand command) { return false; }
+        /// <summary>
+        /// Check if a type of entity is visible in perception
+        /// </summary>
+        protected bool CanSeeEntityType<T>(Perception perception) where T : Being
+        {
+            return FindEntitiesOfType<T>(perception).Count > 0;
+        }
 
-        public virtual bool IsOptionAvailable(DialogueOption option) { return true; }
+        /// <summary>
+        /// Find the closest entity of a specific type
+        /// </summary>
+        protected (T? entity, Vector2I position) FindClosestEntityOfType<T>(Perception perception, Vector2I fromPosition) where T : Being
+        {
+            var entities = FindEntitiesOfType<T>(perception);
+            if (entities.Count == 0) return (null, Vector2I.Zero);
 
-        public virtual string? InitialDialogue(Being speaker) { return null; }
+            T? closest = null;
+            Vector2I closestPos = Vector2I.Zero;
+            float closestDist = float.MaxValue;
 
-        public virtual string? GetSuccessResponse(EntityCommand command) { return null; }
+            foreach (var (entity, pos) in entities)
+            {
+                float dist = fromPosition.DistanceSquaredTo(pos);
+                if (dist < closestDist)
+                {
+                    closestDist = dist;
+                    closest = entity;
+                    closestPos = pos;
+                }
+            }
 
-        public virtual string? GetFailureResponse(EntityCommand command) { return null; }
+            return (closest, closestPos);
+        }
 
-        public virtual string? GetSuccessResponse(string text) { return null; }
+        #endregion
 
-        public virtual string? GetFailureResponse(string text) { return null; }
+        #region Movement Helpers
 
-        public virtual List<DialogueOption> GenerateDialogueOptions(Being speaker) { return []; }
+        /// <summary>
+        /// Updated helper for goal-based movement to a position - uses lazy pathfinding
+        /// </summary>
+        protected EntityAction? MoveToPosition(Vector2I targetPos, int priority = 1)
+        {
+            if (_owner == null) return null;
 
-        public virtual string? GenerateDialogueDescription() { return "I am a being."; }
+            // Set position goal without calculating path yet
+            MyPathfinder.SetPositionGoal(_owner, targetPos);
+
+            // Return action that will handle lazy path calculation
+            return new MoveAlongPathAction(_owner, this, MyPathfinder, priority);
+        }
+
+        /// <summary>
+        /// Updated helper for goal-based movement near an entity - uses lazy pathfinding
+        /// </summary>
+        protected EntityAction? MoveNearEntity(Being targetEntity, int proximityRange = 1, int priority = 1)
+        {
+            if (_owner == null) return null;
+
+            // Set entity proximity goal without calculating path yet
+            MyPathfinder.SetEntityProximityGoal(_owner, targetEntity, proximityRange);
+
+            // Return action that will handle lazy path calculation
+            return new MoveAlongPathAction(_owner, this, MyPathfinder, priority);
+        }
+
+        /// <summary>
+        /// Updated helper for goal-based movement to an area - uses lazy pathfinding
+        /// </summary>
+        protected EntityAction? MoveToArea(Vector2I centerPos, int radius, int priority = 1)
+        {
+            if (_owner == null) return null;
+
+            // Set area goal without calculating path yet
+            MyPathfinder.SetAreaGoal(_owner, centerPos, radius);
+
+            // Return action that will handle lazy path calculation
+            return new MoveAlongPathAction(_owner, this, MyPathfinder, priority);
+        }
+
+        /// <summary>
+        /// Helper for wandering behavior - uses direct move for simple adjacent motion
+        /// </summary>
+        protected EntityAction? TryToWander(float wanderRange = 10.0f, int priority = 1)
+        {
+            if (_owner == null) return null;
+
+            // Pick a random direction
+            int randomDir = _rng.RandiRange(0, 7);
+            Vector2I newDirection = Vector2I.Zero;
+
+            switch (randomDir)
+            {
+                case 0: newDirection = Vector2I.Right; break;
+                case 1: newDirection = Vector2I.Left; break;
+                case 2: newDirection = Vector2I.Down; break;
+                case 3: newDirection = Vector2I.Up; break;
+                case 4: newDirection = Vector2I.Left + Vector2I.Up; break;
+                case 5: newDirection = Vector2I.Left + Vector2I.Down; break;
+                case 6: newDirection = Vector2I.Right + Vector2I.Up; break;
+                case 7: newDirection = Vector2I.Right + Vector2I.Down; break;
+            }
+
+            // Calculate target grid position
+            Vector2I currentPos = _owner.GetCurrentGridPosition();
+            Vector2I targetGridPos = currentPos + newDirection;
+
+            // Check if the target position is within wander range
+            var distanceFromSpawn = targetGridPos.DistanceSquaredTo(_spawnPosition);
+            if (distanceFromSpawn > wanderRange * wanderRange)
+            {
+                // Too far from spawn, try to move back toward spawn
+                Vector2 towardSpawn = (_spawnPosition - currentPos).Sign();
+
+                // Recalculate target position
+                targetGridPos = currentPos + new Vector2I(
+                    (int)towardSpawn.X,
+                    (int)towardSpawn.Y
+                );
+            }
+
+            // Just use a simple move action for adjacent positions
+            return new MoveAction(_owner, this, targetGridPos, priority);
+        }
+
+        /// <summary>
+        /// Helper to move back to spawn position when too far away
+        /// </summary>
+        protected EntityAction? ReturnToSpawn(int priority = 1)
+        {
+            if (_owner == null) return null;
+
+            // Set position goal without calculating path yet
+            MyPathfinder.SetPositionGoal(_owner, _spawnPosition);
+
+            // Return action that will handle lazy path calculation
+            return new MoveAlongPathAction(_owner, this, MyPathfinder, priority);
+        }
+
+        #endregion
+
+        #region Range Checking Helpers
+
+        /// <summary>
+        /// Check if entity is outside a specified range from its spawn position
+        /// </summary>
+        protected bool IsOutsideSpawnRange(float range)
+        {
+            return IsOutsideRange(range, _spawnPosition);
+        }
+
+        /// <summary>
+        /// Check if entity is outside a specified range from a position
+        /// </summary>
+        protected bool IsOutsideRange(float range, Vector2I referencePos)
+        {
+            if (_owner == null) return true;
+
+            Vector2I currentPos = _owner.GetCurrentGridPosition();
+            Vector2I distance = currentPos - referencePos;
+
+            return Mathf.Abs(distance.X) > range ||
+                   Mathf.Abs(distance.Y) > range;
+        }
+
+        /// <summary>
+        /// Check if entity is inside a specified range from a position
+        /// </summary>
+        protected bool IsInsideRange(float range, Vector2I referencePos)
+        {
+            return !IsOutsideRange(range, referencePos);
+        }
+
+        /// <summary>
+        /// Calculate squared distance from a position
+        /// (more efficient than regular distance as it avoids square root)
+        /// </summary>
+        protected float SquaredDistanceFrom(Vector2I referencePos)
+        {
+            if (_owner == null) return float.MaxValue;
+
+            Vector2I currentPos = _owner.GetCurrentGridPosition();
+            return currentPos.DistanceSquaredTo(referencePos);
+        }
 
         #endregion
 
@@ -148,120 +314,24 @@ namespace VeilOfAges.Entities
 
         #endregion
 
-        #region Movement Helpers
+        #region Dialogue
 
-        /// <summary>
-        /// Helper for wandering behavior - creates a movement action in a random direction
-        /// </summary>
-        protected EntityAction? TryToWander(float wanderRange = 10.0f, int priority = 1)
+        // Method to suggest actions for the entity
+        public virtual EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
         {
-            if (_owner == null) return null;
-
-            // Pick a random direction
-            int randomDir = _rng.RandiRange(0, 7);
-            Vector2I newDirection = Vector2I.Zero;
-
-            switch (randomDir)
-            {
-                case 0: newDirection = Vector2I.Right; break;
-                case 1: newDirection = Vector2I.Left; break;
-                case 2: newDirection = Vector2I.Down; break;
-                case 3: newDirection = Vector2I.Up; break;
-                case 4: newDirection = Vector2I.Left + Vector2I.Up; break;
-                case 5: newDirection = Vector2I.Left + Vector2I.Down; break;
-                case 6: newDirection = Vector2I.Right + Vector2I.Up; break;
-                case 7: newDirection = Vector2I.Right + Vector2I.Down; break;
-            }
-
-            // Calculate target grid position
-            Vector2I currentPos = _owner.GetCurrentGridPosition();
-            Vector2I targetGridPos = currentPos + newDirection;
-
-            // Check if the target position is within wander range
-            var distanceFromSpawn = targetGridPos.DistanceSquaredTo(_spawnPosition);
-            if (distanceFromSpawn > wanderRange * wanderRange)
-            {
-                // Too far from spawn, try to move back toward spawn
-                Vector2 towardSpawn = (_spawnPosition - currentPos).Sign();
-
-                // Recalculate target position
-                targetGridPos = currentPos + new Vector2I(
-                    (int)towardSpawn.X,
-                    (int)towardSpawn.Y
-                );
-            }
-
-            // Try to move to the target position
-            return new MoveAction(_owner, this, targetGridPos, priority);
+            return null;
         }
 
-        /// <summary>
-        /// Check if entity is outside a specified range from spawn position
-        /// </summary>
-        protected bool IsOutsideWanderRange(float range)
-        {
-            return IsOutsideRange(range, _spawnPosition);
-        }
-
-        /// <summary>
-        /// Check if entity is outside a specified range from a position
-        /// </summary>
-        protected bool IsOutsideRange(float range, Vector2I referencePos)
-        {
-            if (_owner == null) return true;
-
-            Vector2I currentPos = _owner.GetCurrentGridPosition();
-            Vector2I distance = currentPos - referencePos;
-
-            return Mathf.Abs(distance.X) > range ||
-                   Mathf.Abs(distance.Y) > range;
-        }
-
-        #endregion
-
-        #region Perception Helpers
-
-        /// <summary>
-        /// Find entities of a specific type in perception
-        /// </summary>
-        protected List<(T entity, Vector2I position)> FindEntitiesOfType<T>(Perception perception) where T : Being
-        {
-            return perception.GetEntitiesOfType<T>();
-        }
-
-        /// <summary>
-        /// Check if a type of entity is visible in perception
-        /// </summary>
-        protected bool CanSeeEntityType<T>(Perception perception) where T : Being
-        {
-            return FindEntitiesOfType<T>(perception).Count > 0;
-        }
-
-        /// <summary>
-        /// Find the closest entity of a specific type
-        /// </summary>
-        protected (T? entity, Vector2I position) FindClosestEntityOfType<T>(Perception perception, Vector2I fromPosition) where T : Being
-        {
-            var entities = FindEntitiesOfType<T>(perception);
-            if (entities.Count == 0) return (null, Vector2I.Zero);
-
-            T? closest = null;
-            Vector2I closestPos = Vector2I.Zero;
-            float closestDist = float.MaxValue;
-
-            foreach (var (entity, pos) in entities)
-            {
-                float dist = fromPosition.DistanceSquaredTo(pos);
-                if (dist < closestDist)
-                {
-                    closestDist = dist;
-                    closest = entity;
-                    closestPos = pos;
-                }
-            }
-
-            return (closest, closestPos);
-        }
+        // Dialogue-related methods with default implementations
+        public virtual bool RefusesCommand(EntityCommand command) { return false; }
+        public virtual bool IsOptionAvailable(DialogueOption option) { return true; }
+        public virtual string? InitialDialogue(Being speaker) { return null; }
+        public virtual string? GetSuccessResponse(EntityCommand command) { return null; }
+        public virtual string? GetFailureResponse(EntityCommand command) { return null; }
+        public virtual string? GetSuccessResponse(string text) { return null; }
+        public virtual string? GetFailureResponse(string text) { return null; }
+        public virtual List<DialogueOption> GenerateDialogueOptions(Being speaker) { return []; }
+        public virtual string? GenerateDialogueDescription() { return "I am a being."; }
 
         #endregion
     }

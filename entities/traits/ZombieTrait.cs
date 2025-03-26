@@ -61,8 +61,6 @@ namespace VeilOfAges.Entities.Traits
 
         private void CheckForLivingToChase(Perception currentPerception)
         {
-            if (MyPathfinder == null) return;
-
             // Look for living beings (not undead)
             var entities = currentPerception.GetEntitiesOfType<Being>();
             foreach (var (entity, position) in entities)
@@ -84,11 +82,6 @@ namespace VeilOfAges.Entities.Traits
                     PlayZombieGroan();
                     _hasGroaned = true;
                 }
-
-                if (_owner == null) return;
-
-                // Calculate a path to the target
-                MyPathfinder.SetPathTo(_owner, position);
 
                 GD.Print($"{_owner?.Name}: Spotted living being, starting chase!");
                 return;
@@ -142,7 +135,7 @@ namespace VeilOfAges.Entities.Traits
 
         private EntityAction? ProcessChasingState(Perception currentPerception)
         {
-            if (_owner == null || MyPathfinder == null) return null;
+            if (_owner == null) return null;
 
             // Check if we've lost interest or gone too far
             if (_chaseTimer == 0 || IsOutsideChaseRange())
@@ -153,14 +146,9 @@ namespace VeilOfAges.Entities.Traits
                 _chaseTarget = null;
                 _hasGroaned = false;
 
-                // Return to spawn area
-                MyPathfinder.SetPathTo(_owner, _spawnPosition);
-
-                if (MyPathfinder.CurrentPath.Count > 0)
-                {
-                    return new MoveAlongPathAction(_owner, this, priority: 1);
-                }
-                return new IdleAction(_owner, this, 1);
+                // Return to spawn area - Set a position goal
+                MyPathfinder.SetPositionGoal(_owner, _spawnPosition);
+                return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: 1);
             }
 
             // Check if target is still visible
@@ -168,20 +156,22 @@ namespace VeilOfAges.Entities.Traits
             {
                 if (entity == _chaseTarget)
                 {
-                    // Update path to target
-                    MyPathfinder.SetPathTo(_owner, position);
+                    // Set entity proximity goal - path calculation will be lazy
+                    MyPathfinder.SetEntityProximityGoal(_owner, _chaseTarget, 1);
 
                     // Reset chase timer since we can still see the target
                     _chaseTimer = LoseInterestTime;
-                    break;
+
+                    // Higher priority when chasing
+                    return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: -2);
                 }
             }
 
-            // Follow the path to the target
-            if (!MyPathfinder.IsPathComplete())
+            // If we can't see the target but still have chase time left,
+            // continue following any existing path we might have
+            if (!MyPathfinder.IsGoalReached(_owner) && _chaseTimer > 0)
             {
-                // Higher priority when chasing
-                return new MoveAlongPathAction(_owner, this, priority: 1);
+                return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: -2);
             }
 
             // If we have no path, just idle

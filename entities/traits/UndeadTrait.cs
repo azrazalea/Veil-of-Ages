@@ -1,12 +1,7 @@
 using Godot;
-using System;
-using VeilOfAges.Entities;
-using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Actions;
+using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Sensory;
-using VeilOfAges.UI;
-using System.Collections.Generic;
-using VeilOfAges.Core.Lib;
 
 namespace VeilOfAges.Entities.Traits
 {
@@ -24,8 +19,9 @@ namespace VeilOfAges.Entities.Traits
         public override EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
         {
             if (_owner == null) return null;
-            return new IdleAction(_owner, this, -1);
+            return new IdleAction(_owner, this, 0);
         }
+
         private static void DisableLivingBodySystems(BodyHealth health)
         {
             health.DisableBodySystem(BodySystemType.Breathing);

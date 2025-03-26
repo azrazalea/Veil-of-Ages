@@ -346,19 +346,6 @@ namespace VeilOfAges.Entities
             {
                 var action = possibleActions.Dequeue();
 
-                // sync pathfinder
-                if (action is MoveAlongPathAction && Movement != null)
-                {
-                    if (action.Source is BeingTrait trait)
-                    {
-                        Movement.MyPathfinder = trait.MyPathfinder;
-                    }
-                    else if (action.Source is EntityCommand command)
-                    {
-                        Movement.MyPathfinder = command.MyPathfinder;
-                    }
-                }
-
                 return action;
             }
 
@@ -629,13 +616,6 @@ namespace VeilOfAges.Entities
             if (Movement == null) return Vector2I.Zero;
 
             return Movement.GetFacingDirection();
-        }
-
-        public bool MoveAlongPath()
-        {
-            if (Movement == null) return false;
-
-            return Movement.MoveAlongPath();
         }
 
         public PathFinder? GetPathfinder()

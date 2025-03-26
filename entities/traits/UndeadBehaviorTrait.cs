@@ -1,4 +1,5 @@
 using Godot;
+using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Sensory;
 
@@ -31,16 +32,16 @@ namespace VeilOfAges.Entities.Traits
             return ProcessState(currentOwnerGridPosition, currentPerception);
         }
 
-        // Common method for wandering behavior used by all undead
+        // Updated common method for wandering behavior used by all undead
         protected EntityAction? TryToWander()
         {
             return TryToWander(WanderRange);
         }
 
-        // Check if current position is outside wander range
+        // Check if entity is outside a specified range from spawn position
         protected bool IsOutsideWanderRange()
         {
-            return IsOutsideWanderRange(WanderRange);
+            return IsOutsideSpawnRange(WanderRange);
         }
     }
 }

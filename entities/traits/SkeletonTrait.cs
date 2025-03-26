@@ -19,6 +19,7 @@ namespace VeilOfAges.Entities.Traits
         private Being? _intruder;
         private uint _intimidationTimer = 0;
         private bool _hasRattled = false;
+        private Vector2I? _lastIntruderPosition = null;
 
         public override void Initialize(Being owner, BodyHealth health)
         {
@@ -62,8 +63,6 @@ namespace VeilOfAges.Entities.Traits
 
         private void CheckForIntruders(Perception currentPerception)
         {
-            if (MyPathfinder == null) return;
-
             // Look for living beings (not undead) in territory
             var entities = currentPerception.GetEntitiesOfType<Being>();
 
@@ -82,6 +81,7 @@ namespace VeilOfAges.Entities.Traits
                 {
                     // Intruder detected!
                     _intruder = entity;
+                    _lastIntruderPosition = entityPos;
                     _currentState = SkeletonState.Defending;
                     _intimidationTimer = IntimidationTime;
 
@@ -93,10 +93,6 @@ namespace VeilOfAges.Entities.Traits
                         PlayBoneRattle();
                         _hasRattled = true;
                     }
-
-                    // Calculate a path to the intruder
-
-                    MyPathfinder.SetPathTo(_owner, position);
 
                     GD.Print($"{_owner?.Name}: Intruder detected in territory!");
                     return;
@@ -152,7 +148,7 @@ namespace VeilOfAges.Entities.Traits
 
         private EntityAction? ProcessDefendingState(Perception currentPerception)
         {
-            if (_owner == null || MyPathfinder == null) return null;
+            if (_owner == null) return null;
 
             // Check if we've lost interest or the intruder left the territory
             if (_intimidationTimer == 0 || !IsIntruderInTerritory())
@@ -161,43 +157,49 @@ namespace VeilOfAges.Entities.Traits
                 _currentState = SkeletonState.Wandering;
                 _stateTimer = (uint)_rng.RandiRange(60, 180);
                 _intruder = null;
+                _lastIntruderPosition = null;
                 _hasRattled = false;
 
                 // Return to spawn area if we strayed too far
                 if (IsOutsideWanderRange())
                 {
-                    MyPathfinder.SetPathTo(_owner, _spawnPosition);
-
-                    if (!MyPathfinder.IsPathComplete())
-                    {
-                        return new MoveAlongPathAction(_owner, this, priority: -1);
-                    }
+                    MyPathfinder.SetPositionGoal(_owner, _spawnPosition);
+                    return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: -1);
                 }
 
                 return new IdleAction(_owner, this);
             }
 
+            bool intruderVisible = false;
+
+            // Try to find the intruder in perception
             foreach (var (entity, position) in currentPerception.GetEntitiesOfType<Being>())
             {
                 if (entity == _intruder)
                 {
-                    // Update path to intruder
-                    MyPathfinder.SetPathTo(_owner, position);
+                    intruderVisible = true;
+                    _lastIntruderPosition = position;
+
+                    // Set entity proximity goal - path calculation will be lazy
+                    MyPathfinder.SetEntityProximityGoal(_owner, _intruder, 1);
 
                     // Reset intimidation timer since we can still see the intruder
                     _intimidationTimer = IntimidationTime;
-                    break;
+
+                    // Higher priority when defending
+                    return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: -2);
                 }
             }
 
-            // Follow the path to the intruder
-            if (!MyPathfinder.IsPathComplete())
+            // If intruder not visible but we have a last known position
+            if (!intruderVisible && _lastIntruderPosition.HasValue)
             {
-                // Higher priority when defending
-                return new MoveAlongPathAction(_owner, this, priority: -2);
+                // Go to last known position
+                MyPathfinder.SetPositionGoal(_owner, _lastIntruderPosition.Value);
+                return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: -2);
             }
 
-            // If we have no path, just idle
+            // If we have no path or target info, just idle
             return new IdleAction(_owner, this);
         }
 

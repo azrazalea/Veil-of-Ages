@@ -14,7 +14,6 @@ namespace VeilOfAges.Core.Lib
 
         // Add new fields for lazy evaluation
         private PathGoalType _goalType = PathGoalType.None;
-        private object? _goalTarget = null;
         private Being? _targetEntity = null;
         private Vector2I _targetPosition;
         private int _proximityRange = 1;
@@ -27,7 +26,7 @@ namespace VeilOfAges.Core.Lib
         private const uint RECALCULATION_COOLDOWN = 5;
 
         // Current game tick (set by GameController)
-        public static uint CurrentTick { get; set; } = 0;
+        public uint CurrentTick { get; set; } = 0;
 
         // Simple enum to track goal type
         public enum PathGoalType
@@ -44,6 +43,13 @@ namespace VeilOfAges.Core.Lib
             PathIndex = 0;
             _pathNeedsCalculation = true;
         }
+
+        public void Reset()
+        {
+            ClearPath();
+            _goalType = PathGoalType.None;
+        }
+
         // New method to check if path is valid
         public bool HasValidPath()
         {
@@ -55,7 +61,6 @@ namespace VeilOfAges.Core.Lib
         {
             _goalType = PathGoalType.Position;
             _targetPosition = position;
-            _goalTarget = position;
             _pathNeedsCalculation = true;
             _recalculationAttempts = 0;
         }
@@ -66,7 +71,6 @@ namespace VeilOfAges.Core.Lib
             _goalType = PathGoalType.EntityProximity;
             _targetEntity = targetEntity;
             _proximityRange = proximityRange;
-            _goalTarget = targetEntity;
             _pathNeedsCalculation = true;
             _recalculationAttempts = 0;
         }
@@ -77,7 +81,6 @@ namespace VeilOfAges.Core.Lib
             _goalType = PathGoalType.Area;
             _targetPosition = centerPosition;
             _proximityRange = radius;
-            _goalTarget = centerPosition;
             _pathNeedsCalculation = true;
             _recalculationAttempts = 0;
         }
@@ -99,8 +102,10 @@ namespace VeilOfAges.Core.Lib
         }
 
         // New method for lazy path following with calculation as needed
-        public bool TryFollowPath(Being entity)
+        public bool TryFollowPath(Being entity, bool secondTry = false)
         {
+            CurrentTick++;
+
             // First check if we've reached the goal directly
             if (IsGoalReached(entity))
                 return true;
@@ -114,7 +119,7 @@ namespace VeilOfAges.Core.Lib
             }
 
             // If no valid path, can't follow
-            if (_pathNeedsCalculation || PathIndex >= CurrentPath.Count || CurrentPath.Count == 0)
+            if (!HasValidPath())
                 return false;
 
             // Try to move along the path
@@ -140,6 +145,10 @@ namespace VeilOfAges.Core.Lib
             {
                 // Path is blocked, mark for recalculation
                 _pathNeedsCalculation = true;
+                if (!secondTry)
+                {
+                    return TryFollowPath(entity, true);
+                }
                 return false;
             }
 
@@ -218,7 +227,7 @@ namespace VeilOfAges.Core.Lib
             return positions;
         }
         // Finds a path between two points using A* algorithm
-        public bool SetPath(Grid.Area gridArea, Vector2I start, Vector2I target)
+        private bool SetPath(Grid.Area gridArea, Vector2I start, Vector2I target)
         {
             PathIndex = 0;
             // If start and target are the same, return empty path
@@ -294,21 +303,6 @@ namespace VeilOfAges.Core.Lib
             return CurrentPath.Count > 0;
         }
 
-
-        // Find a path between two entities
-        public void SetPathBetween(Being source, Being target)
-        {
-            if (source.GridArea == null) return;
-
-            SetPath(
-                source.GridArea,
-                source.GetCurrentGridPosition(),
-                target.GetCurrentGridPosition()
-                );
-
-            return;
-        }
-
         // Find a path to a position within a certain range of a target being
         public void SetPathToWithinRange(Being source, Being target, int range = 1)
         {
@@ -355,85 +349,6 @@ namespace VeilOfAges.Core.Lib
             // Fallback to direct path if no accessible position found
             SetPath(source.GridArea, sourcePos, targetPos);
             return;
-        }
-
-        // Find a path to the nearest entity of a specific type
-        public void SetPathToNearest<T>(Being source, List<T> potentialTargets) where T : Being
-        {
-            if (source.GridArea == null) return;
-
-            var sourcePos = source.GetCurrentGridPosition();
-
-            T? closestTarget = default;
-            float closestDistance = float.MaxValue;
-
-            foreach (var target in potentialTargets)
-            {
-                var targetPos = target.GetCurrentGridPosition();
-                float distance = sourcePos.DistanceTo(targetPos);
-
-                if (distance < closestDistance)
-                {
-                    closestDistance = distance;
-                    closestTarget = target;
-                }
-            }
-
-            if (closestTarget != null)
-            {
-                SetPath(
-                    source.GridArea,
-                    sourcePos,
-                    closestTarget.GetCurrentGridPosition());
-                return;
-            }
-
-            CurrentPath = [];
-            return;
-        }
-
-        public bool SetPathTo(Being? entity, Vector2I position)
-        {
-            if (entity == null) return false;
-
-            var gridArea = entity.GetGridArea();
-            if (gridArea == null || entity == null) return false;
-
-            Vector2I currentPos = entity.GetCurrentGridPosition();
-            SetPath(gridArea, currentPos, position);
-
-            return true;
-        }
-
-        // Move an entity along a path
-        public bool MoveAlongPath(Being entity)
-        {
-            if (CurrentPath == null || IsPathComplete())
-                return false;
-
-            if (entity.IsMoving())
-                return false;
-
-            Vector2I nextPos = CurrentPath[PathIndex];
-            bool moveSuccessful = entity.TryMoveToGridPosition(nextPos);
-
-            if (moveSuccessful)
-            {
-                PathIndex++;
-            }
-            else // Try once to recalculate the path
-            {
-                SetPathTo(entity, CurrentPath.Last());
-                if (CurrentPath.Count > 0) moveSuccessful = entity.TryMoveToGridPosition(CurrentPath.First());
-                if (moveSuccessful) PathIndex++;
-            }
-
-            return moveSuccessful;
-        }
-
-        public bool IsPathComplete()
-        {
-            return CurrentPath.Count == 0 || PathIndex >= CurrentPath.Count;
         }
 
         // Get positions in a ring around a target
