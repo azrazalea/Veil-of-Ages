@@ -23,7 +23,7 @@ namespace VeilOfAges.Entities
         float Charisma
     );
 
-    public abstract partial class Being : CharacterBody2D, IEntity
+    public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     {
         [Export]
         protected uint _baseMoveTicks { get; set; } = 4; // How many ticks it takes to move one tile
@@ -68,7 +68,7 @@ namespace VeilOfAges.Entities
         public Area? GridArea { get; protected set; }
 
         // Trait system
-        public SortedSet<ITrait> _traits { get; protected set; } = [];
+        public SortedSet<BeingTrait> _traits { get; protected set; } = [];
         public Dictionary<SenseType, float> DetectionDifficulties { get; protected set; } = [];
         // Memory system to track what the entity has perceived
         private Dictionary<Vector2I, Dictionary<string, object>> _memory = new();
@@ -136,7 +136,7 @@ namespace VeilOfAges.Entities
         }
 
         // Allows easy calling of Default implemenation methods
-        public IEntity selfAsEntity()
+        public IEntity<BeingTrait> selfAsEntity()
         {
             return this;
         }

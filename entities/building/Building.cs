@@ -4,7 +4,7 @@ using VeilOfAges.Entities.Sensory;
 using System.Collections.Generic;
 using VeilOfAges;
 
-public partial class Building : Node2D, IEntity
+public partial class Building : Node2D, IEntity<Trait>
 {
     [Export]
     public string BuildingType = "Graveyard";
@@ -17,7 +17,7 @@ public partial class Building : Node2D, IEntity
 
     private Vector2I _gridPosition;
     public VeilOfAges.Grid.Area? GridArea { get; private set; }
-    public SortedSet<ITrait> _traits { get; private set; } = [];
+    public SortedSet<Trait> _traits { get; private set; } = [];
     private Dictionary<string, TileMapLayer> _buildingLayers = [];
     public Dictionary<SenseType, float> DetectionDifficulties { get; protected set; } = [];
     private TileMapLayer? _currentLayer;

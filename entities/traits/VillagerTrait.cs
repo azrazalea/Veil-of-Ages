@@ -11,15 +11,8 @@ using VeilOfAges.UI.Commands;
 
 namespace VeilOfAges.Entities.Traits
 {
-    public class VillagerTrait : ITrait
+    public class VillagerTrait : BeingTrait
     {
-        protected Being? _owner;
-        public bool IsInitialized { get; protected set; }
-        public PathFinder? MyPathfinder { get; set; }
-
-
-        private RandomNumberGenerator _rng = new();
-
         // Villager behavior properties
         public float WanderProbability { get; set; } = 0.1f;
         public float VisitBuildingProbability { get; set; } = 0.05f;
@@ -37,20 +30,15 @@ namespace VeilOfAges.Entities.Traits
         private Building? _currentDestinationBuilding;
 
         // Path and movement tracking
-        private uint _stateTimer = 0;
         private uint _currentFleeDelay = 0;
         private bool _hasSeenUndead = false;
-        public int Priority { get; set; }
 
-        public void Initialize(Being owner, BodyHealth health)
+        public override void Initialize(Being owner, BodyHealth health)
         {
-            _owner = owner;
-            _rng.Randomize();
-            _stateTimer = IdleTime;
-            MyPathfinder = _owner.GetPathfinder();
+            base.Initialize(owner, health);
 
             // Find home position (where they spawned)
-            _homePosition = _owner.GetCurrentGridPosition();
+            _homePosition = _spawnPosition; // this is just an alias
 
             // Find village square (assume it's near the center of the map)
             if (owner?.GridArea != null)
@@ -64,7 +52,7 @@ namespace VeilOfAges.Entities.Traits
             DiscoverBuildings();
 
             _currentState = VillagerState.IdleAtHome;
-            GD.Print($"{_owner.Name}: Villager trait initialized fully");
+            GD.Print($"{_owner?.Name}: Villager trait initialized fully");
             IsInitialized = true;
         }
 
@@ -86,12 +74,7 @@ namespace VeilOfAges.Entities.Traits
             GD.Print($"{_owner?.Name}: Discovered {_knownBuildings.Count} buildings");
         }
 
-        public void Process(double delta)
-        {
-            // No per-frame processing needed, handled by SuggestAction
-        }
-
-        public EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
+        public override EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
         {
             if (_owner == null) return null;
 
@@ -374,56 +357,9 @@ namespace VeilOfAges.Entities.Traits
             return new IdleAction(_owner, this);
         }
 
-        public bool RefusesCommand(EntityCommand command)
-        {
-            return false;
-        }
-
-        public bool IsOptionAvailable(DialogueOption option)
-        {
-            return true;
-        }
-
-        public string InitialDialogue(Being speaker)
+        public override string InitialDialogue(Being speaker)
         {
             return $"Hello there {speaker.Name}";
-        }
-
-        public void OnEvent(string eventName, params object[] args)
-        {
-            // Handle events
-        }
-
-        public string? GetSuccessResponse(EntityCommand command)
-        {
-            return null;
-        }
-        public string? GetFailureResponse(EntityCommand command)
-        {
-            return null;
-        }
-        public string? GetSuccessResponse(string text)
-        {
-            return null;
-        }
-        public string? GetFailureResponse(string text)
-        {
-            return null;
-        }
-
-        public List<DialogueOption> GenerateDialogueOptions(Being speaker)
-        {
-            return [];
-        }
-
-        public string? GenerateDialogueDescription()
-        {
-            return null;
-        }
-
-        public int CompareTo(object? obj)
-        {
-            return (this as ITrait).GeneralCompareTo(obj);
         }
     }
 }

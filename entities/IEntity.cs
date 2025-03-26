@@ -5,12 +5,12 @@ using VeilOfAges.Grid;
 
 namespace VeilOfAges.Entities
 {
-    public interface IEntity : ISensable
+    public interface IEntity<TraitType> : ISensable where TraitType : Trait
     {
         public Area? GridArea { get; }
-        public SortedSet<ITrait> _traits { get; }
+        public SortedSet<TraitType> _traits { get; }
 
-        public void AddTrait<T>(int priority) where T : ITrait, new()
+        public void AddTrait<T>(int priority) where T : TraitType, new()
         {
             var trait = new T
             {
@@ -22,23 +22,23 @@ namespace VeilOfAges.Entities
             // If we're already initialized, initialize the trait immediately
             if (GridArea != null)
             {
-                trait.Initialize(this);
+                trait.Initialize();
             }
         }
 
-        public void AddTrait(ITrait trait, int priority)
+        public void AddTrait(Trait trait, int priority)
         {
             trait.Priority = priority;
-            _traits.Add(trait);
+            _traits.Add((TraitType)trait);
 
             // If we're already initialized, initialize the trait immediately
             if (GridArea != null)
             {
-                trait.Initialize(this);
+                trait.Initialize();
             }
         }
 
-        public T? GetTrait<T>() where T : ITrait
+        public T? GetTrait<T>() where T : Trait
         {
             foreach (var trait in _traits)
             {
@@ -51,7 +51,7 @@ namespace VeilOfAges.Entities
             return default;
         }
 
-        public bool HasTrait<T>() where T : ITrait
+        public bool HasTrait<T>() where T : Trait
         {
             foreach (var trait in _traits)
             {
