@@ -2,13 +2,13 @@ using Godot;
 
 namespace VeilOfAges.Entities.Actions
 {
-    public class MoveAction(Being entity, object source, Vector2I targetPosition, int priority = 0) : EntityAction(entity, source, priority)
+    public class MoveAction(Being entity, object source, Vector2I targetPosition, int priority = 0) : EntityAction(entity, source, priority: priority)
     {
         private Vector2I _targetPosition = targetPosition;
 
-        public override void Execute()
+        public override bool Execute()
         {
-            Entity.TryMoveToGridPosition(_targetPosition);
+            return Entity.TryMoveToGridPosition(_targetPosition);
         }
     }
 }

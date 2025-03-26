@@ -541,7 +541,7 @@ namespace VeilOfAges.WorldGeneration
             {
                 if (entity is Building building)
                 {
-                    Vector2I buildingPos = building.GetGridPosition();
+                    Vector2I buildingPos = building.GetCurrentGridPosition();
                     Vector2I entrancePos = Building.BuildingEntrancePos(buildingPos, building.BuildingType);
                     buildings.Add((buildingPos, entrancePos, building.BuildingType));
                 }

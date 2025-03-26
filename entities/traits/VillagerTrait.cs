@@ -15,6 +15,8 @@ namespace VeilOfAges.Entities.Traits
     {
         protected Being? _owner;
         public bool IsInitialized { get; protected set; }
+        public PathFinder? MyPathfinder { get; set; }
+
 
         private RandomNumberGenerator _rng = new();
 
@@ -35,8 +37,6 @@ namespace VeilOfAges.Entities.Traits
         private Building? _currentDestinationBuilding;
 
         // Path and movement tracking
-        private List<Vector2I> _currentPath = new();
-        private int _currentPathIndex = 0;
         private uint _stateTimer = 0;
         private uint _currentFleeDelay = 0;
         private bool _hasSeenUndead = false;
@@ -47,6 +47,7 @@ namespace VeilOfAges.Entities.Traits
             _owner = owner;
             _rng.Randomize();
             _stateTimer = IdleTime;
+            MyPathfinder = _owner.GetPathfinder();
 
             // Find home position (where they spawned)
             _homePosition = _owner.GetCurrentGridPosition();
@@ -121,8 +122,7 @@ namespace VeilOfAges.Entities.Traits
                     {
                         // Time to flee!
                         _currentState = VillagerState.Fleeing;
-                        _currentPath = FindPathTo(_homePosition);
-                        _currentPathIndex = 0;
+                        MyPathfinder?.SetPathTo(_owner, _homePosition);
                         _stateTimer = 100; // Long flee timer
                         GD.Print($"{_owner.Name}: Fleeing from undead to home!");
                     }
@@ -171,14 +171,13 @@ namespace VeilOfAges.Entities.Traits
                 if (_rng.Randf() < WanderProbability)
                 {
                     _currentState = VillagerState.IdleAtSquare;
-                    _currentPath = FindPathTo(_squarePosition);
-                    _currentPathIndex = 0;
+                    MyPathfinder?.SetPathTo(_owner, _squarePosition);
                     _stateTimer = (uint)_rng.RandiRange(100, 200);
                     GD.Print($"{_owner.Name}: Going to village square");
 
-                    if (_currentPath.Count > 0)
+                    if (!MyPathfinder?.IsPathComplete() ?? false)
                     {
-                        return MoveToNextPathPosition();
+                        return new MoveAlongPathAction(_owner, this);
                     }
                 }
                 // Chance to visit a building
@@ -189,14 +188,14 @@ namespace VeilOfAges.Entities.Traits
 
                     if (_currentDestinationBuilding != null)
                     {
-                        _currentPath = FindPathTo(_currentDestinationBuilding.GetGridPosition());
-                        _currentPathIndex = 0;
+
+                        MyPathfinder?.SetPathTo(_owner, _currentDestinationBuilding.GetCurrentGridPosition());
                         _stateTimer = (uint)_rng.RandiRange(80, 150);
                         GD.Print($"{_owner.Name}: Going to visit {_currentDestinationBuilding.BuildingType}");
 
-                        if (_currentPath.Count > 0)
+                        if (!MyPathfinder?.IsPathComplete() ?? false)
                         {
-                            return MoveToNextPathPosition();
+                            return new MoveAlongPathAction(_owner, this);
                         }
                     }
                 }
@@ -212,12 +211,11 @@ namespace VeilOfAges.Entities.Traits
             if (currentPos != _homePosition)
             {
                 // We're not at home, so let's go there
-                _currentPath = FindPathTo(_homePosition);
-                _currentPathIndex = 0;
+                MyPathfinder?.SetPathTo(_owner, _homePosition);
 
-                if (_currentPath.Count > 0)
+                if (!MyPathfinder?.IsPathComplete() ?? false)
                 {
-                    return MoveToNextPathPosition();
+                    return new MoveAlongPathAction(_owner, this);
                 }
             }
 
@@ -232,14 +230,14 @@ namespace VeilOfAges.Entities.Traits
             {
                 // Time to go back home
                 _currentState = VillagerState.IdleAtHome;
-                _currentPath = FindPathTo(_homePosition);
-                _currentPathIndex = 0;
+                MyPathfinder?.SetPathTo(_owner, _squarePosition);
+
                 _stateTimer = (uint)_rng.RandiRange(150, 300);
                 GD.Print($"{_owner.Name}: Going back home");
 
-                if (_currentPath.Count > 0)
+                if (!MyPathfinder?.IsPathComplete() ?? false)
                 {
-                    return MoveToNextPathPosition();
+                    return new MoveAlongPathAction(_owner, this);
                 }
             }
 
@@ -248,12 +246,11 @@ namespace VeilOfAges.Entities.Traits
             if (currentPos.DistanceTo(_squarePosition) > 3)
             {
                 // We're not at the square, so let's go there
-                _currentPath = FindPathTo(_squarePosition);
-                _currentPathIndex = 0;
+                MyPathfinder?.SetPathTo(_owner, _squarePosition);
 
-                if (_currentPath.Count > 0)
+                if (!MyPathfinder?.IsPathComplete() ?? false)
                 {
-                    return MoveToNextPathPosition();
+                    return new MoveAlongPathAction(_owner, this);
                 }
             }
 
@@ -282,14 +279,14 @@ namespace VeilOfAges.Entities.Traits
             {
                 // Time to go back home
                 _currentState = VillagerState.IdleAtHome;
-                _currentPath = FindPathTo(_homePosition);
-                _currentPathIndex = 0;
+
+                MyPathfinder?.SetPathTo(_owner, _homePosition);
                 _stateTimer = (uint)_rng.RandiRange(150, 300);
                 GD.Print($"{_owner.Name}: Finished visiting, going home");
 
-                if (_currentPath.Count > 0)
+                if (!MyPathfinder?.IsPathComplete() ?? false)
                 {
-                    return MoveToNextPathPosition();
+                    return new MoveAlongPathAction(_owner, this);
                 }
             }
 
@@ -297,7 +294,7 @@ namespace VeilOfAges.Entities.Traits
 
             // Check if we're at the building
             Vector2I currentPos = _owner.GetCurrentGridPosition();
-            Vector2I buildingPos = _currentDestinationBuilding.GetGridPosition();
+            Vector2I buildingPos = _currentDestinationBuilding.GetCurrentGridPosition();
 
             // We consider "at the building" when within 2 tiles of its perimeter
             bool atBuilding = false;
@@ -319,12 +316,11 @@ namespace VeilOfAges.Entities.Traits
             if (!atBuilding)
             {
                 // We're not at the building, so let's go there
-                _currentPath = FindPathTo(buildingPos);
-                _currentPathIndex = 0;
+                MyPathfinder?.SetPathTo(_owner, buildingPos);
 
-                if (_currentPath.Count > 0)
+                if (!MyPathfinder?.IsPathComplete() ?? false)
                 {
-                    return MoveToNextPathPosition();
+                    return new MoveAlongPathAction(_owner, this);
                 }
             }
 
@@ -349,18 +345,17 @@ namespace VeilOfAges.Entities.Traits
             }
 
             // Continue following flee path
-            if (_currentPath.Count > 0 && _currentPathIndex < _currentPath.Count)
+            if (!MyPathfinder?.IsPathComplete() ?? false)
             {
-                return MoveToNextPathPosition();
+                return new MoveAlongPathAction(_owner, this);
             }
 
             // If we've run out of path, recalculate
-            _currentPath = FindPathTo(_homePosition);
-            _currentPathIndex = 0;
+            MyPathfinder?.SetPathTo(_owner, _homePosition);
 
-            if (_currentPath.Count > 0)
+            if (!MyPathfinder?.IsPathComplete() ?? false)
             {
-                return MoveToNextPathPosition();
+                return new MoveAlongPathAction(_owner, this);
             }
 
             // If we still have no path, just try to move away from current position towards home
@@ -379,47 +374,6 @@ namespace VeilOfAges.Entities.Traits
             return new IdleAction(_owner, this);
         }
 
-        protected EntityAction? MoveToNextPathPosition(int priority = 5)
-        {
-            if (_owner == null) return null;
-
-            if (_currentPath.Count == 0 || _currentPathIndex >= _currentPath.Count)
-            {
-                return new IdleAction(_owner, this);
-            }
-
-            Vector2I nextPos = _currentPath[_currentPathIndex];
-            _currentPathIndex++;
-
-            // Debug output - remove in production
-            // GD.Print($"{_owner.Name}: Moving from {_owner.GetCurrentGridPosition()} to {nextPos}");
-
-            // Verify the next position is adjacent to current position
-            Vector2I currentPos = _owner.GetCurrentGridPosition();
-            var distance = currentPos.DistanceSquaredTo(nextPos);
-
-            if (distance > 2)
-            {
-                GD.Print($"Warning: Non-adjacent move detected from {currentPos} to {nextPos}");
-                // Recalculate path if we got an invalid step
-                _currentPath.Clear();
-                return new IdleAction(_owner, this);
-            }
-
-            // Check if the next position is walkable
-            if (_owner.GetGridArea()?.IsCellWalkable(nextPos) == true)
-            {
-                return new MoveAction(_owner, this, nextPos, priority);
-            }
-            else
-            {
-                // If obstacle encountered, recalculate path in next tick
-                GD.Print($"{_owner.Name}: Path blocked at {nextPos}, will recalculate");
-                _currentPath.Clear();
-                return new IdleAction(_owner, this);
-            }
-        }
-
         public bool RefusesCommand(EntityCommand command)
         {
             return false;
@@ -428,15 +382,6 @@ namespace VeilOfAges.Entities.Traits
         public bool IsOptionAvailable(DialogueOption option)
         {
             return true;
-        }
-
-        private List<Vector2I> FindPathTo(Vector2I target)
-        {
-            var gridArea = _owner?.GetGridArea();
-            if (gridArea == null || _owner == null) return [];
-
-            Vector2I currentPos = _owner.GetCurrentGridPosition();
-            return PathFinder.FindPath(gridArea, currentPos, target);
         }
 
         public string InitialDialogue(Being speaker)

@@ -23,7 +23,7 @@ namespace VeilOfAges.Entities.Traits
         public override void Initialize(Being owner, BodyHealth health)
         {
             base.Initialize(owner, health);
-
+            
             // Zombie-specific initialization
             WanderProbability = 0.3f; // Zombies wander more often
             WanderRange = 15.0f;      // And further from spawn
@@ -61,6 +61,8 @@ namespace VeilOfAges.Entities.Traits
 
         private void CheckForLivingToChase(Perception currentPerception)
         {
+            if (MyPathfinder == null) return;
+
             // Look for living beings (not undead)
             var entities = currentPerception.GetEntitiesOfType<Being>();
             foreach (var (entity, position) in entities)
@@ -83,9 +85,10 @@ namespace VeilOfAges.Entities.Traits
                     _hasGroaned = true;
                 }
 
+                if (_owner == null) return;
+
                 // Calculate a path to the target
-                _currentPath = FindPathTo(position);
-                _currentPathIndex = 0;
+                MyPathfinder.SetPathTo(_owner, position);
 
                 GD.Print($"{_owner?.Name}: Spotted living being, starting chase!");
                 return;
@@ -139,7 +142,7 @@ namespace VeilOfAges.Entities.Traits
 
         private EntityAction? ProcessChasingState(Perception currentPerception)
         {
-            if (_owner == null) return null;
+            if (_owner == null || MyPathfinder == null) return null;
 
             // Check if we've lost interest or gone too far
             if (_chaseTimer == 0 || IsOutsideChaseRange())
@@ -151,27 +154,22 @@ namespace VeilOfAges.Entities.Traits
                 _hasGroaned = false;
 
                 // Return to spawn area
-                _currentPath = FindPathTo(_spawnPosition);
-                _currentPathIndex = 0;
+                MyPathfinder.SetPathTo(_owner, _spawnPosition);
 
-                if (_currentPath.Count > 0)
+                if (MyPathfinder.CurrentPath.Count > 0)
                 {
-                    return MoveToNextPathPosition();
+                    return new MoveAlongPathAction(_owner, this, priority: -1);
                 }
-                return new IdleAction(_owner, this);
+                return new IdleAction(_owner, this, -1);
             }
 
             // Check if target is still visible
-            // bool targetVisible = false;
             foreach (var (entity, position) in currentPerception.GetEntitiesOfType<Being>())
             {
                 if (entity == _chaseTarget)
                 {
-                    // targetVisible = true;
-
                     // Update path to target
-                    _currentPath = FindPathTo(position);
-                    _currentPathIndex = 0;
+                    MyPathfinder.SetPathTo(_owner, position);
 
                     // Reset chase timer since we can still see the target
                     _chaseTimer = LoseInterestTime;
@@ -180,10 +178,10 @@ namespace VeilOfAges.Entities.Traits
             }
 
             // Follow the path to the target
-            if (_currentPath.Count > 0 && _currentPathIndex < _currentPath.Count)
+            if (!MyPathfinder.IsPathComplete())
             {
                 // Higher priority when chasing
-                return MoveToNextPathPosition(10);
+                return new MoveAlongPathAction(_owner, this, priority: -2);
             }
 
             // If we have no path, just idle

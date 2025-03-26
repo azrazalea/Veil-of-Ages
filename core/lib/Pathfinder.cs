@@ -2,19 +2,31 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using VeilOfAges.Entities;
 
 namespace VeilOfAges.Core.Lib
 {
     public class PathFinder
     {
         private const int MAX_PATH_LENGTH = 100;
+        public List<Vector2I> CurrentPath { get; private set; } = [];
+        public int PathIndex { get; private set; } = 0;
+
+        public void ClearPath()
+        {
+            CurrentPath = [];
+        }
 
         // Finds a path between two points using A* algorithm
-        public static List<Vector2I> FindPath(Grid.Area gridArea, Vector2I start, Vector2I target)
+        public void SetPath(Grid.Area gridArea, Vector2I start, Vector2I target)
         {
+            PathIndex = 0;
             // If start and target are the same, return empty path
             if (start == target)
-                return new List<Vector2I>();
+            {
+                CurrentPath = [];
+                return;
+            }
 
             // Basic variables for A* algorithm
             var openSet = new List<Vector2I>();
@@ -45,7 +57,8 @@ namespace VeilOfAges.Core.Lib
                 // Reached the target
                 if (current == target)
                 {
-                    return ReconstructPath(cameFrom, current);
+                    CurrentPath = ReconstructPath(cameFrom, current);
+                    return;
                 }
 
                 openSet.Remove(current);
@@ -77,10 +90,178 @@ namespace VeilOfAges.Core.Lib
 
             // If we get here, no path was found - return fallback path
             // GD.Print($"No path found from {start} to {target}, using fallback");
-            return CreateFallbackPath(gridArea, start, target);
+            CurrentPath = CreateFallbackPath(gridArea, start, target);
+            return;
         }
 
-        private static Vector2I GetLowestFScore(List<Vector2I> openSet, Dictionary<Vector2I, float> fScore)
+
+        // Find a path between two entities
+        public void SetPathBetween(Being source, Being target)
+        {
+            if (source.GridArea == null) return;
+
+            SetPath(
+                source.GridArea,
+                source.GetCurrentGridPosition(),
+                target.GetCurrentGridPosition()
+                );
+
+            return;
+        }
+
+        // Find a path to a position within a certain range of a target being
+        public void SetPathToWithinRange(Being source, Being target, int range = 1)
+        {
+            if (source.GridArea == null) return; // Why doesn't this fix the null warnings on line 298 and 302?
+
+            var sourcePos = source.GetCurrentGridPosition();
+            var targetPos = target.GetCurrentGridPosition();
+
+            // If already within range, return empty path
+            if (sourcePos.DistanceTo(targetPos) <= range)
+            {
+                CurrentPath = [];
+                return;
+            }
+
+            // Get possible positions around target
+            var possibleEndPositions = GetPositionsAroundEntity(target, range);
+
+            // Find the closest walkable position
+            Vector2I? bestPos = null;
+            float bestDistance = float.MaxValue;
+
+            foreach (var pos in possibleEndPositions)
+            {
+                if (source.GridArea?.IsCellWalkable(pos) == true)
+                {
+                    float dist = sourcePos.DistanceTo(pos);
+                    if (dist < bestDistance)
+                    {
+                        bestDistance = dist;
+                        bestPos = pos;
+                    }
+                }
+            }
+
+            if (source.GridArea == null) return; // Why do I need this down here as well?
+
+            if (bestPos.HasValue)
+            {
+                SetPath(source.GridArea, sourcePos, bestPos.Value);
+                return;
+            }
+
+            // Fallback to direct path if no accessible position found
+            SetPath(source.GridArea, sourcePos, targetPos);
+            return;
+        }
+
+        // Find a path to the nearest entity of a specific type
+        public void SetPathToNearest<T>(Being source, List<T> potentialTargets) where T : Being
+        {
+            if (source.GridArea == null) return;
+
+            var sourcePos = source.GetCurrentGridPosition();
+
+            T? closestTarget = default;
+            float closestDistance = float.MaxValue;
+
+            foreach (var target in potentialTargets)
+            {
+                var targetPos = target.GetCurrentGridPosition();
+                float distance = sourcePos.DistanceTo(targetPos);
+
+                if (distance < closestDistance)
+                {
+                    closestDistance = distance;
+                    closestTarget = target;
+                }
+            }
+
+            if (closestTarget != null)
+            {
+                SetPath(
+                    source.GridArea,
+                    sourcePos,
+                    closestTarget.GetCurrentGridPosition());
+                return;
+            }
+
+            CurrentPath = [];
+            return;
+        }
+
+        public bool SetPathTo(Being? entity, Vector2I position)
+        {
+            if (entity == null) return false;
+
+            var gridArea = entity.GetGridArea();
+            if (gridArea == null || entity == null) return false;
+
+            Vector2I currentPos = entity.GetCurrentGridPosition();
+            SetPath(gridArea, currentPos, position);
+
+            return true;
+        }
+
+        // Move an entity along a path
+        public bool MoveAlongPath(Being entity)
+        {
+            if (CurrentPath == null || IsPathComplete())
+                return false;
+
+            if (entity.IsMoving())
+                return false;
+
+            Vector2I nextPos = CurrentPath[PathIndex];
+            bool moveSuccessful = entity.TryMoveToGridPosition(nextPos);
+
+            if (moveSuccessful)
+            {
+                PathIndex++;
+            }
+            else // Try once to recalculate the path
+            {
+                SetPathTo(entity, CurrentPath.Last());
+                moveSuccessful = entity.TryMoveToGridPosition(CurrentPath.First());
+                if (moveSuccessful) PathIndex++;
+            }
+
+            return moveSuccessful;
+        }
+
+        public bool IsPathComplete()
+        {
+            return CurrentPath.Count == 0 || PathIndex >= CurrentPath.Count;
+        }
+
+        // Get positions in a ring around a target
+        private List<Vector2I> GetPositionsAroundEntity(Being entity, int range)
+        {
+            var result = new List<Vector2I>();
+            var center = entity.GetCurrentGridPosition();
+
+            for (int r = 1; r <= range; r++)
+            {
+                // Add positions in a square around the entity
+                for (int x = -r; x <= r; x++)
+                {
+                    for (int y = -r; y <= r; y++)
+                    {
+                        // Only add positions at exactly distance r (creates a ring)
+                        if (Math.Abs(x) == r || Math.Abs(y) == r)
+                        {
+                            result.Add(new Vector2I(center.X + x, center.Y + y));
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        private Vector2I GetLowestFScore(List<Vector2I> openSet, Dictionary<Vector2I, float> fScore)
         {
             Vector2I lowest = openSet[0];
             float lowestScore = fScore.GetValueOrDefault(lowest, float.MaxValue);
@@ -98,7 +279,7 @@ namespace VeilOfAges.Core.Lib
             return lowest;
         }
 
-        private static List<Vector2I> GetNeighbors(Grid.Area gridArea, Vector2I position)
+        private List<Vector2I> GetNeighbors(Grid.Area gridArea, Vector2I position)
         {
             var neighbors = new List<Vector2I>();
 
@@ -129,7 +310,7 @@ namespace VeilOfAges.Core.Lib
             return neighbors;
         }
 
-        private static bool IsPositionValid(Grid.Area gridArea, Vector2I position)
+        private bool IsPositionValid(Grid.Area gridArea, Vector2I position)
         {
             // Check if position is within bounds and walkable
             return position.X >= 0 && position.X < gridArea.GridSize.X &&
@@ -137,13 +318,13 @@ namespace VeilOfAges.Core.Lib
                    gridArea.IsCellWalkable(position);
         }
 
-        private static float GetMoveCost(Grid.Area gridArea, Vector2I from, Vector2I to)
+        private float GetMoveCost(Grid.Area gridArea, Vector2I from, Vector2I to)
         {
-            // Base cost (1.0 for cardinal, 1.4 for diagonal)
-            float baseCost = from.X != to.X && from.Y != to.Y ? 1.4f : 1.0f;
+            // Base cost (1.0 for cardinal, 1.5 for diagonal)
+            float baseCost = from.X != to.X && from.Y != to.Y ? 1.5f : 1.0f;
 
             // Get terrain difficulty multiplier (adjust based on your terrain system)
-            float terrainMultiplier = 1.0f;
+            float terrainMultiplier;
 
             // If using Area extension methods for terrain difficulty:
             try
@@ -159,13 +340,13 @@ namespace VeilOfAges.Core.Lib
             return baseCost * terrainMultiplier;
         }
 
-        private static float HeuristicCost(Vector2I from, Vector2I to)
+        private float HeuristicCost(Vector2I from, Vector2I to)
         {
             // Using Manhattan distance as heuristic (works well for 4-way movement)
             return Math.Abs(to.X - from.X) + Math.Abs(to.Y - from.Y);
         }
 
-        private static List<Vector2I> ReconstructPath(Dictionary<Vector2I, Vector2I> cameFrom, Vector2I current)
+        private List<Vector2I> ReconstructPath(Dictionary<Vector2I, Vector2I> cameFrom, Vector2I current)
         {
             var totalPath = new List<Vector2I>
             {
@@ -187,7 +368,7 @@ namespace VeilOfAges.Core.Lib
             return totalPath;
         }
 
-        private static List<Vector2I> CreateFallbackPath(Grid.Area gridArea, Vector2I start, Vector2I target)
+        private List<Vector2I> CreateFallbackPath(Grid.Area gridArea, Vector2I start, Vector2I target)
         {
             // Create a simple direct path for fallback
             var path = new List<Vector2I>();
@@ -248,7 +429,7 @@ namespace VeilOfAges.Core.Lib
         }
 
         // Debug function to visualize a path (can be called from GDScript)
-        public static void DebugPath(List<Vector2I> path)
+        public void DebugPath(List<Vector2I> path)
         {
             for (int i = 0; i < path.Count; i++)
             {

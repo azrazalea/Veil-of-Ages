@@ -3,7 +3,7 @@ using System;
 
 namespace VeilOfAges.Entities
 {
-    public abstract class EntityAction(Being entity, object source, int priority = 1)
+    public abstract class EntityAction(Being entity, object source, Action<EntityAction>? onSelected = null, Action<EntityAction>? onSuccessful = null, int priority = 1)
     {
         public Being Entity { get; private set; } = entity;
         /// <summary>
@@ -15,9 +15,15 @@ namespace VeilOfAges.Entities
         /// </summary>
         public object Source { get; private set; } = source;
 
-        // Optional callback when the action is actually selected for execution
-        public Action<EntityAction>? OnSelected { get; set; }
+        /// <summary>
+        /// Optional callback when the action is actually selected for execution
+        /// </summary>
+        public Action<EntityAction>? OnSelected { get; set; } = onSelected;
+        /// <summary>
+        /// Optional callback when the action successfully executes
+        /// </summary>
+        public Action<EntityAction>? OnSuccessful { get; set; } = onSuccessful;
 
-        public abstract void Execute();
+        public abstract bool Execute();
     }
 }

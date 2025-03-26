@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Sensory;
@@ -33,15 +35,6 @@ namespace VeilOfAges.Entities
             }
 
             return new IdleAction(this, this);
-        }
-
-        public Vector2I GetFacingDirection()
-        {
-            // Determine facing direction based on sprite orientation
-            if (_animatedSprite?.FlipH == true)
-                return new Vector2I(-1, 0); // Facing left
-            else
-                return new Vector2I(1, 0);  // Facing right
         }
     }
 }

@@ -20,7 +20,7 @@ namespace VeilOfAges.Entities.Sensory
     public interface ISensable
     {
         public Dictionary<SenseType, float> DetectionDifficulties { get; }
-        Vector2I GetGridPosition();
+        Vector2I GetCurrentGridPosition();
         SensableType GetSensableType();
         float GetDetectionDifficulty(SenseType senseType)
         {

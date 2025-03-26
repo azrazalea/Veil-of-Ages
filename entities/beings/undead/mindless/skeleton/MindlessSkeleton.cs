@@ -18,12 +18,13 @@ namespace VeilOfAges.Entities.Beings
 
         public AudioStreamPlayer2D? _skeletonRattle;
 
+        MindlessSkeleton()
+        {
+            _baseMoveTicks = 6;  // Skeletons are faster than zombies but slower than living beings
+        }
+
         public override void _Ready()
         {
-
-            // Configure skeleton specific properties
-            _baseMoveTicks = 6; // Skeletons are faster than zombies but slower than living beings
-
             // Add skeleton traits
             selfAsEntity().AddTrait<MindlessTrait>(1);
             selfAsEntity().AddTrait<SkeletonTrait>(2);
@@ -77,7 +78,7 @@ namespace VeilOfAges.Entities.Beings
         {
             if (_skeletonRattle == null) return;
 
-            _skeletonRattle.Position = Grid.Utils.GridToWorld(_currentGridPos);
+            _skeletonRattle.Position = Grid.Utils.GridToWorld(GetCurrentGridPosition());
             _skeletonRattle.Play();
         }
 

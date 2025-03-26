@@ -11,7 +11,7 @@ namespace VeilOfAges.Entities.Sensory
 
         public void Add(ISensable sensable)
         {
-            var pos = sensable.GetGridPosition();
+            var pos = sensable.GetCurrentGridPosition();
 
             if (!_grid.TryGetValue(pos, out var list))
             {

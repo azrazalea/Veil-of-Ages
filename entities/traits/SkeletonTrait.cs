@@ -62,6 +62,8 @@ namespace VeilOfAges.Entities.Traits
 
         private void CheckForIntruders(Perception currentPerception)
         {
+            if (MyPathfinder == null) return;
+
             // Look for living beings (not undead) in territory
             var entities = currentPerception.GetEntitiesOfType<Being>();
 
@@ -93,8 +95,8 @@ namespace VeilOfAges.Entities.Traits
                     }
 
                     // Calculate a path to the intruder
-                    _currentPath = FindPathTo(position);
-                    _currentPathIndex = 0;
+
+                    MyPathfinder.SetPathTo(_owner, position);
 
                     GD.Print($"{_owner?.Name}: Intruder detected in territory!");
                     return;
@@ -150,7 +152,7 @@ namespace VeilOfAges.Entities.Traits
 
         private EntityAction? ProcessDefendingState(Perception currentPerception)
         {
-            if (_owner == null) return null;
+            if (_owner == null || MyPathfinder == null) return null;
 
             // Check if we've lost interest or the intruder left the territory
             if (_intimidationTimer == 0 || !IsIntruderInTerritory())
@@ -164,29 +166,23 @@ namespace VeilOfAges.Entities.Traits
                 // Return to spawn area if we strayed too far
                 if (IsOutsideWanderRange())
                 {
-                    _currentPath = FindPathTo(_spawnPosition);
-                    _currentPathIndex = 0;
+                    MyPathfinder.SetPathTo(_owner, _spawnPosition);
 
-                    if (_currentPath.Count > 0)
+                    if (!MyPathfinder.IsPathComplete())
                     {
-                        return MoveToNextPathPosition();
+                        return new MoveAlongPathAction(_owner, this, priority: -1);
                     }
                 }
 
                 return new IdleAction(_owner, this);
             }
 
-            // Check if intruder is still visible
-            // bool intruderVisible = false;
             foreach (var (entity, position) in currentPerception.GetEntitiesOfType<Being>())
             {
                 if (entity == _intruder)
                 {
-                    // intruderVisible = true;
-
                     // Update path to intruder
-                    _currentPath = FindPathTo(position);
-                    _currentPathIndex = 0;
+                    MyPathfinder.SetPathTo(_owner, position);
 
                     // Reset intimidation timer since we can still see the intruder
                     _intimidationTimer = IntimidationTime;
@@ -195,10 +191,10 @@ namespace VeilOfAges.Entities.Traits
             }
 
             // Follow the path to the intruder
-            if (_currentPath.Count > 0 && _currentPathIndex < _currentPath.Count)
+            if (!MyPathfinder.IsPathComplete())
             {
                 // Higher priority when defending
-                return MoveToNextPathPosition(10);
+                return new MoveAlongPathAction(_owner, this, priority: -2);
             }
 
             // If we have no path, just idle

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.UI;
@@ -12,6 +13,7 @@ namespace VeilOfAges.Entities
     {
         public bool IsInitialized { get; }
         public int Priority { get; set; }
+        public PathFinder? MyPathfinder { get; set; }
 
         // Initialize the trait with its owner
         void Initialize(Being owner, BodyHealth health) { }

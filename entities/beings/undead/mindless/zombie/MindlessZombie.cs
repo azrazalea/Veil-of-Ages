@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using VeilOfAges.Entities.Traits;
 using System.Linq;
+using VeilOfAges.Entities.BeingServices;
+using VeilOfAges.Entities.Actions;
 
 namespace VeilOfAges.Entities.Beings
 {
@@ -19,10 +21,15 @@ namespace VeilOfAges.Entities.Beings
             4.0f,
             2.0f
         );
+
+        MindlessZombie()
+        {
+            _baseMoveTicks = 8;
+        }
+
         public override void _Ready()
         {
             // Configure zombie specific properties
-            _baseMoveTicks = 8; // Zombies are slow
 
             // Add zombie traits
             selfAsEntity().AddTrait<MindlessTrait>(1);
@@ -56,7 +63,7 @@ namespace VeilOfAges.Entities.Beings
         {
             if (_zombieGroan == null) return;
 
-            _zombieGroan.Position = Grid.Utils.GridToWorld(_currentGridPos);
+            _zombieGroan.Position = Grid.Utils.GridToWorld(GetCurrentGridPosition());
             _zombieGroan.Play();
         }
 

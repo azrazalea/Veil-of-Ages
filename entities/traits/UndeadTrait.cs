@@ -6,6 +6,7 @@ using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.UI;
 using System.Collections.Generic;
+using VeilOfAges.Core.Lib;
 
 namespace VeilOfAges.Entities.Traits
 {
@@ -14,11 +15,13 @@ namespace VeilOfAges.Entities.Traits
         protected Being? _owner;
         public bool IsInitialized { get; protected set; }
         public int Priority { get; set; }
-
+        public PathFinder? MyPathfinder { get; set; }
 
         public virtual void Initialize(Being owner, BodyHealth health)
         {
             _owner = owner;
+            MyPathfinder = _owner.GetPathfinder();
+
             health.DisableBodySystem(BodySystemType.Pain);
             DisableLivingBodySystems(health);
             GD.Print($"{_owner.Name}: Undead trait initialized");

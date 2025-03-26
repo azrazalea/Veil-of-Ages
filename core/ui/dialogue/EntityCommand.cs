@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
 using VeilOfAges.Entities.Sensory;
 
@@ -23,6 +24,8 @@ namespace VeilOfAges.UI
         /// Is this command considered too complex for non sapiant beings like Mindless trait?
         /// </summary>
         public bool IsComplex { get; protected set; } = IsComplex;
+        protected PathFinder? MyPathFinder = owner.GetPathfinder();
+
 
         /// <summary>
         /// Add a parameter to the command

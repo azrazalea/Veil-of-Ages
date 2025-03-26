@@ -4,6 +4,7 @@ using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.UI;
 using System.Collections.Generic;
+using VeilOfAges.Core.Lib;
 
 namespace VeilOfAges.Entities.Traits
 {
@@ -14,10 +15,13 @@ namespace VeilOfAges.Entities.Traits
         private enum MindlessState { Idle, Wandering }
         public bool IsInitialized { get; protected set; }
         public int Priority { get; set; }
+        public PathFinder? MyPathfinder { get; set; }
+
 
         public virtual void Initialize(Being owner, BodyHealth health)
         {
             _owner = owner;
+            MyPathfinder = _owner.GetPathfinder();
 
             GD.Print($"{_owner.Name}: Mindless trait initialized");
             IsInitialized = true;

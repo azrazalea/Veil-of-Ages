@@ -17,8 +17,6 @@ namespace VeilOfAges.Entities.Traits
         protected Vector2I _spawnPosition;
         protected RandomNumberGenerator _rng = new();
         protected uint _stateTimer = 0;
-        protected List<Vector2I> _currentPath = new();
-        protected int _currentPathIndex = 0;
 
         // Override this to implement different behavior states
         protected abstract EntityAction? ProcessState(Vector2I currentOwnerGridPosition, Perception currentPerception);
@@ -86,41 +84,6 @@ namespace VeilOfAges.Entities.Traits
 
             // Try to move to the target position
             return new MoveAction(_owner, this, targetGridPos, 5);
-        }
-
-        // Common method for following a path
-        protected EntityAction? MoveToNextPathPosition(int priority = 5)
-        {
-            if (_owner == null) return null;
-
-            if (_currentPath.Count == 0 || _currentPathIndex >= _currentPath.Count)
-            {
-                return new IdleAction(_owner, this);
-            }
-
-            Vector2I nextPos = _currentPath[_currentPathIndex];
-            _currentPathIndex++;
-
-            // Check if the next position is walkable
-            if (_owner.GetGridArea()?.IsCellWalkable(nextPos) == true)
-            {
-                return new MoveAction(_owner, this, nextPos, priority);
-            }
-            else
-            {
-                // If obstacle encountered, just stop
-                return new IdleAction(_owner, this);
-            }
-        }
-
-        // Common method for finding a path
-        protected List<Vector2I> FindPathTo(Vector2I target)
-        {
-            var gridArea = _owner?.GetGridArea();
-            if (gridArea == null || _owner == null) return [];
-
-            Vector2I currentPos = _owner.GetCurrentGridPosition();
-            return PathFinder.FindPath(gridArea, currentPos, target);
         }
 
         // Check if current position is outside wander range

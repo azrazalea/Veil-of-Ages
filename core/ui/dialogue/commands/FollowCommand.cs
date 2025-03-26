@@ -14,12 +14,12 @@ namespace VeilOfAges.UI.Commands
     : EntityCommand(owner, commander, isComplex)
     {
         private int _updateTicks = 0;
-        private List<Vector2I> _currentPath = new();
-        private int _currentPathIndex = 0;
         private int _pathUpdateFrequency = 10; // Update path every 10 ticks
 
         public override EntityAction? SuggestAction(Vector2I currentGridPos, Perception currentPerception)
         {
+            if (MyPathFinder == null) return null;
+
             _updateTicks++;
 
             // Try to find the commander in perception
@@ -48,20 +48,18 @@ namespace VeilOfAges.UI.Commands
                 if (distance <= 1)
                 {
                     // Clear path and wait
-                    _currentPath.Clear();
+                    MyPathFinder.ClearPath();
                     return new IdleAction(_owner, this, -1);
                 }
 
                 // Update path if needed
-                if (_currentPath.Count == 0 || _currentPathIndex >= _currentPath.Count ||
-                    _updateTicks >= _pathUpdateFrequency)
+                if (MyPathFinder.IsPathComplete() || _updateTicks >= _pathUpdateFrequency)
                 {
                     // Use PathFinder to get a proper path
                     var gridArea = _owner.GetGridArea();
                     if (gridArea != null)
                     {
-                        _currentPath = PathFinder.FindPath(gridArea, currentGridPos, commanderPos);
-                        _currentPathIndex = 0;
+                        MyPathFinder.SetPath(gridArea, currentGridPos, commanderPos);
                         _updateTicks = 0;
                     }
                 }
@@ -73,12 +71,9 @@ namespace VeilOfAges.UI.Commands
             }
 
             // If we have a path, follow it
-            if (_currentPath.Count > 0 && _currentPathIndex < _currentPath.Count)
+            if (MyPathFinder.CurrentPath.Count > 0 && MyPathFinder.PathIndex < MyPathFinder.CurrentPath.Count)
             {
-                Vector2I nextPos = _currentPath[_currentPathIndex];
-                _currentPathIndex++;
-
-                return new MoveAction(_owner, this, nextPos, -1);
+                return new MoveAlongPathAction(_owner, this, priority: -1);
             }
 
             // Default to idle

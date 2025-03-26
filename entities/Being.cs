@@ -8,6 +8,8 @@ using VeilOfAges.Entities.Sensory;
 using VeilOfAges.Grid;
 using VeilOfAges.UI;
 using VeilOfAges.UI.Commands;
+using VeilOfAges.Entities.BeingServices;
+using VeilOfAges.Core.Lib;
 
 namespace VeilOfAges.Entities
 {
@@ -24,12 +26,11 @@ namespace VeilOfAges.Entities
     public abstract partial class Being : CharacterBody2D, IEntity
     {
         [Export]
-        protected uint _baseMoveTicks = 4; // How many ticks it takes to move one tile
-        protected uint _currentBaseMoveTicks;
-        protected uint _remainingMoveTicks = 0; // Time in seconds to move one tile
-        protected bool _isMoving = false;
+        protected uint _baseMoveTicks { get; set; } = 4; // How many ticks it takes to move one tile
         protected bool _isInDialogue = false;
         protected EntityCommand? _currentCommand;
+
+        protected MovementController? Movement { get; set; }
 
         /// <summary>
         /// Attributes for a perfectly "average" Being 
@@ -60,12 +61,8 @@ namespace VeilOfAges.Entities
             get => Health?.BodyStructureInitialized ?? false;
         }
 
-        protected Vector2 _targetPosition;
-        protected Vector2 _startPosition;
         protected float _moveProgress = 1.0f; // 1.0 means movement complete
         protected Vector2 _direction = Vector2.Zero;
-        protected AnimatedSprite2D? _animatedSprite;
-        protected Vector2I _currentGridPos;
 
         // Reference to the grid system
         public Area? GridArea { get; protected set; }
@@ -82,8 +79,9 @@ namespace VeilOfAges.Entities
 
         public override void _Ready()
         {
-            _animatedSprite = GetNode<AnimatedSprite2D>("AnimatedSprite2D");
-            _animatedSprite.Play("idle");
+            // MovementController handles it from here
+            var animatedSprite = GetNode<AnimatedSprite2D>("AnimatedSprite2D");
+            animatedSprite.Play("idle");
 
             // Initialize all traits
             foreach (var trait in _traits)
@@ -101,22 +99,15 @@ namespace VeilOfAges.Entities
             ZIndex = 1;
         }
 
-        public virtual void Initialize(Grid.Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null)
+        public virtual void Initialize(Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null)
         {
             GridArea = gridArea;
-            _currentGridPos = startGridPos;
             DetectionDifficulties = [];
 
             Name = $"{GetType().Name}-{Guid.NewGuid().ToString("N")[..8]}";
 
-            // Set initial position aligned to the grid
-            // GlobalPosition = Grid.Utils.GridToWorld(_currentGridPos);
-            Position = Utils.GridToWorld(_currentGridPos);
-            _targetPosition = Position;
-            _startPosition = Position;
-
-            // Mark being's initial position as occupied
-            GridArea.AddEntity(_currentGridPos, this);
+            Movement = new MovementController(this, _baseMoveTicks);
+            Movement.Initialize(startGridPos);
 
             // Set attributes if provided
             Attributes = attributes ?? DefaultAttributes with { };
@@ -148,10 +139,6 @@ namespace VeilOfAges.Entities
         public IEntity selfAsEntity()
         {
             return this;
-        }
-        public Vector2I GetGridPosition()
-        {
-            return _currentGridPos;
         }
 
         public SensableType GetSensableType()
@@ -303,7 +290,7 @@ namespace VeilOfAges.Entities
         public virtual EntityAction Think(Vector2 currentPosition, ObservationData observationData)
         {
 
-            if (_isMoving)
+            if (Movement?.IsMoving() ?? false)
             {
                 return new IdleAction(this, this);
             }
@@ -315,7 +302,7 @@ namespace VeilOfAges.Entities
 
             if (_currentCommand != null)
             {
-                var suggestedAction = _currentCommand.SuggestAction(_currentGridPos, currentPerception);
+                var suggestedAction = _currentCommand.SuggestAction(GetCurrentGridPosition(), currentPerception);
                 if (suggestedAction == null) // command complete
                 {
                     _currentCommand = null;
@@ -330,7 +317,7 @@ namespace VeilOfAges.Entities
             {
                 if (!trait.IsInitialized) continue;
 
-                var suggestedAction = trait.SuggestAction(_currentGridPos, currentPerception);
+                var suggestedAction = trait.SuggestAction(GetCurrentGridPosition(), currentPerception);
                 if (suggestedAction != null)
                 {
                     possibleActions.Enqueue(suggestedAction, suggestedAction.Priority);
@@ -592,103 +579,56 @@ namespace VeilOfAges.Entities
         // Move to a specific grid position if possible
         public bool TryMoveToGridPosition(Vector2I targetGridPos)
         {
-            // Check we are only moving one distance at a time
-            float distanceTo = _currentGridPos.DistanceSquaredTo(targetGridPos);
-            if (distanceTo == 2)
-            {
-                distanceTo = 1.5f; // normalize cost to a distinct value 
-            }
-            else if (distanceTo > 2)
-            {
-                return false; // We are trying to move too far in one step
-            }
+            if (Movement == null) return false;
 
-            // Check if the target cell is free
-            if (GridArea != null && GridArea.IsCellWalkable(targetGridPos))
-            {
-                // Average terrain difficultly between source and destination cell
-                var difficulty = (GridArea.GetTerrainDifficulty(targetGridPos) + GridArea.GetTerrainDifficulty(_currentGridPos)) / 2;
-
-                // Free the current cell
-                GridArea.RemoveEntity(_currentGridPos);
-
-                // Update current grid position
-                _currentGridPos = targetGridPos;
-
-                // Mark new cell as occupied
-                GridArea.AddEntity(_currentGridPos, this);
-
-                // Start moving
-                _startPosition = Position;
-                _targetPosition = Utils.GridToWorld(_currentGridPos);
-                // This should calculate via difficulty and account for higher cost for diagonal movement
-                _remainingMoveTicks = (uint)float.Round(_baseMoveTicks * distanceTo * difficulty);
-                _currentBaseMoveTicks = _remainingMoveTicks;
-                _isMoving = true;
-
-                Vector2 moveDirection = _currentGridPos - targetGridPos;
-                _direction = moveDirection;
-
-                // Handle animation and facing direction
-                if (_animatedSprite != null)
-                {
-                    if (_direction.X > 0)
-                        _animatedSprite.FlipH = false;
-                    else if (_direction.X < 0)
-                        _animatedSprite.FlipH = true;
-
-                    _animatedSprite.Play("walk");
-                }
-
-                return true;
-            }
-
-            return false;
+            return Movement.TryMoveToGridPosition(targetGridPos);
         }
 
         public void ProcessMovementTick()
         {
-            if (_isMoving && _remainingMoveTicks > 0)
-            {
-                _remainingMoveTicks--;
-
-                // Calculate movement progress
-                float progress = 1.0f - (_remainingMoveTicks / (float)_currentBaseMoveTicks);
-
-                // Update position based on interpolation
-                Position = _startPosition.Lerp(_targetPosition, progress);
-
-                // Check if movement is complete
-                if (_remainingMoveTicks <= 0)
-                {
-                    Position = _targetPosition; // Ensure exact position
-                    _isMoving = false;
-                    _currentBaseMoveTicks = _baseMoveTicks;
-
-                    // If no direction, play idle animation
-                    if (_direction == Vector2.Zero)
-                    {
-                        _animatedSprite?.Play("idle");
-                    }
-                }
-            }
+            Movement?.ProcessMovementTick();
         }
 
         public bool IsMoving()
         {
-            return _isMoving;
+            if (Movement == null) return false;
+
+            return Movement.IsMoving();
         }
 
         // Set a new direction for the being
         public void SetDirection(Vector2 newDirection)
         {
-            _direction = newDirection;
+            Movement?.SetDirection(newDirection);
         }
 
         // Get the current grid position
         public Vector2I GetCurrentGridPosition()
         {
-            return _currentGridPos;
+            if (Movement == null) return Vector2I.Zero;
+
+            return Movement.GetCurrentGridPosition();
+        }
+
+        public Vector2I GetFacingDirection()
+        {
+            if (Movement == null) return Vector2I.Zero;
+
+            return Movement.GetFacingDirection();
+        }
+
+        public bool MoveAlongPath()
+        {
+            if (Movement == null) return false;
+
+            return Movement.MoveAlongPath();
+        }
+
+        public PathFinder? GetPathfinder()
+        {
+            if (Movement == null) return null;
+
+            return Movement.GetPathfinder();
         }
 
         // Get the grid area (for traits that need it)

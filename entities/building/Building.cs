@@ -111,10 +111,12 @@ public partial class Building : Node2D, IEntity
         Position = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
     }
 
-    public Vector2I GetGridPosition()
+    // Get the current grid position
+    public Vector2I GetCurrentGridPosition()
     {
         return _gridPosition;
     }
+
     public SensableType GetSensableType()
     {
         return SensableType.Building;
