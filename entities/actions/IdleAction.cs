@@ -2,7 +2,7 @@ using Godot;
 
 namespace VeilOfAges.Entities.Actions
 {
-    public class IdleAction(Being entity, object source, int priority = 0) : EntityAction(entity, source, priority: priority)
+    public class IdleAction(Being entity, object source, int priority = 1) : EntityAction(entity, source, priority: priority)
     {
         public override bool Execute()
         {

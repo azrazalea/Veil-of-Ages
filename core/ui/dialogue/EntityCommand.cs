@@ -24,7 +24,7 @@ namespace VeilOfAges.UI
         /// Is this command considered too complex for non sapiant beings like Mindless trait?
         /// </summary>
         public bool IsComplex { get; protected set; } = IsComplex;
-        protected PathFinder? MyPathFinder = owner.GetPathfinder();
+        public PathFinder MyPathfinder = new();
 
 
         /// <summary>

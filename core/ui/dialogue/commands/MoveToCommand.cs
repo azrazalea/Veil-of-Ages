@@ -16,12 +16,12 @@ namespace VeilOfAges.UI.Commands
 
         public override EntityAction? SuggestAction(Vector2I currentGridPos, Perception currentPerception)
         {
-            if (MyPathFinder == null) return null;
+            if (MyPathfinder == null) return null;
 
             if (!Parameters.TryGetValue("targetPos", out var targetPosObj))
             {
                 // Wait for target position to be set
-                return new IdleAction(_owner, this, -1);
+                return new IdleAction(_owner, this, 0);
             }
 
             // Check if we have a target position
@@ -42,15 +42,14 @@ namespace VeilOfAges.UI.Commands
                 }
 
                 // Check if we need to calculate a path
-                if (MyPathFinder.IsPathComplete())
+                if (MyPathfinder.IsPathComplete())
                 {
                     var gridArea = _owner.GetGridArea();
                     if (gridArea != null)
                     {
-                        MyPathFinder.SetPath(gridArea, currentGridPos, targetPos);
-
+                        MyPathfinder.SetPath(gridArea, currentGridPos, targetPos);
                         // If no path could be found, end command
-                        if (MyPathFinder.CurrentPath.Count == 0)
+                        if (MyPathfinder.CurrentPath.Count == 0)
                         {
                             return null;
                         }
@@ -58,9 +57,9 @@ namespace VeilOfAges.UI.Commands
                 }
 
                 // Follow the path
-                if (MyPathFinder.PathIndex < MyPathFinder.CurrentPath.Count)
+                if (MyPathfinder.PathIndex < MyPathfinder.CurrentPath.Count)
                 {
-                    return new MoveAlongPathAction(_owner, this, priority: -1);
+                    return new MoveAlongPathAction(_owner, this, priority: 0);
                 }
             }
 

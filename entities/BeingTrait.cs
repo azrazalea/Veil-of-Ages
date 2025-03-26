@@ -16,7 +16,7 @@ namespace VeilOfAges.Entities
     {
         // Reference to the Being owner with stronger typing
         protected Being? _owner;
-        public PathFinder? MyPathfinder { get; set; }
+        public PathFinder MyPathfinder { get; set; } = new();
 
         // State tracking fields
         protected uint _stateTimer = 0;
@@ -37,7 +37,6 @@ namespace VeilOfAges.Entities
             if (owner is Being being)
             {
                 _owner = being;
-                MyPathfinder = _owner.GetPathfinder();
                 _spawnPosition = _owner.GetCurrentGridPosition();
             }
         }
@@ -48,7 +47,6 @@ namespace VeilOfAges.Entities
         public virtual void Initialize(Being owner, BodyHealth health)
         {
             _owner = owner;
-            MyPathfinder = _owner.GetPathfinder();
             _rng.Randomize();
             _spawnPosition = _owner.GetCurrentGridPosition();
             IsInitialized = true;
@@ -155,7 +153,7 @@ namespace VeilOfAges.Entities
         /// <summary>
         /// Helper for wandering behavior - creates a movement action in a random direction
         /// </summary>
-        protected EntityAction? TryToWander(float wanderRange = 10.0f, int priority = 0)
+        protected EntityAction? TryToWander(float wanderRange = 10.0f, int priority = 1)
         {
             if (_owner == null) return null;
 

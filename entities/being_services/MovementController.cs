@@ -23,7 +23,7 @@ namespace VeilOfAges.Entities.BeingServices
         private uint _remainingMoveTicks = 0;
         private bool _isMoving = false;
 
-        protected PathFinder MyPathfinder { get; set; } = new PathFinder();
+        public PathFinder MyPathfinder { get; set; } = new PathFinder();
 
         public MovementController(Being owner, uint baseMoveTicks = 4)
         {

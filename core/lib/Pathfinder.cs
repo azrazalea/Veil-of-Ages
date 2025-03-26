@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using VeilOfAges.Entities;
+using VeilOfAges.Entities.Beings;
 
 namespace VeilOfAges.Core.Lib
 {
@@ -224,7 +225,7 @@ namespace VeilOfAges.Core.Lib
             else // Try once to recalculate the path
             {
                 SetPathTo(entity, CurrentPath.Last());
-                moveSuccessful = entity.TryMoveToGridPosition(CurrentPath.First());
+                if (CurrentPath.Count > 0) moveSuccessful = entity.TryMoveToGridPosition(CurrentPath.First());
                 if (moveSuccessful) PathIndex++;
             }
 

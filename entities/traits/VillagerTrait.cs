@@ -160,7 +160,7 @@ namespace VeilOfAges.Entities.Traits
 
                     if (!MyPathfinder?.IsPathComplete() ?? false)
                     {
-                        return new MoveAlongPathAction(_owner, this);
+                        return new MoveAlongPathAction(_owner, this, priority: 1);
                     }
                 }
                 // Chance to visit a building
@@ -178,7 +178,7 @@ namespace VeilOfAges.Entities.Traits
 
                         if (!MyPathfinder?.IsPathComplete() ?? false)
                         {
-                            return new MoveAlongPathAction(_owner, this);
+                            return new MoveAlongPathAction(_owner, this, priority: 1);
                         }
                     }
                 }

@@ -23,7 +23,7 @@ namespace VeilOfAges.Entities.Traits
         public override void Initialize(Being owner, BodyHealth health)
         {
             base.Initialize(owner, health);
-            
+
             // Zombie-specific initialization
             WanderProbability = 0.3f; // Zombies wander more often
             WanderRange = 15.0f;      // And further from spawn
@@ -158,9 +158,9 @@ namespace VeilOfAges.Entities.Traits
 
                 if (MyPathfinder.CurrentPath.Count > 0)
                 {
-                    return new MoveAlongPathAction(_owner, this, priority: -1);
+                    return new MoveAlongPathAction(_owner, this, priority: 1);
                 }
-                return new IdleAction(_owner, this, -1);
+                return new IdleAction(_owner, this, 1);
             }
 
             // Check if target is still visible
@@ -181,7 +181,7 @@ namespace VeilOfAges.Entities.Traits
             if (!MyPathfinder.IsPathComplete())
             {
                 // Higher priority when chasing
-                return new MoveAlongPathAction(_owner, this, priority: -2);
+                return new MoveAlongPathAction(_owner, this, priority: 1);
             }
 
             // If we have no path, just idle

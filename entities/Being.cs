@@ -345,6 +345,20 @@ namespace VeilOfAges.Entities
             if (possibleActions.Count > 0)
             {
                 var action = possibleActions.Dequeue();
+
+                // sync pathfinder
+                if (action is MoveAlongPathAction && Movement != null)
+                {
+                    if (action.Source is BeingTrait trait)
+                    {
+                        Movement.MyPathfinder = trait.MyPathfinder;
+                    }
+                    else if (action.Source is EntityCommand command)
+                    {
+                        Movement.MyPathfinder = command.MyPathfinder;
+                    }
+                }
+
                 return action;
             }
 
