@@ -70,12 +70,7 @@ namespace VeilOfAges.Entities
         // Trait system
         public SortedSet<BeingTrait> _traits { get; protected set; } = [];
         public Dictionary<SenseType, float> DetectionDifficulties { get; protected set; } = [];
-        // Memory system to track what the entity has perceived
-        private Dictionary<Vector2I, Dictionary<string, object>> _memory = new();
-
-        // Track when memory was last updated for each position
-        private Dictionary<Vector2I, uint> _memoryTimestamps = new();
-        protected uint MemoryDuration = 3_000; // Roughly 5 minutes game time
+        public BeingPerceptionSystem? PerceptionSystem { get; private set; }
 
         public override void _Ready()
         {
@@ -108,6 +103,8 @@ namespace VeilOfAges.Entities
 
             Movement = new MovementController(this, _baseMoveTicks);
             Movement.Initialize(startGridPos);
+
+            PerceptionSystem = new BeingPerceptionSystem(this);
 
             // Set attributes if provided
             Attributes = attributes ?? DefaultAttributes with { };
@@ -290,15 +287,14 @@ namespace VeilOfAges.Entities
         public virtual EntityAction Think(Vector2 currentPosition, ObservationData observationData)
         {
 
-            if (Movement?.IsMoving() ?? false)
+            if (PerceptionSystem == null || (Movement?.IsMoving() ?? false))
             {
                 return new IdleAction(this, this);
             }
 
             PriorityQueue<EntityAction, int> possibleActions = new();
 
-            var currentPerception = ProcessPerception(observationData);
-            SetMemory(currentPosition, currentPerception);
+            var currentPerception = PerceptionSystem.ProcessPerception(observationData);
 
             if (_currentCommand != null)
             {
@@ -383,121 +379,26 @@ namespace VeilOfAges.Entities
             return 1.0f;
         }
 
-        protected virtual bool IsLOSBlocking(Vector2I position)
-        {
-            // Check if the world has terrain that blocks sight at this position
-            var world = GetTree().GetFirstNodeInGroup("World") as World;
-            if (world == null)
-                return false;
-
-            // First check if the cell is occupied (entities block sight)
-            // But we allow seeing the entities themselves
-            // if (world.IsCellOccupied(position))
-            // {
-            //     // Check if this is an entity or terrain
-            //     // For now, we'll use a simplified approach:
-            //     // Check the terrain type at this position
-            //     var groundLayer = world.GetNode<TileMapLayer>("GroundLayer");
-            //     if (groundLayer != null)
-            //     {
-            //         // Get the tile data at this position
-            //         var tileData = groundLayer.GetCellTileData(position);
-
-            //         // Check if it's a water tile (special case example)
-            //         if (tileData != null && groundLayer.GetCellAtlasCoords(position) == Grid.Utils.WaterAtlasCoords)
-            //         {
-            //             // Water doesn't block sight
-            //             return false;
-            //         }
-            //     }
-
-            //     // For buildings, walls, trees, etc.
-            //     // These would block sight, but for now we'll use a simplified check
-            //     // Are there specific entities at this position that block sight?
-            //     foreach (var entity in world.GetEntities())
-            //     {
-            //         if (entity.GetCurrentGridPosition() == position)
-            //         {
-            //             return true;
-            //         }
-            //     }
-            // }
-
-            // Default: not blocking
-            return false;
-        }
-
-        // Store perception data in memory
-        protected virtual void SetMemory(Vector2 currentPosition, Perception currentPerception)
-        {
-            // Store sensed entities in memory
-            foreach (var entityData in currentPerception.GetEntitiesOfType<Being>())
-            {
-                var entity = entityData.entity;
-                var pos = entityData.position;
-
-                // Create or update memory for this position
-                if (!_memory.ContainsKey(pos))
-                {
-                    _memory[pos] = new Dictionary<string, object>();
-                }
-
-                // Store entity information
-                string entityKey = $"entity_{entity.GetType().Name}";
-                _memory[pos][entityKey] = entity;
-
-                // Update timestamp
-                _memoryTimestamps[pos] = MemoryDuration;
-            }
-
-            // Periodically clean up old memories
-            CleanupOldMemories();
-        }
-
-        // Remove memories that are too old
-        private void CleanupOldMemories()
-        {
-            var posToRemove = new List<Vector2I>();
-
-            foreach (var entry in _memoryTimestamps)
-            {
-                if (entry.Value <= 0)
-                {
-                    _memory.Remove(entry.Key);
-                }
-                else
-                {
-                    _memoryTimestamps[entry.Key]--;
-                }
-            }
-        }
-
-        // Get what the entity remembers about a position
+        // Delegate perception-related methods
         public Dictionary<string, object> GetMemoryAt(Vector2I position)
         {
-            if (_memory.TryGetValue(position, out var memory))
-            {
-                return new Dictionary<string, object>(memory);
-            }
+            if (PerceptionSystem == null) return [];
 
-            return new Dictionary<string, object>();
+            return PerceptionSystem.GetMemoryAt(position);
         }
 
-        // Check if entity has any memory of a specific entity type
         public bool HasMemoryOfEntityType<T>() where T : Being
         {
-            foreach (var posMemory in _memory.Values)
-            {
-                foreach (var entry in posMemory)
-                {
-                    if (entry.Key.StartsWith("entity_") && entry.Value is T)
-                    {
-                        return true;
-                    }
-                }
-            }
+            if (PerceptionSystem == null) return false;
 
-            return false;
+            return PerceptionSystem.HasMemoryOfEntityType<T>();
+        }
+
+        public bool HasLineOfSight(Vector2I target)
+        {
+            if (PerceptionSystem == null) return false;
+
+            return PerceptionSystem.HasLineOfSight(target);
         }
 
         // Get overall health percentage
@@ -638,256 +539,6 @@ namespace VeilOfAges.Entities
             foreach (var trait in _traits)
             {
                 trait.Process(delta);
-            }
-        }
-        protected virtual Perception ProcessPerception(ObservationData data)
-        {
-            var perception = new Perception();
-
-            // Process grid contents
-            foreach (var pos in data.Grid.GetCoveredPositions())
-            {
-                foreach (var sensable in data.Grid.GetAtPosition(pos))
-                {
-                    // Apply Line of Sight and other filtering
-                    if (CanPerceive(sensable, pos))
-                    {
-                        perception.AddDetectedSensable(sensable, pos);
-                    }
-                }
-            }
-
-            // Process events
-            foreach (var evt in data.Events)
-            {
-                if (CanPerceiveEvent(evt))
-                {
-                    perception.AddPerceivedEvent(evt);
-                }
-            }
-
-            // Process Dijkstra maps (no filtering needed - already relevant)
-            foreach (var map in data.DijkstraMaps)
-            {
-                perception.AddDijkstraMap(map);
-            }
-
-            return perception;
-        }
-
-        // Determines if this entity can perceive a specific sensable
-        protected virtual bool CanPerceive(ISensable sensable, Vector2I position)
-        {
-            // Check sensable type
-            var sensableType = sensable.GetSensableType();
-
-            // Apply different strategies based on sense type
-
-            // Visual perception - requires line of sight
-            // if (HasSenseType(SenseType.Sight))
-            // {
-            int sightRange = GetSightRange();
-            Vector2I myPos = GetCurrentGridPosition();
-
-            // Check distance
-            int distance = Math.Max(
-                Math.Abs(position.X - myPos.X),
-                Math.Abs(position.Y - myPos.Y)
-            );
-
-            if (distance <= sightRange && HasLineOfSight(position))
-            {
-                // Check detection difficulty
-                float detectionDifficulty = sensable.GetDetectionDifficulty(SenseType.Sight);
-                float perceptionLevel = GetPerceptionLevel(SenseType.Sight);
-
-                if (perceptionLevel >= detectionDifficulty)
-                    return true;
-            }
-            // }
-
-            // Hearing - no line of sight needed but affected by distance
-            if (HasSenseType(SenseType.Hearing))
-            {
-                // Similar hearing checks
-            }
-
-            // Smell - affected by wind direction, etc.
-            if (HasSenseType(SenseType.Smell))
-            {
-                // Smell checks
-            }
-
-            return false;
-        }
-
-        // Calculates line of sight using Bresenham's algorithm
-        protected virtual bool HasLineOfSight(Vector2I target)
-        {
-            Vector2I start = GetCurrentGridPosition();
-
-            // Bresenham's line algorithm
-            int x0 = start.X;
-            int y0 = start.Y;
-            int x1 = target.X;
-            int y1 = target.Y;
-
-            int dx = Math.Abs(x1 - x0);
-            int dy = Math.Abs(y1 - y0);
-            int sx = x0 < x1 ? 1 : -1;
-            int sy = y0 < y1 ? 1 : -1;
-            int err = dx - dy;
-
-            while (x0 != x1 || y0 != y1)
-            {
-                int e2 = 2 * err;
-                if (e2 > -dy)
-                {
-                    err -= dy;
-                    x0 += sx;
-                }
-                if (e2 < dx)
-                {
-                    err += dx;
-                    y0 += sy;
-                }
-
-                // Skip starting position
-                if (x0 == start.X && y0 == start.Y)
-                    continue;
-
-                // Check if this position blocks sight
-                if (IsLOSBlocking(new Vector2I(x0, y0)))
-                    return false;
-            }
-
-            return true;
-        }
-
-        protected virtual bool CanPerceiveEvent(WorldEvent worldEvent)
-        {
-            // Get distance to event
-            Vector2I myPos = GetCurrentGridPosition();
-            float distance = myPos.DistanceTo(worldEvent.Position);
-
-            // Base detection range is the event radius plus a small buffer
-            float baseDetectionRange = worldEvent.Radius + 1f;
-
-            // Check if event is in range based on event type
-            switch (worldEvent.Type)
-            {
-                case EventType.Visual:
-                    // Visual events require line of sight and sight capability
-                    if (!HasSenseType(SenseType.Sight))
-                        return false;
-
-                    // Check if event is within sight range
-                    if (distance > GetSightRange() + baseDetectionRange)
-                        return false;
-
-                    // Check line of sight to the event's position
-                    if (!HasLineOfSight(worldEvent.Position))
-                        return false;
-
-                    // Higher intensity visual events are more noticeable
-                    float visualDetectionChance = worldEvent.Intensity * GetPerceptionLevel(SenseType.Sight);
-
-                    // Apply distance falloff
-                    visualDetectionChance *= 1.0f - (distance / (GetSightRange() + baseDetectionRange));
-
-                    // Apply trait modifiers
-                    foreach (var trait in _traits)
-                    {
-                        if (trait is Traits.UndeadTrait)
-                        {
-                            // Undead might have worse visual perception
-                            visualDetectionChance *= 0.8f;
-                        }
-                    }
-
-                    // Random chance based on calculated probability
-                    return new RandomNumberGenerator().Randf() < visualDetectionChance;
-
-                case EventType.Sound:
-                    // Sound events don't require line of sight
-                    if (!HasSenseType(SenseType.Hearing))
-                        return false;
-
-                    // Sound range is based on intensity
-                    float soundRange = baseDetectionRange + (worldEvent.Intensity * 15f);
-
-                    // Check if event is within hearing range
-                    if (distance > soundRange)
-                        return false;
-
-                    // Calculate detection chance
-                    float soundDetectionChance = worldEvent.Intensity * GetPerceptionLevel(SenseType.Hearing);
-
-                    // Apply distance falloff (sound drops with square of distance)
-                    soundDetectionChance *= 1.0f - ((distance * distance) / (soundRange * soundRange));
-
-                    // Apply trait modifiers
-                    foreach (var trait in _traits)
-                    {
-                        // Trait-specific modifiers could go here
-                    }
-
-                    // Random chance based on calculated probability
-                    return new RandomNumberGenerator().Randf() < soundDetectionChance;
-
-                case EventType.Smell:
-                    // Smell doesn't require line of sight
-                    if (!HasSenseType(SenseType.Smell))
-                        return false;
-
-                    // Smell range is based on intensity
-                    float smellRange = baseDetectionRange + (worldEvent.Intensity * 8f);
-
-                    // Check if event is within smell range
-                    if (distance > smellRange)
-                        return false;
-
-                    // Calculate detection chance
-                    float smellDetectionChance = worldEvent.Intensity * GetPerceptionLevel(SenseType.Smell);
-
-                    // Apply distance falloff
-                    smellDetectionChance *= 1.0f - (distance / smellRange);
-
-                    // Apply trait modifiers
-                    foreach (var trait in _traits)
-                    {
-                        if (trait is Traits.UndeadTrait)
-                        {
-                            // Undead have heightened sense of smell for certain things
-                            smellDetectionChance *= 1.5f;
-                        }
-                    }
-
-                    // Random chance based on calculated probability
-                    return new RandomNumberGenerator().Randf() < smellDetectionChance;
-
-                case EventType.Environmental:
-                    // Environmental events can be detected by any sense
-                    bool canDetect = false;
-
-                    // Try each sense type
-                    if (HasSenseType(SenseType.Sight) && distance <= GetSightRange())
-                    {
-                        canDetect = true;
-                    }
-                    else if (HasSenseType(SenseType.Hearing) && distance <= baseDetectionRange + (worldEvent.Intensity * 10f))
-                    {
-                        canDetect = true;
-                    }
-                    else if (HasSenseType(SenseType.Smell) && distance <= baseDetectionRange + (worldEvent.Intensity * 5f))
-                    {
-                        canDetect = true;
-                    }
-
-                    return canDetect;
-
-                default:
-                    return false;
             }
         }
 
