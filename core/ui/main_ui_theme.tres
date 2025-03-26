@@ -1,4 +1,4 @@
-[gd_resource type="Theme" load_steps=9 format=3 uid="uid://cd64idurw2veb"]
+[gd_resource type="Theme" load_steps=10 format=3 uid="uid://cd64idurw2veb"]
 
 [ext_resource type="FontFile" uid="uid://cm65kg1osflue" path="res://assets/fonts/slimes_pixel_font_pack/Corvid Conspirator v1.1.ttf" id="1_7kyy1"]
 [ext_resource type="FontFile" uid="uid://chyfqv5twkt27" path="res://assets/fonts/slimes_pixel_font_pack/Sol Schori.ttf" id="2_7kyy1"]
@@ -74,6 +74,18 @@ border_width_bottom = 1
 border_color = Color(0.482353, 0.352941, 0.678431, 1)
 border_blend = true
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dvnjv"]
+bg_color = Color(0.176471, 0.176471, 0.258824, 0.956863)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.482353, 0.352941, 0.678431, 0.960784)
+corner_radius_top_left = 5
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
 [resource]
 resource_name = "Main UI"
 Button/font_sizes/font_size = 18
@@ -84,5 +96,6 @@ Button/styles/pressed = SubResource("StyleBoxFlat_7xspt")
 Label/fonts/font = ExtResource("2_7kyy1")
 Panel/styles/panel = SubResource("StyleBoxFlat_vkrg2")
 PanelContainer/styles/panel = SubResource("StyleBoxFlat_sym55")
+PopupMenu/styles/panel = SubResource("StyleBoxFlat_dvnjv")
 RichTextLabel/fonts/bold_font = ExtResource("3_r4t75")
 RichTextLabel/fonts/normal_font = ExtResource("2_7kyy1")

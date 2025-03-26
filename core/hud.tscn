@@ -109,4 +109,6 @@ to continue"
 scroll_active = false
 autowrap_mode = 0
 
+[node name="Context Menu" type="PopupMenu" parent="."]
+
 [editable path="Dialogue"]

@@ -15,6 +15,7 @@ namespace VeilOfAges.Core
         private PanelContainer? _quickActions;
         private PanelContainer? _minimap;
         private PanelContainer? _chooseLocationPrompt;
+        private PopupMenu? _contextMenu;
         private EntityCommand? _pendingCommand = null;
         private Being? _commandTarget = null;
         private bool _awaitingLocationSelection = false;
@@ -31,6 +32,7 @@ namespace VeilOfAges.Core
             _quickActions = GetNode<PanelContainer>("/root/World/HUD/Quick Actions Container");
             _minimap = GetNode<PanelContainer>("/root/World/HUD/Minimap Container");
             _chooseLocationPrompt = GetNode<PanelContainer>("/root/World/HUD/Choose Location Prompt");
+            _contextMenu = GetNode<PopupMenu>("/root/World/HUD/Context Menu");
 
             if (_gameController == null || _player == null)
             {
@@ -95,7 +97,6 @@ namespace VeilOfAges.Core
         {
             // Skip if simulation is paused
             if (_gameController == null || _player == null) return;
-
             // Interaction
             else if (@event.IsActionPressed("interact"))
             {
@@ -105,7 +106,6 @@ namespace VeilOfAges.Core
             {
                 _dialogueUI?.Close();
             }
-
             // Simulation controls
             else if (@event.IsActionPressed("toggle_simulation_pause"))
             {
@@ -119,9 +119,13 @@ namespace VeilOfAges.Core
             {
                 _gameController.SetTimeScale(_gameController.TimeScale * 0.5f);
             }
+            else if (@event.IsActionPressed("context_menu") && @event is InputEventMouseButton contextMouseEvent)
+            {
+                ShowContextMenu(contextMouseEvent);
+            }
 
             if (_awaitingLocationSelection && @event is InputEventMouseButton mouseEvent &&
-    mouseEvent.ButtonIndex == MouseButton.Left && mouseEvent.Pressed)
+        mouseEvent.ButtonIndex == MouseButton.Left && mouseEvent.Pressed)
             {
                 Vector2I gridPos = GetCurrentMouseGridPosition();
 
@@ -224,6 +228,19 @@ namespace VeilOfAges.Core
             Vector2 worldPos = GetViewport().GetCamera2D().GetGlobalMousePosition();
             // Convert to grid position
             return Grid.Utils.WorldToGrid(worldPos);
+        }
+
+        public void ShowContextMenu(InputEventMouseButton @event)
+        {
+            if (_contextMenu == null) return;
+
+            var gridPos = GetCurrentMouseGridPosition();
+
+            _contextMenu.Position = (Vector2I)@event.Position;
+            _contextMenu.Clear();
+            _contextMenu.AddItem("Test");
+            _contextMenu.Visible = true;
+            // TODO: Move context menu location and make active/visible
         }
     }
 }
