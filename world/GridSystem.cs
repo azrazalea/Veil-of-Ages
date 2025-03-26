@@ -22,9 +22,9 @@ namespace VeilOfAges.Grid
             GD.Print($"Grid system initialized with size {GridSize.X}x{GridSize.Y}");
         }
 
-        public T GetCell(Vector2I gridPos)
+        public T? GetCell(Vector2I gridPos)
         {
-            return OccupiedCells[gridPos];
+            return OccupiedCells.GetValueOrDefault(gridPos);
         }
 
         // Set a cell as occupied or free

@@ -155,14 +155,12 @@ namespace VeilOfAges.Grid
         // TODO: We need to handle unwalkable objects here if any
         public bool IsCellWalkable(Vector2I gridPos)
         {
-            return !EntitiesGridSystem.IsCellOccupied(gridPos) && (
-                !_groundGridSystem.IsCellOccupied(gridPos) || _groundGridSystem.GetCell(gridPos).IsWalkable
-            );
+            return !EntitiesGridSystem.IsCellOccupied(gridPos) && (_groundGridSystem.GetCell(gridPos)?.IsWalkable ?? false);
         }
 
         public float GetTerrainDifficulty(Vector2I gridPos)
         {
-            return _groundGridSystem.GetCell(gridPos).WalkDifficulty;
+            return _groundGridSystem.GetCell(gridPos)?.WalkDifficulty ?? 1.0f;
         }
 
         public void PopulateLayersFromGrid()
@@ -188,7 +186,7 @@ namespace VeilOfAges.Grid
 
         public float GetTerrainDifficulty(Vector2I from, Vector2I to)
         {
-            return (_groundGridSystem.GetCell(from).WalkDifficulty + _groundGridSystem.GetCell(to).WalkDifficulty) / 2;
+            return (GetTerrainDifficulty(from) + GetTerrainDifficulty(to)) / 2;
         }
     }
 }
