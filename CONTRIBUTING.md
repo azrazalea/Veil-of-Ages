@@ -42,7 +42,7 @@ Feature suggestions are welcome! When suggesting a feature:
 1. **Fork the Repository**: Create your own fork of the project
 2. **Create a Branch**: Create a branch for your feature or bugfix
 3. **Make Changes**: Implement your changes, following the project's code style
-4. **Write Tests**: Add tests for your changes if applicable
+4. **Write Test Plans**: Add test plans for your changes if applicable
 5. **Documentation**: Update documentation to reflect your changes
 6. **Submit PR**: Submit a pull request with a clear description of the changes
 
@@ -63,8 +63,8 @@ Feature suggestions are welcome! When suggesting a feature:
 
 ### Testing
 
-- Write tests for new features
-- Ensure all tests pass before submitting a pull request
+- Write tests plan for new features/bug fixes
+- Ensure all test plans pass before submitting a pull request
 - Don't break existing functionality
 
 ## Getting Help
@@ -72,7 +72,7 @@ Feature suggestions are welcome! When suggesting a feature:
 If you need help or have questions:
 - Check the documentation
 - Look for similar issues in the issue tracker
-- [Contact information for project maintainers]
+- Email azrazalea@gmail.com
 
 ## Review Process
 
