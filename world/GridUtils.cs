@@ -10,6 +10,12 @@ namespace VeilOfAges.Grid
         public static Vector2I WaterAtlasCoords = new(3, 16);
         public Vector2I GridSize = new(100, 100);
 
+        public static bool WithinProximityRangeOf(Vector2I currentPos, Vector2I targetPos, float proximityRange = 1)
+        {
+            // The 1.5fs account for diagonals
+            return currentPos.DistanceSquaredTo(targetPos) < (proximityRange * 1.5f * proximityRange * 1.5f);
+        }
+
         // Convert world position to grid coordinates, accounting for visual offset
         public static Vector2I WorldToGrid(Vector2 worldPos)
         {

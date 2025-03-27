@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using VeilOfAges.Entities;
@@ -12,7 +13,7 @@ namespace VeilOfAges.Core.Lib
     {
         // Public interface remains the same
         public List<Vector2I> CurrentPath { get; private set; } = [];
-        public int PathIndex { get; private set; } = 1;
+        public int PathIndex { get; private set; } = 0;
         public int MAX_PATH_LENGTH = 100;
 
         // Path state tracking
@@ -43,7 +44,7 @@ namespace VeilOfAges.Core.Lib
         public void ClearPath()
         {
             CurrentPath = [];
-            PathIndex = 1;
+            PathIndex = 0;
             _pathNeedsCalculation = true;
         }
 
@@ -129,6 +130,11 @@ namespace VeilOfAges.Core.Lib
         // Set a position goal
         public void SetPositionGoal(Being entity, Vector2I position)
         {
+            // If this is already our goal
+            if (_goalType == PathGoalType.Position && _targetPosition == position)
+            {
+                return;
+            }
             _goalType = PathGoalType.Position;
             _targetPosition = position;
             _firstGoalCalculation = true;
@@ -139,6 +145,11 @@ namespace VeilOfAges.Core.Lib
         // Set an entity proximity goal
         public void SetEntityProximityGoal(Being entity, Being targetEntity, int proximityRange = 1)
         {
+            // If this is already our goal
+            if (_goalType == PathGoalType.EntityProximity && _targetEntity == targetEntity && _proximityRange == proximityRange)
+            {
+                return;
+            }
             _goalType = PathGoalType.EntityProximity;
             _targetEntity = targetEntity;
             _proximityRange = proximityRange;
@@ -150,6 +161,12 @@ namespace VeilOfAges.Core.Lib
         // Set an area goal
         public void SetAreaGoal(Being entity, Vector2I centerPosition, int radius)
         {
+            // If this is already our goal
+            if (_goalType == PathGoalType.Area && _targetPosition == centerPosition && _proximityRange == radius)
+            {
+                return;
+            }
+
             _goalType = PathGoalType.Area;
             _targetPosition = centerPosition;
             _proximityRange = radius;
@@ -178,11 +195,11 @@ namespace VeilOfAges.Core.Lib
                     if (_targetEntity != null)
                     {
                         Vector2I targetPos = _targetEntity.GetCurrentGridPosition();
-                        result = entityPos.DistanceTo(targetPos) <= _proximityRange;
+                        result = Utils.WithinProximityRangeOf(entityPos, targetPos, _proximityRange);
                     }
                     break;
                 case PathGoalType.Area:
-                    result = entityPos.DistanceTo(_targetPosition) <= _proximityRange;
+                    result = Utils.WithinProximityRangeOf(entityPos, _targetPosition, _proximityRange);
                     break;
             }
 
@@ -200,8 +217,8 @@ namespace VeilOfAges.Core.Lib
                 return false;
             }
 
-            // First check if we've reached the goal directly
-            if (IsGoalReached(entity))
+            // First check if we've reached the goal directly or entity is currently moving
+            if (IsGoalReached(entity) || entity.IsMoving())
             {
                 return true;
             }
@@ -224,12 +241,26 @@ namespace VeilOfAges.Core.Lib
             // If no valid path, can't follow
             if (!HasValidPath())
             {
-                GD.PrintErr($"No valid path for {entity.Name} (path length: {CurrentPath.Count}, index: {PathIndex})");
                 return false;
             }
 
+            // // Our path is actually just to path to our own square
+            // // This generally happens due to entity targets actively moving
+            if (CurrentPath.SequenceEqual([entity.GetCurrentGridPosition()]))
+            {
+                _pathNeedsCalculation = true;
+                return true;
+            }
+
+
             // Try to move along the path
             Vector2I nextPos = CurrentPath[PathIndex];
+
+            // skip our own position
+            if (entity.GetCurrentGridPosition() == nextPos)
+            {
+                nextPos = CurrentPath[++PathIndex];
+            }
 
             bool moveSuccessful = entity.TryMoveToGridPosition(nextPos);
 
@@ -320,38 +351,17 @@ namespace VeilOfAges.Core.Lib
                             Vector2I targetPos = _targetEntity.GetCurrentGridPosition();
 
                             // If already within proximity, no path needed
-                            if (startPos.DistanceTo(targetPos) <= _proximityRange)
+                            if (Utils.WithinProximityRangeOf(startPos, targetPos, _proximityRange))
                             {
                                 return true;
                             }
 
-                            // Find positions around target entity
-                            var proximityPositions = GetPositionsAroundEntity(targetPos, _proximityRange);
-
-                            // Add the target position itself
-                            proximityPositions.Add(targetPos);
-
-                            // Sort by distance to start
-                            proximityPositions.Sort((a, b) =>
-                                startPos.DistanceSquaredTo(a).CompareTo(startPos.DistanceSquaredTo(b)));
-
-                            // Find path to closest walkable position
-                            bool foundProximityPath = false;
-                            foreach (var pos in proximityPositions)
+                            var proximityPath = astar.GetIdPath(startPos, targetPos, true);
+                            if (proximityPath.Count > 0)
                             {
-                                if (!astar.IsInBoundsv(pos))
-                                    continue;
-
-                                var proximityPath = astar.GetIdPath(startPos, pos, true);
-                                if (proximityPath.Count > 0)
-                                {
-                                    CurrentPath = proximityPath.Cast<Vector2I>().ToList();
-                                    foundProximityPath = true;
-                                    break;
-                                }
+                                CurrentPath = proximityPath.Cast<Vector2I>().ToList();
                             }
-
-                            if (!foundProximityPath)
+                            else
                             {
                                 GD.PrintErr($"No path found to entity {_targetEntity.Name}");
                                 return false;
@@ -363,10 +373,9 @@ namespace VeilOfAges.Core.Lib
                             return false;
                         }
                         break;
-
                     case PathGoalType.Area:
                         // If already within area, no path needed
-                        if (startPos.DistanceTo(_targetPosition) <= _proximityRange)
+                        if (Utils.WithinProximityRangeOf(entity.GetCurrentGridPosition(), _targetPosition, _proximityRange))
                         {
                             return true;
                         }
@@ -413,7 +422,7 @@ namespace VeilOfAges.Core.Lib
                     CurrentPath = CurrentPath.GetRange(0, MAX_PATH_LENGTH);
                 }
 
-                PathIndex = 1;
+                PathIndex = 0;
                 _pathNeedsCalculation = false;
                 return CurrentPath.Count > 0;
             }

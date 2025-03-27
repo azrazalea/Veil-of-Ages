@@ -4,6 +4,7 @@ using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Sensory;
+using VeilOfAges.Grid;
 using VeilOfAges.UI;
 
 namespace VeilOfAges.Entities
@@ -170,17 +171,9 @@ namespace VeilOfAges.Entities
             Vector2I targetGridPos = currentPos + newDirection;
 
             // Check if the target position is within wander range
-            var distanceFromSpawn = targetGridPos.DistanceSquaredTo(_spawnPosition);
-            if (distanceFromSpawn > wanderRange * wanderRange)
+            if (IsOutsideRange(wanderRange, _spawnPosition))
             {
-                // Too far from spawn, try to move back toward spawn
-                Vector2 towardSpawn = (_spawnPosition - currentPos).Sign();
-
-                // Recalculate target position
-                targetGridPos = currentPos + new Vector2I(
-                    (int)towardSpawn.X,
-                    (int)towardSpawn.Y
-                );
+                return MoveToPosition(_spawnPosition, priority);
             }
 
             // Just use a simple move action for adjacent positions
@@ -220,11 +213,7 @@ namespace VeilOfAges.Entities
         {
             if (_owner == null) return true;
 
-            Vector2I currentPos = _owner.GetCurrentGridPosition();
-            Vector2I distance = currentPos - referencePos;
-
-            return Mathf.Abs(distance.X) > range ||
-                   Mathf.Abs(distance.Y) > range;
+            return !Utils.WithinProximityRangeOf(_owner.GetCurrentGridPosition(), referencePos, range);
         }
 
         /// <summary>
@@ -232,7 +221,9 @@ namespace VeilOfAges.Entities
         /// </summary>
         protected bool IsInsideRange(float range, Vector2I referencePos)
         {
-            return !IsOutsideRange(range, referencePos);
+            if (_owner == null) return true;
+
+            return Utils.WithinProximityRangeOf(_owner.GetCurrentGridPosition(), referencePos, range);
         }
 
         /// <summary>

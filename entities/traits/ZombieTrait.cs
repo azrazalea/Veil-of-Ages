@@ -156,6 +156,7 @@ namespace VeilOfAges.Entities.Traits
             {
                 if (entity == _chaseTarget)
                 {
+                    GD.Print("I see you!");
                     // Set entity proximity goal - path calculation will be lazy
                     MyPathfinder.SetEntityProximityGoal(_owner, _chaseTarget, 1);
 
@@ -171,6 +172,7 @@ namespace VeilOfAges.Entities.Traits
             // continue following any existing path we might have
             if (!MyPathfinder.IsGoalReached(_owner) && _chaseTimer > 0)
             {
+                GD.Print("I don't see you!");
                 return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: -2);
             }
 
