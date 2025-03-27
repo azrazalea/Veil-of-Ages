@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.WorldGeneration;
@@ -63,27 +64,22 @@ namespace VeilOfAges
             }
         }
 
-        public float GetTerrainDifficulty(Vector2I from, Vector2I to)
-        {
-            return 1.0f;
-        }
-
         public SensorySystem? GetSensorySystem() => _sensorySystem;
         public EventSystem? GetEventSystem() => _eventSystem;
 
-        // Converts a world position to a grid position
-        public Vector2I WorldToGrid(Vector2 worldPosition)
+        public void PrepareForTick()
         {
-            return Grid.Utils.WorldToGrid(worldPosition);
+            GetSensorySystem()?.PrepareForTick();
+            foreach (var grid in _gridAreas)
+            {
+                if (grid == ActiveGridArea || grid.HasBeings())
+                {
+                    PathFinder.updateAStarGrid(grid);
+                }
+            }
         }
 
-        // Converts a grid position to a world position
-        public Vector2 GridToWorld(Vector2I gridPosition)
-        {
-            return Grid.Utils.GridToWorld(gridPosition);
-        }
-
-        public List<Being> GetEntities()
+        public List<Being> GetBeings()
         {
             var entities = new List<Being>();
             foreach (Node entity in _entitiesContainer?.GetChildren() ?? [])

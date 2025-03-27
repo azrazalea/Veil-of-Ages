@@ -77,7 +77,7 @@ namespace VeilOfAges.Core
             var tasks = new List<Task>();
 
             var world = GetTree().GetFirstNodeInGroup("World") as World;
-            world?.GetSensorySystem()?.PrepareForTick();
+            world?.PrepareForTick();
             // Start thinking tasks for all entities
             foreach (var entity in _entities)
             {

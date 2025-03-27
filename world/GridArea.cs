@@ -30,6 +30,7 @@ namespace VeilOfAges.Grid
         /// Is this the area the player is in currently?
         /// </summary>
         private bool _isPlayerArea = false;
+        private uint _beingNum = 0;
 
         public static Tile WaterTile = new(
             1,
@@ -105,6 +106,11 @@ namespace VeilOfAges.Grid
             _player.Position = Grid.Utils.GridToWorld(playerStartingLocation);
         }
 
+        public bool HasBeings()
+        {
+            return _beingNum > 0;
+        }
+
         public void SetGroundCell(Vector2I groundPos, Tile tile)
         {
             _groundGridSystem.SetCell(groundPos, tile);
@@ -117,6 +123,8 @@ namespace VeilOfAges.Grid
 
         public void AddEntity(Vector2I entityPos, Node2D entity, Vector2I? entitySize = null)
         {
+            if (entity is Being) _beingNum++;
+
             if (entitySize is Vector2I size)
             {
                 for (int x = 0; x < size.X; x++)
@@ -136,6 +144,8 @@ namespace VeilOfAges.Grid
 
         public void RemoveEntity(Vector2I entityPos, Vector2I? entitySize = null)
         {
+            if (EntitiesGridSystem.GetCell(entityPos) is Being) _beingNum--;
+
             if (entitySize is Vector2I size)
             {
                 for (int x = 0; x < size.X; x++)

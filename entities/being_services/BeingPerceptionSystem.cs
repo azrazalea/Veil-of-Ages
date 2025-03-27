@@ -45,12 +45,6 @@ namespace VeilOfAges.Entities.BeingServices
                 }
             }
 
-            // Process Dijkstra maps (no filtering needed - already relevant)
-            foreach (var map in data.DijkstraMaps)
-            {
-                perception.AddDijkstraMap(map);
-            }
-
             // Update memory with current perception
             StorePerceptionInMemory(perception);
 

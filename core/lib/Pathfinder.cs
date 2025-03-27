@@ -2,7 +2,9 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using VeilOfAges.Entities;
+using VeilOfAges.Grid;
 
 namespace VeilOfAges.Core.Lib
 {
@@ -24,6 +26,7 @@ namespace VeilOfAges.Core.Lib
         private uint _lastRecalculationTick = 0;
         private const uint RECALCULATION_COOLDOWN = 5;
         private bool _firstGoalCalculation = false;
+        private static Dictionary<string, AStarGrid2D> AStarGrids = [];
 
         // Current game tick (set by GameController)
         public uint CurrentTick { get; set; } = 0;
@@ -55,6 +58,72 @@ namespace VeilOfAges.Core.Lib
         public bool HasValidPath()
         {
             return !_pathNeedsCalculation && CurrentPath.Count > 0 && PathIndex < CurrentPath.Count;
+        }
+
+        public static void createNewAStarGrid(Area gridArea)
+        {
+            if (Task.CurrentId != null)
+            {
+                GD.PrintErr("Due to thread safety we cannot modify global astar grids inside a Task");
+                return;
+            }
+
+            if (AStarGrids.ContainsKey(gridArea.Name)) return;
+
+            // Create and configure a new AStarGrid2D instance
+            var astar = new AStarGrid2D();
+
+            // Set up the grid dimensions
+            var region = new Rect2I(0, 0, gridArea.GridSize.X, gridArea.GridSize.Y);
+            astar.Region = region;
+
+            // Set cell size to match our grid's tile size
+            astar.CellSize = new Vector2(1, 1); // Use 1x1 for grid coordinates
+
+            // Configure diagonal movement
+            astar.DiagonalMode = AStarGrid2D.DiagonalModeEnum.AtLeastOneWalkable;
+
+            // Initialize the grid
+            astar.Update();
+
+            // Store it
+            GD.Print($"Creating astar grid for {gridArea.Name}");
+            AStarGrids.Add(gridArea.Name, astar);
+        }
+
+        public static void updateAStarGrid(Area gridArea)
+        {
+            if (Task.CurrentId != null)
+            {
+                GD.PrintErr("Due to thread safety we cannot modify global astar grids inside a Task");
+                return;
+            }
+
+            if (!AStarGrids.ContainsKey(gridArea.Name))
+            {
+                GD.Print($"Warning, did not have astar grid for {gridArea.Name}");
+                createNewAStarGrid(gridArea);
+            }
+
+
+            // Mark unwalkable cells as solid
+            var astar = AStarGrids[gridArea.Name];
+            for (int x = 0; x < gridArea.GridSize.X; x++)
+            {
+                for (int y = 0; y < gridArea.GridSize.Y; y++)
+                {
+                    Vector2I pos = new(x, y);
+
+                    if (!gridArea.IsCellWalkable(pos))
+                    {
+                        astar.SetPointSolid(pos, true);
+                    }
+                    else
+                    {
+                        astar.SetPointWeightScale(pos, gridArea.GetTerrainDifficulty(pos));
+                    }
+                }
+            }
         }
 
         // Set a position goal
@@ -211,45 +280,9 @@ namespace VeilOfAges.Core.Lib
 
             try
             {
-                // Create and configure a new AStarGrid2D instance
-                var astar = new AStarGrid2D();
-
-                // Set up the grid dimensions
-                var region = new Rect2I(0, 0, gridArea.GridSize.X, gridArea.GridSize.Y);
-                astar.Region = region;
-
-                // Set cell size to match our grid's tile size
-                astar.CellSize = new Vector2(1, 1); // Use 1x1 for grid coordinates
-
-                // Configure diagonal movement
-                astar.DiagonalMode = AStarGrid2D.DiagonalModeEnum.AtLeastOneWalkable;
-
-                // Initialize the grid
-                astar.Update();
-
-                // Mark unwalkable cells as solid
-                int unwalkableCells = 0;
-                for (int x = 0; x < gridArea.GridSize.X; x++)
-                {
-                    for (int y = 0; y < gridArea.GridSize.Y; y++)
-                    {
-                        Vector2I pos = new(x, y);
-
-                        if (!gridArea.IsCellWalkable(pos))
-                        {
-                            astar.SetPointSolid(pos, true);
-                            unwalkableCells++;
-                        }
-                        else
-                        {
-                            astar.SetPointWeightScale(pos, gridArea.GetTerrainDifficulty(pos));
-                        }
-                    }
-                }
-
                 // Reset current path before calculating new one
                 CurrentPath = [];
-
+                var astar = AStarGrids[gridArea.Name];
                 // Calculate path based on goal type
                 switch (_goalType)
                 {

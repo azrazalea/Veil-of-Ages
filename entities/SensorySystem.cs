@@ -11,14 +11,8 @@ namespace VeilOfAges.Entities.Sensory
         private World _world;
         private SpatialPartitioning _spatialHash;
 
-        // Cached Dijkstra maps shared between entities
-        private Dictionary<DijkstraGoalType, DijkstraMap> _dijkstraMaps = new();
-
         // Cache observation data per frame to avoid recalculating
         private Dictionary<Vector2I, ObservationGrid> _observationCache = new();
-
-        private uint currentDijkstraTick = 0;
-        private uint maxDijkstraTick = 5;
 
         public SensorySystem(World world)
         {
@@ -35,14 +29,11 @@ namespace VeilOfAges.Entities.Sensory
             // Get observation grid for this position and range
             var grid = GetObservationGrid(position, senseRange);
 
-            // Get relevant Dijkstra maps for this entity type
-            var maps = GetRelevantDijkstraMaps(entity);
-
             // Get relevant events in range
             var events = _world?.GetEventSystem()?.GetEventsInRange(position, senseRange) ?? [];
 
             // Return all observation data as read-only
-            return new ObservationData(grid, maps, events);
+            return new ObservationData(grid, events);
         }
 
         private ObservationGrid GetObservationGrid(Vector2I center, uint range)
@@ -69,37 +60,6 @@ namespace VeilOfAges.Entities.Sensory
             return grid;
         }
 
-        // Get appropriate Dijkstra maps for this entity
-        private IReadOnlyList<DijkstraMap> GetRelevantDijkstraMaps(Being entity)
-        {
-            var relevantMaps = new List<DijkstraMap>();
-
-            // // Add maps based on entity traits and needs
-            // if (entity.selfAsEntity().HasTrait<UndeadTrait>() && entity is MindlessZombie)
-            // {
-            //     // Zombies care about living beings (food)
-            //     relevantMaps.Add(GetDijkstraMap(DijkstraGoalType.LivingBeings));
-            // }
-            // else if (!entity.selfAsEntity().HasTrait<UndeadTrait>())
-            // {
-            //     // Living beings might care about safety from undead
-            //     relevantMaps.Add(GetDijkstraMap(DijkstraGoalType.DistanceFromUndead));
-            // }
-
-            return relevantMaps;
-        }
-
-        // Get or create a Dijkstra map
-        private DijkstraMap GetDijkstraMap(DijkstraGoalType goalType)
-        {
-            if (!_dijkstraMaps.TryGetValue(goalType, out var map))
-            {
-                map = new DijkstraMap(_world, goalType);
-                _dijkstraMaps[goalType] = map;
-            }
-            return map;
-        }
-
         // Update all sensory data for this tick
         public void PrepareForTick()
         {
@@ -108,22 +68,10 @@ namespace VeilOfAges.Entities.Sensory
 
             // Update spatial partitioning
             _spatialHash.Clear();
-            foreach (var sensable in _world.GetEntities())
+            foreach (var sensable in _world.GetBeings())
             {
                 _spatialHash.Add(sensable);
             }
-
-            currentDijkstraTick++;
-            // Update Dijkstra maps (not necessarily every tick)
-            if (currentDijkstraTick == maxDijkstraTick)  // Every 5 ticks
-            {
-                foreach (var map in _dijkstraMaps.Values)
-                {
-                    map.Recalculate();
-                }
-            }
-
-            if (currentDijkstraTick >= maxDijkstraTick) currentDijkstraTick = 0;
         }
     }
 }
