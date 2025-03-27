@@ -70,13 +70,6 @@ namespace VeilOfAges
         public void PrepareForTick()
         {
             GetSensorySystem()?.PrepareForTick();
-            foreach (var grid in _gridAreas)
-            {
-                if (grid == ActiveGridArea || grid.HasBeings())
-                {
-                    PathFinder.updateAStarGrid(grid);
-                }
-            }
         }
 
         public List<Being> GetBeings()

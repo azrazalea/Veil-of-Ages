@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
 
 namespace VeilOfAges.Grid
@@ -11,7 +12,8 @@ namespace VeilOfAges.Grid
     public partial class Area(Vector2I worldSize) : Node2D
     {
         [Export] public string AreaName { get; set; } = "Default Area";
-        [Export] public Vector2I GridSize { get; set; } = new(100, 100);
+        public Vector2I GridSize { get; set; } = new(worldSize.X, worldSize.Y);
+        public AStarGrid2D? AStarGrid;
 
         private TileMapLayer? _groundLayer;
         private TileMapLayer? _objectsLayer;
@@ -77,6 +79,7 @@ namespace VeilOfAges.Grid
                 TileSet = tileSet
             };
             _objectsLayer = new TileMapLayer();
+            AStarGrid = PathFinder.CreateNewAStarGrid(this);
         }
 
         public void MakePlayerArea(Player _player, Vector2I playerStartingLocation)
@@ -103,7 +106,7 @@ namespace VeilOfAges.Grid
             // Declare we are active
             _isActive = true;
             _isPlayerArea = true;
-            _player.Position = Grid.Utils.GridToWorld(playerStartingLocation);
+            _player.Position = Utils.GridToWorld(playerStartingLocation);
         }
 
         public bool HasBeings()
@@ -114,6 +117,9 @@ namespace VeilOfAges.Grid
         public void SetGroundCell(Vector2I groundPos, Tile tile)
         {
             _groundGridSystem.SetCell(groundPos, tile);
+
+            AStarGrid?.SetPointSolid(groundPos, !tile.IsWalkable);
+            AStarGrid?.SetPointWeightScale(groundPos, tile.WalkDifficulty);
 
             if (_groundLayer?.Enabled == true)
             {
@@ -131,12 +137,15 @@ namespace VeilOfAges.Grid
                 {
                     for (int y = 0; y < size.Y; y++)
                     {
-                        EntitiesGridSystem.SetCell(new Vector2I(entityPos.X + x, entityPos.Y + y), entity);
+                        var pos = new Vector2I(entityPos.X + x, entityPos.Y + y);
+                        EntitiesGridSystem.SetCell(pos, entity);
+                        AStarGrid?.SetPointSolid(pos, true);
                     }
                 }
             }
             else
             {
+                AStarGrid?.SetPointSolid(entityPos, true);
                 EntitiesGridSystem.SetCell(entityPos, entity);
             }
 
@@ -152,12 +161,15 @@ namespace VeilOfAges.Grid
                 {
                     for (int y = 0; y < size.Y; y++)
                     {
+                        var pos = new Vector2I(entityPos.X + x, entityPos.Y + y);
                         EntitiesGridSystem.RemoveCell(new Vector2I(entityPos.X + x, entityPos.Y + y));
+                        AStarGrid?.SetPointSolid(pos, false);
                     }
                 }
             }
             else
             {
+                AStarGrid?.SetPointSolid(entityPos, false);
                 EntitiesGridSystem.RemoveCell(entityPos);
             }
         }

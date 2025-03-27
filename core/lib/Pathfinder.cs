@@ -28,7 +28,6 @@ namespace VeilOfAges.Core.Lib
         private uint _lastRecalculationTick = 0;
         private const uint RECALCULATION_COOLDOWN = 5;
         private bool _firstGoalCalculation = false;
-        private static Dictionary<string, AStarGrid2D> AStarGrids = [];
 
         // Current game tick (set by GameController)
         public uint CurrentTick { get; set; } = 0;
@@ -62,12 +61,12 @@ namespace VeilOfAges.Core.Lib
             return !_pathNeedsCalculation && CurrentPath.Count > 0 && PathIndex < CurrentPath.Count;
         }
 
-        public static void createNewAStarGrid(Area gridArea)
+        public static AStarGrid2D? CreateNewAStarGrid(Area gridArea)
         {
             if (Task.CurrentId != null)
             {
                 GD.PrintErr("Due to thread safety we cannot modify global astar grids inside a Task");
-                return;
+                return null;
             }
 
             // Create and configure a new AStarGrid2D instance
@@ -91,10 +90,10 @@ namespace VeilOfAges.Core.Lib
 
             // Store it
             GD.Print($"Creating astar grid for {gridArea.Name}");
-            AStarGrids.Add(gridArea.Name, astar);
+            return astar;
         }
 
-        public static void updateAStarGrid(Area gridArea)
+        public static void UpdateAStarGrid(Area gridArea)
         {
             if (Task.CurrentId != null)
             {
@@ -102,16 +101,13 @@ namespace VeilOfAges.Core.Lib
                 return;
             }
 
-            if (!AStarGrids.ContainsKey(gridArea.Name))
+            // Mark unwalkable cells as solid
+            var astar = gridArea.AStarGrid;
+            if (astar == null)
             {
-                GD.Print($"Warning, did not have astar grid for {gridArea.Name}");
-                createNewAStarGrid(gridArea);
+                return;
             }
 
-
-            // Mark unwalkable cells as solid
-            // TODO: Consider integrating astar grid with GridArea so we don't have to do this every tick.
-            var astar = AStarGrids[gridArea.Name];
             astar.Clear();
             var region = new Rect2I(0, 0, gridArea.GridSize.X, gridArea.GridSize.Y);
             astar.Region = region;
@@ -197,14 +193,6 @@ namespace VeilOfAges.Core.Lib
             return result;
         }
 
-        public void ZombiePrint(Being entity, string msg)
-        {
-            if (entity is MindlessZombie)
-            {
-                GD.Print(msg);
-            }
-        }
-
         // Method to follow the current path
         public bool TryFollowPath(Being entity, bool secondTry = false)
         {
@@ -217,19 +205,11 @@ namespace VeilOfAges.Core.Lib
             }
 
             // First check if we've reached the goal directly or entity is currently moving
-            if (IsGoalReached(entity))
+            if (IsGoalReached(entity) || entity.IsMoving())
             {
-                ZombiePrint(entity, "My goal has been reached!");
                 return true;
             }
 
-            if (entity.IsMoving())
-            {
-                ZombiePrint(entity, "I am moving!");
-                return true;
-            }
-
-            ZombiePrint(entity, $"{_firstGoalCalculation} {_pathNeedsCalculation} {_recalculationAttempts} {CurrentTick} {_lastRecalculationTick} {RECALCULATION_COOLDOWN}");
             // Calculate path if needed and not on cooldown
             if (_firstGoalCalculation ||
                 (_pathNeedsCalculation &&
@@ -237,7 +217,6 @@ namespace VeilOfAges.Core.Lib
                   _recalculationAttempts < MAX_RECALCULATION_ATTEMPTS))
             {
                 _firstGoalCalculation = false;
-                ZombiePrint(entity, "Recalculating!");
                 bool success = CalculatePathForCurrentGoal(entity);
                 if (!success)
                 {
@@ -246,7 +225,6 @@ namespace VeilOfAges.Core.Lib
                 }
             }
 
-            ZombiePrint(entity, $"Valid path? {HasValidPath()}");
             // If no valid path, can't follow
             if (!HasValidPath())
             {
@@ -257,7 +235,6 @@ namespace VeilOfAges.Core.Lib
             // This generally happens due to entity targets actively moving
             if (CurrentPath.SequenceEqual([entity.GetCurrentGridPosition()]))
             {
-                ZombiePrint(entity, "Yo I can't move to myself!");
                 _pathNeedsCalculation = true;
                 return true;
             }
@@ -291,15 +268,17 @@ namespace VeilOfAges.Core.Lib
             }
             else
             {
-                GD.PrintErr($"Move failed for {entity.Name} to {nextPos}");
-
                 // Path is blocked, mark for recalculation
                 _pathNeedsCalculation = true;
-                if (!secondTry)
+                if (secondTry)
+                {
+                    GD.PrintErr($"Move failed for {entity.Name} to {nextPos}");
+                    return false;
+                }
+                else
                 {
                     return TryFollowPath(entity, true);
                 }
-                return false;
             }
 
             return moveSuccessful;
@@ -309,7 +288,7 @@ namespace VeilOfAges.Core.Lib
         private bool CalculatePathForCurrentGoal(Being entity)
         {
             var gridArea = entity.GetGridArea();
-            if (gridArea == null)
+            if (gridArea == null || gridArea.AStarGrid == null)
             {
                 GD.PrintErr("CalculatePathForCurrentGoal: GridArea is null");
                 return false;
@@ -322,7 +301,7 @@ namespace VeilOfAges.Core.Lib
             {
                 // Reset current path before calculating new one
                 CurrentPath = [];
-                var astar = AStarGrids[gridArea.Name];
+                var astar = gridArea.AStarGrid;
                 // Calculate path based on goal type
                 switch (_goalType)
                 {
@@ -362,7 +341,6 @@ namespace VeilOfAges.Core.Lib
 
                             if (_targetEntity.IsMoving())
                             {
-                                GD.Print("Target is moving");
                                 _recalculationAttempts = 0;
                                 _pathNeedsCalculation = true;
                                 return true;
@@ -371,7 +349,6 @@ namespace VeilOfAges.Core.Lib
                             // If already within proximity, no path needed
                             if (Utils.WithinProximityRangeOf(startPos, targetPos, _proximityRange))
                             {
-                                GD.Print("We're already here!!!!");
                                 return true;
                             }
 
@@ -389,7 +366,6 @@ namespace VeilOfAges.Core.Lib
                                 {
                                     CurrentPath = [pos];
                                     foundPath = true;
-                                    GD.Print("Only one tile away!");
                                     break;
                                 }
 
