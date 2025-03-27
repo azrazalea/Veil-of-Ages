@@ -1,10 +1,10 @@
-# Veil of Ages
+# Veil of Ages: Whispers of Kalixoria
 
-![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)
+![License: Modified AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)
 ![Godot: 4.4](https://img.shields.io/badge/Godot-4.4-blue)
 ![Status: Early Development](https://img.shields.io/badge/Status-Early%20Development-yellow)
 
-**Veil of Ages** is a 2D necromancy kingdom simulation where you build a realm where the living and undead coexist. 
+**Veil of Ages: _Whispers of Kalixoria_** is a 2D necromancy kingdom simulation where you build a realm where the living and undead coexist. 
 
 ## 🌙 Vision
 
@@ -78,7 +78,7 @@ Veil of Ages is in **early development**. Current focus areas:
 
 ## 📜 License
 
-- **Code**: Licensed under [GNU AGPL-3.0](LICENSE.code.md)
+- **Code**: Licensed under [Modfied GNU AGPL-3.0](LICENSE.code.md) with an exception allowing distribution on commercial game platforms including integration code with them without having to distribute the code of those platforms. All contributors are **required** to release their code contributions under the same license with the exception but are not required to assign copyright to the project owner.
 - **Assets**: The Minifantasy assets are licensed separately and are not redistributable.
 
 ## 🤝 Contributing

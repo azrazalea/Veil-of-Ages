@@ -1,7 +1,7 @@
-# Veil of Ages License
+# Veil of Ages: WHispers of Kalixoria License
 
 ## Code License
-The code for Veil of Ages is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+The code for Veil of Ages: Whispers of Kalixoria is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
 
 The full text of the AGPL-3.0 license can be found in the LICENSE.code.md file.
 

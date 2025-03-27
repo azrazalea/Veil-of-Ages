@@ -1,3 +1,26 @@
+Commercial Platform Exception:
+As a special exception to the AGPLv3, you may:
+
+1. Link this software with proprietary libraries and SDKs including but not limited to Steamworks SDK, Epic Online Services, and similar platform-specific APIs required for distribution on commercial platforms;
+
+2. Distribute this software through commercial game distribution platforms including but not limited to Steam, Epic Games Store, GOG, and similar services without triggering the requirements of Section 13 of the AGPLv3 regarding remote network interaction;
+
+Provided that:
+
+1. The complete corresponding source code for the game itself (excluding proprietary SDKs) remains publicly available in an accessible repository;
+
+2. The original project "Veil of Ages: Whispers of Kalixoria" and its contributors are properly credited within the distributed software;
+
+3. Any modifications to the core game code (excluding platform-specific integration code) are contributed back to the original project under the same license terms;
+
+4. Integration code specifically written to connect the game with proprietary platforms is clearly separated in the codebase and identified as such;
+
+5. Each commercially distributed version includes a clear way for users to identify its corresponding source code version (such as a version number, commit hash, or release tag);
+
+6. No additional terms are imposed that would prevent users from exercising the rights granted by the AGPLv3 for the non-proprietary portions of the code.
+
+This exception does not exempt any other use from the requirements of the AGPLv3.
+
 GNU AFFERO GENERAL PUBLIC LICENSE
                        Version 3, 19 November 2007
 
