@@ -8,7 +8,7 @@ We have adopted the [Contributor Covenant Code of Conduct](https://www.contribut
 
 ## Licensing
 
-Veil of Ages is licensed under the GNU Affero General Public License v3.0 (AGPLv3) with a special Commercial Platform Exception that allows for distribution on commercial platforms and integration with platform-specific SDKs.
+Veil of Ages is licensed under the [GNU Affero General Public License v3.0 (AGPLv3) with a special Commercial Platform Exception](LICENSE.code.md) that allows for distribution on commercial platforms and integration with platform-specific SDKs.
 
 **Important**: By submitting contributions to this project, you agree that your contributions will be licensed under the project's modified AGPLv3 license, including the Commercial Platform Exception. Please make sure you have read and understood the license before contributing.
 
