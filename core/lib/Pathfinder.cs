@@ -8,22 +8,22 @@ namespace VeilOfAges.Core.Lib
 {
     public class PathFinder
     {
+        // Public interface remains the same
         public List<Vector2I> CurrentPath { get; private set; } = [];
-        public int PathIndex { get; private set; } = 0;
+        public int PathIndex { get; private set; } = 1;
         public int MAX_PATH_LENGTH = 100;
 
-        // Add new fields for lazy evaluation
+        // Path state tracking
         private PathGoalType _goalType = PathGoalType.None;
         private Being? _targetEntity = null;
         private Vector2I _targetPosition;
         private int _proximityRange = 1;
-        private bool _pathNeedsCalculation = false;
-
-        // Path state tracking
+        private bool _pathNeedsCalculation = true;
         private int _recalculationAttempts = 0;
         private const int MAX_RECALCULATION_ATTEMPTS = 3;
         private uint _lastRecalculationTick = 0;
         private const uint RECALCULATION_COOLDOWN = 5;
+        private bool _firstGoalCalculation = false;
 
         // Current game tick (set by GameController)
         public uint CurrentTick { get; set; } = 0;
@@ -40,7 +40,7 @@ namespace VeilOfAges.Core.Lib
         public void ClearPath()
         {
             CurrentPath = [];
-            PathIndex = 0;
+            PathIndex = 1;
             _pathNeedsCalculation = true;
         }
 
@@ -48,39 +48,43 @@ namespace VeilOfAges.Core.Lib
         {
             ClearPath();
             _goalType = PathGoalType.None;
+            _firstGoalCalculation = false;
         }
 
-        // New method to check if path is valid
+        // Check if path is valid
         public bool HasValidPath()
         {
             return !_pathNeedsCalculation && CurrentPath.Count > 0 && PathIndex < CurrentPath.Count;
         }
 
-        // New method to set a position goal
+        // Set a position goal
         public void SetPositionGoal(Being entity, Vector2I position)
         {
             _goalType = PathGoalType.Position;
             _targetPosition = position;
+            _firstGoalCalculation = true;
             _pathNeedsCalculation = true;
             _recalculationAttempts = 0;
         }
 
-        // New method to set an entity proximity goal
+        // Set an entity proximity goal
         public void SetEntityProximityGoal(Being entity, Being targetEntity, int proximityRange = 1)
         {
             _goalType = PathGoalType.EntityProximity;
             _targetEntity = targetEntity;
             _proximityRange = proximityRange;
+            _firstGoalCalculation = true;
             _pathNeedsCalculation = true;
             _recalculationAttempts = 0;
         }
 
-        // New method to set an area goal
+        // Set an area goal
         public void SetAreaGoal(Being entity, Vector2I centerPosition, int radius)
         {
             _goalType = PathGoalType.Area;
             _targetPosition = centerPosition;
             _proximityRange = radius;
+            _firstGoalCalculation = true;
             _pathNeedsCalculation = true;
             _recalculationAttempts = 0;
         }
@@ -88,42 +92,76 @@ namespace VeilOfAges.Core.Lib
         // Check if goal is reached
         public bool IsGoalReached(Being entity)
         {
-            // Verify by goal type
-            return _goalType switch
+            if (entity == null) return false;
+
+            Vector2I entityPos = entity.GetCurrentGridPosition();
+            bool result = false;
+
+            switch (_goalType)
             {
-                PathGoalType.None => true,
-                PathGoalType.Position => entity.GetCurrentGridPosition() == _targetPosition,
-                PathGoalType.EntityProximity => _targetEntity != null &&
-                                               entity.GetCurrentGridPosition().DistanceTo(
-                                                   _targetEntity.GetCurrentGridPosition()) <= _proximityRange,
-                PathGoalType.Area => entity.GetCurrentGridPosition().DistanceTo(_targetPosition) <= _proximityRange,
-                _ => false
-            };
+                case PathGoalType.None:
+                    result = true;
+                    break;
+                case PathGoalType.Position:
+                    result = entityPos == _targetPosition;
+                    break;
+                case PathGoalType.EntityProximity:
+                    if (_targetEntity != null)
+                    {
+                        Vector2I targetPos = _targetEntity.GetCurrentGridPosition();
+                        result = entityPos.DistanceTo(targetPos) <= _proximityRange;
+                    }
+                    break;
+                case PathGoalType.Area:
+                    result = entityPos.DistanceTo(_targetPosition) <= _proximityRange;
+                    break;
+            }
+
+            return result;
         }
 
-        // New method for lazy path following with calculation as needed
+        // Method to follow the current path
         public bool TryFollowPath(Being entity, bool secondTry = false)
         {
             CurrentTick++;
 
+            if (entity == null)
+            {
+                GD.PrintErr("TryFollowPath: Entity is null");
+                return false;
+            }
+
             // First check if we've reached the goal directly
             if (IsGoalReached(entity))
+            {
                 return true;
+            }
 
             // Calculate path if needed and not on cooldown
-            if (_pathNeedsCalculation &&
-                CurrentTick - _lastRecalculationTick >= RECALCULATION_COOLDOWN &&
-                _recalculationAttempts < MAX_RECALCULATION_ATTEMPTS)
+            if (_firstGoalCalculation ||
+                (_pathNeedsCalculation &&
+                  CurrentTick - _lastRecalculationTick >= RECALCULATION_COOLDOWN &&
+                  _recalculationAttempts < MAX_RECALCULATION_ATTEMPTS))
             {
-                CalculatePathForCurrentGoal(entity);
+                _firstGoalCalculation = false;
+                bool success = CalculatePathForCurrentGoal(entity);
+                if (!success)
+                {
+                    GD.PrintErr($"Failed to calculate path for {entity.Name} with goal type {_goalType}");
+                    return false;
+                }
             }
 
             // If no valid path, can't follow
             if (!HasValidPath())
+            {
+                GD.PrintErr($"No valid path for {entity.Name} (path length: {CurrentPath.Count}, index: {PathIndex})");
                 return false;
+            }
 
             // Try to move along the path
             Vector2I nextPos = CurrentPath[PathIndex];
+
             bool moveSuccessful = entity.TryMoveToGridPosition(nextPos);
 
             if (moveSuccessful)
@@ -143,6 +181,8 @@ namespace VeilOfAges.Core.Lib
             }
             else
             {
+                GD.PrintErr($"Move failed for {entity.Name} to {nextPos}");
+
                 // Path is blocked, mark for recalculation
                 _pathNeedsCalculation = true;
                 if (!secondTry)
@@ -155,211 +195,257 @@ namespace VeilOfAges.Core.Lib
             return moveSuccessful;
         }
 
-        // Private method to calculate path based on current goal
-        private void CalculatePathForCurrentGoal(Being entity)
+        // Calculate path based on current goal
+        private bool CalculatePathForCurrentGoal(Being entity)
         {
             var gridArea = entity.GetGridArea();
-            if (gridArea == null) return;
+            if (gridArea == null)
+            {
+                GD.PrintErr("CalculatePathForCurrentGoal: GridArea is null");
+                return false;
+            }
 
             Vector2I startPos = entity.GetCurrentGridPosition();
             _lastRecalculationTick = CurrentTick;
             _recalculationAttempts++;
 
-            // Calculate based on goal type
-            switch (_goalType)
+            try
             {
-                case PathGoalType.Position:
-                    // Use existing SetPath method you already have
-                    SetPath(gridArea, startPos, _targetPosition);
-                    break;
+                // Create and configure a new AStarGrid2D instance
+                var astar = new AStarGrid2D();
 
-                case PathGoalType.EntityProximity:
-                    if (_targetEntity != null)
-                    {
-                        // Use existing SetPathToWithinRange method
-                        SetPathToWithinRange(entity, _targetEntity, _proximityRange);
-                    }
-                    break;
+                // Set up the grid dimensions
+                var region = new Rect2I(0, 0, gridArea.GridSize.X, gridArea.GridSize.Y);
+                astar.Region = region;
 
-                case PathGoalType.Area:
-                    // Find a valid position in the area
-                    List<Vector2I> validPositions = GetValidPositionsInArea(_targetPosition, _proximityRange, gridArea);
+                // Set cell size to match our grid's tile size
+                astar.CellSize = new Vector2(1, 1); // Use 1x1 for grid coordinates
 
-                    if (validPositions.Count > 0)
-                    {
-                        // Sort by distance
-                        validPositions.Sort((a, b) =>
-                            startPos.DistanceSquaredTo(a).CompareTo(startPos.DistanceSquaredTo(b)));
+                // Configure diagonal movement
+                astar.DiagonalMode = AStarGrid2D.DiagonalModeEnum.AtLeastOneWalkable;
 
-                        // Try closest positions
-                        foreach (var pos in validPositions)
-                        {
-                            if (SetPath(gridArea, startPos, pos))
-                                break;
-                        }
-                    }
-                    break;
-            }
+                // Initialize the grid
+                astar.Update();
 
-            _pathNeedsCalculation = false; // Mark as calculated
-        }
-
-        // Helper for area goals
-        private List<Vector2I> GetValidPositionsInArea(Vector2I center, int radius, Grid.Area gridArea)
-        {
-            List<Vector2I> positions = [];
-
-            for (int x = -radius; x <= radius; x++)
-            {
-                for (int y = -radius; y <= radius; y++)
+                // Mark unwalkable cells as solid
+                int unwalkableCells = 0;
+                for (int x = 0; x < gridArea.GridSize.X; x++)
                 {
-                    if (x * x + y * y <= radius * radius)
+                    for (int y = 0; y < gridArea.GridSize.Y; y++)
                     {
-                        Vector2I pos = new(center.X + x, center.Y + y);
-                        if (gridArea.IsCellWalkable(pos))
+                        Vector2I pos = new(x, y);
+
+                        // Skip marking the entity's current position as solid - KEY FIX
+                        if (pos == startPos)
+                            continue;
+
+                        // Skip marking the target position as solid if it's our goal
+                        if (_goalType == PathGoalType.Position && pos == _targetPosition)
+                            continue;
+
+                        // Skip marking the target entity's position as solid if it's our goal
+                        if (_goalType == PathGoalType.EntityProximity && _targetEntity != null &&
+                            pos == _targetEntity.GetCurrentGridPosition())
+                            continue;
+
+                        if (!gridArea.IsCellWalkable(pos))
                         {
-                            positions.Add(pos);
+                            astar.SetPointSolid(pos, true);
+                            unwalkableCells++;
                         }
                     }
                 }
-            }
 
-            return positions;
-        }
-        // Finds a path between two points using A* algorithm
-        private bool SetPath(Grid.Area gridArea, Vector2I start, Vector2I target)
-        {
-            PathIndex = 0;
-            // If start and target are the same, return empty path
-            if (start == target)
-            {
+                // Explicitly ensure start position is not solid
+                astar.SetPointSolid(startPos, false);
+
+                // If target position is our goal, ensure it's not solid
+                if (_goalType == PathGoalType.Position)
+                {
+                    astar.SetPointSolid(_targetPosition, false);
+                }
+
+                // Verify that start position is now valid
+                if (!astar.IsInBoundsv(startPos))
+                {
+                    GD.PrintErr($"Start position {startPos} is out of bounds. Grid size: {gridArea.GridSize}");
+                    return false;
+                }
+
+                if (astar.IsPointSolid(startPos))
+                {
+                    GD.PrintErr($"Start position {startPos} is still marked as solid after explicit clearing");
+                    // Try one more time to force it to be not solid
+                    astar.SetPointSolid(startPos, false);
+                }
+
+                // Reset current path before calculating new one
                 CurrentPath = [];
+
+                // Calculate path based on goal type
+                switch (_goalType)
+                {
+                    case PathGoalType.Position:
+                        // Check if target position is in bounds
+                        if (!astar.IsInBoundsv(_targetPosition))
+                        {
+                            GD.PrintErr($"Target position {_targetPosition} is out of bounds");
+                            return false;
+                        }
+
+                        // Ensure target is not solid
+                        astar.SetPointSolid(_targetPosition, false);
+
+                        // If start and target are the same, no path needed
+                        if (startPos == _targetPosition)
+                        {
+                            return true;
+                        }
+
+                        // Get path to specific position
+                        var positionPath = astar.GetIdPath(startPos, _targetPosition);
+
+                        if (positionPath.Count > 0)
+                        {
+                            CurrentPath = positionPath.Cast<Vector2I>().ToList();
+                        }
+                        else
+                        {
+                            GD.PrintErr($"No path found to position {_targetPosition}");
+                            return false;
+                        }
+                        break;
+
+                    case PathGoalType.EntityProximity:
+                        if (_targetEntity != null)
+                        {
+                            Vector2I targetPos = _targetEntity.GetCurrentGridPosition();
+
+                            // Ensure target entity position is not solid
+                            astar.SetPointSolid(targetPos, false);
+
+                            // If already within proximity, no path needed
+                            if (startPos.DistanceTo(targetPos) <= _proximityRange)
+                            {
+                                return true;
+                            }
+
+                            // Find positions around target entity
+                            var proximityPositions = GetPositionsAroundEntity(targetPos, _proximityRange);
+
+                            // Add the target position itself
+                            proximityPositions.Add(targetPos);
+
+                            // Sort by distance to start
+                            proximityPositions.Sort((a, b) =>
+                                startPos.DistanceSquaredTo(a).CompareTo(startPos.DistanceSquaredTo(b)));
+
+                            // Find path to closest walkable position
+                            bool foundProximityPath = false;
+                            foreach (var pos in proximityPositions)
+                            {
+                                if (!astar.IsInBoundsv(pos))
+                                    continue;
+
+                                // Ensure position is not solid for pathfinding
+                                astar.SetPointSolid(pos, false);
+
+                                var proximityPath = astar.GetIdPath(startPos, pos);
+                                if (proximityPath.Count > 0)
+                                {
+                                    CurrentPath = proximityPath.Cast<Vector2I>().ToList();
+                                    foundProximityPath = true;
+                                    break;
+                                }
+                            }
+
+                            if (!foundProximityPath)
+                            {
+                                GD.PrintErr($"No path found to entity {_targetEntity.Name}");
+                                return false;
+                            }
+                        }
+                        else
+                        {
+                            GD.PrintErr("Target entity is null");
+                            return false;
+                        }
+                        break;
+
+                    case PathGoalType.Area:
+                        // If already within area, no path needed
+                        if (startPos.DistanceTo(_targetPosition) <= _proximityRange)
+                        {
+                            return true;
+                        }
+
+                        // Get area positions and ensure they're not solid
+                        var areaPositions = GetValidPositionsInArea(_targetPosition, _proximityRange, gridArea);
+                        foreach (var pos in areaPositions)
+                        {
+                            if (astar.IsInBoundsv(pos))
+                                astar.SetPointSolid(pos, false);
+                        }
+
+                        if (areaPositions.Count > 0)
+                        {
+                            // Sort by distance to start position
+                            areaPositions.Sort((a, b) =>
+                                startPos.DistanceSquaredTo(a).CompareTo(startPos.DistanceSquaredTo(b)));
+
+                            // Try to find path to closest position
+                            bool foundAreaPath = false;
+                            foreach (var pos in areaPositions)
+                            {
+                                var areaPath = astar.GetIdPath(startPos, pos);
+                                if (areaPath.Count > 0)
+                                {
+                                    CurrentPath = areaPath.Cast<Vector2I>().ToList();
+                                    foundAreaPath = true;
+                                    break;
+                                }
+                            }
+
+                            if (!foundAreaPath)
+                            {
+                                GD.PrintErr("No path found to any position in area");
+                                return false;
+                            }
+                        }
+                        else
+                        {
+                            GD.PrintErr("No valid positions found in area");
+                            return false;
+                        }
+                        break;
+                }
+
+                // Limit path length if needed
+                if (CurrentPath.Count > MAX_PATH_LENGTH)
+                {
+                    CurrentPath = CurrentPath.GetRange(0, MAX_PATH_LENGTH);
+                }
+
+                PathIndex = 1;
+                _pathNeedsCalculation = false;
+                return CurrentPath.Count > 0;
+            }
+            catch (Exception e)
+            {
+                GD.PrintErr($"Exception in path calculation: {e.Message}\n{e.StackTrace}");
                 return false;
             }
-
-            // Basic variables for A* algorithm
-            var openSet = new List<Vector2I>();
-            var closedSet = new HashSet<Vector2I>();
-            var cameFrom = new Dictionary<Vector2I, Vector2I>();
-            var gScore = new Dictionary<Vector2I, float>();
-            var fScore = new Dictionary<Vector2I, float>();
-
-            // Initialize with starting position
-            openSet.Add(start);
-            gScore[start] = 0;
-            fScore[start] = HeuristicCost(start, target);
-
-            int iterations = 0;
-
-            while (openSet.Count > 0)
-            {
-                iterations++;
-                if (iterations > MAX_PATH_LENGTH * 2)
-                {
-                    // Safety check to prevent infinite loops
-                    break;
-                }
-
-                // Get the position with the lowest fScore
-                Vector2I current = GetLowestFScore(openSet, fScore);
-
-                // Reached the target
-                if (current == target)
-                {
-                    CurrentPath = ReconstructPath(cameFrom, current);
-                    return true;
-                }
-
-                openSet.Remove(current);
-                closedSet.Add(current);
-
-                // Check all neighbors
-                foreach (var neighbor in GetNeighbors(gridArea, current))
-                {
-                    if (closedSet.Contains(neighbor))
-                        continue;
-
-                    float tentativeGScore = gScore[current] + GetMoveCost(gridArea, current, neighbor);
-
-                    if (!openSet.Contains(neighbor))
-                    {
-                        openSet.Add(neighbor);
-                    }
-                    else if (tentativeGScore >= gScore.GetValueOrDefault(neighbor, float.MaxValue))
-                    {
-                        continue; // Not a better path
-                    }
-
-                    // This path is the best until now, record it
-                    cameFrom[neighbor] = current;
-                    gScore[neighbor] = tentativeGScore;
-                    fScore[neighbor] = tentativeGScore + HeuristicCost(neighbor, target);
-                }
-            }
-
-            // If we get here, no path was found - return fallback path
-            // GD.Print($"No path found from {start} to {target}, using fallback");
-            CurrentPath = CreateFallbackPath(gridArea, start, target);
-            return CurrentPath.Count > 0;
-        }
-
-        // Find a path to a position within a certain range of a target being
-        public void SetPathToWithinRange(Being source, Being target, int range = 1)
-        {
-            if (source.GridArea == null) return; // Why doesn't this fix the null warnings on line 298 and 302?
-
-            var sourcePos = source.GetCurrentGridPosition();
-            var targetPos = target.GetCurrentGridPosition();
-
-            // If already within range, return empty path
-            if (sourcePos.DistanceTo(targetPos) <= range)
-            {
-                CurrentPath = [];
-                return;
-            }
-
-            // Get possible positions around target
-            var possibleEndPositions = GetPositionsAroundEntity(target, range);
-
-            // Find the closest walkable position
-            Vector2I? bestPos = null;
-            float bestDistance = float.MaxValue;
-
-            foreach (var pos in possibleEndPositions)
-            {
-                if (source.GridArea?.IsCellWalkable(pos) == true)
-                {
-                    float dist = sourcePos.DistanceTo(pos);
-                    if (dist < bestDistance)
-                    {
-                        bestDistance = dist;
-                        bestPos = pos;
-                    }
-                }
-            }
-
-            if (source.GridArea == null) return; // Why do I need this down here as well?
-
-            if (bestPos.HasValue)
-            {
-                SetPath(source.GridArea, sourcePos, bestPos.Value);
-                return;
-            }
-
-            // Fallback to direct path if no accessible position found
-            SetPath(source.GridArea, sourcePos, targetPos);
-            return;
         }
 
         // Get positions in a ring around a target
-        private List<Vector2I> GetPositionsAroundEntity(Being entity, int range)
+        private List<Vector2I> GetPositionsAroundEntity(Vector2I center, int range)
         {
             var result = new List<Vector2I>();
-            var center = entity.GetCurrentGridPosition();
 
+            // Add positions in expanding rings
             for (int r = 1; r <= range; r++)
             {
-                // Add positions in a square around the entity
+                // Add positions in a square perimeter
                 for (int x = -r; x <= r; x++)
                 {
                     for (int y = -r; y <= r; y++)
@@ -376,180 +462,28 @@ namespace VeilOfAges.Core.Lib
             return result;
         }
 
-        private Vector2I GetLowestFScore(List<Vector2I> openSet, Dictionary<Vector2I, float> fScore)
+        // Get valid positions within an area
+        private List<Vector2I> GetValidPositionsInArea(Vector2I center, int radius, Grid.Area gridArea)
         {
-            Vector2I lowest = openSet[0];
-            float lowestScore = fScore.GetValueOrDefault(lowest, float.MaxValue);
+            List<Vector2I> positions = [];
 
-            for (int i = 1; i < openSet.Count; i++)
+            for (int x = -radius; x <= radius; x++)
             {
-                float score = fScore.GetValueOrDefault(openSet[i], float.MaxValue);
-                if (score < lowestScore)
+                for (int y = -radius; y <= radius; y++)
                 {
-                    lowest = openSet[i];
-                    lowestScore = score;
-                }
-            }
-
-            return lowest;
-        }
-
-        private List<Vector2I> GetNeighbors(Grid.Area gridArea, Vector2I position)
-        {
-            var neighbors = new List<Vector2I>();
-
-            // Cardinal directions (4-way movement)
-            Vector2I[] directions =
-            {
-                new(1, 0),  // Right
-                new(-1, 0), // Left
-                new(0, 1),  // Down
-                new(0, -1), // Up              
-                new(1, 1),  // Down-Right
-                new(-1, 1), // Down-Left
-                new(1, -1), // Up-Right
-                new(-1, -1) // Up-Left
-            };
-
-            foreach (var dir in directions)
-            {
-                Vector2I neighbor = position + dir;
-
-                // Check if the neighbor is within bounds and walkable
-                if (IsPositionValid(gridArea, neighbor))
-                {
-                    neighbors.Add(neighbor);
-                }
-            }
-
-            return neighbors;
-        }
-
-        private bool IsPositionValid(Grid.Area gridArea, Vector2I position)
-        {
-            // Check if position is within bounds and walkable
-            return position.X >= 0 && position.X < gridArea.GridSize.X &&
-                   position.Y >= 0 && position.Y < gridArea.GridSize.Y &&
-                   gridArea.IsCellWalkable(position);
-        }
-
-        private float GetMoveCost(Grid.Area gridArea, Vector2I from, Vector2I to)
-        {
-            // Base cost (1.0 for cardinal, 1.5 for diagonal)
-            float baseCost = from.X != to.X && from.Y != to.Y ? 1.5f : 1.0f;
-
-            // Get terrain difficulty multiplier (adjust based on your terrain system)
-            float terrainMultiplier;
-
-            // If using Area extension methods for terrain difficulty:
-            try
-            {
-                terrainMultiplier = gridArea.GetTerrainDifficulty(from, to);
-            }
-            catch (Exception)
-            {
-                // Fallback if method not implemented
-                terrainMultiplier = 1.0f;
-            }
-
-            return baseCost * terrainMultiplier;
-        }
-
-        private float HeuristicCost(Vector2I from, Vector2I to)
-        {
-            // Using Manhattan distance as heuristic (works well for 4-way movement)
-            return Math.Abs(to.X - from.X) + Math.Abs(to.Y - from.Y);
-        }
-
-        private List<Vector2I> ReconstructPath(Dictionary<Vector2I, Vector2I> cameFrom, Vector2I current)
-        {
-            var totalPath = new List<Vector2I>
-            {
-                // Add the endpoint
-                current
-            };
-
-            // Reconstruct path by following parent pointers
-            while (cameFrom.ContainsKey(current))
-            {
-                current = cameFrom[current];
-                totalPath.Insert(0, current); // Insert at beginning to reverse
-            }
-
-            // Remove the starting position (we're already there)
-            if (totalPath.Count > 0)
-                totalPath.RemoveAt(0);
-
-            return totalPath;
-        }
-
-        private List<Vector2I> CreateFallbackPath(Grid.Area gridArea, Vector2I start, Vector2I target)
-        {
-            // Create a simple direct path for fallback
-            var path = new List<Vector2I>();
-            var current = start;
-
-            for (int i = 0; i < 20; i++) // Limit iterations to prevent infinite loops
-            {
-                // Move towards target using simple approach
-                int dx = Math.Sign(target.X - current.X);
-                int dy = Math.Sign(target.Y - current.Y);
-
-                // Try to make at least one step in the right direction
-                Vector2I next = current;
-
-                // First try diagonal
-                if (dx != 0 && dy != 0)
-                {
-                    Vector2I diagonalStep = new Vector2I(current.X + dx, current.Y + dy);
-                    if (IsPositionValid(gridArea, diagonalStep))
+                    // Check if position is within circular radius
+                    if (x * x + y * y <= radius * radius)
                     {
-                        next = diagonalStep;
+                        Vector2I pos = new(center.X + x, center.Y + y);
+                        if (gridArea.IsCellWalkable(pos))
+                        {
+                            positions.Add(pos);
+                        }
                     }
                 }
-
-                // Then try horizontal movement
-                if (next == current && dx != 0)
-                {
-                    Vector2I horizontalStep = new(current.X + dx, current.Y);
-                    if (IsPositionValid(gridArea, horizontalStep))
-                    {
-                        next = horizontalStep;
-                    }
-                }
-
-                // If no horizontal movement was possible, try vertical
-                if (next == current && dy != 0)
-                {
-                    Vector2I verticalStep = new(current.X, current.Y + dy);
-                    if (IsPositionValid(gridArea, verticalStep))
-                    {
-                        next = verticalStep;
-                    }
-                }
-
-                // If we couldn't move in any direction, we're stuck
-                if (next == current)
-                    break;
-
-                path.Add(next);
-                current = next;
-
-                // If we reached the target, we're done
-                if (current == target)
-                    break;
             }
 
-            return path;
-        }
-
-        // Debug function to visualize a path (can be called from GDScript)
-        public void DebugPath(List<Vector2I> path)
-        {
-            for (int i = 0; i < path.Count; i++)
-            {
-                GD.Print($"Step {i}: {path[i]}");
-            }
+            return positions;
         }
     }
 }
