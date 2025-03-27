@@ -8,6 +8,8 @@ using System;
 using System.Runtime.CompilerServices;
 using VeilOfAges.UI;
 using VeilOfAges.UI.Commands;
+using VeilOfAges.Entities.Needs;
+using VeilOfAges.Entities.Needs.Strategies;
 
 namespace VeilOfAges.Entities.Traits
 {
@@ -51,6 +53,21 @@ namespace VeilOfAges.Entities.Traits
 
             // Discover buildings in the world
             DiscoverBuildings();
+
+            // Add LivingTrait to handle basic living needs
+            _owner?.selfAsEntity().AddTrait<LivingTrait>(0);
+
+            // Add ConsumptionBehaviorTrait for hunger
+            var consumptionTrait = new ConsumptionBehaviorTrait(
+                "hunger",
+                new FarmSourceIdentifier(),
+                new FarmAcquisitionStrategy(),
+                new FarmConsumptionEffect(),
+                new VillagerCriticalHungerHandler()
+            );
+
+            // Add the consumption trait with a priority just below this trait
+            _owner?.selfAsEntity().AddTrait(consumptionTrait, Priority - 1);
 
             _currentState = VillagerState.IdleAtHome;
             GD.Print($"{_owner?.Name}: Villager trait initialized fully");

@@ -10,7 +10,11 @@ namespace VeilOfAges.Entities.Beings
 
 		public override void _Ready()
 		{
-			selfAsEntity().AddTrait<VillagerTrait>(1);
+			var villagerTrait = new VillagerTrait();
+			villagerTrait.Initialize(this, Health);
+			selfAsEntity().AddTrait(villagerTrait, 1);
+
+
 
 			base._Ready();
 

@@ -10,6 +10,7 @@ using VeilOfAges.UI;
 using VeilOfAges.UI.Commands;
 using VeilOfAges.Entities.BeingServices;
 using VeilOfAges.Core.Lib;
+using VeilOfAges.Entities.Needs;
 
 namespace VeilOfAges.Entities
 {
@@ -71,6 +72,8 @@ namespace VeilOfAges.Entities
         public SortedSet<BeingTrait> _traits { get; protected set; } = [];
         public Dictionary<SenseType, float> DetectionDifficulties { get; protected set; } = [];
         public BeingPerceptionSystem? PerceptionSystem { get; private set; }
+        public BeingNeedsSystem? NeedsSystem { get; protected set; }
+
 
         public override void _Ready()
         {
@@ -81,7 +84,7 @@ namespace VeilOfAges.Entities
             // Initialize all traits
             foreach (var trait in _traits)
             {
-                if (Health != null)
+                if (Health != null && trait.IsInitialized == false)
                 {
                     trait.Initialize(this, Health);
                 }
@@ -105,6 +108,7 @@ namespace VeilOfAges.Entities
             Movement.Initialize(startGridPos);
 
             PerceptionSystem = new BeingPerceptionSystem(this);
+            NeedsSystem = new BeingNeedsSystem(this);
 
             // Set attributes if provided
             Attributes = attributes ?? DefaultAttributes with { };

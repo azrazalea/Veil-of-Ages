@@ -97,7 +97,7 @@ namespace VeilOfAges.WorldGeneration
         private void PlaceVillageBuildings(Vector2I center)
         {
             // Define the building types to place
-            string[] buildingTypes = ["Graveyard", "House", "House"];
+            string[] buildingTypes = ["Farm", "Graveyard", "House", "House"];
 
             // Calculate minimum safe distance from center for building placement
             int minDistanceFromCenter = 15; // Based on largest building size + buffer

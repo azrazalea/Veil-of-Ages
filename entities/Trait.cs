@@ -22,6 +22,8 @@ namespace VeilOfAges.Entities
         /// </summary>
         public virtual void Initialize()
         {
+            if (IsInitialized) return;
+
             _rng.Randomize();
             IsInitialized = true;
         }

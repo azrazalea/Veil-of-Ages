@@ -47,6 +47,7 @@ namespace VeilOfAges.Entities
         /// </summary>
         public virtual void Initialize(Being owner, BodyHealth health)
         {
+            if (IsInitialized) return;
             _owner = owner;
             _rng.Randomize();
             _spawnPosition = _owner.GetCurrentGridPosition();

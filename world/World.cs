@@ -70,6 +70,11 @@ namespace VeilOfAges
         public void PrepareForTick()
         {
             GetSensorySystem()?.PrepareForTick();
+            // Update needs for all beings
+            foreach (var being in GetBeings())
+            {
+                being.NeedsSystem?.UpdateNeeds();
+            }
         }
 
         public List<Being> GetBeings()

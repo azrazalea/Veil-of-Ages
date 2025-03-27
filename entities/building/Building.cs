@@ -32,7 +32,7 @@ public partial class Building : Node2D, IEntity<Trait>
             { "House", new Vector2I(6, 4) },
             { "Blacksmith", new Vector2I(3, 2) },
             { "Tavern", new Vector2I(3, 3) },
-            { "Farm", new Vector2I(3, 2) },
+            { "Farm", new Vector2I(4, 3) },
             { "Well", new Vector2I(1, 1) },
             { "Graveyard", new Vector2I(14, 8) },
             { "Church", new Vector2I(9, 8) }
@@ -42,6 +42,7 @@ public partial class Building : Node2D, IEntity<Trait>
     {
         { "House", new Vector2I(3, 4) },
         { "Graveyard", new Vector2I(5, 8) },
+        { "Farm", new Vector2I(2, 3) },
         { "Church", new Vector2I(4, 8) },
     };
 
