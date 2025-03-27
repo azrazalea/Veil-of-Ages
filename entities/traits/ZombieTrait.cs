@@ -1,3 +1,4 @@
+using System.Linq;
 using Godot;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Beings;
@@ -156,10 +157,11 @@ namespace VeilOfAges.Entities.Traits
             {
                 if (entity == _chaseTarget)
                 {
-                    GD.Print("I see you!");
+
                     // Set entity proximity goal - path calculation will be lazy
                     MyPathfinder.SetEntityProximityGoal(_owner, _chaseTarget, 1);
-
+                    string pathStr = string.Join(" -> ", MyPathfinder.CurrentPath.Select(p => p.ToString()));
+                    GD.Print($"Path: {pathStr}");
                     // Reset chase timer since we can still see the target
                     _chaseTimer = LoseInterestTime;
 

@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using VeilOfAges.Entities;
+using VeilOfAges.Entities.Beings;
 using VeilOfAges.Grid;
 
 namespace VeilOfAges.Core.Lib
@@ -69,8 +70,6 @@ namespace VeilOfAges.Core.Lib
                 return;
             }
 
-            if (AStarGrids.ContainsKey(gridArea.Name)) return;
-
             // Create and configure a new AStarGrid2D instance
             var astar = new AStarGrid2D();
 
@@ -82,7 +81,10 @@ namespace VeilOfAges.Core.Lib
             astar.CellSize = new Vector2(1, 1); // Use 1x1 for grid coordinates
 
             // Configure diagonal movement
-            astar.DiagonalMode = AStarGrid2D.DiagonalModeEnum.AtLeastOneWalkable;
+            astar.DiagonalMode = AStarGrid2D.DiagonalModeEnum.OnlyIfNoObstacles;
+
+            astar.DefaultComputeHeuristic = AStarGrid2D.Heuristic.Octile;
+            astar.DefaultEstimateHeuristic = AStarGrid2D.Heuristic.Octile;
 
             // Initialize the grid
             astar.Update();
@@ -108,7 +110,12 @@ namespace VeilOfAges.Core.Lib
 
 
             // Mark unwalkable cells as solid
+            // TODO: Consider integrating astar grid with GridArea so we don't have to do this every tick.
             var astar = AStarGrids[gridArea.Name];
+            astar.Clear();
+            var region = new Rect2I(0, 0, gridArea.GridSize.X, gridArea.GridSize.Y);
+            astar.Region = region;
+            astar.Update();
             for (int x = 0; x < gridArea.GridSize.X; x++)
             {
                 for (int y = 0; y < gridArea.GridSize.Y; y++)
@@ -190,6 +197,14 @@ namespace VeilOfAges.Core.Lib
             return result;
         }
 
+        public void ZombiePrint(Being entity, string msg)
+        {
+            if (entity is MindlessZombie)
+            {
+                GD.Print(msg);
+            }
+        }
+
         // Method to follow the current path
         public bool TryFollowPath(Being entity, bool secondTry = false)
         {
@@ -202,11 +217,19 @@ namespace VeilOfAges.Core.Lib
             }
 
             // First check if we've reached the goal directly or entity is currently moving
-            if (IsGoalReached(entity) || entity.IsMoving())
+            if (IsGoalReached(entity))
             {
+                ZombiePrint(entity, "My goal has been reached!");
                 return true;
             }
 
+            if (entity.IsMoving())
+            {
+                ZombiePrint(entity, "I am moving!");
+                return true;
+            }
+
+            ZombiePrint(entity, $"{_firstGoalCalculation} {_pathNeedsCalculation} {_recalculationAttempts} {CurrentTick} {_lastRecalculationTick} {RECALCULATION_COOLDOWN}");
             // Calculate path if needed and not on cooldown
             if (_firstGoalCalculation ||
                 (_pathNeedsCalculation &&
@@ -214,6 +237,7 @@ namespace VeilOfAges.Core.Lib
                   _recalculationAttempts < MAX_RECALCULATION_ATTEMPTS))
             {
                 _firstGoalCalculation = false;
+                ZombiePrint(entity, "Recalculating!");
                 bool success = CalculatePathForCurrentGoal(entity);
                 if (!success)
                 {
@@ -222,6 +246,7 @@ namespace VeilOfAges.Core.Lib
                 }
             }
 
+            ZombiePrint(entity, $"Valid path? {HasValidPath()}");
             // If no valid path, can't follow
             if (!HasValidPath())
             {
@@ -232,6 +257,7 @@ namespace VeilOfAges.Core.Lib
             // This generally happens due to entity targets actively moving
             if (CurrentPath.SequenceEqual([entity.GetCurrentGridPosition()]))
             {
+                ZombiePrint(entity, "Yo I can't move to myself!");
                 _pathNeedsCalculation = true;
                 return true;
             }
@@ -290,7 +316,6 @@ namespace VeilOfAges.Core.Lib
             }
 
             Vector2I startPos = entity.GetCurrentGridPosition();
-            _lastRecalculationTick = CurrentTick;
             _recalculationAttempts++;
 
             try
@@ -335,10 +360,18 @@ namespace VeilOfAges.Core.Lib
                         {
                             Vector2I targetPos = _targetEntity.GetCurrentGridPosition();
 
+                            if (_targetEntity.IsMoving())
+                            {
+                                GD.Print("Target is moving");
+                                _recalculationAttempts = 0;
+                                _pathNeedsCalculation = true;
+                                return true;
+                            }
 
                             // If already within proximity, no path needed
-                            if (Utils.WithinProximityRangeOf(startPos, targetPos, _proximityRange) || _targetEntity.IsMoving())
+                            if (Utils.WithinProximityRangeOf(startPos, targetPos, _proximityRange))
                             {
+                                GD.Print("We're already here!!!!");
                                 return true;
                             }
 
@@ -356,6 +389,7 @@ namespace VeilOfAges.Core.Lib
                                 {
                                     CurrentPath = [pos];
                                     foundPath = true;
+                                    GD.Print("Only one tile away!");
                                     break;
                                 }
 
@@ -432,6 +466,7 @@ namespace VeilOfAges.Core.Lib
 
                 PathIndex = 0;
                 _pathNeedsCalculation = false;
+                _lastRecalculationTick = CurrentTick;
                 return CurrentPath.Count > 0;
             }
             catch (Exception e)
