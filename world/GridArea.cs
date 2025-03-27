@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
@@ -33,6 +34,7 @@ namespace VeilOfAges.Grid
         /// </summary>
         private bool _isPlayerArea = false;
         private uint _beingNum = 0;
+        public List<Node2D> Entities { get; private set; } = [];
 
         public static Tile WaterTile = new(
             1,
@@ -131,6 +133,8 @@ namespace VeilOfAges.Grid
         {
             if (entity is Being) _beingNum++;
 
+            Entities.Add(entity);
+
             if (entitySize is Vector2I size)
             {
                 for (int x = 0; x < size.X; x++)
@@ -153,7 +157,12 @@ namespace VeilOfAges.Grid
 
         public void RemoveEntity(Vector2I entityPos, Vector2I? entitySize = null)
         {
-            if (EntitiesGridSystem.GetCell(entityPos) is Being) _beingNum--;
+            var foundEntity = EntitiesGridSystem.GetCell(entityPos);
+
+            if (foundEntity == null) return; // No actual entity
+
+            if (foundEntity is Being) _beingNum--;
+            Entities.Remove(foundEntity);
 
             if (entitySize is Vector2I size)
             {

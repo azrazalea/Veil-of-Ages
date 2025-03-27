@@ -54,8 +54,12 @@ namespace VeilOfAges.Entities.Traits
             // Discover buildings in the world
             DiscoverBuildings();
 
+            if (owner == null || owner?.Health == null) return;
+
             // Add LivingTrait to handle basic living needs
-            _owner?.selfAsEntity().AddTrait<LivingTrait>(0);
+            var livingTrait = new LivingTrait();
+            livingTrait.Initialize(owner, owner.Health);
+            _owner?.selfAsEntity().AddTrait(livingTrait, 0);
 
             // Add ConsumptionBehaviorTrait for hunger
             var consumptionTrait = new ConsumptionBehaviorTrait(
@@ -65,6 +69,8 @@ namespace VeilOfAges.Entities.Traits
                 new FarmConsumptionEffect(),
                 new VillagerCriticalHungerHandler()
             );
+
+            consumptionTrait.Initialize(owner, owner.Health);
 
             // Add the consumption trait with a priority just below this trait
             _owner?.selfAsEntity().AddTrait(consumptionTrait, Priority - 1);

@@ -14,7 +14,7 @@ namespace VeilOfAges.Entities.Traits
             var needsSystem = owner.NeedsSystem;
             if (needsSystem != null)
             {
-                var hunger = new Need("hunger", "Hunger", 75f, 5f, 15f, 40f, 90f);
+                var hunger = new Need("hunger", "Hunger", 75f, 0.05f, 15f, 40f, 90f);
                 needsSystem.AddNeed(hunger);
             }
 

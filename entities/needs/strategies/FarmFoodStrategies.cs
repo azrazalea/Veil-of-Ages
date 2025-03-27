@@ -10,12 +10,9 @@ namespace VeilOfAges.Entities.Needs.Strategies
     {
         public Building? IdentifyFoodSource(Being owner, Perception perception)
         {
-            // Look for farms in the world
-            var world = owner.GetTree().GetFirstNodeInGroup("World") as World;
-            if (world == null) return null;
+            if (owner?.GridArea == null) return null;
 
-            var entitiesNode = world.GetNode<Node2D>("Entities");
-            foreach (Node child in entitiesNode.GetChildren())
+            foreach (Node child in owner.GridArea.Entities)
             {
                 if (child is Building building && building.BuildingType == "Farm")
                 {
