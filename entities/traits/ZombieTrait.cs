@@ -180,13 +180,7 @@ namespace VeilOfAges.Entities.Traits
 
         private bool IsOutsideChaseRange()
         {
-            if (_owner == null) return true;
-
-            Vector2I currentPos = _owner.GetCurrentGridPosition();
-            Vector2I distanceFromSpawn = currentPos - _spawnPosition;
-
-            return Mathf.Abs(distanceFromSpawn.X) > ChaseRange ||
-                   Mathf.Abs(distanceFromSpawn.Y) > ChaseRange;
+            return IsOutsideSpawnRange(ChaseRange);
         }
 
         private void PlayZombieGroan()

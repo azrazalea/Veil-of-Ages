@@ -235,48 +235,16 @@ namespace VeilOfAges.Core.Lib
                     {
                         Vector2I pos = new(x, y);
 
-                        // Skip marking the entity's current position as solid - KEY FIX
-                        if (pos == startPos)
-                            continue;
-
-                        // Skip marking the target position as solid if it's our goal
-                        if (_goalType == PathGoalType.Position && pos == _targetPosition)
-                            continue;
-
-                        // Skip marking the target entity's position as solid if it's our goal
-                        if (_goalType == PathGoalType.EntityProximity && _targetEntity != null &&
-                            pos == _targetEntity.GetCurrentGridPosition())
-                            continue;
-
                         if (!gridArea.IsCellWalkable(pos))
                         {
                             astar.SetPointSolid(pos, true);
                             unwalkableCells++;
                         }
+                        else
+                        {
+                            astar.SetPointWeightScale(pos, gridArea.GetTerrainDifficulty(pos));
+                        }
                     }
-                }
-
-                // Explicitly ensure start position is not solid
-                astar.SetPointSolid(startPos, false);
-
-                // If target position is our goal, ensure it's not solid
-                if (_goalType == PathGoalType.Position)
-                {
-                    astar.SetPointSolid(_targetPosition, false);
-                }
-
-                // Verify that start position is now valid
-                if (!astar.IsInBoundsv(startPos))
-                {
-                    GD.PrintErr($"Start position {startPos} is out of bounds. Grid size: {gridArea.GridSize}");
-                    return false;
-                }
-
-                if (astar.IsPointSolid(startPos))
-                {
-                    GD.PrintErr($"Start position {startPos} is still marked as solid after explicit clearing");
-                    // Try one more time to force it to be not solid
-                    astar.SetPointSolid(startPos, false);
                 }
 
                 // Reset current path before calculating new one
@@ -293,9 +261,6 @@ namespace VeilOfAges.Core.Lib
                             return false;
                         }
 
-                        // Ensure target is not solid
-                        astar.SetPointSolid(_targetPosition, false);
-
                         // If start and target are the same, no path needed
                         if (startPos == _targetPosition)
                         {
@@ -303,7 +268,7 @@ namespace VeilOfAges.Core.Lib
                         }
 
                         // Get path to specific position
-                        var positionPath = astar.GetIdPath(startPos, _targetPosition);
+                        var positionPath = astar.GetIdPath(startPos, _targetPosition, true);
 
                         if (positionPath.Count > 0)
                         {
@@ -320,9 +285,6 @@ namespace VeilOfAges.Core.Lib
                         if (_targetEntity != null)
                         {
                             Vector2I targetPos = _targetEntity.GetCurrentGridPosition();
-
-                            // Ensure target entity position is not solid
-                            astar.SetPointSolid(targetPos, false);
 
                             // If already within proximity, no path needed
                             if (startPos.DistanceTo(targetPos) <= _proximityRange)
@@ -347,10 +309,7 @@ namespace VeilOfAges.Core.Lib
                                 if (!astar.IsInBoundsv(pos))
                                     continue;
 
-                                // Ensure position is not solid for pathfinding
-                                astar.SetPointSolid(pos, false);
-
-                                var proximityPath = astar.GetIdPath(startPos, pos);
+                                var proximityPath = astar.GetIdPath(startPos, pos, true);
                                 if (proximityPath.Count > 0)
                                 {
                                     CurrentPath = proximityPath.Cast<Vector2I>().ToList();
@@ -381,11 +340,6 @@ namespace VeilOfAges.Core.Lib
 
                         // Get area positions and ensure they're not solid
                         var areaPositions = GetValidPositionsInArea(_targetPosition, _proximityRange, gridArea);
-                        foreach (var pos in areaPositions)
-                        {
-                            if (astar.IsInBoundsv(pos))
-                                astar.SetPointSolid(pos, false);
-                        }
 
                         if (areaPositions.Count > 0)
                         {
@@ -397,7 +351,7 @@ namespace VeilOfAges.Core.Lib
                             bool foundAreaPath = false;
                             foreach (var pos in areaPositions)
                             {
-                                var areaPath = astar.GetIdPath(startPos, pos);
+                                var areaPath = astar.GetIdPath(startPos, pos, true);
                                 if (areaPath.Count > 0)
                                 {
                                     CurrentPath = areaPath.Cast<Vector2I>().ToList();
