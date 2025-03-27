@@ -130,11 +130,6 @@ namespace VeilOfAges.Core.Lib
         // Set a position goal
         public void SetPositionGoal(Being entity, Vector2I position)
         {
-            // If this is already our goal
-            if (_goalType == PathGoalType.Position && _targetPosition == position)
-            {
-                return;
-            }
             _goalType = PathGoalType.Position;
             _targetPosition = position;
             _firstGoalCalculation = true;
@@ -145,11 +140,6 @@ namespace VeilOfAges.Core.Lib
         // Set an entity proximity goal
         public void SetEntityProximityGoal(Being entity, Being targetEntity, int proximityRange = 1)
         {
-            // If this is already our goal
-            if (_goalType == PathGoalType.EntityProximity && _targetEntity == targetEntity && _proximityRange == proximityRange)
-            {
-                return;
-            }
             _goalType = PathGoalType.EntityProximity;
             _targetEntity = targetEntity;
             _proximityRange = proximityRange;
@@ -161,12 +151,6 @@ namespace VeilOfAges.Core.Lib
         // Set an area goal
         public void SetAreaGoal(Being entity, Vector2I centerPosition, int radius)
         {
-            // If this is already our goal
-            if (_goalType == PathGoalType.Area && _targetPosition == centerPosition && _proximityRange == radius)
-            {
-                return;
-            }
-
             _goalType = PathGoalType.Area;
             _targetPosition = centerPosition;
             _proximityRange = radius;
@@ -244,8 +228,8 @@ namespace VeilOfAges.Core.Lib
                 return false;
             }
 
-            // // Our path is actually just to path to our own square
-            // // This generally happens due to entity targets actively moving
+            // Our path is actually just to path to our own square
+            // This generally happens due to entity targets actively moving
             if (CurrentPath.SequenceEqual([entity.GetCurrentGridPosition()]))
             {
                 _pathNeedsCalculation = true;
@@ -328,6 +312,7 @@ namespace VeilOfAges.Core.Lib
                         // If start and target are the same, no path needed
                         if (startPos == _targetPosition)
                         {
+                            GD.Print("Target and start are same");
                             return true;
                         }
 
@@ -350,18 +335,40 @@ namespace VeilOfAges.Core.Lib
                         {
                             Vector2I targetPos = _targetEntity.GetCurrentGridPosition();
 
+
                             // If already within proximity, no path needed
-                            if (Utils.WithinProximityRangeOf(startPos, targetPos, _proximityRange))
+                            if (Utils.WithinProximityRangeOf(startPos, targetPos, _proximityRange) || _targetEntity.IsMoving())
                             {
                                 return true;
                             }
 
-                            var proximityPath = astar.GetIdPath(startPos, targetPos, true);
-                            if (proximityPath.Count > 0)
+                            var adjacentPositions = GetPositionsAroundEntity(targetPos, 1);
+                            var walkablePositions = adjacentPositions
+                                .Where(pos => astar.IsInBoundsv(pos) && !astar.IsPointSolid(pos))
+                                .ToList();
+
+                            // Try to find path to any walkable position around target
+                            bool foundPath = false;
+                            foreach (var pos in walkablePositions)
                             {
-                                CurrentPath = proximityPath.Cast<Vector2I>().ToList();
+                                // We're only 1 tile away
+                                if (startPos.DistanceSquaredTo(pos) <= 2)
+                                {
+                                    CurrentPath = [pos];
+                                    foundPath = true;
+                                    break;
+                                }
+
+                                var path = astar.GetIdPath(startPos, pos, true);
+                                if (path.Count > 0)
+                                {
+                                    CurrentPath = path.Cast<Vector2I>().ToList();
+                                    foundPath = true;
+                                    break;
+                                }
                             }
-                            else
+
+                            if (!foundPath)
                             {
                                 GD.PrintErr($"No path found to entity {_targetEntity.Name}");
                                 return false;
@@ -382,6 +389,7 @@ namespace VeilOfAges.Core.Lib
 
                         // Get area positions and ensure they're not solid
                         var areaPositions = GetValidPositionsInArea(_targetPosition, _proximityRange, gridArea);
+
 
                         if (areaPositions.Count > 0)
                         {
@@ -436,23 +444,24 @@ namespace VeilOfAges.Core.Lib
         // Get positions in a ring around a target
         private List<Vector2I> GetPositionsAroundEntity(Vector2I center, int range)
         {
-            var result = new List<Vector2I>();
-
-            // Add positions in expanding rings
-            for (int r = 1; r <= range; r++)
+            var result = new List<Vector2I>
             {
-                // Add positions in a square perimeter
-                for (int x = -r; x <= r; x++)
-                {
-                    for (int y = -r; y <= r; y++)
-                    {
-                        // Only add positions at exactly distance r (creates a ring)
-                        if (Math.Abs(x) == r || Math.Abs(y) == r)
-                        {
-                            result.Add(new Vector2I(center.X + x, center.Y + y));
-                        }
-                    }
-                }
+                // Add positions in cardinal directions first (more natural movement)
+                new(center.X + 1, center.Y),
+                new(center.X - 1, center.Y),
+                new(center.X, center.Y + 1),
+                new(center.X, center.Y - 1)
+            };
+
+            // Then add diagonals if needed
+            if (range > 1)
+            {
+                result.AddRange([
+                    new Vector2I(center.X + 1, center.Y + 1),
+                    new Vector2I(center.X - 1, center.Y + 1),
+                    new Vector2I(center.X + 1, center.Y - 1),
+                    new Vector2I(center.X - 1, center.Y - 1)
+                ]);
             }
 
             return result;

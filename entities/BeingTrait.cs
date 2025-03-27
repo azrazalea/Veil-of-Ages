@@ -153,28 +153,36 @@ namespace VeilOfAges.Entities
             // Pick a random direction
             int randomDir = _rng.RandiRange(0, 7);
             Vector2I newDirection = Vector2I.Zero;
-
-            switch (randomDir)
-            {
-                case 0: newDirection = Vector2I.Right; break;
-                case 1: newDirection = Vector2I.Left; break;
-                case 2: newDirection = Vector2I.Down; break;
-                case 3: newDirection = Vector2I.Up; break;
-                case 4: newDirection = Vector2I.Left + Vector2I.Up; break;
-                case 5: newDirection = Vector2I.Left + Vector2I.Down; break;
-                case 6: newDirection = Vector2I.Right + Vector2I.Up; break;
-                case 7: newDirection = Vector2I.Right + Vector2I.Down; break;
-            }
-
-            // Calculate target grid position
             Vector2I currentPos = _owner.GetCurrentGridPosition();
-            Vector2I targetGridPos = currentPos + newDirection;
+            Vector2I targetGridPos;
+            var attempts = 0;
+            var maxAttempts = 7;
+
+            do
+            {
+                switch (randomDir)
+                {
+                    case 0: newDirection = Vector2I.Right; break;
+                    case 1: newDirection = Vector2I.Left; break;
+                    case 2: newDirection = Vector2I.Down; break;
+                    case 3: newDirection = Vector2I.Up; break;
+                    case 4: newDirection = Vector2I.Left + Vector2I.Up; break;
+                    case 5: newDirection = Vector2I.Left + Vector2I.Down; break;
+                    case 6: newDirection = Vector2I.Right + Vector2I.Up; break;
+                    case 7: newDirection = Vector2I.Right + Vector2I.Down; break;
+                }
+
+                targetGridPos = currentPos + newDirection;
+                attempts++;
+            } while (_owner?.GridArea?.IsCellWalkable(targetGridPos) != true && attempts < maxAttempts);
 
             // Check if the target position is within wander range
             if (IsOutsideRange(wanderRange, _spawnPosition))
             {
                 return MoveToPosition(_spawnPosition, priority);
             }
+
+            if (_owner == null) return null;
 
             // Just use a simple move action for adjacent positions
             return new MoveAction(_owner, this, targetGridPos, priority);
