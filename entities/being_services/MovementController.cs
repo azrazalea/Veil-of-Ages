@@ -1,7 +1,6 @@
 using Godot;
 using System;
 using VeilOfAges.Core.Lib;
-using VeilOfAges.Entities.Beings;
 using VeilOfAges.Grid;
 
 namespace VeilOfAges.Entities.BeingServices
@@ -17,19 +16,20 @@ namespace VeilOfAges.Entities.BeingServices
         private Vector2 _direction = Vector2.Zero;
         private Vector2I _currentGridPos;
 
-        // Movement timing
-        private uint _baseMoveTicks = 4; // Default value, will be overridden by owner
-        private uint _currentBaseMoveTicks;
-        private uint _remainingMoveTicks = 0;
+        // Movement points system
+        private float _movementPointsPerTick; // Points gained per tick
+        private float _movementPointsAccumulator = 0f; // Accumulated movement points
+
+        // Visual movement tracking
         private bool _isMoving = false;
+        private float _currentMoveCost = 0f; // Total cost of current move
 
         public PathFinder MyPathfinder { get; set; } = new PathFinder();
 
-        public MovementController(Being owner, uint baseMoveTicks = 4)
+        public MovementController(Being owner, float movementPointsPerTick = 0.3f)
         {
             _owner = owner;
-            _baseMoveTicks = baseMoveTicks;
-            _currentBaseMoveTicks = _baseMoveTicks;
+            _movementPointsPerTick = movementPointsPerTick;
 
             // Get the animated sprite reference from the owner
             _animatedSprite = _owner.GetNode<AnimatedSprite2D>("AnimatedSprite2D");
@@ -47,84 +47,99 @@ namespace VeilOfAges.Entities.BeingServices
             _owner.GetGridArea()?.AddEntity(_currentGridPos, _owner);
         }
 
-        // Try to move to a specific grid position
-        public bool TryMoveToGridPosition(Vector2I targetGridPos)
-        {
-            // Check we are only moving one distance at a time
-            float distanceTo = _currentGridPos.DistanceSquaredTo(targetGridPos);
-            if (distanceTo == 2)
-            {
-                distanceTo = 1.5f; // normalize cost to a distinct value 
-            }
-            else if (distanceTo > 2)
-            {
-                return false; // We are trying to move too far in one step
-            }
-
-            // Check if the target cell is free
-            var gridArea = _owner.GridArea;
-            if (gridArea != null && gridArea.IsCellWalkable(targetGridPos))
-            {
-                // Average terrain difficultly between source and destination cell
-                var difficulty = (gridArea.GetTerrainDifficulty(targetGridPos) +
-                                  gridArea.GetTerrainDifficulty(_currentGridPos)) / 2;
-
-                // Free the current cell
-                gridArea.RemoveEntity(_currentGridPos);
-
-                // Update current grid position
-                _currentGridPos = targetGridPos;
-
-                // Mark new cell as occupied
-                gridArea.AddEntity(_currentGridPos, _owner);
-
-                // Start moving
-                _startPosition = _owner.Position;
-                _targetPosition = Utils.GridToWorld(_currentGridPos);
-                // This should calculate via difficulty and account for higher cost for diagonal movement
-                _remainingMoveTicks = (uint)float.Round(_baseMoveTicks * distanceTo * difficulty);
-                _currentBaseMoveTicks = _remainingMoveTicks;
-                _isMoving = true;
-
-                // Update direction for animation
-                _direction = (_targetPosition - _startPosition).Normalized();
-
-                // Handle animation and facing direction
-                UpdateAnimation();
-
-                return true;
-            }
-
-            return false;
-        }
-
         // Process movement progress for this tick
         public void ProcessMovementTick()
         {
-            if (_isMoving && _remainingMoveTicks > 0)
+            // Only accumulate points and update movement if we're moving
+            if (_isMoving)
             {
-                _remainingMoveTicks--;
+                // Add movement points for this tick
+                _movementPointsAccumulator += _movementPointsPerTick;
 
-                // Calculate movement progress
-                float progress = 1.0f - (_remainingMoveTicks / (float)_currentBaseMoveTicks);
+                // Calculate movement progress (0.0 to 1.0)
+                float progress = Math.Min(1.0f, _movementPointsAccumulator / _currentMoveCost);
 
                 // Update position based on interpolation
                 _owner.Position = _startPosition.Lerp(_targetPosition, progress);
 
                 // Check if movement is complete
-                if (_remainingMoveTicks <= 0)
-                {
-                    _owner.Position = _targetPosition; // Ensure exact position
-                    _isMoving = false;
-                    _currentBaseMoveTicks = _baseMoveTicks;
-
-                    // If no direction, play idle animation
-                    if (_direction == Vector2.Zero)
-                    {
-                        UpdateAnimation();
-                    }
-                }
+                if (_movementPointsAccumulator >= _currentMoveCost) CompleteMove();
             }
+        }
+
+        // Try to move to a specific grid position
+        public bool TryMoveToGridPosition(Vector2I targetGridPos)
+        {
+            // Already moving, can't start another move
+            if (_isMoving)
+                return false;
+
+            // Check we are only moving one distance at a time
+            float distanceSquared = _currentGridPos.DistanceSquaredTo(targetGridPos);
+
+            // Determine movement cost based on distance
+            float movementCost;
+            if (distanceSquared <= 1) // Cardinal direction (up, down, left, right)
+                movementCost = 1.0f;
+            else if (distanceSquared <= 2) // Diagonal movement
+                movementCost = 1.414f; // √2 for diagonal
+            else
+                return false; // We are trying to move too far in one step
+
+            // Get grid area and check if target cell is walkable
+            var gridArea = _owner.GridArea;
+            if (gridArea == null || !gridArea.IsCellWalkable(targetGridPos))
+                return false;
+
+            // Apply terrain difficulty modifier
+            float terrainDifficulty = (gridArea.GetTerrainDifficulty(targetGridPos) +
+                                      gridArea.GetTerrainDifficulty(_currentGridPos)) / 2;
+
+            // Calculate total movement cost
+            float totalCost = movementCost * terrainDifficulty;
+
+            // Store the movement cost
+            _currentMoveCost = totalCost;
+
+            // IMPORTANT: Update grid immediately
+            // Remove from current cell first
+            gridArea.RemoveEntity(_currentGridPos);
+
+            // Update current grid position
+            _currentGridPos = targetGridPos;
+
+            // Add to new cell
+            gridArea.AddEntity(_currentGridPos, _owner);
+
+            // Start moving visually
+            _startPosition = _owner.Position;
+            _targetPosition = Utils.GridToWorld(_currentGridPos);
+            _isMoving = true;
+
+            // Update direction for animation
+            _direction = (_targetPosition - _startPosition).Normalized();
+
+            // Handle animation
+            UpdateAnimation();
+
+            // Check if we can complete the move instantly
+            if (_movementPointsAccumulator >= _currentMoveCost) CompleteMove();
+            return true;
+        }
+
+        private void CompleteMove()
+        {
+            // Ensure exact position
+            _owner.Position = _targetPosition;
+
+            // Consume exactly the required points
+            _movementPointsAccumulator -= _currentMoveCost;
+
+            // End movement
+            _isMoving = false;
+
+            // Update animation
+            UpdateAnimation();
         }
 
         // Update the animation based on movement state
@@ -149,12 +164,10 @@ namespace VeilOfAges.Entities.BeingServices
             return MyPathfinder;
         }
 
-        // Set the base movement speed
-        public void SetBaseMoveTicks(uint ticks)
+        // Set the movement points per tick
+        public void SetMovementPointsPerTick(float pointsPerTick)
         {
-            _baseMoveTicks = ticks;
-            if (!_isMoving)
-                _currentBaseMoveTicks = _baseMoveTicks;
+            _movementPointsPerTick = pointsPerTick;
         }
 
         // Get the current grid position

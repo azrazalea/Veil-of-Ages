@@ -27,7 +27,8 @@ namespace VeilOfAges.Entities
     public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     {
         [Export]
-        protected uint _baseMoveTicks { get; set; } = 4; // How many ticks it takes to move one tile
+        protected float _baseMovementPointsPerTick { get; set; } = 0.3f; // Default movement points per tick (average being)
+
         protected bool _isInDialogue = false;
         protected EntityCommand? _currentCommand;
 
@@ -104,7 +105,7 @@ namespace VeilOfAges.Entities
 
             Name = $"{GetType().Name}-{Guid.NewGuid().ToString("N")[..8]}";
 
-            Movement = new MovementController(this, _baseMoveTicks);
+            Movement = new MovementController(this, _baseMovementPointsPerTick);
             Movement.Initialize(startGridPos);
 
             PerceptionSystem = new BeingPerceptionSystem(this);

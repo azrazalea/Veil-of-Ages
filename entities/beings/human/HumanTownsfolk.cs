@@ -21,7 +21,7 @@ namespace VeilOfAges.Entities.Beings
 		}
 		public override void Initialize(Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null)
 		{
-			_baseMoveTicks = 5;
+			_baseMovementPointsPerTick = 0.33f; // Average human speed (3.33 ticks per tile)
 			base.Initialize(gridArea, startGridPos, attributes);
 		}
 	}

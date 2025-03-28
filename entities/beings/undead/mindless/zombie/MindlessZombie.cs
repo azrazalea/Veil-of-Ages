@@ -24,7 +24,7 @@ namespace VeilOfAges.Entities.Beings
 
         MindlessZombie()
         {
-            _baseMoveTicks = 8;
+            _baseMovementPointsPerTick = 0.15f;
         }
 
         public override void _Ready()

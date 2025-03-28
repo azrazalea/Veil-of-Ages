@@ -202,6 +202,7 @@ animations = [{
 
 [node name="MindlessZombie" type="CharacterBody2D"]
 script = ExtResource("1_qfcx5")
+_baseMoveTicks = null
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 sprite_frames = SubResource("SpriteFrames_q56tc")

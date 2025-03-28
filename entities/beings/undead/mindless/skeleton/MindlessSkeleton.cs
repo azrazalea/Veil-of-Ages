@@ -20,7 +20,7 @@ namespace VeilOfAges.Entities.Beings
 
         MindlessSkeleton()
         {
-            _baseMoveTicks = 6;  // Skeletons are faster than zombies but slower than living beings
+            _baseMovementPointsPerTick = 0.39f;  // Skeletons are faster than villagers but still slower than player
         }
 
         public override void _Ready()
