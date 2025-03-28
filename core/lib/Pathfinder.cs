@@ -21,6 +21,7 @@ namespace VeilOfAges.Core.Lib
         private PathGoalType _goalType = PathGoalType.None;
         private Being? _targetEntity = null;
         private Vector2I _targetPosition;
+        private Building? _targetBuilding = null;
         private int _proximityRange = 1;
         private bool _pathNeedsCalculation = true;
         private int _recalculationAttempts = 0;
@@ -38,7 +39,8 @@ namespace VeilOfAges.Core.Lib
             None,
             Position,
             EntityProximity,
-            Area
+            Area,
+            Building
         }
 
         public void ClearPath()
@@ -162,6 +164,15 @@ namespace VeilOfAges.Core.Lib
             _recalculationAttempts = 0;
         }
 
+        public void SetBuildingGoal(Being entity, Building targetBuilding)
+        {
+            _goalType = PathGoalType.Building;
+            _targetBuilding = targetBuilding;
+            _firstGoalCalculation = true;
+            _pathNeedsCalculation = true;
+            _recalculationAttempts = 0;
+        }
+
         // Check if goal is reached
         public bool IsGoalReached(Being entity)
         {
@@ -187,6 +198,34 @@ namespace VeilOfAges.Core.Lib
                     break;
                 case PathGoalType.Area:
                     result = Utils.WithinProximityRangeOf(entityPos, _targetPosition, _proximityRange);
+                    break;
+                case PathGoalType.Building:
+                    if (_targetBuilding != null)
+                    {
+                        Vector2I buildingPos = _targetBuilding.GetCurrentGridPosition();
+                        Vector2I buildingSize = Building.BuildingSizes.ContainsKey(_targetBuilding.BuildingType) ?
+                                            Building.BuildingSizes[_targetBuilding.BuildingType] :
+                                            new Vector2I(2, 2);
+
+                        // Check if entity is adjacent to any part of the building (including diagonals)
+                        for (int x = -1; x <= buildingSize.X; x++)
+                        {
+                            for (int y = -1; y <= buildingSize.Y; y++)
+                            {
+                                // Only check the perimeter positions
+                                if (x == -1 || y == -1 || x == buildingSize.X || y == buildingSize.Y)
+                                {
+                                    Vector2I perimeterPos = new(buildingPos.X + x, buildingPos.Y + y);
+                                    if (entityPos == perimeterPos)
+                                    {
+                                        result = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (result) break;
+                        }
+                    }
                     break;
             }
 
@@ -429,6 +468,72 @@ namespace VeilOfAges.Core.Lib
                         else
                         {
                             GD.PrintErr("No valid positions found in area");
+                            return false;
+                        }
+                        break;
+
+                    case PathGoalType.Building:
+                        if (_targetBuilding != null)
+                        {
+                            Vector2I buildingPos = _targetBuilding.GetCurrentGridPosition();
+                            Vector2I buildingSize = Building.BuildingSizes.ContainsKey(_targetBuilding.BuildingType) ?
+                                               Building.BuildingSizes[_targetBuilding.BuildingType] :
+                                               new Vector2I(2, 2);
+
+                            // Get all possible adjacent positions around the building
+                            var adjacentPositions = new List<Vector2I>();
+
+                            // Add positions around the building perimeter
+                            for (int x = -1; x <= buildingSize.X; x++)
+                            {
+                                for (int y = -1; y <= buildingSize.Y; y++)
+                                {
+                                    // Only include perimeter positions
+                                    if (x == -1 || y == -1 || x == buildingSize.X || y == buildingSize.Y)
+                                    {
+                                        Vector2I pos = new(buildingPos.X + x, buildingPos.Y + y);
+                                        if (astar.IsInBoundsv(pos) && !astar.IsPointSolid(pos))
+                                        {
+                                            adjacentPositions.Add(pos);
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Sort by distance to start position
+                            adjacentPositions.Sort((a, b) =>
+                                startPos.DistanceSquaredTo(a).CompareTo(startPos.DistanceSquaredTo(b)));
+
+                            // Try to find path to any adjacent position
+                            bool foundPath = false;
+                            foreach (var pos in adjacentPositions)
+                            {
+                                // Skip if we're already at this position
+                                if (startPos == pos)
+                                {
+                                    CurrentPath = [pos];
+                                    foundPath = true;
+                                    break;
+                                }
+
+                                var path = astar.GetIdPath(startPos, pos, true);
+                                if (path.Count > 0)
+                                {
+                                    CurrentPath = path.Cast<Vector2I>().ToList();
+                                    foundPath = true;
+                                    break;
+                                }
+                            }
+
+                            if (!foundPath)
+                            {
+                                GD.PrintErr($"No path found to building {_targetBuilding.BuildingType}");
+                                return false;
+                            }
+                        }
+                        else
+                        {
+                            GD.PrintErr("Target building is null");
                             return false;
                         }
                         break;

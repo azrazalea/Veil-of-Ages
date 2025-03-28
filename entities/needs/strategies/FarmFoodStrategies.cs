@@ -31,20 +31,15 @@ namespace VeilOfAges.Entities.Needs.Strategies
 
         public EntityAction? GetAcquisitionAction(Being owner, Building foodSource)
         {
-            Vector2I farmPos = foodSource.GetCurrentGridPosition();
-
             // Set position goal for pathfinding
-            _pathfinder.SetPositionGoal(owner, farmPos);
+            _pathfinder.SetBuildingGoal(owner, foodSource);
             return new MoveAlongPathAction(owner, this, _pathfinder, 0);
         }
 
         public bool IsAtFoodSource(Being owner, Building foodSource)
         {
-            Vector2I ownerPos = owner.GetCurrentGridPosition();
-            Vector2I farmPos = foodSource.GetCurrentGridPosition();
-
             // Consider within 1 tile as "at the farm"
-            return ownerPos.DistanceTo(farmPos) <= 1;
+            return _pathfinder.IsGoalReached(owner);
         }
     }
 

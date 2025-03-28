@@ -67,7 +67,8 @@ namespace VeilOfAges.Entities.Traits
                 new FarmSourceIdentifier(),
                 new FarmAcquisitionStrategy(),
                 new FarmConsumptionEffect(),
-                new VillagerCriticalHungerHandler()
+                new VillagerCriticalHungerHandler(),
+                244
             );
 
             consumptionTrait.Initialize(owner, owner.Health);

@@ -33,19 +33,19 @@ namespace VeilOfAges.Entities.Traits
             var needsSystem = owner.NeedsSystem;
             if (needsSystem != null)
             {
-                // Zombies get hungrier faster than living beings
-                var brainHunger = new Need("brains", "Brain Hunger", 60f, 0.1f, 15f, 40f, 90f);
+                // Zombies get hungrier much slower than living beings
+                var brainHunger = new Need("hunger", "Brain Hunger", 60f, 0.0015f, 15f, 40f, 90f);
                 needsSystem.AddNeed(brainHunger);
             }
 
             // Add ConsumptionBehaviorTrait for brain hunger
             var consumptionTrait = new ConsumptionBehaviorTrait(
-                "brains",
+                "hunger",
                 new GraveyardSourceIdentifier(),
                 new GraveyardAcquisitionStrategy(),
                 new ZombieConsumptionEffect(),
                 new ZombieCriticalHungerHandler(),
-                40  // Zombies take longer to feed as they're messier eaters
+                365  // Zombies take longer to feed as they're messier eaters
             );
 
             consumptionTrait.Initialize(owner, owner.Health);
