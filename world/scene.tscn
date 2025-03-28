@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3 uid="uid://ba8h7co1n3v3u"]
+[gd_scene load_steps=17 format=3 uid="uid://ba8h7co1n3v3u"]
 
 [ext_resource type="Script" uid="uid://bw48w31c0qjor" path="res://world/World.cs" id="1_qt6d3"]
 [ext_resource type="PackedScene" uid="uid://cljvkvv6tomyu" path="res://entities/player/scene.tscn" id="2_2fjkk"]
@@ -11,7 +11,6 @@
 [ext_resource type="PackedScene" uid="uid://o7vxruni6hv" path="res://entities/beings/undead/mindless/skeleton/scene.tscn" id="9_bkv64"]
 [ext_resource type="PackedScene" uid="uid://bjat8y5cn1xb6" path="res://entities/beings/undead/mindless/zombie/scene.tscn" id="10_6lw76"]
 [ext_resource type="Script" uid="uid://barxyo8p3oyvt" path="res://entities/EntityThinkingSystem.cs" id="11_bad00"]
-[ext_resource type="PackedScene" uid="uid://ceu0upqbs404d" path="res://core/PlayerInputController.tscn" id="12_ob0ca"]
 [ext_resource type="PackedScene" uid="uid://dnseqlvnfuids" path="res://core/GameController.tscn" id="13_liapn"]
 [ext_resource type="PackedScene" uid="uid://cmmglr0mto4me" path="res://core/hud.tscn" id="14_liapn"]
 
@@ -473,8 +472,6 @@ TownsfolkScene = ExtResource("7_ob0ca")
 
 [node name="EntityThinkingSystem" type="Node" parent="."]
 script = ExtResource("11_bad00")
-
-[node name="PlayerInputController" parent="." instance=ExtResource("12_ob0ca")]
 
 [node name="GameController" parent="." instance=ExtResource("13_liapn")]
 

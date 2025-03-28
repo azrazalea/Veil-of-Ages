@@ -19,10 +19,6 @@ namespace VeilOfAges.Core
         private EntityCommand? _pendingCommand = null;
         private Being? _commandTarget = null;
         private bool _awaitingLocationSelection = false;
-        private Vector2I inputDirection = Vector2I.Zero;
-        private bool wasMovingDiagonally = false;
-        private float diagonalReleaseTimeThreshold = 0.1f; // Adjust as needed
-        private float lastKeyReleaseTime = 0f;
 
         public override void _Ready()
         {
@@ -40,68 +36,17 @@ namespace VeilOfAges.Core
             }
         }
 
-        public override void _PhysicsProcess(double delta)
-        {
-            // Skip if controller or player is not available
-            if (_gameController == null || _player == null) return;
-            if (!CanProcessMovementInput()) return;
-            if (!_gameController.CanQueuePlayerAction()) return;
-
-            bool wasDiagonal = inputDirection.X != 0 && inputDirection.Y != 0;
-
-            Vector2I movementVector = new(0, 0);
-            // Check for held movement keys each frame
-            if (Input.IsActionPressed("ui_right"))
-            {
-                movementVector.X += 1;
-            }
-            if (Input.IsActionPressed("ui_left"))
-            {
-                movementVector.X -= 1;
-            }
-            if (Input.IsActionPressed("ui_down"))
-            {
-                movementVector.Y += 1;
-            }
-            if (Input.IsActionPressed("ui_up"))
-            {
-                movementVector.Y -= 1;
-            }
-
-            inputDirection = movementVector;
-
-            // Check if we're transitioning from diagonal to single direction
-            if (wasDiagonal && inputDirection != Vector2.Zero && (inputDirection.X == 0 || inputDirection.Y == 0))
-            {
-                // If we recently released a key while moving diagonally
-                if (Time.GetTicksMsec() - lastKeyReleaseTime < diagonalReleaseTimeThreshold * 1000)
-                {
-                    // Ignore this input frame - stop movement completely
-                    inputDirection = Vector2I.Zero;
-                }
-            }
-
-            // Update last key release time if we're transitioning from diagonal to something else
-            if (wasDiagonal && (inputDirection.X == 0 || inputDirection.Y == 0))
-            {
-                lastKeyReleaseTime = Time.GetTicksMsec();
-            }
-
-            if (movementVector != Vector2I.Zero)
-            {
-                _gameController.QueuePlayerAction(new MoveAction(_player, this, _player.GetCurrentGridPosition() + movementVector));
-            }
-        }
-
         public override void _Input(InputEvent @event)
         {
-            // Skip if simulation is paused
+            // Skip if simulation is paused or essential references are missing
             if (_gameController == null || _player == null) return;
-            // Interaction
-            else if (@event.IsActionPressed("interact"))
+
+            // Interaction key
+            if (@event.IsActionPressed("interact"))
             {
                 TryInteractWithNearbyEntity();
             }
+            // UI navigation
             else if (@event.IsActionPressed("exit"))
             {
                 _dialogueUI?.Close();
@@ -119,48 +64,30 @@ namespace VeilOfAges.Core
             {
                 _gameController.SetTimeScale(_gameController.TimeScale * 0.5f);
             }
+            // Cancel current command
+            else if (@event.IsActionPressed("ui_cancel"))
+            {
+                CancelCurrentPlayerCommand();
+            }
+            // Right-click context menu
             else if (@event.IsActionPressed("context_menu") && @event is InputEventMouseButton contextMouseEvent)
             {
                 ShowContextMenu(contextMouseEvent);
             }
-
-            if (_awaitingLocationSelection && @event is InputEventMouseButton mouseEvent &&
-        mouseEvent.ButtonIndex == MouseButton.Left && mouseEvent.Pressed)
+            // Left-click for movement and interaction
+            else if (@event is InputEventMouseButton mouseEvent &&
+                     mouseEvent.ButtonIndex == MouseButton.Left &&
+                     mouseEvent.Pressed)
             {
-                Vector2I gridPos = GetCurrentMouseGridPosition();
-
-                // Check if the position is valid
-                var gridArea = _commandTarget?.GetGridArea();
-                if (gridArea != null && gridArea.IsCellWalkable(gridPos))
+                // Handle location selection for commands if active
+                if (_awaitingLocationSelection)
                 {
-                    // Add position parameter to command
-                    if (_pendingCommand != null)
-                    {
-                        if (_pendingCommand is MoveToCommand)
-                        {
-                            _pendingCommand.WithParameter("targetPos", gridPos);
-                        }
-                        else if (_pendingCommand is GuardCommand)
-                        {
-                            _pendingCommand.WithParameter("guardPos", gridPos);
-                        }
-
-                        // Resume simulation
-                        _gameController?.ResumeSimulation();
-
-                        GD.Print($"Command target location set to {gridPos}");
-                    }
+                    HandleLocationSelection(mouseEvent);
                 }
                 else
                 {
-                    GD.Print("Invalid location selected");
+                    HandleLeftClick();
                 }
-
-                // Clear selection state
-                _pendingCommand = null;
-                _commandTarget = null;
-                _awaitingLocationSelection = false;
-                if (_chooseLocationPrompt != null) _chooseLocationPrompt.Visible = false;
             }
         }
 
@@ -187,11 +114,6 @@ namespace VeilOfAges.Core
                 }
                 GD.Print($"Interacting with {entity.Name}");
             }
-        }
-
-        private bool CanProcessMovementInput()
-        {
-            return !_player?.IsMoving() ?? false;
         }
 
         private Being? GetEntityAtPosition(Vector2I position)
@@ -230,17 +152,239 @@ namespace VeilOfAges.Core
             return Grid.Utils.WorldToGrid(worldPos);
         }
 
+        // Handle left clicks for movement and interaction
+        private void HandleLeftClick()
+        {
+            if (_player == null) return;
+
+            Vector2I gridPos = GetCurrentMouseGridPosition();
+
+            // Check if there's an entity at the clicked position
+            var entity = GetEntityAtPosition(gridPos);
+
+            if (entity != null)
+            {
+                // Check if player is already adjacent to entity
+                Vector2I playerPos = _player.GetCurrentGridPosition();
+                bool isAdjacent = Math.Abs(playerPos.X - gridPos.X) <= 1 &&
+                                  Math.Abs(playerPos.Y - gridPos.Y) <= 1;
+
+                if (isAdjacent)
+                {
+                    // Interact directly
+                    _dialogueUI?.ShowDialogue(_player, entity);
+                }
+                else
+                {
+                    // Cancel any existing command
+                    CancelCurrentPlayerCommand();
+
+                    // Create and assign a command to approach the entity
+                    var approachCommand = new MoveToCommand(_player, _player);
+                    var pathfinder = _player.GetPathfinder();
+
+                    if (pathfinder != null)
+                    {
+                        // Let the pathfinder handle finding a path to the entity with proximity of 1
+                        pathfinder.SetEntityProximityGoal(_player, entity, 1);
+                        approachCommand.WithParameter("usePathfinder", true);
+                        _player.AssignCommand(approachCommand);
+                        GD.Print($"Moving to approach {entity.Name}");
+                    }
+                }
+            }
+            else if (_player.GetGridArea()?.IsCellWalkable(gridPos) == true)
+            {
+                // Cancel any existing command
+                CancelCurrentPlayerCommand();
+
+                // Create and assign a movement command
+                var moveCommand = new MoveToCommand(_player, _player);
+                moveCommand.WithParameter("targetPos", gridPos);
+                _player.AssignCommand(moveCommand);
+                GD.Print($"Moving to position {gridPos}");
+            }
+        }
+
+        // Enhanced context menu with more options
         public void ShowContextMenu(InputEventMouseButton @event)
         {
             if (_contextMenu == null) return;
 
             var gridPos = GetCurrentMouseGridPosition();
 
+            // Determine what's at the clicked position
+            var entity = GetEntityAtPosition(gridPos);
+            bool isWalkable = _player?.GetGridArea()?.IsCellWalkable(gridPos) == true;
+
             _contextMenu.Position = (Vector2I)@event.Position;
             _contextMenu.Clear();
-            _contextMenu.AddItem("Test");
+
+            // Build options based on what's at the clicked position
+            if (entity != null)
+            {
+                // Entity options
+                _contextMenu.AddItem("Talk to " + entity.Name);
+                _contextMenu.AddItem("Examine " + entity.Name);
+            }
+            else if (isWalkable)
+            {
+                // Empty tile options
+                _contextMenu.AddItem("Move here");
+
+                // Add build option if appropriate
+                if (IsValidBuildLocation(gridPos))
+                {
+                    _contextMenu.AddItem("Build here");
+                }
+            }
+
+            // Always add cancel option
+            _contextMenu.AddItem("Cancel");
+
             _contextMenu.Visible = true;
-            // TODO: Move context menu location and make active/visible
+        }
+
+        private void HandleContextMenuSelection(long itemId)
+        {
+            if (_contextMenu == null || _player == null) return;
+
+            string itemText = _contextMenu.GetItemText((int)itemId);
+            Vector2I gridPos = GetCurrentMouseGridPosition();
+
+            switch (itemText)
+            {
+                case "Move here":
+                    if (_player.GetGridArea()?.IsCellWalkable(gridPos) == true)
+                    {
+                        // Cancel any existing command
+                        CancelCurrentPlayerCommand();
+
+                        // Create and assign a movement command
+                        var moveCommand = new MoveToCommand(_player, _player);
+                        moveCommand.WithParameter("targetPos", gridPos);
+                        _player.AssignCommand(moveCommand);
+                        GD.Print($"Moving to position {gridPos}");
+                    }
+                    break;
+
+                case var s when s.StartsWith("Talk to "):
+                    var entity = GetEntityAtPosition(gridPos);
+                    if (entity != null)
+                    {
+                        Vector2I playerPos = _player.GetCurrentGridPosition();
+                        bool isAdjacent = Math.Abs(playerPos.X - gridPos.X) <= 1 &&
+                                         Math.Abs(playerPos.Y - gridPos.Y) <= 1;
+
+                        if (isAdjacent)
+                        {
+                            // Interact directly
+                            _dialogueUI?.ShowDialogue(_player, entity);
+                        }
+                        else
+                        {
+                            // Cancel any existing command
+                            CancelCurrentPlayerCommand();
+
+                            // Create and assign a command to approach the entity
+                            var approachCommand = new MoveToCommand(_player, _player);
+                            var pathfinder = _player.GetPathfinder();
+
+                            if (pathfinder != null)
+                            {
+                                // Let the pathfinder handle finding a path to the entity with proximity of 1
+                                pathfinder.SetEntityProximityGoal(_player, entity, 1);
+                                approachCommand.WithParameter("usePathfinder", true);
+                                _player.AssignCommand(approachCommand);
+                                GD.Print($"Moving to approach {entity.Name}");
+                            }
+                        }
+                    }
+                    break;
+
+                case var s when s.StartsWith("Command "):
+                    // Future implementation for command menu
+                    GD.Print("Command functionality not yet implemented");
+                    break;
+
+                case var s when s.StartsWith("Examine "):
+                    // Future implementation for examine functionality
+                    GD.Print("Examine functionality not yet implemented");
+                    break;
+
+                case "Build here":
+                    // Future implementation for building
+                    GD.Print("Building functionality not yet implemented");
+                    break;
+
+                case "Direct control":
+                    // Future implementation for direct control
+                    GD.Print("Direct control functionality not yet implemented");
+                    break;
+
+                case "Cancel":
+                    // Do nothing, just close the menu
+                    break;
+            }
+
+            _contextMenu.Visible = false;
+        }
+
+        // Handle selection of a location for commands like MoveToCommand or GuardCommand
+        private void HandleLocationSelection(InputEventMouseButton mouseEvent)
+        {
+            Vector2I gridPos = GetCurrentMouseGridPosition();
+
+            // Check if the position is valid
+            var gridArea = _commandTarget?.GetGridArea();
+            if (gridArea != null && gridArea.IsCellWalkable(gridPos))
+            {
+                // Add position parameter to command
+                if (_pendingCommand != null)
+                {
+                    if (_pendingCommand is MoveToCommand)
+                    {
+                        _pendingCommand.WithParameter("targetPos", gridPos);
+                    }
+                    else if (_pendingCommand is GuardCommand)
+                    {
+                        _pendingCommand.WithParameter("guardPos", gridPos);
+                    }
+
+                    // Resume simulation
+                    _gameController?.ResumeSimulation();
+
+                    GD.Print($"Command target location set to {gridPos}");
+                }
+            }
+            else
+            {
+                GD.Print("Invalid location selected");
+            }
+
+            // Clear selection state
+            _pendingCommand = null;
+            _commandTarget = null;
+            _awaitingLocationSelection = false;
+            if (_chooseLocationPrompt != null) _chooseLocationPrompt.Visible = false;
+        }
+
+        private bool IsValidBuildLocation(Vector2I position)
+        {
+            // This will be expanded later with more sophisticated checks
+            var gridArea = _player?.GetGridArea();
+            return gridArea != null && gridArea.IsCellWalkable(position);
+        }
+
+        // Cancel the player's current command if any
+        private void CancelCurrentPlayerCommand()
+        {
+            if (_player == null) return;
+
+            // Create and assign a cancel command
+            var cancelCommand = new CancelCommand(_player, _player);
+            _player.AssignCommand(cancelCommand);
+            GD.Print("Canceled current player command");
         }
     }
 }

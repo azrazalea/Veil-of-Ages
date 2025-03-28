@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3 uid="uid://cmmglr0mto4me"]
+[gd_scene load_steps=6 format=3 uid="uid://cmmglr0mto4me"]
 
 [ext_resource type="FontFile" uid="uid://cm65kg1osflue" path="res://assets/fonts/slimes_pixel_font_pack/Corvid Conspirator v1.1.ttf" id="1_l3ow8"]
 [ext_resource type="PackedScene" uid="uid://cgnn5ytban4uo" path="res://core/ui/dialogue.tscn" id="1_rn0xv"]
 [ext_resource type="Script" uid="uid://b26u0pft2ej7f" path="res://core/ui/Dialogue.cs" id="2_a8e1d"]
+[ext_resource type="Script" uid="uid://gyjyivm0kcr3" path="res://core/PlayerInputController.cs" id="4_whbmk"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_l3ow8"]
 content_margin_left = 8.0
@@ -110,5 +111,10 @@ scroll_active = false
 autowrap_mode = 0
 
 [node name="Context Menu" type="PopupMenu" parent="."]
+
+[node name="PlayerInputController" type="Node2D" parent="."]
+script = ExtResource("4_whbmk")
+
+[connection signal="index_pressed" from="Context Menu" to="PlayerInputController" method="HandleContextMenuSelection"]
 
 [editable path="Dialogue"]
