@@ -10,7 +10,6 @@ namespace VeilOfAges.Core
 {
     public partial class GameController : Node
     {
-        [Export] public float SimulationTickRate { get; set; } = 10f; // Ticks per second
         [Export] public float TimeScale { get; set; } = 1.0f; // Can be adjusted for speed
         [Export] public uint MaxPlayerActions { get; set; } = 3;
 
@@ -24,6 +23,14 @@ namespace VeilOfAges.Core
         private EntityThinkingSystem? _thinkingSystem;
 
         private Queue<EntityAction> _pendingPlayerActions = new();
+
+        public const uint SimulationTickRate = 8; // Ticks per a real second at 1.0 time scale
+
+        // All of these values are in game centiseconds
+        public const ulong GameCentisecondsPerRealSeconds = 3680UL;
+        public const ulong GameCentisecondsPerGameTick = GameCentisecondsPerRealSeconds / SimulationTickRate;
+        // Start time at exactly 100 years from beginning of calendar
+        public ulong GameTime { get; private set; } = 159_810_560_000UL;
 
         public override void _Ready()
         {
@@ -48,6 +55,7 @@ namespace VeilOfAges.Core
             {
                 _timeSinceLastTick -= _tickInterval;
                 ProcessNextTick();
+                GameTime += GameCentisecondsPerGameTick;
             }
         }
 
