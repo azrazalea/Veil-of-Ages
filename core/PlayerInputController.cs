@@ -171,8 +171,16 @@ namespace VeilOfAges.Core
 
                 if (isAdjacent)
                 {
-                    // Interact directly
-                    _dialogueUI?.ShowDialogue(_player, entity);
+                    // Interact with the entity by showing dialogue
+                    var didStartDialogue = _dialogueUI?.ShowDialogue(_player, entity);
+                    if (didStartDialogue != true) return;
+
+                    if (_minimap != null && _quickActions != null)
+                    {
+                        _minimap.Visible = false;
+                        _quickActions.Visible = false;
+                    }
+                    GD.Print($"Interacting with {entity.Name}");
                 }
                 else
                 {
