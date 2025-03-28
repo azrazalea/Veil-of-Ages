@@ -30,10 +30,13 @@ namespace VeilOfAges.Entities.Beings
         public override void _Ready()
         {
             // Configure zombie specific properties
+            if (Health == null) return;
 
             // Add zombie traits
             selfAsEntity().AddTrait<MindlessTrait>(1);
-            selfAsEntity().AddTrait<ZombieTrait>(2);
+            var zombieTrait = new ZombieTrait();
+            zombieTrait.Initialize(this, Health);
+            selfAsEntity().AddTrait(zombieTrait, 2);
 
 
             _zombieGroan = GetNode<AudioStreamPlayer2D>("AudioStreamPlayer2D");

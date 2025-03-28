@@ -11,12 +11,9 @@ namespace VeilOfAges.Entities.Needs.Strategies
     {
         public Building? IdentifyFoodSource(Being owner, Perception perception)
         {
-            // Look for graveyards in the world
-            var world = owner.GetTree().GetFirstNodeInGroup("World") as World;
-            if (world == null) return null;
+            if (owner?.GridArea == null) return null;
 
-            var entitiesNode = world.GetNode<Node2D>("Entities");
-            foreach (Node child in entitiesNode.GetChildren())
+            foreach (Node child in owner.GridArea.Entities)
             {
                 if (child is Building building && building.BuildingType == "Graveyard")
                 {
@@ -63,7 +60,7 @@ namespace VeilOfAges.Entities.Needs.Strategies
             // Play zombie groan if it's a MindlessZombie
             if (owner is MindlessZombie zombie)
             {
-                zombie.PlayZombieGroan();
+                zombie.CallDeferred("PlayZombieGroan");
             }
 
             GD.Print($"{owner.Name}: *groans with satisfaction* - Brains consumed at graveyard, hunger level restored to {need.Value}");

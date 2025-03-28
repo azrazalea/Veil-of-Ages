@@ -3,6 +3,8 @@ using Godot;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Beings;
 using VeilOfAges.Entities.Beings.Health;
+using VeilOfAges.Entities.Needs;
+using VeilOfAges.Entities.Needs.Strategies;
 using VeilOfAges.Entities.Sensory;
 
 namespace VeilOfAges.Entities.Traits
@@ -25,11 +27,36 @@ namespace VeilOfAges.Entities.Traits
         {
             base.Initialize(owner, health);
 
-            // Zombie-specific initialization
+            if (owner?.Health == null) return;
+
+            // Initialize zombie-specific hunger need directly in this trait
+            var needsSystem = owner.NeedsSystem;
+            if (needsSystem != null)
+            {
+                // Zombies get hungrier faster than living beings
+                var brainHunger = new Need("brains", "Brain Hunger", 60f, 0.1f, 15f, 40f, 90f);
+                needsSystem.AddNeed(brainHunger);
+            }
+
+            // Add ConsumptionBehaviorTrait for brain hunger
+            var consumptionTrait = new ConsumptionBehaviorTrait(
+                "brains",
+                new GraveyardSourceIdentifier(),
+                new GraveyardAcquisitionStrategy(),
+                new ZombieConsumptionEffect(),
+                new ZombieCriticalHungerHandler(),
+                40  // Zombies take longer to feed as they're messier eaters
+            );
+
+            consumptionTrait.Initialize(owner, owner.Health);
+            // Add the consumption trait with a priority just above this trait
+            owner.selfAsEntity().AddTrait(consumptionTrait, this.Priority - 1);
+
+            // Zombie-specific initialization (keep existing code)
             WanderProbability = 0.3f; // Zombies wander more often
             WanderRange = 15.0f;      // And further from spawn
 
-            GD.Print($"{_owner?.Name}: Zombie behavior initialized");
+            GD.Print($"{owner.Name}: Zombie trait initialized with brain hunger");
         }
 
         protected override EntityAction? ProcessState(Vector2I currentOwnerGridPosition, Perception currentPerception)
@@ -160,8 +187,6 @@ namespace VeilOfAges.Entities.Traits
 
                     // Set entity proximity goal - path calculation will be lazy
                     MyPathfinder.SetEntityProximityGoal(_owner, _chaseTarget, 1);
-                    string pathStr = string.Join(" -> ", MyPathfinder.CurrentPath.Select(p => p.ToString()));
-                    GD.Print($"Path: {pathStr}");
                     // Reset chase timer since we can still see the target
                     _chaseTimer = LoseInterestTime;
 
@@ -174,7 +199,6 @@ namespace VeilOfAges.Entities.Traits
             // continue following any existing path we might have
             if (!MyPathfinder.IsGoalReached(_owner) && _chaseTimer > 0)
             {
-                GD.Print("I don't see you!");
                 return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: -2);
             }
 
