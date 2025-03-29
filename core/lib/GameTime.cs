@@ -108,37 +108,37 @@ namespace VeilOfAges.Core.Lib
         /// <summary>
         /// Gets the year component (0-based) of the game time
         /// </summary>
-        public ulong Year => (ulong)(Value / CENTISECONDS_PER_YEAR + 1);
+        public ulong Year => Value / CENTISECONDS_PER_YEAR + 1;
 
         /// <summary>
         /// Gets the month component (1-13) of the game time
         /// </summary>
-        public ulong Month => (ulong)(Value % CENTISECONDS_PER_YEAR / CENTISECONDS_PER_MONTH + 1);
+        public ulong Month => Value % CENTISECONDS_PER_YEAR / CENTISECONDS_PER_MONTH + 1;
 
         /// <summary>
         /// Gets the day component (1-28) of the game time
         /// </summary>
-        public ulong Day => (ulong)(Value % CENTISECONDS_PER_MONTH / CENTISECONDS_PER_DAY + 1);
+        public ulong Day => Value % CENTISECONDS_PER_MONTH / CENTISECONDS_PER_DAY + 1;
 
         /// <summary>
         /// Gets the hour component (0-13) of the game time
         /// </summary>
-        public ulong Hour => (ulong)(Value % CENTISECONDS_PER_DAY / CENTISECONDS_PER_HOUR);
+        public ulong Hour => Value % CENTISECONDS_PER_DAY / CENTISECONDS_PER_HOUR;
 
         /// <summary>
         /// Gets the minute component (0-55) of the game time
         /// </summary>
-        public ulong Minute => (ulong)(Value % CENTISECONDS_PER_HOUR / CENTISECONDS_PER_MINUTE);
+        public ulong Minute => Value % CENTISECONDS_PER_HOUR / CENTISECONDS_PER_MINUTE;
 
         /// <summary>
         /// Gets the second component (0-55) of the game time
         /// </summary>
-        public ulong Second => (ulong)(Value % CENTISECONDS_PER_MINUTE / CENTISECONDS_PER_SECOND);
+        public ulong Second => Value % CENTISECONDS_PER_MINUTE / CENTISECONDS_PER_SECOND;
 
         /// <summary>
         /// Gets the centisecond component (0-99) of the game time
         /// </summary>
-        public ulong Centisecond => (ulong)(Value % CENTISECONDS_PER_SECOND);
+        public ulong Centisecond => Value % CENTISECONDS_PER_SECOND;
 
         /// <summary>
         /// Gets the name of the current month
@@ -158,7 +158,7 @@ namespace VeilOfAges.Core.Lib
         /// <summary>
         /// Gets the day of the year (1-364)
         /// </summary>
-        public ulong DayOfYear => (Month - 1) * (ulong)DAYS_PER_MONTH + Day;
+        public ulong DayOfYear => (Month - 1) * DAYS_PER_MONTH + Day;
 
         /// <summary>
         /// Gets the phase of the day (Morning, Afternoon, Evening, Night)
