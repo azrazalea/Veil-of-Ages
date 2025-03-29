@@ -2,9 +2,8 @@ using Godot;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities;
-using System.Threading;
+using VeilOfAges.Core.Lib;
 
 namespace VeilOfAges.Core
 {
@@ -13,7 +12,7 @@ namespace VeilOfAges.Core
         [Export] public float TimeScale { get; set; } = 1.0f; // Can be adjusted for speed
         [Export] public uint MaxPlayerActions { get; set; } = 3;
 
-        private float _tickInterval => 1f / SimulationTickRate;
+        private float _tickInterval => 1f / GameTime.SimulationTickRate;
         private float _timeSinceLastTick = 0f;
         private bool _simulationPaused = false;
         private bool _processingTick = false;
@@ -22,22 +21,16 @@ namespace VeilOfAges.Core
         private Player? _player;
         private EntityThinkingSystem? _thinkingSystem;
 
-        private Queue<EntityAction> _pendingPlayerActions = new();
-
-        public const uint SimulationTickRate = 8; // Ticks per a real second at 1.0 time scale
-
-        // All of these values are in game centiseconds
-        public const ulong GameCentisecondsPerRealSeconds = 3680UL;
-        public const ulong GameCentisecondsPerGameTick = GameCentisecondsPerRealSeconds / SimulationTickRate;
         // Start time at exactly 100 years from beginning of calendar
-        public ulong GameTime { get; private set; } = 159_810_560_000UL;
+        public GameTime CurrentGameTime { get; private set; } = new GameTime(158_212_454_400UL);
 
         public override void _Ready()
         {
             _world = GetTree().GetFirstNodeInGroup("World") as World;
             _player = GetNode<Player>("/root/World/Entities/Player");
             _thinkingSystem = GetNode<EntityThinkingSystem>("/root/World/EntityThinkingSystem");
-
+            GD.Print($"Current time: {CurrentGameTime.GetTimeDescription()}");
+            GD.Print($"Actual time we want: {CurrentGameTime.Value - GameTime.CENTISECONDS_PER_YEAR}");
             if (_world == null || _player == null || _thinkingSystem == null)
             {
                 GD.PrintErr("GameController: Failed to find required nodes!");
@@ -55,7 +48,7 @@ namespace VeilOfAges.Core
             {
                 _timeSinceLastTick -= _tickInterval;
                 ProcessNextTick();
-                GameTime += GameCentisecondsPerGameTick;
+                CurrentGameTime = CurrentGameTime.Advance();
             }
         }
 
