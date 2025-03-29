@@ -110,7 +110,7 @@ namespace VeilOfAges.UI
             if (option.Command is MoveToCommand || option.Command is GuardCommand)
             {
                 // Get player input controller
-                var inputController = GetNode<PlayerInputController>("/root/World/PlayerInputController");
+                var inputController = GetNode<PlayerInputController>("/root/World/HUD/PlayerInputController");
                 if (inputController != null)
                 {
                     inputController.StartLocationSelection(option.Command, _currentTarget);
