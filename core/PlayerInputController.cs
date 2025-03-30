@@ -11,11 +11,20 @@ namespace VeilOfAges.Core
     {
         private GameController? _gameController;
         private Player? _player;
+        [Export]
         private Dialogue? _dialogueUI;
+        [Export]
         private PanelContainer? _quickActions;
+        [Export]
         private PanelContainer? _minimap;
+        [Export]
         private PanelContainer? _chooseLocationPrompt;
+        [Export]
         private PopupMenu? _contextMenu;
+        [Export]
+        private RichTextLabel? _nameLabel;
+        [Export]
+        private ProgressBar? _hungerBar;
         private EntityCommand? _pendingCommand = null;
         private Being? _commandTarget = null;
         private bool _awaitingLocationSelection = false;
@@ -24,16 +33,20 @@ namespace VeilOfAges.Core
         {
             _gameController = GetNode<GameController>("/root/World/GameController");
             _player = GetNode<Player>("/root/World/Entities/Player");
-            _dialogueUI = GetNode<Dialogue>("/root/World/HUD/Dialogue");
-            _quickActions = GetNode<PanelContainer>("/root/World/HUD/Quick Actions Container");
-            _minimap = GetNode<PanelContainer>("/root/World/HUD/Minimap Container");
-            _chooseLocationPrompt = GetNode<PanelContainer>("/root/World/HUD/Choose Location Prompt");
-            _contextMenu = GetNode<PopupMenu>("/root/World/HUD/Context Menu");
 
             if (_gameController == null || _player == null)
             {
                 GD.PrintErr("PlayerInputController: Failed to find required nodes!");
             }
+        }
+
+        public override void _PhysicsProcess(double delta)
+        {
+            base._PhysicsProcess(delta);
+            var hungerNeed = _player?.NeedsSystem?.GetNeed("hunger");
+
+            if (_nameLabel != null && _nameLabel.Text != _player?.Name) _nameLabel.Text = _player?.Name;
+            if (_hungerBar != null && hungerNeed != null) _hungerBar.Value = hungerNeed.Value;
         }
 
         public override void _Input(InputEvent @event)
@@ -44,7 +57,7 @@ namespace VeilOfAges.Core
             // Interaction key
             if (@event.IsActionPressed("interact"))
             {
-                TryInteractWithNearbyEntity();
+                // no-op
             }
             // UI navigation
             else if (@event.IsActionPressed("exit"))
@@ -75,7 +88,7 @@ namespace VeilOfAges.Core
                 ShowContextMenu(contextMouseEvent);
             }
             // Left-click for movement and interaction
-            else if (@event is InputEventMouseButton mouseEvent &&
+            else if (_dialogueUI?.Visible == false && @event is InputEventMouseButton mouseEvent &&
                      mouseEvent.ButtonIndex == MouseButton.Left &&
                      mouseEvent.Pressed)
             {
@@ -88,31 +101,6 @@ namespace VeilOfAges.Core
                 {
                     HandleLeftClick();
                 }
-            }
-        }
-
-        private void TryInteractWithNearbyEntity()
-        {
-            if (_player == null) return;
-
-            // Get player's current position and facing direction
-            Vector2I playerPos = _player.GetCurrentGridPosition();
-            Vector2I facingDir = _player.GetFacingDirection();
-            Vector2I interactPos = playerPos + facingDir;
-
-            // Check if there's an entity at the interaction position
-            if (GetEntityAtPosition(interactPos) is Being entity)
-            {
-                // Interact with the entity by showing dialogue
-                var didStartDialogue = _dialogueUI?.ShowDialogue(_player, entity);
-                if (didStartDialogue != true) return;
-
-                if (_minimap != null && _quickActions != null)
-                {
-                    _minimap.Visible = false;
-                    _quickActions.Visible = false;
-                }
-                GD.Print($"Interacting with {entity.Name}");
             }
         }
 
@@ -162,7 +150,7 @@ namespace VeilOfAges.Core
             // Check if there's an entity at the clicked position
             var entity = GetEntityAtPosition(gridPos);
 
-            if (entity != null)
+            if (entity != null && entity != _player)
             {
                 // Check if player is already adjacent to entity
                 Vector2I playerPos = _player.GetCurrentGridPosition();
@@ -229,7 +217,7 @@ namespace VeilOfAges.Core
             _contextMenu.Clear();
 
             // Build options based on what's at the clicked position
-            if (entity != null)
+            if (entity != null && entity != _player)
             {
                 // Entity options
                 _contextMenu.AddItem("Talk to " + entity.Name);
@@ -287,7 +275,15 @@ namespace VeilOfAges.Core
                         if (isAdjacent)
                         {
                             // Interact directly
-                            _dialogueUI?.ShowDialogue(_player, entity);
+                            var didStartDialogue = _dialogueUI?.ShowDialogue(_player, entity);
+                            if (didStartDialogue != true) return;
+
+                            if (_minimap != null && _quickActions != null)
+                            {
+                                _minimap.Visible = false;
+                                _quickActions.Visible = false;
+                            }
+                            GD.Print($"Interacting with {entity.Name}");
                         }
                         else
                         {

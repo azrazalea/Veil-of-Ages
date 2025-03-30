@@ -331,7 +331,7 @@ namespace VeilOfAges.Entities
         public virtual string? GetSuccessResponse(string text) { return null; }
         public virtual string? GetFailureResponse(string text) { return null; }
         public virtual List<DialogueOption> GenerateDialogueOptions(Being speaker) { return []; }
-        public virtual string? GenerateDialogueDescription() { return "I am a being."; }
+        public virtual string? GenerateDialogueDescription() { return null; }
 
         #endregion
     }

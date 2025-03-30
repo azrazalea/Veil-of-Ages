@@ -40,7 +40,7 @@ theme_override_fonts/normal_font = ExtResource("1_l3ow8")
 text = "Lilith"
 fit_content = true
 
-[node name="ProgressBar" type="ProgressBar" parent="Character Container/Basic Info Container"]
+[node name="Hunger Need Bar" type="ProgressBar" parent="Character Container/Basic Info Container"]
 layout_mode = 2
 
 [node name="Kingdom Container" type="PanelContainer" parent="."]
@@ -125,8 +125,15 @@ autowrap_mode = 0
 
 [node name="Context Menu" type="PopupMenu" parent="."]
 
-[node name="PlayerInputController" type="Node2D" parent="."]
+[node name="PlayerInputController" type="Node2D" parent="." node_paths=PackedStringArray("_dialogueUI", "_quickActions", "_minimap", "_chooseLocationPrompt", "_contextMenu", "_nameLabel", "_hungerBar")]
 script = ExtResource("4_whbmk")
+_dialogueUI = NodePath("../Dialogue")
+_quickActions = NodePath("../Quick Actions Container")
+_minimap = NodePath("../Minimap Container")
+_chooseLocationPrompt = NodePath("../Choose Location Prompt")
+_contextMenu = NodePath("../Context Menu")
+_nameLabel = NodePath("../Character Container/Basic Info Container/Player Name Label")
+_hungerBar = NodePath("../Character Container/Basic Info Container/Hunger Need Bar")
 
 [connection signal="index_pressed" from="Context Menu" to="PlayerInputController" method="HandleContextMenuSelection"]
 

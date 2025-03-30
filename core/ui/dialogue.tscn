@@ -54,6 +54,7 @@ fit_content = true
 
 [node name="Dialogue Choices" type="GridContainer" parent="Dialogue Panel/Dialogue Box"]
 layout_mode = 2
+mouse_filter = 0
 theme_override_constants/h_separation = 10
 theme_override_constants/v_separation = 10
 columns = 6
