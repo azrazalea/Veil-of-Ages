@@ -30,6 +30,19 @@ anchor_bottom = 1.0
 offset_right = 127.0
 grow_vertical = 2
 
+[node name="Basic Info Container" type="VBoxContainer" parent="Character Container"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="Player Name Label" type="RichTextLabel" parent="Character Container/Basic Info Container"]
+layout_mode = 2
+theme_override_fonts/normal_font = ExtResource("1_l3ow8")
+text = "Lilith"
+fit_content = true
+
+[node name="ProgressBar" type="ProgressBar" parent="Character Container/Basic Info Container"]
+layout_mode = 2
+
 [node name="Kingdom Container" type="PanelContainer" parent="."]
 z_index = 1
 anchors_preset = 11

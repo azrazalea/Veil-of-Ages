@@ -16,6 +16,9 @@ namespace VeilOfAges.Entities
         {
             _baseMovementPointsPerTick = 0.5f; // Fast entity (2 ticks per tile)
             base.Initialize(gridArea, startGridPos, attributes);
+            Name = "Lilith Galonadel";
+            var nameLabel = GetNode<RichTextLabel>("/root/World/HUD/Character Container/Basic Info Container/Player Name Label");
+            nameLabel.Text = Name;
         }
     }
 }

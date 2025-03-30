@@ -50,9 +50,8 @@ namespace VeilOfAges
             // Register the player with the grid system
             if (_player != null)
             {
-                Vector2I playerGridPos = Grid.Utils.WorldToGrid(_player.Position);
-                _player.Initialize(ActiveGridArea, playerGridPos);
-                ActiveGridArea.MakePlayerArea(_player, playerGridPos);
+                _player.Initialize(ActiveGridArea, new Vector2I(50, 50));
+                ActiveGridArea.MakePlayerArea(_player, new Vector2I(50, 50));
             }
             else
             {
