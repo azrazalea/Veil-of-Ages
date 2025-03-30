@@ -5,6 +5,8 @@ using VeilOfAges.Entities;
 using VeilOfAges.UI;
 using VeilOfAges.UI.Commands;
 using VeilOfAges.Grid;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace VeilOfAges.Core
 {
@@ -26,6 +28,8 @@ namespace VeilOfAges.Core
         private RichTextLabel? _nameLabel;
         [Export]
         private ProgressBar? _hungerBar;
+        [Export]
+        private VBoxContainer? _commandQueueContainer;
         private EntityCommand? _pendingCommand = null;
         private Being? _commandTarget = null;
         private Vector2I _contextGridPos;
@@ -49,6 +53,7 @@ namespace VeilOfAges.Core
 
             if (_nameLabel != null && _nameLabel.Text != _player?.Name) _nameLabel.Text = _player?.Name;
             if (_hungerBar != null && hungerNeed != null) _hungerBar.Value = hungerNeed.Value;
+            PopulateCommandList();
         }
 
         public override void _Input(InputEvent @event)
@@ -174,9 +179,6 @@ namespace VeilOfAges.Core
                 }
                 else
                 {
-                    // Cancel any existing command
-                    CancelCurrentPlayerCommand();
-
                     // Create and assign a command to approach the entity
                     var approachCommand = new MoveToCommand(_player, _player);
                     var pathfinder = _player.GetPathfinder();
@@ -193,13 +195,10 @@ namespace VeilOfAges.Core
             }
             else if (_player.GetGridArea()?.IsCellWalkable(gridPos) == true)
             {
-                // Cancel any existing command
-                CancelCurrentPlayerCommand();
-
                 // Create and assign a movement command
                 var moveCommand = new MoveToCommand(_player, _player);
                 moveCommand.WithParameter("targetPos", gridPos);
-                _player.AssignCommand(moveCommand);
+                _player.QueueCommand(moveCommand);
                 GD.Print($"Moving to position {gridPos}");
             }
         }
@@ -255,13 +254,10 @@ namespace VeilOfAges.Core
                 case "Move here":
                     if (_player.GetGridArea()?.IsCellWalkable(gridPos) == true)
                     {
-                        // Cancel any existing command
-                        CancelCurrentPlayerCommand();
-
                         // Create and assign a movement command
                         var moveCommand = new MoveToCommand(_player, _player);
                         moveCommand.WithParameter("targetPos", gridPos);
-                        _player.AssignCommand(moveCommand);
+                        _player.QueueCommand(moveCommand);
                         GD.Print($"Moving to position {gridPos}");
                     }
                     break;
@@ -289,9 +285,6 @@ namespace VeilOfAges.Core
                         }
                         else
                         {
-                            // Cancel any existing command
-                            CancelCurrentPlayerCommand();
-
                             // Create and assign a command to approach the entity
                             var approachCommand = new MoveToCommand(_player, _player);
                             var pathfinder = _player.GetPathfinder();
@@ -301,7 +294,7 @@ namespace VeilOfAges.Core
                                 // Let the pathfinder handle finding a path to the entity with proximity of 1
                                 pathfinder.SetEntityProximityGoal(_player, entity, 1);
                                 approachCommand.WithParameter("usePathfinder", true);
-                                _player.AssignCommand(approachCommand);
+                                _player.QueueCommand(approachCommand);
                                 GD.Print($"Moving to approach {entity.Name}");
                             }
                         }
@@ -391,6 +384,62 @@ namespace VeilOfAges.Core
             var cancelCommand = new CancelCommand(_player, _player);
             _player.AssignCommand(cancelCommand);
             GD.Print("Canceled current player command");
+        }
+
+        public void PopulateCommandList()
+        {
+            if (_commandQueueContainer == null) return;
+
+
+            for (int i = _commandQueueContainer.GetChildCount() - 1; i >= 0; i--)
+            {
+                var child = _commandQueueContainer.GetChild(i);
+                _commandQueueContainer.RemoveChild(child);
+                child.QueueFree();
+            }
+
+            if (_player?.GetCommandQueue().Count == 0 && !_player.HasAssignedCommand())
+            {
+                var label = new Label
+                {
+                    Text = "Empty",
+                };
+                label.AddThemeFontSizeOverride("font_size", 10);
+
+                _commandQueueContainer.AddChild(label);
+                return;
+            }
+
+            if (_player?.HasAssignedCommand() == true)
+            {
+                var label = new Label
+                {
+                    Text = _player?.GetAssignedCommand()?.GetType().ToString().Split('.').Last(),
+                    TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+                    ClipText = true,
+                };
+
+                label.AddThemeFontSizeOverride("font_size", 10);
+
+                _commandQueueContainer.AddChild(label);
+            }
+
+
+            LinkedListNode<EntityCommand>? node = _player?.GetCommandQueue().First();
+            while (node != null)
+            {
+                var label = new Label
+                {
+                    Text = node?.Value.GetType().ToString().Split('.').Last(),
+                    TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+                    ClipText = true,
+                };
+
+                label.AddThemeFontSizeOverride("font_size", 10);
+
+                _commandQueueContainer.AddChild(label);
+                node = node?.Next;
+            }
         }
     }
 }
