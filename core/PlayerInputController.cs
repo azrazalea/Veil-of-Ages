@@ -4,6 +4,7 @@ using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities;
 using VeilOfAges.UI;
 using VeilOfAges.UI.Commands;
+using VeilOfAges.Grid;
 
 namespace VeilOfAges.Core
 {
@@ -27,6 +28,7 @@ namespace VeilOfAges.Core
         private ProgressBar? _hungerBar;
         private EntityCommand? _pendingCommand = null;
         private Being? _commandTarget = null;
+        private Vector2I _contextGridPos;
         private bool _awaitingLocationSelection = false;
 
         public override void _Ready()
@@ -135,9 +137,9 @@ namespace VeilOfAges.Core
         public Vector2I GetCurrentMouseGridPosition()
         {
             // Get mouse position and convert to world space
-            Vector2 worldPos = GetViewport().GetCamera2D().GetGlobalMousePosition();
+            Godot.Vector2 worldPos = GetViewport().GetCamera2D().GetGlobalMousePosition();
             // Convert to grid position
-            return Grid.Utils.WorldToGrid(worldPos);
+            return Utils.WorldToGrid(worldPos);
         }
 
         // Handle left clicks for movement and interaction
@@ -207,11 +209,11 @@ namespace VeilOfAges.Core
         {
             if (_contextMenu == null) return;
 
-            var gridPos = GetCurrentMouseGridPosition();
+            _contextGridPos = GetCurrentMouseGridPosition();
 
             // Determine what's at the clicked position
-            var entity = GetEntityAtPosition(gridPos);
-            bool isWalkable = _player?.GetGridArea()?.IsCellWalkable(gridPos) == true;
+            var entity = GetEntityAtPosition(_contextGridPos);
+            bool isWalkable = _player?.GetGridArea()?.IsCellWalkable(_contextGridPos) == true;
 
             _contextMenu.Position = (Vector2I)@event.Position;
             _contextMenu.Clear();
@@ -229,7 +231,7 @@ namespace VeilOfAges.Core
                 _contextMenu.AddItem("Move here");
 
                 // Add build option if appropriate
-                if (IsValidBuildLocation(gridPos))
+                if (IsValidBuildLocation(_contextGridPos))
                 {
                     _contextMenu.AddItem("Build here");
                 }
@@ -246,7 +248,7 @@ namespace VeilOfAges.Core
             if (_contextMenu == null || _player == null) return;
 
             string itemText = _contextMenu.GetItemText((int)itemId);
-            Vector2I gridPos = GetCurrentMouseGridPosition();
+            var gridPos = _contextGridPos;
 
             switch (itemText)
             {
@@ -266,7 +268,7 @@ namespace VeilOfAges.Core
 
                 case var s when s.StartsWith("Talk to "):
                     var entity = GetEntityAtPosition(gridPos);
-                    if (entity != null)
+                    if (entity != null && entity != _player)
                     {
                         Vector2I playerPos = _player.GetCurrentGridPosition();
                         bool isAdjacent = Math.Abs(playerPos.X - gridPos.X) <= 1 &&

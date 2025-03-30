@@ -56,6 +56,7 @@ layout_mode = 2
 
 [node name="Hunger Label" type="RichTextLabel" parent="Character Container/Basic Info Container/Needs Container/Needs Vbox"]
 layout_mode = 2
+theme_override_font_sizes/normal_font_size = 12
 text = "🍗Hunger"
 fit_content = true
 
