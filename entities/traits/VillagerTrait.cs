@@ -5,9 +5,7 @@ using VeilOfAges.Entities.Sensory;
 using VeilOfAges.Core.Lib;
 using System.Collections.Generic;
 using System;
-using System.Runtime.CompilerServices;
 using VeilOfAges.UI;
-using VeilOfAges.UI.Commands;
 using VeilOfAges.Entities.Needs;
 using VeilOfAges.Entities.Needs.Strategies;
 
@@ -19,10 +17,9 @@ namespace VeilOfAges.Entities.Traits
         public float WanderProbability { get; set; } = 0.1f;
         public float VisitBuildingProbability { get; set; } = 0.05f;
         public uint IdleTime { get; set; } = 20;
-        public uint FleeDelay { get; set; } = 10; // Ticks of delay before fleeing
 
         // State machine
-        private enum VillagerState { IdleAtHome, IdleAtSquare, VisitingBuilding, Fleeing }
+        private enum VillagerState { IdleAtHome, IdleAtSquare, VisitingBuilding }
         private VillagerState _currentState = VillagerState.IdleAtHome;
 
         // Village knowledge
@@ -30,12 +27,6 @@ namespace VeilOfAges.Entities.Traits
         private Vector2I _squarePosition;
         private List<Building> _knownBuildings = new();
         private Building? _currentDestinationBuilding;
-
-        // Path and movement tracking
-        private uint _currentFleeDelay = 0;
-        private bool _hasSeenUndead = false;
-        private Vector2I? _lastUndeadPosition = null;
-        private uint _lastUndeadTick = 0;
 
         public override void Initialize(Being owner, BodyHealth health)
         {
@@ -113,30 +104,6 @@ namespace VeilOfAges.Entities.Traits
                 _stateTimer--;
             }
 
-            // Check for undead nearby
-            _hasSeenUndead = CheckForUndead(currentPerception);
-
-            // If we've seen undead, start the flee delay countdown
-            if (_hasSeenUndead && _currentState != VillagerState.Fleeing)
-            {
-                if (_currentFleeDelay == 0)
-                {
-                    _currentFleeDelay = FleeDelay;
-                }
-                else
-                {
-                    _currentFleeDelay--;
-                    if (_currentFleeDelay == 0)
-                    {
-                        // Time to flee!
-                        _currentState = VillagerState.Fleeing;
-                        MyPathfinder.SetPositionGoal(_owner, _homePosition);
-                        _stateTimer = 100; // Long flee timer
-                        GD.Print($"{_owner.Name}: Fleeing from undead to home!");
-                    }
-                }
-            }
-
             // Process current state
             switch (_currentState)
             {
@@ -146,29 +113,9 @@ namespace VeilOfAges.Entities.Traits
                     return ProcessIdleAtSquareState();
                 case VillagerState.VisitingBuilding:
                     return ProcessVisitingBuildingState();
-                case VillagerState.Fleeing:
-                    return ProcessFleeingState();
                 default:
                     return new IdleAction(_owner, this);
             }
-        }
-
-        private bool CheckForUndead(Perception perception)
-        {
-            // Look through entities to find any with UndeadTrait
-            var entities = perception.GetEntitiesOfType<Being>();
-
-            foreach (var (entity, position) in entities)
-            {
-                if (entity != _owner && entity.selfAsEntity().HasTrait<UndeadTrait>())
-                {
-                    _lastUndeadPosition = position;
-                    _lastUndeadTick = MyPathfinder.CurrentTick;
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         private EntityAction? ProcessIdleAtHomeState()
@@ -320,71 +267,6 @@ namespace VeilOfAges.Entities.Traits
 
             // If we're at the building, just idle
             return new IdleAction(_owner, this);
-        }
-
-        private EntityAction? ProcessFleeingState()
-        {
-            if (_owner == null) return null;
-
-            // Check if we've reached safety (home)
-            Vector2I currentPos = _owner.GetCurrentGridPosition();
-            if (currentPos == _homePosition)
-            {
-                // We've reached safety
-                _currentState = VillagerState.IdleAtHome;
-                _stateTimer = (uint)_rng.RandiRange(200, 400); // Long rest after fleeing
-                _hasSeenUndead = false;
-                _lastUndeadPosition = null;
-                GD.Print($"{_owner.Name}: Reached safety!");
-                return new IdleAction(_owner, this);
-            }
-
-            // Continue following flee path to home
-            bool undeadStillClose = false;
-
-            // Check if undead was seen recently (within last 20 ticks)
-            if (_lastUndeadPosition.HasValue && MyPathfinder.CurrentTick - _lastUndeadTick < 20)
-            {
-                undeadStillClose = true;
-            }
-
-            // If undead still close, flee directly away from it
-            if (undeadStillClose && _lastUndeadPosition.HasValue)
-            {
-                // Calculate direction away from undead
-                Vector2I directionAway = currentPos - _lastUndeadPosition.Value;
-                Vector2I normalizedDirection = new(
-                    Math.Sign(directionAway.X),
-                    Math.Sign(directionAway.Y)
-                );
-
-                // Try to move away while also moving toward home
-                Vector2I homeDirection = new(
-                    Math.Sign(_homePosition.X - currentPos.X),
-                    Math.Sign(_homePosition.Y - currentPos.Y)
-                );
-
-                // Blend the directions, prioritizing away from undead
-                Vector2I moveDirection = new(
-                    normalizedDirection.X != 0 ? normalizedDirection.X : homeDirection.X,
-                    normalizedDirection.Y != 0 ? normalizedDirection.Y : homeDirection.Y
-                );
-
-                // Try to move one step in this direction
-                Vector2I targetPos = currentPos + moveDirection;
-                if (_owner.GetGridArea()?.IsCellWalkable(targetPos) == true)
-                {
-                    return new MoveAction(_owner, this, targetPos);
-                }
-            }
-
-            // Otherwise use pathfinding to get home - lazy path calculation
-            if (!MyPathfinder.HasValidPath() || !MyPathfinder.IsGoalReached(_owner))
-            {
-                MyPathfinder.SetPositionGoal(_owner, _homePosition);
-            }
-
-            return new MoveAlongPathAction(_owner, this, MyPathfinder);
         }
 
         public override string InitialDialogue(Being speaker)
