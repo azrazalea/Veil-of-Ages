@@ -43,6 +43,22 @@ fit_content = true
 [node name="HSeparator" type="HSeparator" parent="Character Container/Basic Info Container"]
 layout_mode = 2
 
+[node name="Activity section label" type="Label" parent="Character Container/Basic Info Container"]
+layout_mode = 2
+text = "Activity:"
+
+[node name="Activity Label" type="Label" parent="Character Container/Basic Info Container"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Idle"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="HSeparator2" type="HSeparator" parent="Character Container/Basic Info Container"]
+layout_mode = 2
+
 [node name="Needs Label" type="RichTextLabel" parent="Character Container/Basic Info Container"]
 layout_mode = 2
 text = "Needs"
@@ -158,7 +174,7 @@ autowrap_mode = 0
 
 [node name="Context Menu" type="PopupMenu" parent="."]
 
-[node name="PlayerInputController" type="Node2D" parent="." node_paths=PackedStringArray("_dialogueUI", "_quickActions", "_minimap", "_chooseLocationPrompt", "_contextMenu", "_nameLabel", "_hungerBar", "_commandQueueContainer")]
+[node name="PlayerInputController" type="Node2D" parent="." node_paths=PackedStringArray("_dialogueUI", "_quickActions", "_minimap", "_chooseLocationPrompt", "_contextMenu", "_nameLabel", "_hungerBar", "_commandQueueContainer", "_activityLabel")]
 script = ExtResource("4_whbmk")
 _dialogueUI = NodePath("../Dialogue")
 _quickActions = NodePath("../Quick Actions Container")
@@ -168,6 +184,7 @@ _contextMenu = NodePath("../Context Menu")
 _nameLabel = NodePath("../Character Container/Basic Info Container/Player Name Label")
 _hungerBar = NodePath("../Character Container/Basic Info Container/Needs Container/Needs Vbox/Hunger Need Bar")
 _commandQueueContainer = NodePath("../Character Container/Basic Info Container/Command Queue Panel Container/Command Queue List")
+_activityLabel = NodePath("../Character Container/Basic Info Container/Activity Label")
 
 [connection signal="index_pressed" from="Context Menu" to="PlayerInputController" method="HandleContextMenuSelection"]
 

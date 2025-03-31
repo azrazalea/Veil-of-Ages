@@ -30,6 +30,8 @@ namespace VeilOfAges.Core
         private ProgressBar? _hungerBar;
         [Export]
         private VBoxContainer? _commandQueueContainer;
+        [Export]
+        private Label? _activityLabel;
         private EntityCommand? _pendingCommand = null;
         private Being? _commandTarget = null;
         private Vector2I _contextGridPos;
@@ -52,6 +54,10 @@ namespace VeilOfAges.Core
             var hungerNeed = _player?.NeedsSystem?.GetNeed("hunger");
 
             if (_nameLabel != null && _nameLabel.Text != _player?.Name) _nameLabel.Text = _player?.Name;
+            if (_activityLabel != null)
+            {
+                _activityLabel.Text = _player?.GetAssignedCommand()?.GetType().ToString().Split('.').Last() ?? "Idle";
+            }
             if (_hungerBar != null && hungerNeed != null) _hungerBar.Value = hungerNeed.Value;
             PopulateCommandList();
         }
@@ -69,7 +75,14 @@ namespace VeilOfAges.Core
             // UI navigation
             else if (@event.IsActionPressed("exit"))
             {
-                _dialogueUI?.Close();
+                if (_dialogueUI?.Visible == true)
+                {
+                    _dialogueUI?.Close();
+                }
+                else
+                {
+                    CancelCurrentPlayerCommand();
+                }
             }
             // Simulation controls
             else if (@event.IsActionPressed("toggle_simulation_pause"))
@@ -83,11 +96,6 @@ namespace VeilOfAges.Core
             else if (@event.IsActionPressed("slow_down"))
             {
                 _gameController.SetTimeScale(_gameController.TimeScale * 0.5f);
-            }
-            // Cancel current command
-            else if (@event.IsActionPressed("ui_cancel"))
-            {
-                CancelCurrentPlayerCommand();
             }
             // Right-click context menu
             else if (@event.IsActionPressed("context_menu") && @event is InputEventMouseButton contextMouseEvent)
@@ -180,17 +188,7 @@ namespace VeilOfAges.Core
                 else
                 {
                     // Create and assign a command to approach the entity
-                    var approachCommand = new MoveToCommand(_player, _player);
-                    var pathfinder = _player.GetPathfinder();
-
-                    if (pathfinder != null)
-                    {
-                        // Let the pathfinder handle finding a path to the entity with proximity of 1
-                        pathfinder.SetEntityProximityGoal(_player, entity, 1);
-                        approachCommand.WithParameter("usePathfinder", true);
-                        _player.AssignCommand(approachCommand);
-                        GD.Print($"Moving to approach {entity.Name}");
-                    }
+                    ApproachEntity(entity);
                 }
             }
             else if (_player.GetGridArea()?.IsCellWalkable(gridPos) == true)
@@ -286,17 +284,7 @@ namespace VeilOfAges.Core
                         else
                         {
                             // Create and assign a command to approach the entity
-                            var approachCommand = new MoveToCommand(_player, _player);
-                            var pathfinder = _player.GetPathfinder();
-
-                            if (pathfinder != null)
-                            {
-                                // Let the pathfinder handle finding a path to the entity with proximity of 1
-                                pathfinder.SetEntityProximityGoal(_player, entity, 1);
-                                approachCommand.WithParameter("usePathfinder", true);
-                                _player.QueueCommand(approachCommand);
-                                GD.Print($"Moving to approach {entity.Name}");
-                            }
+                            ApproachEntity(entity);
                         }
                     }
                     break;
@@ -381,8 +369,7 @@ namespace VeilOfAges.Core
             if (_player == null) return;
 
             // Create and assign a cancel command
-            var cancelCommand = new CancelCommand(_player, _player);
-            _player.AssignCommand(cancelCommand);
+            _player.AssignCommand(null);
             GD.Print("Canceled current player command");
         }
 
@@ -398,7 +385,7 @@ namespace VeilOfAges.Core
                 child.QueueFree();
             }
 
-            if (_player?.GetCommandQueue().Count == 0 && !_player.HasAssignedCommand())
+            if (_player?.GetCommandQueue().Count == 0)
             {
                 var label = new Label
                 {
@@ -409,21 +396,6 @@ namespace VeilOfAges.Core
                 _commandQueueContainer.AddChild(label);
                 return;
             }
-
-            if (_player?.HasAssignedCommand() == true)
-            {
-                var label = new Label
-                {
-                    Text = _player?.GetAssignedCommand()?.GetType().ToString().Split('.').Last(),
-                    TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
-                    ClipText = true,
-                };
-
-                label.AddThemeFontSizeOverride("font_size", 10);
-
-                _commandQueueContainer.AddChild(label);
-            }
-
 
             LinkedListNode<EntityCommand>? node = _player?.GetCommandQueue().First();
             while (node != null)
@@ -440,6 +412,16 @@ namespace VeilOfAges.Core
                 _commandQueueContainer.AddChild(label);
                 node = node?.Next;
             }
+        }
+
+        public void ApproachEntity(Being entity)
+        {
+            if (_player == null) return;
+
+            var approachCommand = new MoveToCommand(_player, _player);
+            approachCommand.WithParameter("targetEntity", entity);
+            _player.QueueCommand(approachCommand);
+            GD.Print($"Moving to approach {entity.Name}");
         }
     }
 }

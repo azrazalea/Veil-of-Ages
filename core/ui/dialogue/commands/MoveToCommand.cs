@@ -13,12 +13,17 @@ namespace VeilOfAges.UI.Commands
     : EntityCommand(owner, commander, isComplex)
     {
         private Vector2I? _targetPos = null;
+        private Being? _targetEntity = null;
+        bool GoalSet = false;
 
         public override EntityAction? SuggestAction(Vector2I currentGridPos, Perception currentPerception)
         {
             if (MyPathfinder == null) return null;
 
-            if (!Parameters.TryGetValue("targetPos", out var targetPosObj))
+            var targetPosExists = Parameters.TryGetValue("targetPos", out var targetPosObj);
+            var targetEntityExists = Parameters.TryGetValue("targetEntity", out var targetEntityObj);
+
+            if (!targetPosExists && !targetEntityExists)
             {
                 // Wait for target position to be set
                 return new IdleAction(_owner, this, 0);
@@ -30,23 +35,38 @@ namespace VeilOfAges.UI.Commands
                 _targetPos = (Vector2I)targetPosObj;
             }
 
+            if (_targetEntity == null && targetEntityObj != null)
+            {
+                _targetEntity = (Being)targetEntityObj;
+            }
+
             // If we have a target position
             if (_targetPos.HasValue)
             {
                 Vector2I targetPos = _targetPos.Value;
 
-
-                // Check if we've reached the target
-                if (currentGridPos == targetPos)
+                if (!GoalSet)
                 {
-                    return null; // Command complete
+                    MyPathfinder.SetPositionGoal(_owner, targetPos);
+                    GoalSet = true;
                 }
-
-                MyPathfinder.SetPositionGoal(_owner, targetPos);
-                return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: -1);
             }
-            // No target or no path available, end command
-            return null;
+
+
+            if (_targetEntity != null)
+            {
+
+                if (!GoalSet)
+                {
+                    MyPathfinder.SetEntityProximityGoal(_owner, _targetEntity);
+                    GoalSet = true;
+                }
+            }
+
+            // Check if we've reached the target or are in a broken state
+            if ((!_targetPos.HasValue && _targetEntity == null) || MyPathfinder.IsGoalReached(_owner)) return null;
+
+            return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: -1);
         }
     }
 }

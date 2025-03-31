@@ -154,8 +154,14 @@ namespace VeilOfAges.Entities
         /// </summary>
         /// <param name="command">The command to assign</param>
         /// <returns>Whether or not the command was assigned successfully</returns>
-        public bool AssignCommand(EntityCommand command)
+        public bool AssignCommand(EntityCommand? command)
         {
+            if (command == null)
+            {
+                _currentCommand = command;
+                return true;
+            }
+
             if (WillRefuseCommand(command))
             {
                 return false;
