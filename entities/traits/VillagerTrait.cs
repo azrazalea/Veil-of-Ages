@@ -28,9 +28,9 @@ namespace VeilOfAges.Entities.Traits
         private List<Building> _knownBuildings = new();
         private Building? _currentDestinationBuilding;
 
-        public override void Initialize(Being owner, BodyHealth health)
+        public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue = null)
         {
-            base.Initialize(owner, health);
+            base.Initialize(owner, health, initQueue);
 
             // Find home position (where they spawned)
             _homePosition = _spawnPosition; // this is just an alias
@@ -45,12 +45,10 @@ namespace VeilOfAges.Entities.Traits
             // Discover buildings in the world
             DiscoverBuildings();
 
-            if (owner == null || owner?.Health == null) return;
+            if (owner == null || owner.Health == null) return;
 
-            // Add LivingTrait to handle basic living needs
-            var livingTrait = new LivingTrait();
-            livingTrait.Initialize(owner, owner.Health);
-            _owner?.selfAsEntity().AddTrait(livingTrait, 0);
+            // Add LivingTrait to handle basic living needs - simple one-liner now
+            _owner?.selfAsEntity().AddTraitToQueue<LivingTrait>(0, initQueue);
 
             // Add ConsumptionBehaviorTrait for hunger
             var consumptionTrait = new ConsumptionBehaviorTrait(
@@ -62,10 +60,8 @@ namespace VeilOfAges.Entities.Traits
                 244
             );
 
-            consumptionTrait.Initialize(owner, owner.Health);
-
             // Add the consumption trait with a priority just below this trait
-            _owner?.selfAsEntity().AddTrait(consumptionTrait, Priority - 1);
+            _owner?.selfAsEntity().AddTraitToQueue(consumptionTrait, Priority - 1, initQueue);
 
             _currentState = VillagerState.IdleAtHome;
             GD.Print($"{_owner?.Name}: Villager trait initialized fully");

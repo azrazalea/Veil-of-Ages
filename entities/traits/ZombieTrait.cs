@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using VeilOfAges.Entities.Actions;
@@ -17,9 +19,9 @@ namespace VeilOfAges.Entities.Traits
 
         private bool _hasGroaned = false;
 
-        public override void Initialize(Being owner, BodyHealth health)
+        public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue)
         {
-            base.Initialize(owner, health);
+            base.Initialize(owner, health, initQueue);
 
             if (owner?.Health == null) return;
 

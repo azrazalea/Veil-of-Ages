@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Beings;
@@ -21,9 +23,9 @@ namespace VeilOfAges.Entities.Traits
         private bool _hasRattled = false;
         private Vector2I? _lastIntruderPosition = null;
 
-        public override void Initialize(Being owner, BodyHealth health)
+        public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue)
         {
-            base.Initialize(owner, health);
+            base.Initialize(owner, health, initQueue);
 
             // Skeleton-specific initialization
             WanderProbability = 0.2f; // Skeletons wander less than zombies

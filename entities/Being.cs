@@ -82,16 +82,32 @@ namespace VeilOfAges.Entities
             var animatedSprite = GetNode<AnimatedSprite2D>("AnimatedSprite2D");
             animatedSprite.Play("idle");
 
-            // Initialize all traits
+            // Create initialization queue
+            Queue<BeingTrait> initQueue = new Queue<BeingTrait>();
+
+            // Add all current traits to the queue
             foreach (var trait in _traits)
             {
-                if (Health != null && trait.IsInitialized == false)
+                initQueue.Enqueue(trait);
+            }
+
+            // Process all traits in the queue, including ones added during initialization
+            while (initQueue.Count > 0)
+            {
+                var trait = initQueue.Dequeue();
+
+                // Skip if already initialized
+                if (trait.IsInitialized)
+                    continue;
+
+                // Initialize the trait and allow it to add more traits to the queue
+                if (Health != null)
                 {
-                    trait.Initialize(this, Health);
+                    trait.Initialize(this, Health, initQueue);
                 }
                 else
                 {
-                    trait.Initialize(this);
+                    trait.Initialize(this, initQueue);
                 }
             }
 

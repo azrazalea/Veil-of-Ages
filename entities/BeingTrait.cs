@@ -43,9 +43,17 @@ namespace VeilOfAges.Entities
         }
 
         /// <summary>
+        /// Initialize the trait with a Being owner
+        /// </summary>
+        public virtual void Initialize(Being owner, Queue<BeingTrait>? initQueue = null)
+        {
+            Initialize(owner, null, initQueue);
+        }
+
+        /// <summary>
         /// Initialize the trait with a Being owner and health system
         /// </summary>
-        public virtual void Initialize(Being owner, BodyHealth health)
+        public virtual void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue = null)
         {
             if (IsInitialized) return;
             _owner = owner;

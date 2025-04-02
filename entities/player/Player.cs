@@ -23,9 +23,9 @@ namespace VeilOfAges.Entities
             _baseMovementPointsPerTick = 0.5f; // Fast entity (2 ticks per tile)
             base.Initialize(gridArea, startGridPos, attributes);
             Name = "Lilith Galonadel";
-            var livingTrait = new LivingTrait();
-            if (Health != null) livingTrait.Initialize(this, Health);
-            selfAsEntity().AddTrait(livingTrait, 0);
+            
+            // Example of the new AddTraitToQueue method - much cleaner than creating and adding separately
+            selfAsEntity().AddTraitToQueue<LivingTrait>(0);
         }
 
         public override EntityAction Think(Vector2 currentPosition, ObservationData observationData)

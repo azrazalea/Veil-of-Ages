@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Needs;
@@ -6,9 +7,9 @@ namespace VeilOfAges.Entities.Traits
 {
     public class LivingTrait : BeingTrait
     {
-        public override void Initialize(Being owner, BodyHealth health)
+        public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue = null)
         {
-            base.Initialize(owner, health);
+            base.Initialize(owner, health, initQueue);
 
             // Initialize the hunger need in the needs system
             var needsSystem = owner.NeedsSystem;

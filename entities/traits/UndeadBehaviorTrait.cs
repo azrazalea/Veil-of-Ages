@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Beings.Health;
@@ -15,9 +17,9 @@ namespace VeilOfAges.Entities.Traits
         // Override this to implement different behavior states
         protected abstract EntityAction? ProcessState(Vector2I currentOwnerGridPosition, Perception currentPerception);
 
-        public override void Initialize(Being owner, BodyHealth health)
+        public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue)
         {
-            base.Initialize(owner, health);
+            base.Initialize(owner, health, initQueue);
             _stateTimer = IdleTime;
             GD.Print($"{owner.Name}: UndeadBehavior trait initialized");
         }

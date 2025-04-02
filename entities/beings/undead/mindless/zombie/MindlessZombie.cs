@@ -34,10 +34,7 @@ namespace VeilOfAges.Entities.Beings
 
             // Add zombie traits
             selfAsEntity().AddTrait<MindlessTrait>(1);
-            var zombieTrait = new ZombieTrait();
-            zombieTrait.Initialize(this, Health);
-            selfAsEntity().AddTrait(zombieTrait, 2);
-
+            selfAsEntity().AddTrait<ZombieTrait>(2);
 
             _zombieGroan = GetNode<AudioStreamPlayer2D>("AudioStreamPlayer2D");
 

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Beings.Health;
@@ -7,12 +8,15 @@ namespace VeilOfAges.Entities.Traits
 {
     public class UndeadTrait : BeingTrait
     {
-        public override void Initialize(Being owner, BodyHealth health)
+        public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue = null)
         {
-            base.Initialize(owner, health);
+            base.Initialize(owner, health, initQueue);
 
-            health.DisableBodySystem(BodySystemType.Pain);
-            DisableLivingBodySystems(health);
+            if (health != null)
+            {
+                health.DisableBodySystem(BodySystemType.Pain);
+                DisableLivingBodySystems(health);
+            }
             GD.Print($"{owner.Name}: Undead trait initialized");
         }
 
