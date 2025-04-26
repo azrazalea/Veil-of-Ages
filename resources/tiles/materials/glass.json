@@ -1,0 +1,16 @@
+{
+    "Id": "glass",
+    "Name": "Glass",
+    "Description": "Standard glass used for things like windows.",
+    "DurabilityModifier": 0.3,
+    "SensoryModifiers": {
+        "Sight": 0.2,
+        "Hearing": 0.8,
+        "Smell": 0.9
+    },
+    "Properties": {
+        "Flammable": "false",
+        "Weight": "light",
+        "Insulation": "low"
+    }
+}

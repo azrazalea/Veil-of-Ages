@@ -1,0 +1,16 @@
+{
+    "Id": "stone",
+    "Name": "Stone",
+    "Description": "Solid stone material, durable but heavy.",
+    "DurabilityModifier": 1.5,
+    "SensoryModifiers": {
+        "Sight": 1.0,
+        "Hearing": 1.2,
+        "Smell": 0.5
+    },
+    "Properties": {
+        "Flammable": "false",
+        "Weight": "heavy",
+        "Insulation": "low"
+    }
+}

@@ -1,0 +1,16 @@
+{
+    "Id": "wood",
+    "Name": "Wood",
+    "Description": "Standard wooden material used in most buildings.",
+    "DurabilityModifier": 1.0,
+    "SensoryModifiers": {
+        "Sight": 1.0,
+        "Hearing": 0.8,
+        "Smell": 0.9
+    },
+    "Properties": {
+        "Flammable": "true",
+        "Weight": "light",
+        "Insulation": "medium"
+    }
+}

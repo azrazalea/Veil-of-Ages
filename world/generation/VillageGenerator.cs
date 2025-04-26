@@ -18,6 +18,7 @@ namespace VeilOfAges.WorldGeneration
         private readonly Area _gridArea;
         private readonly RandomNumberGenerator _rng = new();
         private readonly EntityThinkingSystem _entityThinkingSystem;
+        private readonly BuildingManager _buildingManager; // Added BuildingManager reference
 
         public VillageGenerator(
             Area gridArea,
@@ -36,6 +37,10 @@ namespace VeilOfAges.WorldGeneration
             _zombieScene = zombieScene;
             _townsfolkScene = townsfolkScene;
             _entityThinkingSystem = entityThinkingSystem;
+            _buildingManager = BuildingManager.Instance; // Get the singleton instance
+            
+            // Set the current area for BuildingManager
+            _buildingManager?.SetCurrentArea(gridArea);
 
             // Initialize RNG with seed if provided
             if (seed.HasValue)
@@ -106,8 +111,16 @@ namespace VeilOfAges.WorldGeneration
             for (int i = 0; i < buildingTypes.Length; i++)
             {
                 string buildingType = buildingTypes[i];
-                Vector2I buildingSize = Building.BuildingSizes[buildingType];
-
+                
+                // Get template from BuildingManager instead of using static dictionary
+                var template = _buildingManager.GetTemplate(buildingType);
+                if (template == null)
+                {
+                    GD.PrintErr($"Failed to find template for building type: {buildingType}");
+                    continue;
+                }
+                
+                Vector2I buildingSize = template.Size;
                 // Calculate position in a circle with increased distance
                 float angle = (float)i / buildingTypes.Length * Mathf.Tau;
                 int distance = minDistanceFromCenter;
@@ -158,18 +171,12 @@ namespace VeilOfAges.WorldGeneration
                     if (areaIsFree)
                     {
                         foundValidPosition = true;
-
-                        // Create building by instancing the scene
-                        Node2D building = _buildingScene.Instantiate<Node2D>();
-                        _entitiesContainer.AddChild(building);
-
-                        // Initialize the building at this position
-                        if (building is Building typedBuilding)
+                        
+                        // Use BuildingManager to place the building
+                        Building typedBuilding = _buildingManager.PlaceBuilding(buildingType, buildingPos, _gridArea);
+                        
+                        if (typedBuilding != null)
                         {
-                            typedBuilding.Initialize(_gridArea, buildingPos, buildingType);
-                            _gridArea.AddEntity(buildingPos, building, buildingSize);
-
-
                             // Special handling based on building type
                             switch (buildingType)
                             {
@@ -188,15 +195,13 @@ namespace VeilOfAges.WorldGeneration
                                     SpawnBeingNearBuilding(buildingPos, buildingSize, _townsfolkScene);
                                     break;
                             }
+                            
+                            GD.Print($"Placed {buildingType} at {buildingPos}");
                         }
                         else
                         {
-                            // Fallback positioning if not our Building type
-                            building.Position = Utils.GridToWorld(buildingPos);
-                            _gridArea.AddEntity(buildingPos, building, buildingSize);
+                            GD.PrintErr($"Failed to create building of type {buildingType} at {buildingPos}");
                         }
-
-                        GD.Print($"Placed {buildingType} at {buildingPos}");
                     }
                 }
 
@@ -213,8 +218,16 @@ namespace VeilOfAges.WorldGeneration
         public bool SpawnBuildingNearBuilding(Vector2I baseBuilingPos, Vector2I baseBuildingSize,
             string newBuildingType, string newBuildingDirection = "right", int wiggleRoom = 2)
         {
-            // Get size for the new building
-            Vector2I newBuildingSize = Building.BuildingSizes[newBuildingType];
+            // Get template from BuildingManager
+            var template = _buildingManager.GetTemplate(newBuildingType);
+            if (template == null)
+            {
+                GD.PrintErr($"Failed to find template for building type: {newBuildingType}");
+                return false;
+            }
+            
+            // Get size from template
+            Vector2I newBuildingSize = template.Size;
 
             // Find valid position for the new building
             Vector2I newBuildingPos = FindPositionForBuildingNear(baseBuilingPos, baseBuildingSize,
@@ -227,26 +240,20 @@ namespace VeilOfAges.WorldGeneration
                 return false;
             }
 
-            // Create the new building
-            Node2D building = _buildingScene.Instantiate<Node2D>();
-            _entitiesContainer.AddChild(building);
-
-            // Initialize the building at this position
-            if (building is Building typedBuilding)
+            // Use BuildingManager to place the building
+            Building typedBuilding = _buildingManager.PlaceBuilding(newBuildingType, newBuildingPos, _gridArea);
+            
+            if (typedBuilding != null)
             {
-                typedBuilding.Initialize(_gridArea, newBuildingPos, newBuildingType);
                 GD.Print($"Placed {newBuildingType} at {newBuildingPos} near building at {baseBuilingPos}");
-                _gridArea.AddEntity(newBuildingPos, building, newBuildingSize);
                 return true;
             }
             else
             {
-                // Fallback positioning if not the correct type
-                building.Position = Utils.GridToWorld(newBuildingPos);
+                GD.PrintErr($"Failed to create building of type {newBuildingType} at {newBuildingPos}");
                 return false;
             }
         }
-
         /// <summary>
         /// Spawns a character near a building
         /// </summary>
@@ -542,7 +549,13 @@ namespace VeilOfAges.WorldGeneration
                 if (entity is Building building)
                 {
                     Vector2I buildingPos = building.GetCurrentGridPosition();
-                    Vector2I entrancePos = Building.BuildingEntrancePos(buildingPos, building.BuildingType);
+                    
+                    // Get entrance positions directly from the building
+                    var entrancePositions = building.GetEntrancePositions();
+                    
+                    // Use the first entrance position if available, otherwise use building position
+                    Vector2I entrancePos = entrancePositions.Count > 0 ? entrancePositions[0] : buildingPos;
+                    
                     buildings.Add((buildingPos, entrancePos, building.BuildingType));
                 }
             }
@@ -552,7 +565,6 @@ namespace VeilOfAges.WorldGeneration
             {
                 CreatePath(building.entrance, villageCenter);
             }
-
             // Optionally, create paths between related buildings
             ConnectRelatedBuildings(buildings);
         }

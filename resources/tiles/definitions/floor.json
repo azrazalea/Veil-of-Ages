@@ -1,0 +1,21 @@
+{
+    "Id": "floor",
+    "Name": "Floor",
+    "Description": "A basic floor surface.",
+    "Type": "Floor",
+    "IsWalkable": true,
+    "BaseDurability": 50,
+    "AtlasSource": "buildings_main",
+    "AtlasCoords": [
+        4,
+        3
+    ],
+    "DefaultSensoryDifficulties": {
+        "Sight": 0.0,
+        "Hearing": 0.1,
+        "Smell": 0.0
+    },
+    "Properties": {
+        "BuildCost": "Material:1"
+    }
+}

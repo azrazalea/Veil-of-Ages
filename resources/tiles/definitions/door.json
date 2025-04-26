@@ -1,0 +1,26 @@
+{
+    "Id": "door",
+    "Name": "Door",
+    "Description": "A basic door with open/close functionality.",
+    "Type": "Door",
+    "IsWalkable": true,
+    "BaseDurability": 50,
+    "AtlasSource": "buildings_main",
+    "AtlasCoords": [
+        3,
+        3
+    ],
+    "DefaultSensoryDifficulties": {
+        "Sight": 0.9,
+        "Hearing": 0.3,
+        "Smell": 0.5
+    },
+    "Properties": {
+        "BuildCost": "Material:2",
+        "Interactable": "true",
+        "OpenAtlasCoords": [
+            3,
+            4
+        ]
+    }
+}
