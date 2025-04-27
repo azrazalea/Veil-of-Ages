@@ -17,5 +17,15 @@
     },
     "Properties": {
         "BuildCost": "Material:2"
+    },
+    "Variants": {
+        "wood": {
+            "CornerTopLeft": {
+                "AtlasCoords": [
+                    4,
+                    1
+                ]
+            }
+        }
     }
 }

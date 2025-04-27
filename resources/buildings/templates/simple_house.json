@@ -22,7 +22,8 @@
         0
       ],
       "Type": "Wall",
-      "Material": "Wood"
+      "Material": "Wood",
+      "Variant": "CornerTopLeft"
     },
     {
       "Position": [
