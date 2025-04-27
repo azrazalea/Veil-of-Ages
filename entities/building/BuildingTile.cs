@@ -13,6 +13,7 @@ namespace VeilOfAges.Entities
         // Core properties
         public TileType Type { get; set; }
         public string Material { get; set; }
+        public string Variant { get; set; }
         public bool IsWalkable { get; set; }
         public int Durability { get; set; }
         public int MaxDurability { get; set; }
@@ -26,12 +27,13 @@ namespace VeilOfAges.Entities
         public Vector2I GridPosition { get; set; }
 
         // Optional properties
-        public string Name { get; set; }
+        public string? Name { get; set; }
         public Dictionary<SenseType, float> DetectionDifficulties { get; private set; } = [];
 
         public BuildingTile(
             TileType type,
             string material,
+            string variantName,
             bool isWalkable,
             int durability,
             Vector2I atlasCoords,
@@ -41,6 +43,7 @@ namespace VeilOfAges.Entities
         {
             Type = type;
             Material = material;
+            Variant = variantName;
             IsWalkable = isWalkable;
             Durability = durability;
             MaxDurability = durability;

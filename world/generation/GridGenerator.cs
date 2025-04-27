@@ -25,7 +25,7 @@ namespace VeilOfAges.WorldGeneration
         [Export]
         public PackedScene? TownsfolkScene;
 
-        private Node2D? _entitiesContainer;
+        private Node? _entitiesContainer;
         private Area? _activeGridArea;
 
         // Random number generator
@@ -40,7 +40,7 @@ namespace VeilOfAges.WorldGeneration
             _rng.Randomize();
 
             _activeGridArea = world.ActiveGridArea;
-            _entitiesContainer = world.GetNode<Node2D>("Entities");
+            _entitiesContainer = world.GetNode<Node>("Entities");
 
             // Ensure we have all required nodes
             if (_entitiesContainer == null || _activeGridArea == null || _entitiesContainer == null ||
@@ -225,140 +225,6 @@ namespace VeilOfAges.WorldGeneration
             }
 
             GD.Print($"Placed {treesPlaced} trees after {attempts} attempts");
-        }
-
-        private void GenerateVillage()
-        {
-            if (_activeGridArea == null || BuildingScene == null || _entitiesContainer == null) return;
-
-            // Define village center (somewhere near the middle of the map)
-            Vector2I villageCenter = new(
-                _activeGridArea.GridSize.X / 2,
-                _activeGridArea.GridSize.Y / 2
-            );
-
-            // Make a village square (larger to ensure we have enough room around the center)
-            int squareSize = 15; // Larger to account for building sizes
-            int centralSquareSize = 2; // Size of the actual central square (dirt area)
-
-            // Create the visual village square (dirt area)
-            for (int x = -centralSquareSize; x <= centralSquareSize; x++)
-            {
-                for (int y = -centralSquareSize; y <= centralSquareSize; y++)
-                {
-                    Vector2I pos = new(villageCenter.X + x, villageCenter.Y + y);
-                    if (pos.X >= 0 && pos.X < _activeGridArea.GridSize.X &&
-                        pos.Y >= 0 && pos.Y < _activeGridArea.GridSize.Y)
-                    {
-                        _activeGridArea.SetGroundCell(pos, Area.DirtTile);
-                    }
-                }
-            }
-
-            // Place buildings around the village center
-            string[] buildingTypes = ["Graveyard", "House", "Graveyard"];
-
-            // Calculate minimum safe distance from center for building placement
-            int minDistanceFromCenter = 15; // Based on largest building size + buffer
-
-            for (int i = 0; i < buildingTypes.Length; i++)
-            {
-                string buildingType = buildingTypes[i];
-                Vector2I buildingSize = Building.BuildingSizes[buildingType];
-
-                // Calculate position in a circle with increased distance
-                float angle = (float)i / buildingTypes.Length * Mathf.Tau;
-                int distance = minDistanceFromCenter; // Distance from center in tiles
-
-                bool foundValidPosition = false;
-                int maxPlacementAttempts = 10;
-
-                for (int attempt = 0; attempt < maxPlacementAttempts && !foundValidPosition; attempt++)
-                {
-                    // Adjust distance slightly each attempt
-                    int adjustedDistance = distance + attempt * 2;
-
-                    Vector2I offset = new(
-                        Mathf.RoundToInt(Mathf.Cos(angle) * adjustedDistance),
-                        Mathf.RoundToInt(Mathf.Sin(angle) * adjustedDistance)
-                    );
-
-                    Vector2I buildingPos = villageCenter + offset;
-
-                    // Ensure position is within world bounds
-                    if (buildingPos.X < 0 || buildingPos.X + buildingSize.X >= _activeGridArea.GridSize.X ||
-                        buildingPos.Y < 0 || buildingPos.Y + buildingSize.Y >= _activeGridArea.GridSize.Y)
-                    {
-                        continue; // Skip this position if out of bounds
-                    }
-
-                    // Check if the entire building area is free
-                    bool areaIsFree = true;
-                    for (int x = 0; x < buildingSize.X && areaIsFree; x++)
-                    {
-                        for (int y = 0; y < buildingSize.Y && areaIsFree; y++)
-                        {
-                            Vector2I checkPos = new(buildingPos.X + x, buildingPos.Y + y);
-
-                            // Check for occupied cells
-                            if (!_activeGridArea.IsCellWalkable(checkPos))
-                            {
-                                areaIsFree = false;
-                                break;
-                            }
-
-                            // Extra check: ensure we're not too close to the village center
-                            Vector2I relativeToCenter = checkPos - villageCenter;
-                            if (Math.Abs(relativeToCenter.X) <= squareSize &&
-                                Math.Abs(relativeToCenter.Y) <= squareSize)
-                            {
-                                areaIsFree = false;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (areaIsFree)
-                    {
-                        foundValidPosition = true;
-
-                        // Create building by instancing the scene
-                        Node2D building = BuildingScene.Instantiate<Node2D>();
-                        _entitiesContainer.AddChild(building);
-
-                        // Initialize the building at this position
-                        if (building is Building typedBuilding)
-                        {
-                            typedBuilding.Initialize(_activeGridArea, buildingPos, buildingType);
-
-                            // If this is a graveyard, spawn a skeleton nearby
-                            if (buildingType == "Graveyard" && SkeletonScene != null && ZombieScene != null)
-                            {
-                                SpawnBeingNearBuilding(buildingPos, buildingSize, SkeletonScene);
-                                SpawnBeingNearBuilding(buildingPos, buildingSize, ZombieScene);
-                            }
-                            else if (buildingType == "House" && TownsfolkScene != null)
-                            {
-                                SpawnBeingNearBuilding(buildingPos, buildingSize, TownsfolkScene);
-                                SpawnBeingNearBuilding(buildingPos, buildingSize, TownsfolkScene);
-                            }
-                        }
-                        else
-                        {
-                            // If for some reason it's not our Building type, just position it
-                            building.Position = Utils.GridToWorld(buildingPos);
-                        }
-
-                        _activeGridArea.AddEntity(buildingPos, building, buildingSize);
-                        GD.Print($"Placed {buildingType} at {buildingPos}");
-                    }
-                }
-
-                if (!foundValidPosition)
-                {
-                    GD.PrintErr($"Failed to place {buildingType} after {maxPlacementAttempts} attempts");
-                }
-            }
         }
 
         private void GenerateDecorations()

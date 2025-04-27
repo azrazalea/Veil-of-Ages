@@ -203,9 +203,7 @@ namespace VeilOfAges.Core.Lib
                     if (_targetBuilding != null)
                     {
                         Vector2I buildingPos = _targetBuilding.GetCurrentGridPosition();
-                        Vector2I buildingSize = Building.BuildingSizes.ContainsKey(_targetBuilding.BuildingType) ?
-                                            Building.BuildingSizes[_targetBuilding.BuildingType] :
-                                            new Vector2I(2, 2);
+                        Vector2I buildingSize = _targetBuilding.GridSize;
 
                         // Check if entity is adjacent to any part of the building (including diagonals)
                         for (int x = -1; x <= buildingSize.X; x++)
@@ -476,9 +474,7 @@ namespace VeilOfAges.Core.Lib
                         if (_targetBuilding != null)
                         {
                             Vector2I buildingPos = _targetBuilding.GetCurrentGridPosition();
-                            Vector2I buildingSize = Building.BuildingSizes.ContainsKey(_targetBuilding.BuildingType) ?
-                                               Building.BuildingSizes[_targetBuilding.BuildingType] :
-                                               new Vector2I(2, 2);
+                            Vector2I buildingSize = _targetBuilding.GridSize;
 
                             // Get all possible adjacent positions around the building
                             var adjacentPositions = new List<Vector2I>();

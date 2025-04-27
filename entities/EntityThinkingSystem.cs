@@ -37,7 +37,7 @@ namespace VeilOfAges.Core
         {
             if (GetTree().GetFirstNodeInGroup("World") is World world)
             {
-                var entitiesNode = world.GetNode<Node2D>("Entities");
+                var entitiesNode = world.GetNode<Node>("Entities");
                 foreach (Node child in entitiesNode.GetChildren())
                 {
                     if (child is Being entity)

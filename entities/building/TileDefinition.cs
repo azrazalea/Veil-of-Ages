@@ -9,49 +9,67 @@ using VeilOfAges.Entities.Sensory;
 namespace VeilOfAges.Entities
 {
     /// <summary>
+    /// Represents a variant definition for a specific material and variant combination
+    /// </summary>
+    public class TileVariantDefinition
+    {
+        // Atlas source name reference for this variant
+        public string? AtlasSource { get; set; }
+
+        // Atlas coordinates within the source
+        public Vector2I AtlasCoords { get; set; }
+
+        // Additional properties specific to this variant
+        public Dictionary<string, string> Properties { get; set; } = new();
+    }
+
+    /// <summary>
     /// Represents a tile definition that can be loaded from JSON
     /// </summary>
     public class TileDefinition
     {
         // Unique identifier for the tile
-        public string Id { get; set; }
-        
+        public string? Id { get; set; }
+
         // Display name for the tile
-        public string Name { get; set; }
-        
+        public string? Name { get; set; }
+
         // Description of the tile
-        public string Description { get; set; }
-        
+        public string? Description { get; set; }
+
         // Default tile type
-        public string Type { get; set; }
-        
+        public string? Type { get; set; }
+
         // Default material ID
-        public string DefaultMaterial { get; set; }
-        
+        public string? DefaultMaterial { get; set; }
+
         // Is this tile walkable by default?
         public bool IsWalkable { get; set; }
-        
+
         // Base durability of the tile
         public int BaseDurability { get; set; } = 100;
-        
-        // Atlas source name reference
-        public string AtlasSource { get; set; }
-        
-        // Atlas coordinates within the source
+
+        // Atlas source name reference (legacy/fallback)
+        public string? AtlasSource { get; set; }
+
+        // Atlas coordinates within the source (legacy/fallback)
         public Vector2I AtlasCoords { get; set; }
-        
+
         // Default sensory detection difficulties
         public Dictionary<string, float> DefaultSensoryDifficulties { get; set; } = new();
-        
+
         // Additional properties specific to this tile type
         public Dictionary<string, string> Properties { get; set; } = new();
+
+        // Variants based on material and specific variation
+        public Dictionary<string, Dictionary<string, TileVariantDefinition>> Variants { get; set; } = new();
 
         /// <summary>
         /// Load a tile definition from a JSON file
         /// </summary>
         /// <param name="path">Path to the JSON file</param>
         /// <returns>TileDefinition instance</returns>
-        public static TileDefinition LoadFromJson(string path)
+        public static TileDefinition? LoadFromJson(string path)
         {
             try
             {
@@ -96,8 +114,13 @@ namespace VeilOfAges.Entities
             if (string.IsNullOrEmpty(Id)) return false;
             if (string.IsNullOrEmpty(Name)) return false;
             if (string.IsNullOrEmpty(Type)) return false;
-            if (string.IsNullOrEmpty(AtlasSource)) return false;
-            
+
+            // Either top-level AtlasSource or at least one variant must be defined
+            if (string.IsNullOrEmpty(AtlasSource) && (Variants == null || Variants.Count == 0))
+            {
+                return false;
+            }
+
             return true;
         }
     }

@@ -2,6 +2,8 @@ using Godot;
 using System.Collections.Generic;
 using VeilOfAges.Grid;
 
+// TODO: Rewrite
+
 namespace VeilOfAges.Entities
 {
     /// <summary>
@@ -10,10 +12,10 @@ namespace VeilOfAges.Entities
     public partial class BuildingPlacementTool : Node
     {
         // Current template being placed
-        private BuildingTemplate _currentTemplate;
+        private BuildingTemplate? _currentTemplate;
 
         // Preview tiles
-        private TileMap _previewTileMap;
+        private TileMapLayer? _previewTileMap;
 
         // Current grid position for placement
         private Vector2I _currentGridPosition;
@@ -26,19 +28,19 @@ namespace VeilOfAges.Entities
         private bool _isValidPlacement = false;
 
         // Reference to the grid area
-        private Area _gridArea;
+        private Area? _gridArea;
 
         // Reference to the building manager
-        private BuildingManager _buildingManager;
+        private BuildingManager? _buildingManager;
 
         // Callback for when a building is placed
         public delegate void BuildingPlacedDelegate(Building building, Vector2I position);
-        public BuildingPlacedDelegate OnBuildingPlaced;
+        public BuildingPlacedDelegate? OnBuildingPlaced;
 
         public override void _Ready()
         {
             // Create preview tilemap
-            _previewTileMap = new TileMap();
+            _previewTileMap = new TileMapLayer();
             AddChild(_previewTileMap);
 
             // Get references
@@ -72,7 +74,7 @@ namespace VeilOfAges.Entities
             SetupPreviewTileMap();
 
             // Show preview
-            _previewTileMap.Visible = true;
+            if (_previewTileMap != null) _previewTileMap.Visible = true;
 
             // Reset state
             _isValidPlacement = false;
@@ -88,7 +90,7 @@ namespace VeilOfAges.Entities
         public void CancelPlacement()
         {
             // Hide preview
-            _previewTileMap.Visible = false;
+            if (_previewTileMap != null) _previewTileMap.Visible = false;
 
             // Disable processing
             SetProcess(false);
@@ -109,7 +111,7 @@ namespace VeilOfAges.Entities
             var building = _buildingManager?.PlaceBuilding(_currentTemplate.Name, new Vector2I(0, 0), null);
             if (building != null)
             {
-                var buildingTileMap = building.GetNode<TileMap>("TileMap");
+                var buildingTileMap = building.GetNode<TileMapLayer>("TileMap");
                 if (buildingTileMap != null)
                 {
                     _previewTileMap.TileSet = buildingTileMap.TileSet;
@@ -122,7 +124,7 @@ namespace VeilOfAges.Entities
             // Add preview tiles based on template
             foreach (var tileData in _currentTemplate.Tiles)
             {
-                _previewTileMap.SetCell(0, tileData.Position, tileData.SourceId, tileData.AtlasCoords);
+                _previewTileMap.SetCell(tileData.Position, tileData.SourceId, tileData.AtlasCoords);
             }
         }
 

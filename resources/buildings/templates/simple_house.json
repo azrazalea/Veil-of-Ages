@@ -146,6 +146,14 @@
     },
     {
       "Position": [
+        5,
+        3
+      ],
+      "Type": "Wall",
+      "Material": "Wood"
+    },
+    {
+      "Position": [
         1,
         1
       ],

@@ -7,8 +7,8 @@
     "BaseDurability": 50,
     "AtlasSource": "buildings_main",
     "AtlasCoords": [
-        3,
-        3
+        2,
+        15
     ],
     "DefaultSensoryDifficulties": {
         "Sight": 0.9,
@@ -17,10 +17,6 @@
     },
     "Properties": {
         "BuildCost": "Material:2",
-        "Interactable": "true",
-        "OpenAtlasCoords": [
-            3,
-            4
-        ]
+        "Interactable": "true"
     }
 }

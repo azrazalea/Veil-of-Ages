@@ -2,10 +2,10 @@
     "Id": "buildings_main",
     "Name": "Buildings Main Atlas",
     "Description": "Primary atlas for building tiles",
-    "TexturePath": "res://assets/pixabay/buildings_tileset.png",
+    "TexturePath": "res://assets/minifantasy/buildings/house/Minifantasy_TownsIIStuccoBuildingIndoorTileset.png",
     "TileSize": [
-        16,
-        16
+        8,
+        8
     ],
     "Separation": [
         0,

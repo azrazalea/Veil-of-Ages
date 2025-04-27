@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://ba8h7co1n3v3u"]
+[gd_scene load_steps=20 format=3 uid="uid://ba8h7co1n3v3u"]
 
 [ext_resource type="Script" uid="uid://bw48w31c0qjor" path="res://world/World.cs" id="1_qt6d3"]
 [ext_resource type="PackedScene" uid="uid://cljvkvv6tomyu" path="res://entities/player/scene.tscn" id="2_2fjkk"]
@@ -10,8 +10,10 @@
 [ext_resource type="PackedScene" uid="uid://byov4a2whfiqj" path="res://entities/beings/human/HumanTownsfolk.tscn" id="7_ob0ca"]
 [ext_resource type="PackedScene" uid="uid://o7vxruni6hv" path="res://entities/beings/undead/mindless/skeleton/scene.tscn" id="9_bkv64"]
 [ext_resource type="PackedScene" uid="uid://bjat8y5cn1xb6" path="res://entities/beings/undead/mindless/zombie/scene.tscn" id="10_6lw76"]
+[ext_resource type="Script" uid="uid://cmcja60hfpcen" path="res://entities/building/BuildingManager.cs" id="10_liapn"]
 [ext_resource type="Script" uid="uid://barxyo8p3oyvt" path="res://entities/EntityThinkingSystem.cs" id="11_bad00"]
 [ext_resource type="PackedScene" uid="uid://dnseqlvnfuids" path="res://core/GameController.tscn" id="13_liapn"]
+[ext_resource type="Texture2D" uid="uid://dsq5ik0o0g6eu" path="res://assets/minifantasy/buildings/house/Minifantasy_TownsIIStuccoBuildingIndoorTileset.png" id="14_8bqcn"]
 [ext_resource type="PackedScene" uid="uid://cmmglr0mto4me" path="res://core/hud.tscn" id="14_liapn"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_jsbcd"]
@@ -453,11 +455,214 @@ texture_region_size = Vector2i(8, 8)
 9:40/0 = 0
 10:40/0 = 0
 
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_ks4n6"]
+texture = ExtResource("14_8bqcn")
+texture_region_size = Vector2i(8, 8)
+4:1/0 = 0
+5:1/0 = 0
+6:1/0 = 0
+13:1/0 = 0
+14:1/0 = 0
+15:1/0 = 0
+4:2/0 = 0
+5:2/0 = 0
+6:2/0 = 0
+13:2/0 = 0
+14:2/0 = 0
+15:2/0 = 0
+4:3/0 = 0
+5:3/0 = 0
+6:3/0 = 0
+4:4/0 = 0
+5:4/0 = 0
+6:4/0 = 0
+12:4/0 = 0
+13:4/0 = 0
+14:4/0 = 0
+15:4/0 = 0
+16:4/0 = 0
+4:5/0 = 0
+5:5/0 = 0
+6:5/0 = 0
+10:5/0 = 0
+12:5/0 = 0
+13:5/0 = 0
+14:5/0 = 0
+15:5/0 = 0
+16:5/0 = 0
+4:6/0 = 0
+6:6/0 = 0
+10:6/0 = 0
+12:6/0 = 0
+13:6/0 = 0
+14:6/0 = 0
+15:6/0 = 0
+16:6/0 = 0
+4:7/0 = 0
+6:7/0 = 0
+10:7/0 = 0
+12:7/0 = 0
+13:7/0 = 0
+14:7/0 = 0
+15:7/0 = 0
+16:7/0 = 0
+4:8/0 = 0
+6:8/0 = 0
+10:8/0 = 0
+12:8/0 = 0
+13:8/0 = 0
+14:8/0 = 0
+15:8/0 = 0
+16:8/0 = 0
+4:9/0 = 0
+6:9/0 = 0
+12:9/0 = 0
+13:9/0 = 0
+14:9/0 = 0
+15:9/0 = 0
+16:9/0 = 0
+4:11/0 = 0
+5:11/0 = 0
+6:11/0 = 0
+4:12/0 = 0
+6:12/0 = 0
+11:12/0 = 0
+12:12/0 = 0
+17:12/0 = 0
+18:12/0 = 0
+11:13/0 = 0
+12:13/0 = 0
+13:13/0 = 0
+14:13/0 = 0
+15:13/0 = 0
+16:13/0 = 0
+17:13/0 = 0
+18:13/0 = 0
+1:14/0 = 0
+2:14/0 = 0
+3:14/0 = 0
+4:14/0 = 0
+5:14/0 = 0
+6:14/0 = 0
+7:14/0 = 0
+8:14/0 = 0
+9:14/0 = 0
+12:14/0 = 0
+13:14/0 = 0
+14:14/0 = 0
+15:14/0 = 0
+16:14/0 = 0
+17:14/0 = 0
+1:15/0 = 0
+2:15/0 = 0
+3:15/0 = 0
+4:15/0 = 0
+5:15/0 = 0
+6:15/0 = 0
+7:15/0 = 0
+8:15/0 = 0
+9:15/0 = 0
+11:16/0 = 0
+12:16/0 = 0
+17:16/0 = 0
+18:16/0 = 0
+2:17/0 = 0
+3:17/0 = 0
+4:17/0 = 0
+5:17/0 = 0
+6:17/0 = 0
+7:17/0 = 0
+8:17/0 = 0
+11:17/0 = 0
+12:17/0 = 0
+13:17/0 = 0
+14:17/0 = 0
+15:17/0 = 0
+16:17/0 = 0
+17:17/0 = 0
+18:17/0 = 0
+2:18/0 = 0
+3:18/0 = 0
+4:18/0 = 0
+5:18/0 = 0
+6:18/0 = 0
+7:18/0 = 0
+8:18/0 = 0
+12:18/0 = 0
+13:18/0 = 0
+14:18/0 = 0
+15:18/0 = 0
+16:18/0 = 0
+17:18/0 = 0
+2:20/0 = 0
+3:20/0 = 0
+4:20/0 = 0
+6:20/0 = 0
+7:20/0 = 0
+8:20/0 = 0
+2:21/0 = 0
+3:21/0 = 0
+4:21/0 = 0
+6:21/0 = 0
+7:21/0 = 0
+8:21/0 = 0
+12:22/0 = 0
+13:22/0 = 0
+14:22/0 = 0
+15:22/0 = 0
+16:22/0 = 0
+17:22/0 = 0
+3:23/0 = 0
+4:23/0 = 0
+5:23/0 = 0
+6:23/0 = 0
+7:23/0 = 0
+12:23/0 = 0
+13:23/0 = 0
+14:23/0 = 0
+15:23/0 = 0
+16:23/0 = 0
+17:23/0 = 0
+3:24/0 = 0
+4:24/0 = 0
+5:24/0 = 0
+6:24/0 = 0
+7:24/0 = 0
+12:24/0 = 0
+13:24/0 = 0
+14:24/0 = 0
+15:24/0 = 0
+16:24/0 = 0
+17:24/0 = 0
+12:25/0 = 0
+13:25/0 = 0
+14:25/0 = 0
+15:25/0 = 0
+16:25/0 = 0
+17:25/0 = 0
+3:26/0 = 0
+4:26/0 = 0
+5:26/0 = 0
+6:26/0 = 0
+7:26/0 = 0
+12:26/0 = 0
+13:26/0 = 0
+14:26/0 = 0
+15:26/0 = 0
+16:26/0 = 0
+17:26/0 = 0
+3:27/0 = 0
+4:27/0 = 0
+5:27/0 = 0
+6:27/0 = 0
+7:27/0 = 0
+
 [sub_resource type="TileSet" id="TileSet_7s53g"]
 tile_size = Vector2i(8, 8)
 uv_clipping = true
 sources/0 = SubResource("TileSetAtlasSource_jsbcd")
 sources/1 = SubResource("TileSetAtlasSource_bkv64")
+sources/2 = SubResource("TileSetAtlasSource_ks4n6")
 
 [node name="World" type="Node2D" groups=["World"]]
 script = ExtResource("1_qt6d3")
@@ -475,8 +680,10 @@ script = ExtResource("11_bad00")
 
 [node name="GameController" parent="." instance=ExtResource("13_liapn")]
 
-[node name="Entities" type="Node2D" parent="."]
-position = Vector2(0, 5)
+[node name="BuildingManager" type="Node" parent="."]
+script = ExtResource("10_liapn")
+
+[node name="Entities" type="Node" parent="."]
 
 [node name="Player" parent="Entities" instance=ExtResource("2_2fjkk")]
 z_index = 8

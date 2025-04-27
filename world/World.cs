@@ -18,7 +18,7 @@ namespace VeilOfAges
         private List<Grid.Area> _gridAreas = [];
 
         // Entities container
-        private Node2D? _entitiesContainer;
+        private Node? _entitiesContainer;
         private GridGenerator? _gridGenerator;
         private SensorySystem? _sensorySystem;
         private EventSystem? _eventSystem;
@@ -32,7 +32,7 @@ namespace VeilOfAges
         public override void _Ready()
         {
             // Get references to nodes
-            _entitiesContainer = GetNode<Node2D>("Entities");
+            _entitiesContainer = GetNode<Node>("Entities");
             _gridGenerator = GetNode<GridGenerator>("GridGenerator");
             var gridAreasContainer = GetNode<Node>("GridAreas");
 

@@ -12,15 +12,15 @@ namespace VeilOfAges.Entities
     public partial class BuildingManager : Node
     {
         // Singleton instance
-        private static BuildingManager _instance;
-        public static BuildingManager Instance => _instance;
+        private static BuildingManager? _instance;
+        public static BuildingManager? Instance => _instance;
 
         // Dictionary of loaded templates by name
         private Dictionary<string, BuildingTemplate> _templates = new();
 
         // Reference to the world and grid system
-        private World _world;
-        private VeilOfAges.Grid.Area _currentArea;
+        private World? _world;
+        private VeilOfAges.Grid.Area? _currentArea;
 
         // Path to templates directory
         private string _templatesPath = "res://resources/buildings/templates";
@@ -66,7 +66,7 @@ namespace VeilOfAges.Entities
                 try
                 {
                     var template = BuildingTemplate.LoadFromJson(file);
-                    if (template != null && template.Validate())
+                    if (template != null && template.Name != null && template.Validate())
                     {
                         _templates[template.Name] = template;
                         GD.Print($"Loaded building template: {template.Name}");
@@ -88,7 +88,7 @@ namespace VeilOfAges.Entities
         /// <summary>
         /// Get a building template by name
         /// </summary>
-        public BuildingTemplate GetTemplate(string name)
+        public BuildingTemplate? GetTemplate(string name)
         {
             if (_templates.TryGetValue(name, out var template))
             {
@@ -104,13 +104,13 @@ namespace VeilOfAges.Entities
         /// </summary>
         public List<string> GetAllTemplateNames()
         {
-            return _templates.Keys.ToList();
+            return [.. _templates.Keys];
         }
 
         /// <summary>
         /// Place a building in the world using a template
         /// </summary>
-        public Building PlaceBuilding(string templateName, Vector2I gridPosition, VeilOfAges.Grid.Area area = null)
+        public Building? PlaceBuilding(string templateName, Vector2I gridPosition, VeilOfAges.Grid.Area area)
         {
             // Get the template
             var template = GetTemplate(templateName);
@@ -135,7 +135,7 @@ namespace VeilOfAges.Entities
             }
 
             // Create the building scene instance
-            var buildingScene = GD.Load<PackedScene>("res://entities/building/Building.tscn");
+            var buildingScene = GD.Load<PackedScene>("res://entities/building/scene.tscn");
             var building = buildingScene.Instantiate<Building>();
 
             // Add to the scene tree

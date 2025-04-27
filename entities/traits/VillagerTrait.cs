@@ -74,7 +74,7 @@ namespace VeilOfAges.Entities.Traits
             var world = _owner?.GetTree().GetFirstNodeInGroup("World") as World;
             if (world == null) return;
 
-            var entitiesNode = world.GetNode<Node2D>("Entities");
+            var entitiesNode = world.GetNode<Node>("Entities");
             foreach (Node child in entitiesNode.GetChildren())
             {
                 if (child is Building building)
@@ -239,9 +239,7 @@ namespace VeilOfAges.Entities.Traits
 
             // We consider "at the building" when within 2 tiles of its perimeter
             bool atBuilding = false;
-            Vector2I buildingSize = Building.BuildingSizes.ContainsKey(_currentDestinationBuilding.BuildingType) ?
-                                    Building.BuildingSizes[_currentDestinationBuilding.BuildingType] :
-                                    new Vector2I(2, 2);
+            Vector2I buildingSize = _currentDestinationBuilding.GridSize;
 
             for (int x = -1; x <= buildingSize.X && !atBuilding; x++)
             {

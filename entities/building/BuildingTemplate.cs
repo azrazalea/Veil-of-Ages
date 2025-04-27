@@ -13,13 +13,13 @@ namespace VeilOfAges.Entities
     public class BuildingTemplate
     {
         // Basic building information
-        public string Name { get; set; }
-        public string Description { get; set; }
+        public string? Name { get; set; }
+        public string? Description { get; set; }
         public Vector2I Size { get; set; }
 
         // Culture or style information
-        public string Culture { get; set; }
-        public string Style { get; set; }
+        public string? Culture { get; set; }
+        public string? Style { get; set; }
 
         // Building tile data
         public List<BuildingTileData> Tiles { get; set; } = new();
@@ -31,11 +31,11 @@ namespace VeilOfAges.Entities
         public List<Vector2I> EntrancePositions { get; set; } = new();
 
         // Metadata
-        public string BuildingType { get; set; }
-        
+        public string? BuildingType { get; set; }
+
         // TileMap node path - used to find the appropriate tilemap in the scene tree
         public string TileMapNodePath { get; set; } = "";
-        
+
         // TileMap resource path - will be used to dynamically load the appropriate tilemap
         public string TileMapPath { get; set; } = "res://resources/tilesets/buildings_tileset.tres";
         public int Capacity { get; set; }
@@ -46,7 +46,7 @@ namespace VeilOfAges.Entities
         /// </summary>
         /// <param name="path">Path to the JSON file</param>
         /// <returns>BuildingTemplate instance</returns>
-        public static BuildingTemplate LoadFromJson(string path)
+        public static BuildingTemplate? LoadFromJson(string path)
         {
             try
             {
@@ -147,22 +147,22 @@ namespace VeilOfAges.Entities
     public class BuildingTileData
     {
         public Vector2I Position { get; set; }
-        public string Type { get; set; }
-        public string Material { get; set; }
+        public string? Type { get; set; }
+        public string? Material { get; set; }
+        public string? Variant { get; set; }
         public bool IsWalkable { get; set; }
         public int Durability { get; set; } = 100;
         public Vector2I AtlasCoords { get; set; }
         public int SourceId { get; set; }
         public Dictionary<string, string> Properties { get; set; } = new();
     }
-
     /// <summary>
     /// Data structure for a room in a building template
     /// </summary>
     public class RoomData
     {
-        public string Name { get; set; }
-        public string Purpose { get; set; }
+        public string? Name { get; set; }
+        public string? Purpose { get; set; }
         public Vector2I TopLeft { get; set; }
         public Vector2I Size { get; set; }
         public Dictionary<string, string> Properties { get; set; } = new();
@@ -191,7 +191,7 @@ namespace VeilOfAges.Entities
                 {
                     if (reader.TokenType == JsonTokenType.PropertyName)
                     {
-                        string propertyName = reader.GetString();
+                        string? propertyName = reader.GetString();
                         reader.Read();
                         if (propertyName == "x" || propertyName == "X")
                         {
