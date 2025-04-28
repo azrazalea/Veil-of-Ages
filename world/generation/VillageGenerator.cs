@@ -195,7 +195,7 @@ namespace VeilOfAges.WorldGeneration
                                     SpawnBeingNearBuilding(buildingPos, buildingSize, _zombieScene);
                                     break;
 
-                                case "House":
+                                case "Simple House":
                                     // Spawn townsfolk near houses
                                     SpawnBeingNearBuilding(buildingPos, buildingSize, _townsfolkScene);
                                     SpawnBeingNearBuilding(buildingPos, buildingSize, _townsfolkScene);
