@@ -111,7 +111,7 @@ namespace VeilOfAges.Entities
                 }
             }
 
-            ZIndex = 2;
+            ZIndex = 7;
         }
 
         public virtual void Initialize(Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null)

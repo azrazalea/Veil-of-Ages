@@ -18,5 +18,21 @@
     "Properties": {
         "BuildCost": "Material:2",
         "Interactable": "true"
+    },
+    "Variants": {
+        "wood": {
+            "Top": {
+                "AtlasCoords": [
+                    5,
+                    26
+                ]
+            },
+            "Bottom": {
+                "AtlasCoords": [
+                    5,
+                    27
+                ]
+            }
+        }
     }
 }

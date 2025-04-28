@@ -4,7 +4,7 @@
   "BuildingType": "House",
   "Size": [
     6,
-    4
+    6
   ],
   "Culture": "Human",
   "Style": "Rural",
@@ -12,7 +12,7 @@
   "EntrancePositions": [
     [
       3,
-      3
+      5
     ]
   ],
   "Tiles": [
@@ -23,7 +23,7 @@
       ],
       "Type": "Wall",
       "Material": "Wood",
-      "Variant": "CornerTopLeft"
+      "Variant": "CornerTopLeft_Top"
     },
     {
       "Position": [
@@ -31,191 +31,8 @@
         0
       ],
       "Type": "Wall",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        2,
-        0
-      ],
-      "Type": "Wall",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        3,
-        0
-      ],
-      "Type": "Wall",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        4,
-        0
-      ],
-      "Type": "Wall",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        5,
-        0
-      ],
-      "Type": "Wall",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        0,
-        1
-      ],
-      "Type": "Wall",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        5,
-        1
-      ],
-      "Type": "Wall",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        0,
-        2
-      ],
-      "Type": "Wall",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        5,
-        2
-      ],
-      "Type": "Wall",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        0,
-        3
-      ],
-      "Type": "Wall",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        1,
-        3
-      ],
-      "Type": "Wall",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        2,
-        3
-      ],
-      "Type": "Wall",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        3,
-        3
-      ],
-      "Type": "Door",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        4,
-        3
-      ],
-      "Type": "Wall",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        5,
-        3
-      ],
-      "Type": "Wall",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        5,
-        3
-      ],
-      "Type": "Wall",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        1,
-        1
-      ],
-      "Type": "Floor",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        2,
-        1
-      ],
-      "Type": "Floor",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        3,
-        1
-      ],
-      "Type": "Floor",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        4,
-        1
-      ],
-      "Type": "Floor",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        1,
-        2
-      ],
-      "Type": "Floor",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        2,
-        2
-      ],
-      "Type": "Floor",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        3,
-        2
-      ],
-      "Type": "Floor",
-      "Material": "Wood"
-    },
-    {
-      "Position": [
-        4,
-        2
-      ],
-      "Type": "Floor",
-      "Material": "Wood"
+      "Material": "Wood",
+      "Variant": "Horizontal_Top"
     },
     {
       "Position": [
@@ -223,7 +40,329 @@
         0
       ],
       "Type": "Window",
-      "Material": "Glass"
+      "Material": "Glass",
+      "Variant": "Top"
+    },
+    {
+      "Position": [
+        3,
+        0
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "Horizontal_Top"
+    },
+    {
+      "Position": [
+        4,
+        0
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "Horizontal_Top"
+    },
+    {
+      "Position": [
+        5,
+        0
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "CornerTopRight_Top"
+    },
+    {
+      "Position": [
+        0,
+        1
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "CornerTopLeft_Bottom"
+    },
+    {
+      "Position": [
+        1,
+        1
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "Horizontal_Bottom"
+    },
+    {
+      "Position": [
+        2,
+        1
+      ],
+      "Type": "Window",
+      "Material": "Glass",
+      "Variant": "Bottom"
+    },
+    {
+      "Position": [
+        3,
+        1
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "Horizontal_Bottom"
+    },
+    {
+      "Position": [
+        4,
+        1
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "Horizontal_Bottom"
+    },
+    {
+      "Position": [
+        5,
+        1
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "CornerTopRight_Bottom"
+    },
+    {
+      "Position": [
+        0,
+        2
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "Vertical_Left"
+    },
+    {
+      "Position": [
+        5,
+        2
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "Vertical_Right"
+    },
+    {
+      "Position": [
+        0,
+        3
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "Vertical_Left"
+    },
+    {
+      "Position": [
+        5,
+        3
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "Vertical_Right"
+    },
+    {
+      "Position": [
+        0,
+        4
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "CornerBottomLeft_Top"
+    },
+    {
+      "Position": [
+        1,
+        4
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "Horizontal_Top"
+    },
+    {
+      "Position": [
+        2,
+        4
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "Horizontal_Top"
+    },
+    {
+      "Position": [
+        3,
+        4
+      ],
+      "Type": "Door",
+      "Material": "Wood",
+      "Variant": "Top"
+    },
+    {
+      "Position": [
+        4,
+        4
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "Horizontal_Top"
+    },
+    {
+      "Position": [
+        5,
+        4
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "CornerBottomRight_Top"
+    },
+    {
+      "Position": [
+        0,
+        5
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "CornerBottomLeft_Bottom"
+    },
+    {
+      "Position": [
+        1,
+        5
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "Horizontal_Bottom"
+    },
+    {
+      "Position": [
+        2,
+        5
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "Horizontal_Bottom"
+    },
+    {
+      "Position": [
+        3,
+        5
+      ],
+      "Type": "Door",
+      "Material": "Wood",
+      "Variant": "Bottom"
+    },
+    {
+      "Position": [
+        4,
+        5
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "Horizontal_Bottom"
+    },
+    {
+      "Position": [
+        5,
+        5
+      ],
+      "Type": "Wall",
+      "Material": "Wood",
+      "Variant": "CornerBottomRight_Bottom"
+    },
+    {
+      "Position": [
+        0,
+        2
+      ],
+      "Type": "Floor",
+      "Material": "Wood"
+    },
+    {
+      "Position": [
+        0,
+        3
+      ],
+      "Type": "Floor",
+      "Material": "Wood"
+    },
+    {
+      "Position": [
+        5,
+        2
+      ],
+      "Type": "Floor",
+      "Material": "Wood"
+    },
+    {
+      "Position": [
+        5,
+        3
+      ],
+      "Type": "Floor",
+      "Material": "Wood"
+    },
+    {
+      "Position": [
+        1,
+        2
+      ],
+      "Type": "Floor",
+      "Material": "Wood"
+    },
+    {
+      "Position": [
+        2,
+        2
+      ],
+      "Type": "Floor",
+      "Material": "Wood"
+    },
+    {
+      "Position": [
+        3,
+        2
+      ],
+      "Type": "Floor",
+      "Material": "Wood"
+    },
+    {
+      "Position": [
+        4,
+        2
+      ],
+      "Type": "Floor",
+      "Material": "Wood"
+    },
+    {
+      "Position": [
+        1,
+        3
+      ],
+      "Type": "Floor",
+      "Material": "Wood"
+    },
+    {
+      "Position": [
+        2,
+        3
+      ],
+      "Type": "Floor",
+      "Material": "Wood"
+    },
+    {
+      "Position": [
+        3,
+        3
+      ],
+      "Type": "Floor",
+      "Material": "Wood"
+    },
+    {
+      "Position": [
+        4,
+        3
+      ],
+      "Type": "Floor",
+      "Material": "Wood"
     }
   ],
   "Rooms": [
@@ -232,7 +371,7 @@
       "Purpose": "Living",
       "TopLeft": [
         1,
-        1
+        2
       ],
       "Size": [
         4,

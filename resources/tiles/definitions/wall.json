@@ -20,10 +20,76 @@
     },
     "Variants": {
         "wood": {
-            "CornerTopLeft": {
+            "CornerTopLeft_Top": {
                 "AtlasCoords": [
                     4,
                     1
+                ]
+            },
+            "CornerTopLeft_Bottom": {
+                "AtlasCoords": [
+                    4,
+                    2
+                ]
+            },
+            "CornerTopRight_Top": {
+                "AtlasCoords": [
+                    6,
+                    1
+                ]
+            },
+            "CornerTopRight_Bottom": {
+                "AtlasCoords": [
+                    6,
+                    2
+                ]
+            },
+            "CornerBottomLeft_Top": {
+                "AtlasCoords": [
+                    4,
+                    4
+                ]
+            },
+            "CornerBottomLeft_Bottom": {
+                "AtlasCoords": [
+                    4,
+                    5
+                ]
+            },
+            "CornerBottomRight_Top": {
+                "AtlasCoords": [
+                    6,
+                    4
+                ]
+            },
+            "CornerBottomRight_Bottom": {
+                "AtlasCoords": [
+                    6,
+                    5
+                ]
+            },
+            "Horizontal_Top": {
+                "AtlasCoords": [
+                    5,
+                    1
+                ]
+            },
+            "Horizontal_Bottom": {
+                "AtlasCoords": [
+                    5,
+                    2
+                ]
+            },
+            "Vertical_Left": {
+                "AtlasCoords": [
+                    4,
+                    3
+                ]
+            },
+            "Vertical_Right": {
+                "AtlasCoords": [
+                    6,
+                    3
                 ]
             }
         }

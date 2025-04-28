@@ -17,5 +17,21 @@
     },
     "Properties": {
         "BuildCost": "Material:2"
+    },
+    "Variants": {
+        "glass": {
+            "Top": {
+                "AtlasCoords": [
+                    3,
+                    17
+                ]
+            },
+            "Bottom": {
+                "AtlasCoords": [
+                    3,
+                    18
+                ]
+            }
+        }
     }
 }

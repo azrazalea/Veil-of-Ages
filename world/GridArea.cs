@@ -120,7 +120,7 @@ namespace VeilOfAges.Grid
         {
             _groundGridSystem.SetCell(groundPos, tile);
 
-            AStarGrid?.SetPointSolid(groundPos, !tile.IsWalkable);
+            AStarGrid?.SetPointSolid(groundPos, !tile.IsWalkable || EntitiesGridSystem.GetCell(groundPos) != null);
             AStarGrid?.SetPointWeightScale(groundPos, tile.WalkDifficulty);
 
             if (_groundLayer?.Enabled == true)

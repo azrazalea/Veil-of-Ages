@@ -23,10 +23,13 @@ namespace VeilOfAges.Entities
         public VeilOfAges.Grid.Area? GridArea { get; private set; }
         public SortedSet<Trait> _traits { get; private set; } = [];
         private TileMapLayer? _tileMap;
+        private TileMapLayer? _groundTileMap;
         public Dictionary<SenseType, float> DetectionDifficulties { get; protected set; } = [];
 
         // Dictionary mapping relative grid positions to building tiles
         private Dictionary<Vector2I, BuildingTile> _tiles = [];
+        private Dictionary<Vector2I, BuildingTile> _groundTiles = [];
+
 
         // List of entrance positions (relative to building origin)
         private List<Vector2I> _entrancePositions = [];
@@ -34,6 +37,9 @@ namespace VeilOfAges.Entities
         // For tracking residents/workers
         private int _capacity = 0;
         private int _occupants = 0;
+
+        private const int HORIZONTAL_PIXEL_OFFSET = -4;
+        private const int VERTICAL_PIXEL_OFFSET = 0;
 
         public override void _Ready()
         {
@@ -62,12 +68,11 @@ namespace VeilOfAges.Entities
                 _capacity = template.Capacity;
                 _entrancePositions = template.EntrancePositions;
 
-
                 // Initialize and setup TileMap
-                InitializeTileMap(template);
+                InitializeTileMaps(template);
             }
 
-            ZIndex = 1;
+            ZIndex = 2;
 
             GD.Print($"Building grid position Initialize: {_gridPosition}");
             // Update the actual position
@@ -75,7 +80,7 @@ namespace VeilOfAges.Entities
         }
 
         // Initialize and set up the TileMap
-        private void InitializeTileMap(BuildingTemplate template)
+        private void InitializeTileMaps(BuildingTemplate template)
         {
             // If no TileMap was found, create a new one
             if (_tileMap == null)
@@ -83,6 +88,18 @@ namespace VeilOfAges.Entities
                 _tileMap = new TileMapLayer();
                 _tileMap.Visible = true;
                 AddChild(_tileMap);
+                _tileMap.Position = new Vector2(HORIZONTAL_PIXEL_OFFSET, VERTICAL_PIXEL_OFFSET);
+                _tileMap.ZAsRelative = true;
+            }
+
+            if (_groundTileMap == null)
+            {
+                _groundTileMap = new TileMapLayer();
+                _groundTileMap.Visible = true;
+                AddChild(_groundTileMap);
+                _groundTileMap.Position = new Vector2(HORIZONTAL_PIXEL_OFFSET, VERTICAL_PIXEL_OFFSET);
+                _groundTileMap.ZIndex = _tileMap.ZIndex - 1;
+                _groundTileMap.ZAsRelative = true;
             }
 
             // Initialize the TileResourceManager if not already initialized
@@ -90,6 +107,7 @@ namespace VeilOfAges.Entities
 
             // Setup the TileSet with all required atlas sources
             TileResourceManager.Instance.SetupTileSet(_tileMap);
+            TileResourceManager.Instance.SetupTileSet(_groundTileMap);
             GD.Print($"Tile set {_tileMap.TileSet}");
 
             GD.Print($"Building grid position Initialize: {_gridPosition}");
@@ -117,9 +135,10 @@ namespace VeilOfAges.Entities
             if (tile.IsWalkable)
             {
                 // For walkable tiles, we don't block the grid cell but may affect movement cost
+                // This is a hack as it sets the ground cell to a potentially random graphic.
                 GridArea.SetGroundCell(absolutePos, new VeilOfAges.Grid.Tile(
-                    tile.SourceId,
-                    tile.AtlasCoords,
+                    0,
+                    new Vector2I(0, 0),
                     true, // Walkable
                     1.0f // Standard movement cost
                 ));
@@ -144,7 +163,7 @@ namespace VeilOfAges.Entities
         // Create building tiles from a template
         private void CreateTilesFromTemplate(BuildingTemplate template, Vector2I gridPos)
         {
-            if (_tileMap == null) return;
+            if (_tileMap == null || _groundTileMap == null) return;
 
             // Process each tile in the template
             foreach (var tileData in template.Tiles)
@@ -192,20 +211,40 @@ namespace VeilOfAges.Entities
                     throw new System.InvalidOperationException(errorMessage);
                 }
 
-                // Add to tile dictionary (using relative position)
-                _tiles[tileData.Position] = buildingTile;
-
                 // Register with grid system
                 RegisterTileWithGrid(tileData.Position, buildingTile);
-                TileSetAtlasSource source = (TileSetAtlasSource)_tileMap.TileSet.GetSource(buildingTile.SourceId);
-                if (source.GetTileAtCoords(buildingTile.AtlasCoords) == new Vector2I(-1, -1))
+                if (buildingTile.IsWalkable)
                 {
-                    source.CreateTile(buildingTile.AtlasCoords);
+                    TileSetAtlasSource source = (TileSetAtlasSource)_groundTileMap.TileSet.GetSource(buildingTile.SourceId);
+                    if (source.GetTileAtCoords(buildingTile.AtlasCoords) == new Vector2I(-1, -1))
+                    {
+                        source.CreateTile(buildingTile.AtlasCoords);
+                    }
+                }
+                else
+                {
+                    TileSetAtlasSource source = (TileSetAtlasSource)_tileMap.TileSet.GetSource(buildingTile.SourceId);
+                    if (source.GetTileAtCoords(buildingTile.AtlasCoords) == new Vector2I(-1, -1))
+                    {
+                        source.CreateTile(buildingTile.AtlasCoords);
+                    }
                 }
 
                 GD.Print($"{tileDefId} {tileData.Position} tile with source {buildingTile.SourceId} and coords {buildingTile.AtlasCoords}");
+                // Add to tile dictionary (using relative position)
+                if (buildingTile.IsWalkable)
+                {
+                    _groundTiles[tileData.Position] = buildingTile;
+                    _groundTileMap.SetCell(tileData.Position, buildingTile.SourceId, buildingTile.AtlasCoords);
+
+                }
+                else
+                {
+                    _tiles[tileData.Position] = buildingTile;
+                    _tileMap.SetCell(tileData.Position, buildingTile.SourceId, buildingTile.AtlasCoords);
+
+                }
                 // Set the tile in the tilemap for visualization
-                _tileMap.SetCell(tileData.Position, buildingTile.SourceId, buildingTile.AtlasCoords);
                 GD.Print($"Confirm cell {tileData.Position} atlas source {_tileMap.GetCellSourceId(tileData.Position)} {_tileMap.GetCellAtlasCoords(tileData.Position)}");
             }
         }
@@ -242,7 +281,7 @@ namespace VeilOfAges.Entities
         private void UpdateBuildingVisual()
         {
             // Ensure TileMap exists
-            if (_tileMap == null) return;
+            if (_tileMap == null || _groundTileMap == null) return;
 
             // Clear existing cells
             _tileMap.Clear();
@@ -251,6 +290,11 @@ namespace VeilOfAges.Entities
             foreach (var tile in _tiles)
             {
                 _tileMap.SetCell(tile.Key, tile.Value.SourceId, tile.Value.AtlasCoords);
+            }
+
+            foreach (var tile in _groundTiles)
+            {
+                _groundTileMap.SetCell(tile.Key, tile.Value.SourceId, tile.Value.AtlasCoords);
             }
         }
 
