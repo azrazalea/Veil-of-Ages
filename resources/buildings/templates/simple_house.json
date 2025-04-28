@@ -15,6 +15,29 @@
       5
     ]
   ],
+  "Metadata": {
+    "ConstructionTime": "2d",
+    "RequiredMaterials": "Wood:20,Glass:1",
+    "Value": "100"
+  },
+  "Rooms": [
+    {
+      "Name": "Main Room",
+      "Purpose": "Living",
+      "TopLeft": [
+        1,
+        2
+      ],
+      "Size": [
+        4,
+        2
+      ],
+      "Properties": {
+        "Quality": "Basic",
+        "Comfort": "Low"
+      }
+    }
+  ],
   "Tiles": [
     {
       "Position": [
@@ -131,7 +154,7 @@
       ],
       "Type": "Wall",
       "Material": "Wood",
-      "Variant": "Vertical_Left"
+      "Variant": "VerticalLeft"
     },
     {
       "Position": [
@@ -140,7 +163,7 @@
       ],
       "Type": "Wall",
       "Material": "Wood",
-      "Variant": "Vertical_Right"
+      "Variant": "VerticalRight"
     },
     {
       "Position": [
@@ -149,7 +172,7 @@
       ],
       "Type": "Wall",
       "Material": "Wood",
-      "Variant": "Vertical_Left"
+      "Variant": "VerticalLeft"
     },
     {
       "Position": [
@@ -158,7 +181,7 @@
       ],
       "Type": "Wall",
       "Material": "Wood",
-      "Variant": "Vertical_Right"
+      "Variant": "VerticalRight"
     },
     {
       "Position": [
@@ -364,28 +387,5 @@
       "Type": "Floor",
       "Material": "Wood"
     }
-  ],
-  "Rooms": [
-    {
-      "Name": "Main Room",
-      "Purpose": "Living",
-      "TopLeft": [
-        1,
-        2
-      ],
-      "Size": [
-        4,
-        2
-      ],
-      "Properties": {
-        "Quality": "Basic",
-        "Comfort": "Low"
-      }
-    }
-  ],
-  "Metadata": {
-    "ConstructionTime": "2d",
-    "RequiredMaterials": "Wood:20,Glass:1",
-    "Value": "100"
-  }
+  ]
 }

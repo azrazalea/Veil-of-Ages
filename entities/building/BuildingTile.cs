@@ -185,6 +185,7 @@ namespace VeilOfAges.Entities
     public enum TileType
     {
         Wall,
+        Crop,
         Floor,
         Door,
         Window,

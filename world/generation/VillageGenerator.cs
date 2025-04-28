@@ -108,7 +108,7 @@ namespace VeilOfAges.WorldGeneration
 
             GD.Print("Hello my darling");
             // Define the building types to place
-            string[] buildingTypes = ["Farm", "Graveyard", "Simple House", "Simple House"];
+            string[] buildingTypes = ["Simple Farm", "Graveyard", "Simple House", "Simple House"];
 
             // Calculate minimum safe distance from center for building placement
             int minDistanceFromCenter = 15; // Based on largest building size + buffer

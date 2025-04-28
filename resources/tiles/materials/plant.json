@@ -1,0 +1,16 @@
+{
+    "Id": "plant",
+    "Name": "Plant",
+    "Description": "Standard plant material for... plants.",
+    "DurabilityModifier": 1.0,
+    "SensoryModifiers": {
+        "Sight": 1.0,
+        "Hearing": 1.0,
+        "Smell": 1.0
+    },
+    "Properties": {
+        "Flammable": "true",
+        "Weight": "light",
+        "Insulation": "low"
+    }
+}

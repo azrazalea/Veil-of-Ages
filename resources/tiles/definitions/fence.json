@@ -1,0 +1,73 @@
+{
+    "Id": "fence",
+    "Name": "Fence",
+    "Description": "A basic fence structure.",
+    "Type": "Fence",
+    "IsWalkable": false,
+    "BaseDurability": 100,
+    "AtlasSource": "farm_main",
+    "AtlasCoords": [
+        51,
+        15
+    ],
+    "DefaultSensoryDifficulties": {
+        "Sight": 0.3,
+        "Hearing": 0.0,
+        "Smell": 0.0
+    },
+    "Properties": {
+        "BuildCost": "Material:2"
+    },
+    "Variants": {
+        "wood": {
+            "CornerTopLeft": {
+                "AtlasCoords": [
+                    50,
+                    15
+                ]
+            },
+            "CornerTopRight": {
+                "AtlasCoords": [
+                    54,
+                    15
+                ]
+            },
+            "CornerBottomLeft": {
+                "AtlasCoords": [
+                    50,
+                    19
+                ]
+            },
+            "CornerBottomRight": {
+                "AtlasCoords": [
+                    54,
+                    19
+                ]
+            },
+            "HorizontalTop": {
+                "AtlasCoords": [
+                    51,
+                    15
+                ]
+            },
+            "HorizontalBottom": {
+                "AtlasCoords": [
+                    51,
+                    19
+                ]
+            },
+            "VerticalLeft": {
+                "AtlasCoords": [
+                    50,
+                    16
+                ]
+            },
+            "VerticalRight": {
+                "AtlasCoords": [
+                    54,
+                    16
+                ]
+            }
+        }
+    }
+}

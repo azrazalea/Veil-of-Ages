@@ -1,0 +1,38 @@
+{
+    "Id": "gate",
+    "Name": "Gate",
+    "Description": "A basic gate with open/close functionality.",
+    "Type": "Gate",
+    "IsWalkable": true,
+    "BaseDurability": 50,
+    "AtlasSource": "farm_main",
+    "AtlasCoords": [
+        60,
+        19
+    ],
+    "DefaultSensoryDifficulties": {
+        "Sight": 0.9,
+        "Hearing": 0.3,
+        "Smell": 0.5
+    },
+    "Properties": {
+        "BuildCost": "Material:2",
+        "Interactable": "true"
+    },
+    "Variants": {
+        "wood": {
+            "FenceTop": {
+                "AtlasCoords": [
+                    60,
+                    15
+                ]
+            },
+            "FenceBottom": {
+                "AtlasCoords": [
+                    60,
+                    19
+                ]
+            }
+        }
+    }
+}

@@ -1,0 +1,32 @@
+{
+    "Id": "crop",
+    "Name": "Crop",
+    "Description": "A basic crop",
+    "Type": "Crop",
+    "IsWalkable": false,
+    "BaseDurability": 50,
+    "AtlasSource": "farm_seeds_crops",
+    "AtlasCoords": [
+        16,
+        7
+    ],
+    "DefaultSensoryDifficulties": {
+        "Sight": 0.1,
+        "Hearing": 0.0,
+        "Smell": 0.0
+    },
+    "Properties": {
+        "BuildCost": "Material:2",
+        "Interactable": "true"
+    },
+    "Variants": {
+        "plant": {
+            "Rice": {
+                "AtlasCoords": [
+                    16,
+                    7
+                ]
+            }
+        }
+    }
+}

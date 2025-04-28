@@ -1,0 +1,16 @@
+{
+    "Id": "dirt",
+    "Name": "Dirt",
+    "Description": "Standard dirt material for... dirts.",
+    "DurabilityModifier": 1.0,
+    "SensoryModifiers": {
+        "Sight": 1.0,
+        "Hearing": 1.0,
+        "Smell": 1.0
+    },
+    "Properties": {
+        "Flammable": "true",
+        "Weight": "light",
+        "Insulation": "low"
+    }
+}

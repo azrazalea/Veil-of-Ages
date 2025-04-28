@@ -39,7 +39,7 @@ namespace VeilOfAges.Entities
         private int _occupants = 0;
 
         private const int HORIZONTAL_PIXEL_OFFSET = -4;
-        private const int VERTICAL_PIXEL_OFFSET = 0;
+        private const int VERTICAL_PIXEL_OFFSET = 1;
 
         public override void _Ready()
         {
@@ -213,7 +213,7 @@ namespace VeilOfAges.Entities
 
                 // Register with grid system
                 RegisterTileWithGrid(tileData.Position, buildingTile);
-                if (buildingTile.IsWalkable)
+                if (buildingTile.Type == TileType.Floor)
                 {
                     TileSetAtlasSource source = (TileSetAtlasSource)_groundTileMap.TileSet.GetSource(buildingTile.SourceId);
                     if (source.GetTileAtCoords(buildingTile.AtlasCoords) == new Vector2I(-1, -1))
@@ -232,7 +232,7 @@ namespace VeilOfAges.Entities
 
                 GD.Print($"{tileDefId} {tileData.Position} tile with source {buildingTile.SourceId} and coords {buildingTile.AtlasCoords}");
                 // Add to tile dictionary (using relative position)
-                if (buildingTile.IsWalkable)
+                if (buildingTile.Type == TileType.Floor)
                 {
                     _groundTiles[tileData.Position] = buildingTile;
                     _groundTileMap.SetCell(tileData.Position, buildingTile.SourceId, buildingTile.AtlasCoords);
