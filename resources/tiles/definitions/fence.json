@@ -68,6 +68,106 @@
                     16
                 ]
             }
+        },
+        "stone": {
+            "CornerTopLeft_Top": {
+                "AtlasCoords": [
+                    1,
+                    8
+                ],
+                "AtlasSource": "graveyard_main"
+            },
+            "CornerTopLeft_Bottom": {
+                "AtlasCoords": [
+                    1,
+                    9
+                ],
+                "AtlasSource": "graveyard_main"
+            },
+            "CornerTopRight_Top": {
+                "AtlasCoords": [
+                    6,
+                    8
+                ],
+                "AtlasSource": "graveyard_main"
+            },
+            "CornerTopRight_Bottom": {
+                "AtlasCoords": [
+                    6,
+                    9
+                ],
+                "AtlasSource": "graveyard_main"
+            },
+            "CornerBottomLeft_Top": {
+                "AtlasCoords": [
+                    1,
+                    11
+                ],
+                "AtlasSource": "graveyard_main"
+            },
+            "CornerBottomLeft_Bottom": {
+                "AtlasCoords": [
+                    1,
+                    12
+                ],
+                "AtlasSource": "graveyard_main"
+            },
+            "CornerBottomRight_Top": {
+                "AtlasCoords": [
+                    6,
+                    11
+                ],
+                "AtlasSource": "graveyard_main"
+            },
+            "CornerBottomRight_Bottom": {
+                "AtlasCoords": [
+                    6,
+                    12
+                ],
+                "AtlasSource": "graveyard_main"
+            },
+            "HorizontalTop_Top": {
+                "AtlasCoords": [
+                    2,
+                    8
+                ],
+                "AtlasSource": "graveyard_main"
+            },
+            "HorizontalTop_Bottom": {
+                "AtlasCoords": [
+                    2,
+                    9
+                ],
+                "AtlasSource": "graveyard_main"
+            },
+            "HorizontalBottom_Top": {
+                "AtlasCoords": [
+                    2,
+                    11
+                ],
+                "AtlasSource": "graveyard_main"
+            },
+            "HorizontalBottom_Bottom": {
+                "AtlasCoords": [
+                    2,
+                    12
+                ],
+                "AtlasSource": "graveyard_main"
+            },
+            "VerticalLeft": {
+                "AtlasCoords": [
+                    1,
+                    10
+                ],
+                "AtlasSource": "graveyard_main"
+            },
+            "VerticalRight": {
+                "AtlasCoords": [
+                    6,
+                    10
+                ],
+                "AtlasSource": "graveyard_main"
+            }
         }
     }
 }

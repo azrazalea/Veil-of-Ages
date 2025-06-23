@@ -9,6 +9,15 @@ using VeilOfAges.Entities.Sensory;
 namespace VeilOfAges.Entities
 {
     /// <summary>
+    /// Represents a category of tile variants (e.g., "Tombstone", "Statue", etc.)
+    /// </summary>
+    public class TileCategory
+    {
+        // Variants within this category, organized by material -> variant name -> definition
+        public Dictionary<string, Dictionary<string, TileVariantDefinition>> Variants { get; set; } = new();
+    }
+
+    /// <summary>
     /// Represents a variant definition for a specific material and variant combination
     /// </summary>
     public class TileVariantDefinition
@@ -40,6 +49,9 @@ namespace VeilOfAges.Entities
         // Default tile type
         public string? Type { get; set; }
 
+        // Category for decoration subtypes (e.g., "Tombstone", "Statue", etc.)
+        public string? Category { get; set; }
+
         // Default material ID
         public string? DefaultMaterial { get; set; }
 
@@ -61,8 +73,8 @@ namespace VeilOfAges.Entities
         // Additional properties specific to this tile type
         public Dictionary<string, string> Properties { get; set; } = new();
 
-        // Variants based on material and specific variation
-        public Dictionary<string, Dictionary<string, TileVariantDefinition>> Variants { get; set; } = new();
+        // Categories of variants (e.g., "Default", "Tombstone", "Statue")
+        public Dictionary<string, TileCategory> Categories { get; set; } = new();
 
         /// <summary>
         /// Load a tile definition from a JSON file
@@ -74,19 +86,184 @@ namespace VeilOfAges.Entities
             try
             {
                 string jsonContent = File.ReadAllText(path);
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                    Converters = { new Vector2IConverter() }
-                };
+                var jsonDocument = JsonDocument.Parse(jsonContent);
+                var root = jsonDocument.RootElement;
 
-                return JsonSerializer.Deserialize<TileDefinition>(jsonContent, options);
+                var definition = new TileDefinition();
+
+                // Load basic properties
+                if (root.TryGetProperty("Id", out var idElement))
+                    definition.Id = idElement.GetString();
+                if (root.TryGetProperty("Name", out var nameElement))
+                    definition.Name = nameElement.GetString();
+                if (root.TryGetProperty("Description", out var descElement))
+                    definition.Description = descElement.GetString();
+                if (root.TryGetProperty("Type", out var typeElement))
+                    definition.Type = typeElement.GetString();
+                if (root.TryGetProperty("Category", out var categoryElement))
+                    definition.Category = categoryElement.GetString();
+                if (root.TryGetProperty("DefaultMaterial", out var materialElement))
+                    definition.DefaultMaterial = materialElement.GetString();
+                if (root.TryGetProperty("IsWalkable", out var walkableElement))
+                    definition.IsWalkable = walkableElement.GetBoolean();
+                if (root.TryGetProperty("BaseDurability", out var durabilityElement))
+                    definition.BaseDurability = durabilityElement.GetInt32();
+                if (root.TryGetProperty("AtlasSource", out var atlasElement))
+                    definition.AtlasSource = atlasElement.GetString();
+
+                // Handle AtlasCoords
+                if (root.TryGetProperty("AtlasCoords", out var coordsElement))
+                {
+                    var coords = JsonSerializer.Deserialize<Vector2I>(coordsElement.GetRawText(),
+                        new JsonSerializerOptions { Converters = { new Vector2IConverter() } });
+                    definition.AtlasCoords = coords;
+                }
+
+                // Handle DefaultSensoryDifficulties
+                if (root.TryGetProperty("DefaultSensoryDifficulties", out var sensoryElement))
+                {
+                    definition.DefaultSensoryDifficulties = JsonSerializer.Deserialize<Dictionary<string, float>>(
+                        sensoryElement.GetRawText()) ?? new Dictionary<string, float>();
+                }
+
+                // Handle Properties
+                if (root.TryGetProperty("Properties", out var propsElement))
+                {
+                    definition.Properties = JsonSerializer.Deserialize<Dictionary<string, string>>(
+                        propsElement.GetRawText()) ?? new Dictionary<string, string>();
+                }
+
+                // Handle Categories/Variants conversion
+                var jsonOptions = new JsonSerializerOptions 
+                { 
+                    PropertyNameCaseInsensitive = true,
+                    Converters = { new Vector2IConverter() } 
+                };
+                
+                if (root.TryGetProperty("Categories", out var categoriesElement))
+                {
+                    // New format - directly deserialize Categories
+                    definition.Categories = JsonSerializer.Deserialize<Dictionary<string, TileCategory>>(
+                        categoriesElement.GetRawText(), jsonOptions) ?? new Dictionary<string, TileCategory>();
+                }
+                else if (root.TryGetProperty("Variants", out var variantsElement))
+                {
+                    // Old format - convert Variants to Default category
+                    var variants = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, TileVariantDefinition>>>(
+                        variantsElement.GetRawText(), jsonOptions) ?? new Dictionary<string, Dictionary<string, TileVariantDefinition>>();
+
+                    string categoryName = !string.IsNullOrEmpty(definition.Category) ? definition.Category : "Default";
+                    definition.Categories[categoryName] = new TileCategory { Variants = variants };
+                }
+
+                return definition;
             }
             catch (Exception e)
             {
                 GD.PrintErr($"Error loading tile definition: {e.Message}");
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Merge a variant definition with this base definition
+        /// </summary>
+        /// <param name="variantDef">The variant definition to merge</param>
+        /// <returns>A new TileDefinition with merged properties</returns>
+        public TileDefinition MergeWithVariant(TileDefinition variantDef)
+        {
+            var merged = new TileDefinition
+            {
+                // Base properties (preserved from base)
+                Id = this.Id,
+                Name = this.Name,
+                Description = this.Description,
+                Type = this.Type,
+                DefaultMaterial = this.DefaultMaterial,
+                IsWalkable = this.IsWalkable,
+
+                // Override with variant values if they exist
+                Category = variantDef.Category ?? this.Category,
+                BaseDurability = variantDef.BaseDurability != 0 ? variantDef.BaseDurability : this.BaseDurability,
+                AtlasSource = !string.IsNullOrEmpty(variantDef.AtlasSource) ? variantDef.AtlasSource : this.AtlasSource,
+                AtlasCoords = variantDef.AtlasCoords != Vector2I.Zero ? variantDef.AtlasCoords : this.AtlasCoords,
+
+                // Merge dictionaries
+                DefaultSensoryDifficulties = new Dictionary<string, float>(this.DefaultSensoryDifficulties),
+                Properties = new Dictionary<string, string>(this.Properties),
+                Categories = new Dictionary<string, TileCategory>()
+            };
+
+            // Override/add variant-specific sensory difficulties
+            if (variantDef.DefaultSensoryDifficulties != null)
+            {
+                foreach (var kvp in variantDef.DefaultSensoryDifficulties)
+                {
+                    merged.DefaultSensoryDifficulties[kvp.Key] = kvp.Value;
+                }
+            }
+
+            // Override/add variant-specific properties
+            if (variantDef.Properties != null)
+            {
+                foreach (var kvp in variantDef.Properties)
+                {
+                    merged.Properties[kvp.Key] = kvp.Value;
+                }
+            }
+
+            // Copy base categories
+            if (this.Categories != null)
+            {
+                foreach (var categoryKvp in this.Categories)
+                {
+                    merged.Categories[categoryKvp.Key] = new TileCategory
+                    {
+                        Variants = new Dictionary<string, Dictionary<string, TileVariantDefinition>>()
+                    };
+
+                    // Copy variants within this category
+                    foreach (var materialKvp in categoryKvp.Value.Variants)
+                    {
+                        merged.Categories[categoryKvp.Key].Variants[materialKvp.Key] =
+                            new Dictionary<string, TileVariantDefinition>(materialKvp.Value);
+                    }
+                }
+            }
+
+            // Add/merge variant-specific categories
+            if (variantDef.Categories != null)
+            {
+                foreach (var categoryKvp in variantDef.Categories)
+                {
+                    string categoryName = categoryKvp.Key;
+
+                    if (!merged.Categories.ContainsKey(categoryName))
+                    {
+                        merged.Categories[categoryName] = new TileCategory
+                        {
+                            Variants = new Dictionary<string, Dictionary<string, TileVariantDefinition>>()
+                        };
+                    }
+
+                    // Merge variants within this category
+                    foreach (var materialKvp in categoryKvp.Value.Variants)
+                    {
+                        if (!merged.Categories[categoryName].Variants.ContainsKey(materialKvp.Key))
+                        {
+                            merged.Categories[categoryName].Variants[materialKvp.Key] =
+                                new Dictionary<string, TileVariantDefinition>();
+                        }
+
+                        foreach (var variantKvp in materialKvp.Value)
+                        {
+                            merged.Categories[categoryName].Variants[materialKvp.Key][variantKvp.Key] = variantKvp.Value;
+                        }
+                    }
+                }
+            }
+
+            return merged;
         }
 
         /// <summary>
@@ -114,12 +291,6 @@ namespace VeilOfAges.Entities
             if (string.IsNullOrEmpty(Id)) return false;
             if (string.IsNullOrEmpty(Name)) return false;
             if (string.IsNullOrEmpty(Type)) return false;
-
-            // Either top-level AtlasSource or at least one variant must be defined
-            if (string.IsNullOrEmpty(AtlasSource) && (Variants == null || Variants.Count == 0))
-            {
-                return false;
-            }
 
             return true;
         }

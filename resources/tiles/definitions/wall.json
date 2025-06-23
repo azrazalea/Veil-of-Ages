@@ -68,16 +68,28 @@
                     5
                 ]
             },
-            "Horizontal_Top": {
+            "HorizontalTop_Top": {
                 "AtlasCoords": [
                     5,
                     1
                 ]
             },
-            "Horizontal_Bottom": {
+            "HorizontalTop_Bottom": {
                 "AtlasCoords": [
                     5,
                     2
+                ]
+            },
+            "HorizontalBottom_Top": {
+                "AtlasCoords": [
+                    5,
+                    4
+                ]
+            },
+            "HorizontalBottom_Bottom": {
+                "AtlasCoords": [
+                    5,
+                    5
                 ]
             },
             "VerticalLeft": {

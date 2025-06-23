@@ -1,0 +1,31 @@
+{
+    "Id": "decoration",
+    "Name": "Decoration",
+    "Description": "Decorative elements for buildings and areas.",
+    "Type": "Decoration",
+    "IsWalkable": false,
+    "BaseDurability": 100,
+    "AtlasSource": "buildings_main",
+    "AtlasCoords": [
+        0,
+        0
+    ],
+    "DefaultSensoryDifficulties": {
+        "Sight": 0.2,
+        "Hearing": 0.0,
+        "Smell": 0.1
+    },
+    "Properties": {
+        "BuildCost": "Material:1"
+    },
+    "Variants": {
+        "wood": {
+            "Default": {
+                "AtlasCoords": [
+                    0,
+                    0
+                ]
+            }
+        }
+    }
+}

@@ -127,29 +127,85 @@ namespace VeilOfAges.Entities
                 return;
             }
 
+            // First pass: Load all base definitions (*.json files in root)
+            var baseDefinitions = new Dictionary<string, TileDefinition>();
             foreach (var file in Directory.GetFiles(projectPath, "*.json"))
             {
                 var tileDefinition = TileDefinition.LoadFromJson(file);
                 if (tileDefinition != null && tileDefinition.Validate())
                 {
-                    // Check if using the new variant system or legacy system
-                    bool usesVariants = tileDefinition.Variants != null && tileDefinition.Variants.Count > 0;
-                    bool hasLegacyAtlas = !string.IsNullOrEmpty(tileDefinition.AtlasSource);
-
                     var id = tileDefinition.Id;
-                    if (id != null && (usesVariants || hasLegacyAtlas))
+                    if (id != null)
                     {
-                        _tileDefinitions[id] = tileDefinition;
-                        GD.Print($"Loaded tile definition: {tileDefinition.Id}");
-                    }
-                    else
-                    {
-                        GD.PrintErr($"Tile definition has neither variants nor a legacy atlas source: {tileDefinition.Id}");
+                        baseDefinitions[id] = tileDefinition;
+                        GD.Print($"Loaded base tile definition: {tileDefinition.Id}");
                     }
                 }
                 else
                 {
-                    GD.PrintErr($"Failed to load tile definition from: {file}");
+                    GD.PrintErr($"Failed to load base tile definition from: {file}");
+                }
+            }
+
+            // Second pass: Process subdirectories for variant definitions
+            foreach (var directory in Directory.GetDirectories(projectPath))
+            {
+                string dirName = Path.GetFileName(directory);
+                
+                // Check if we have a corresponding base definition
+                if (baseDefinitions.TryGetValue(dirName, out var baseDefinition))
+                {
+                    // Load all variant files in this subdirectory
+                    foreach (var variantFile in Directory.GetFiles(directory, "*.json"))
+                    {
+                        var variantDefinition = TileDefinition.LoadFromJson(variantFile);
+                        if (variantDefinition != null)
+                        {
+                            // Merge the variant with the base definition
+                            var mergedDefinition = baseDefinition.MergeWithVariant(variantDefinition);
+                            
+                            if (mergedDefinition.Validate())
+                            {
+                                // Update the base definition with merged data
+                                baseDefinitions[dirName] = mergedDefinition;
+                                
+                                string variantFileName = Path.GetFileNameWithoutExtension(variantFile);
+                                GD.Print($"Merged variant definition: {dirName}/{variantFileName}");
+                            }
+                            else
+                            {
+                                GD.PrintErr($"Merged tile definition failed validation: {dirName}/{Path.GetFileName(variantFile)}");
+                            }
+                        }
+                        else
+                        {
+                            GD.PrintErr($"Failed to load variant definition from: {variantFile}");
+                        }
+                    }
+                }
+                else
+                {
+                    GD.PrintErr($"Found variant directory '{dirName}' but no corresponding base definition");
+                }
+            }
+
+            // Final pass: Add all validated definitions to the main collection
+            foreach (var kvp in baseDefinitions)
+            {
+                var tileDefinition = kvp.Value;
+                
+                // Check if using the new category system or legacy system
+                bool usesCategories = tileDefinition.Categories != null && tileDefinition.Categories.Count > 0;
+                bool hasLegacyAtlas = !string.IsNullOrEmpty(tileDefinition.AtlasSource);
+
+                if (usesCategories || hasLegacyAtlas)
+                {
+                    _tileDefinitions[kvp.Key] = tileDefinition;
+                    GD.Print($"Registered tile definition: {tileDefinition.Id}");
+                }
+                else
+                {
+                    GD.PrintErr($"Tile definition has neither categories nor a legacy atlas source: {tileDefinition.Id}");
                 }
             }
         }
@@ -287,8 +343,9 @@ namespace VeilOfAges.Entities
         /// <param name="tileDef">The tile definition</param>
         /// <param name="materialId">The material ID to use</param>
         /// <param name="variantName">The variant name to use (optional)</param>
+        /// <param name="categoryName">The category name to use (optional, defaults to "Default")</param>
         /// <returns>A dictionary with the merged atlas information</returns>
-        public static Dictionary<string, object?> GetProcessedVariant(TileDefinition tileDef, string materialId, string? variantName = null)
+        public static Dictionary<string, object?> GetProcessedVariant(TileDefinition tileDef, string materialId, string? variantName = null, string? categoryName = null)
         {
             // Initialize result with base attributes from tile definition
             var result = new Dictionary<string, object?>
@@ -297,14 +354,32 @@ namespace VeilOfAges.Entities
                 ["AtlasCoords"] = tileDef.AtlasCoords
             };
 
-            // If no variant system is used, return legacy values
-            if (tileDef.Variants == null || tileDef.Variants.Count == 0)
+            // If no category system is used, return legacy values
+            if (tileDef.Categories == null || tileDef.Categories.Count == 0)
             {
                 return result;
             }
 
-            // 1. Merge global default variant if exists
-            if (tileDef.Variants.TryGetValue("Default", out var defaultVariants))
+            // Determine which category to use
+            string targetCategory = categoryName ?? "Default";
+            
+            // Get the target category
+            if (!tileDef.Categories.TryGetValue(targetCategory, out var category))
+            {
+                // If specified category doesn't exist, try Default category
+                if (!tileDef.Categories.TryGetValue("Default", out category))
+                {
+                    // If no Default category either, use the first available category
+                    category = tileDef.Categories.Values.FirstOrDefault();
+                    if (category == null)
+                    {
+                        return result;
+                    }
+                }
+            }
+
+            // 1. Merge global default variant if exists within the category
+            if (category.Variants.TryGetValue("Default", out var defaultVariants))
             {
                 if (defaultVariants.TryGetValue("Default", out var globalDefault))
                 {
@@ -320,8 +395,8 @@ namespace VeilOfAges.Entities
                 }
             }
 
-            // 2. Merge material-specific default if exists
-            if (!string.IsNullOrEmpty(materialId) && tileDef.Variants.TryGetValue(materialId, out var materialVariants))
+            // 2. Merge material-specific default if exists within the category
+            if (!string.IsNullOrEmpty(materialId) && category.Variants.TryGetValue(materialId, out var materialVariants))
             {
                 if (materialVariants.TryGetValue("Default", out var materialDefault))
                 {
@@ -337,9 +412,9 @@ namespace VeilOfAges.Entities
                 }
             }
 
-            // 3. Merge specific variant if specified and exists
+            // 3. Merge specific variant if specified and exists within the category
             if (!string.IsNullOrEmpty(variantName) && !string.IsNullOrEmpty(materialId) &&
-                tileDef.Variants.TryGetValue(materialId, out var materialVariants2))
+                category.Variants.TryGetValue(materialId, out var materialVariants2))
             {
                 if (materialVariants2.TryGetValue(variantName, out var specificVariant))
                 {
@@ -367,9 +442,10 @@ namespace VeilOfAges.Entities
         /// <param name="gridPosition">The absolute grid position</param>
         /// <param name="materialId">The material ID to use (optional)</param>
         /// <param name="variantName">The variant name to use (optional)</param>
+        /// <param name="categoryName">The category name to use (optional)</param>
         /// <returns>A BuildingTile instance</returns>
         /// <exception cref="System.InvalidOperationException">Thrown when a required resource is not found</exception>
-        public BuildingTile CreateBuildingTile(string tileId, Vector2I position, Building parent, Vector2I gridPosition, string materialId, string? variantName = null)
+        public BuildingTile CreateBuildingTile(string tileId, Vector2I position, Building parent, Vector2I gridPosition, string materialId, string? variantName = null, string? categoryName = null)
         {
             if (!_tileDefinitions.TryGetValue(tileId, out var tileDef))
             {
@@ -391,7 +467,7 @@ namespace VeilOfAges.Entities
             }
 
             // Process variant information for merged atlas settings
-            var processedVariant = GetProcessedVariant(tileDef, materialId, variantName);
+            var processedVariant = GetProcessedVariant(tileDef, materialId, variantName, categoryName);
 
             string? atlasSource = (string?)processedVariant["AtlasSource"];
             Vector2I? atlasCoords = (Vector2I?)processedVariant["AtlasCoords"];

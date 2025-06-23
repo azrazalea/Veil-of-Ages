@@ -26,6 +26,22 @@
                     6,
                     6
                 ]
+            },
+            "Graveyard": {
+                "AtlasSource": "graveyard_main",
+                "AtlasCoords": [
+                    1,
+                    2
+                ]
+            }
+        },
+        "stone": {
+            "Path": {
+                "AtlasSource": "graveyard_main",
+                "AtlasCoords": [
+                    2,
+                    2
+                ]
             }
         }
     }

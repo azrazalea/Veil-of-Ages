@@ -55,7 +55,7 @@
       ],
       "Type": "Wall",
       "Material": "Wood",
-      "Variant": "Horizontal_Top"
+      "Variant": "HorizontalTop_Top"
     },
     {
       "Position": [
@@ -73,7 +73,7 @@
       ],
       "Type": "Wall",
       "Material": "Wood",
-      "Variant": "Horizontal_Top"
+      "Variant": "HorizontalTop_Top"
     },
     {
       "Position": [
@@ -82,7 +82,7 @@
       ],
       "Type": "Wall",
       "Material": "Wood",
-      "Variant": "Horizontal_Top"
+      "Variant": "HorizontalTop_Top"
     },
     {
       "Position": [
@@ -109,7 +109,7 @@
       ],
       "Type": "Wall",
       "Material": "Wood",
-      "Variant": "Horizontal_Bottom"
+      "Variant": "HorizontalTop_Bottom"
     },
     {
       "Position": [
@@ -127,7 +127,7 @@
       ],
       "Type": "Wall",
       "Material": "Wood",
-      "Variant": "Horizontal_Bottom"
+      "Variant": "HorizontalTop_Bottom"
     },
     {
       "Position": [
@@ -136,7 +136,7 @@
       ],
       "Type": "Wall",
       "Material": "Wood",
-      "Variant": "Horizontal_Bottom"
+      "Variant": "HorizontalTop_Bottom"
     },
     {
       "Position": [
@@ -199,7 +199,7 @@
       ],
       "Type": "Wall",
       "Material": "Wood",
-      "Variant": "Horizontal_Top"
+      "Variant": "HorizontalBottom_Top"
     },
     {
       "Position": [
@@ -208,7 +208,7 @@
       ],
       "Type": "Wall",
       "Material": "Wood",
-      "Variant": "Horizontal_Top"
+      "Variant": "HorizontalBottom_Top"
     },
     {
       "Position": [
@@ -226,7 +226,7 @@
       ],
       "Type": "Wall",
       "Material": "Wood",
-      "Variant": "Horizontal_Top"
+      "Variant": "HorizontalBottom_Top"
     },
     {
       "Position": [
@@ -253,7 +253,7 @@
       ],
       "Type": "Wall",
       "Material": "Wood",
-      "Variant": "Horizontal_Bottom"
+      "Variant": "HorizontalBottom_Bottom"
     },
     {
       "Position": [
@@ -262,7 +262,7 @@
       ],
       "Type": "Wall",
       "Material": "Wood",
-      "Variant": "Horizontal_Bottom"
+      "Variant": "HorizontalBottom_Bottom"
     },
     {
       "Position": [
@@ -280,7 +280,7 @@
       ],
       "Type": "Wall",
       "Material": "Wood",
-      "Variant": "Horizontal_Bottom"
+      "Variant": "HorizontalBottom_Bottom"
     },
     {
       "Position": [

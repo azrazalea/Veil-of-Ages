@@ -183,6 +183,7 @@ namespace VeilOfAges.Entities
     {
         public Vector2I Position { get; set; }
         public string? Type { get; set; }
+        public string? Category { get; set; }
         public string? Material { get; set; }
         public string? Variant { get; set; }
         public bool IsWalkable { get; set; }

@@ -33,6 +33,36 @@
                     19
                 ]
             }
+        },
+        "stone": {
+            "TopLeft": {
+                "AtlasCoords": [
+                    8,
+                    11
+                ],
+                "AtlasSource": "graveyard_main"
+            },
+            "TopRight": {
+                "AtlasCoords": [
+                    9,
+                    11
+                ],
+                "AtlasSource": "graveyard_main"
+            },
+            "BottomLeft": {
+                "AtlasCoords": [
+                    8,
+                    12
+                ],
+                "AtlasSource": "graveyard_main"
+            },
+            "BottomRight": {
+                "AtlasCoords": [
+                    9,
+                    12
+                ],
+                "AtlasSource": "graveyard_main"
+            }
         }
     }
 }

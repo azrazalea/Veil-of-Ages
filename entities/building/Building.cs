@@ -198,7 +198,8 @@ namespace VeilOfAges.Entities
                     this,
                     absoluteGridPos,
                     materialId,
-                    variantName
+                    variantName,
+                    tileData.Category
                 );
 
                 // No fallback - if the tile creation fails, we'll get a null result
