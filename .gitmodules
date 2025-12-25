@@ -1,3 +1,9 @@
 [submodule "assets/minifantasy"]
 	path = assets/minifantasy
 	url = git@github.com:azrazalea/Veil-of-Ages-Assets.git
+[submodule "wiki"]
+	path = wiki
+	url = https://github.com/azrazalea/Veil-of-Ages.wiki.git
+[submodule "godot-docs"]
+	path = godot-docs
+	url = git@github.com:godotengine/godot-docs.git
