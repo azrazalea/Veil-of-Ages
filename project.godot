@@ -12,7 +12,7 @@ config_version=5
 
 config/name="Veil of Ages"
 run/main_scene="uid://ba8h7co1n3v3u"
-config/features=PackedStringArray("4.4", "C#", "Forward Plus")
+config/features=PackedStringArray("4.5", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 
 [dotnet]
@@ -29,10 +29,10 @@ World="The world itself"
 
 [gui]
 
-theme/custom="uid://cd64idurw2veb"
-theme/custom_font="uid://chyfqv5twkt27"
 theme/default_font_antialiasing=2
 theme/default_font_hinting=2
+theme/custom="uid://cd64idurw2veb"
+theme/custom_font="uid://chyfqv5twkt27"
 
 [input]
 

@@ -75,7 +75,6 @@ namespace VeilOfAges.Entities
         public BeingPerceptionSystem? PerceptionSystem { get; private set; }
         public BeingNeedsSystem? NeedsSystem { get; protected set; }
 
-
         public override void _Ready()
         {
             // MovementController handles it from here

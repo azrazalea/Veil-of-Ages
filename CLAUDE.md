@@ -6,6 +6,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Veil of Ages: Whispers of Kalixoria** - A 2D necromancy kingdom simulation game built with Godot 4.4 and C#. The player controls a necromancer who rises from outcast to ruler, managing both living and undead beings in a complex simulation.
 
+## Documentation Structure
+
+This project uses directory-level CLAUDE.md files for context injection:
+
+```
+/                           # You are here - project overview
+├── .claude/context/        # Project context files (design principles, code style)
+├── wiki/                   # Human-readable documentation (GitHub wiki submodule)
+├── godot-docs/             # Official Godot documentation (submodule)
+├── core/                   # Game controller, input, time system, UI
+│   ├── lib/               # PathFinder, GameTime, utilities
+│   └── ui/dialogue/       # Dialogue system and commands
+├── entities/              # Entity-Component-Trait system
+│   ├── actions/           # IdleAction, MoveAction, etc.
+│   ├── being_services/    # Perception, Needs, Movement controllers
+│   ├── beings/            # Concrete entity types (human, undead)
+│   ├── building/          # Building system and tile resources
+│   ├── needs/             # Need system and satisfaction strategies
+│   ├── sensory/           # Perception and observation system
+│   └── traits/            # Modular behavior components
+├── world/                 # World management and generation
+│   ├── generation/        # Procedural village/terrain generation
+│   └── grid_systems/      # Grid layer implementations
+├── resources/             # JSON data files (buildings, tiles, materials)
+├── kingdom/               # (Placeholder) Kingdom management
+└── magic/                 # (Placeholder) Necromancy system
+```
+
+Each directory has its own CLAUDE.md with detailed file descriptions, key classes, and important notes.
+
 ## Development Commands
 
 **Important**: When you need to test, compile, or run any code, ask the user to do it for you rather than attempting to run commands directly.
@@ -33,46 +63,71 @@ dotnet build -c ExportRelease
 ### Core Systems
 
 1. **Entity-Component-Trait System** (`/entities/`)
-   - `Being.cs`: Base class for all living/undead entities
-   - Traits provide modular behaviors (`/entities/traits/`)
-   - Activity-Priority System for AI task management (`/entities/actions/`)
-   - Need-based decision making (`/entities/needs/`)
+   - `Being.cs`: Abstract base for all living/undead entities
+   - Traits provide modular behaviors (composition over inheritance)
+   - Activity-Priority System for AI task management
+   - Need-based decision making with strategy pattern
+   - Multi-threaded entity thinking via `EntityThinkingSystem`
 
 2. **World Management** (`/world/`)
-   - Grid-based tile system
-   - Procedural village generation
-   - Material-based terrain properties
+   - Grid-based tile system with 8x8 pixel tiles
+   - Procedural village generation with buildings and entities
+   - `GridArea` manages discrete world regions with pathfinding
 
-3. **Time Simulation** (`/core/lib/`)
-   - Complex time system with controllable speed
-   - Activity scheduling and execution
-   - Multi-threaded simulation support
+3. **Time Simulation** (`/core/lib/GameTime.cs`)
+   - Custom base-56 calendar (14 hours/day, 28 days/month, 13 months/year)
+   - Simulation runs at 8 ticks/second at normal speed
+   - 36.8 game seconds per real second
 
-4. **UI Systems** (`/core/ui/`)
-   - Dialogue tree system
-   - Command-based entity interactions
+4. **Building System** (`/entities/building/`)
+   - JSON templates define building layouts
+   - Three-layer tile resources: Atlases → Materials → Definitions
+   - TileResourceManager handles loading and creation
+
+5. **UI Systems** (`/core/ui/`)
+   - Dialogue tree system with command integration
+   - Location selection for movement commands
    - HUD with time controls
 
 ### Key Design Patterns
 
 - **Data-Driven Design**: JSON files in `/resources/` define buildings, tiles, and materials
+- **Strategy Pattern**: Food acquisition varies by entity type (farms vs graveyards)
 - **Observer Pattern**: Sensory system for entity perception
-- **Priority Queue**: Activity management similar to RimWorld
+- **Priority Queue**: Actions sorted by priority before execution
 - **Agent-Based Architecture**: Inspired by Dwarf Fortress
 
-### Project Configuration
+### Threading Model
+
+- Entity `Think()` methods run on background threads
+- Actions are queued and executed on main thread
+- Godot scene tree operations use `CallDeferred()` for thread safety
+- PathFinder grid modifications are main-thread-only
+
+## Project Configuration
 
 - **Language**: C# 12.0 with nullable reference types enabled
 - **Framework**: .NET 8.0
 - **Namespace**: `VeilOfAges`
 - **Godot SDK**: 4.4.1
 
-### Important Files
+### Naming Conventions
 
-- `project.godot`: Godot project settings and input mappings
-- `Veil of Ages.csproj`: C# project configuration
-- `/resources/`: JSON data files for game content
-- `/core/GameController.cs`: Main game loop and state management
+- **Classes/Methods/Properties**: PascalCase
+- **Private Fields**: _camelCase with underscore prefix
+- **Constants**: ALL_CAPS with underscores
+- **Parameters/Locals**: camelCase
+
+## Key Files
+
+| File | Description |
+|------|-------------|
+| `project.godot` | Godot project settings and input mappings |
+| `Veil of Ages.csproj` | C# project configuration |
+| `/core/GameController.cs` | Main game loop and tick processing |
+| `/entities/EntityThinkingSystem.cs` | Multi-threaded AI coordinator |
+| `/entities/building/TileResourceManager.cs` | Tile/atlas/material loading |
+| `/world/World.cs` | World container and entity management |
 
 ## Development Notes
 
@@ -82,18 +137,33 @@ dotnet build -c ExportRelease
 - License: Modified AGPLv3 with Commercial Platform Exception (code only)
 - Minifantasy assets are separately licensed and not redistributable
 
-## Serena Memories
+## Project Context
 
-The `.serena` folder contains important project context and previous work. Always read these memories first when starting work to understand:
-- Previous design decisions and patterns
-- Building system architecture and template structure
-- Atlas creation workflows
-- Existing integrations and dependencies
+Additional project context is available in:
+- **`.claude/context/`**: Design principles, code style, AI improvement plans
+  - `project_purpose.md`: Game vision and development phases
+  - `code_style.md`: Coding conventions and patterns
+  - `entity_ai_improvement_plan.md`: Planned AI enhancements
+
+## Git Submodules
+
+### wiki/ - Project Wiki
+GitHub wiki submodule containing human-readable documentation for developers and players.
+- **URL**: `https://github.com/azrazalea/Veil-of-Ages.wiki.git`
+- **Contents**: Game design docs, technical docs, world lore, development guides
+- **Note**: This is a separate git repository; changes require separate commits
+
+### godot-docs/ - Godot Engine Documentation
+Official Godot Engine documentation for reference when implementing engine features.
+- **URL**: `git@github.com:godotengine/godot-docs.git`
+- **Usage**: Search this directory when you need Godot API reference, tutorials, or best practices
+- **Note**: Read-only reference; do not modify
 
 ## Working with This Codebase
 
 When making changes:
-1. Ask the user to test any code modifications
-2. Request compilation to verify syntax and type errors
-3. Ask for the game to be run to test functionality
-4. When in doubt about behavior, ask the user to verify in Godot Editor
+1. Read the relevant directory CLAUDE.md for context
+2. Ask the user to test any code modifications
+3. Request compilation to verify syntax and type errors
+4. Ask for the game to be run to test functionality
+5. When in doubt about behavior, ask the user to verify in Godot Editor
