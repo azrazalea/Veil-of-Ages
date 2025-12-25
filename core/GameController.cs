@@ -14,6 +14,11 @@ public partial class GameController : Node
     [Export]
     public uint MaxPlayerActions { get; set; } = 3;
 
+    /// <summary>
+    /// Gets global tick counter, incremented each simulation tick.
+    /// </summary>
+    public static uint CurrentTick { get; private set; } = 0;
+
     private float TickInterval => 1f / GameTime.SimulationTickRate;
     private float _timeSinceLastTick = 0f;
     private bool _simulationPaused = false;
@@ -35,7 +40,7 @@ public partial class GameController : Node
         GD.Print($"Actual time we want: {CurrentGameTime.Value - GameTime.CENTISECONDSPERYEAR}");
         if (_world == null || _player == null || _thinkingSystem == null)
         {
-            GD.PrintErr("GameController: Failed to find required nodes!");
+            Log.Error("GameController: Failed to find required nodes!");
         }
     }
 
@@ -51,6 +56,7 @@ public partial class GameController : Node
         if (_timeSinceLastTick >= TickInterval)
         {
             _timeSinceLastTick -= TickInterval;
+            CurrentTick++;
             ProcessNextTick();
             CurrentGameTime = CurrentGameTime.Advance();
         }

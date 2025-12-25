@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
+using VeilOfAges.Core;
 using VeilOfAges.Entities;
 using VeilOfAges.Entities.Beings;
 using VeilOfAges.Grid;
@@ -29,9 +30,6 @@ public class PathFinder
     private uint _lastRecalculationTick = 0;
     private const uint RECALCULATIONCOOLDOWN = 5;
     private bool _firstGoalCalculation = false;
-
-    // Current game tick (set by GameController)
-    public uint CurrentTick { get; set; } = 0;
 
     // Simple enum to track goal type
     public enum PathGoalType
@@ -67,7 +65,7 @@ public class PathFinder
     {
         if (Task.CurrentId != null)
         {
-            GD.PrintErr("Due to thread safety we cannot modify global astar grids inside a Task");
+            Log.Error("Due to thread safety we cannot modify global astar grids inside a Task");
             return null;
         }
 
@@ -91,7 +89,7 @@ public class PathFinder
         astar.Update();
 
         // Store it
-        GD.Print($"Creating astar grid for {gridArea.Name}");
+        Log.Print($"Creating astar grid for {gridArea.Name}");
         return astar;
     }
 
@@ -99,7 +97,7 @@ public class PathFinder
     {
         if (Task.CurrentId != null)
         {
-            GD.PrintErr("Due to thread safety we cannot modify global astar grids inside a Task");
+            Log.Error("Due to thread safety we cannot modify global astar grids inside a Task");
             return;
         }
 
@@ -242,11 +240,9 @@ public class PathFinder
     // Method to follow the current path
     public bool TryFollowPath(Being entity, bool secondTry = false)
     {
-        CurrentTick++;
-
         if (entity == null)
         {
-            GD.PrintErr("TryFollowPath: Entity is null");
+            Log.Error("TryFollowPath: Entity is null");
             return false;
         }
 
@@ -259,14 +255,14 @@ public class PathFinder
         // Calculate path if needed and not on cooldown
         if (_firstGoalCalculation ||
             (_pathNeedsCalculation &&
-              CurrentTick - _lastRecalculationTick >= RECALCULATIONCOOLDOWN &&
+              GameController.CurrentTick - _lastRecalculationTick >= RECALCULATIONCOOLDOWN &&
               _recalculationAttempts < MAXRECALCULATIONATTEMPTS))
         {
             _firstGoalCalculation = false;
             bool success = CalculatePathForCurrentGoal(entity);
             if (!success)
             {
-                GD.PrintErr($"Failed to calculate path for {entity.Name} with goal type {_goalType}");
+                Log.Error($"Failed to calculate path for {entity.Name} with goal type {_goalType}");
                 return false;
             }
         }
@@ -318,7 +314,7 @@ public class PathFinder
             _pathNeedsCalculation = true;
             if (secondTry)
             {
-                GD.PrintErr($"Move failed for {entity.Name} to {nextPos}");
+                Log.Error($"Move failed for {entity.Name} to {nextPos}");
                 return false;
             }
             else
@@ -336,7 +332,7 @@ public class PathFinder
         var gridArea = entity.GetGridArea();
         if (gridArea == null || gridArea.AStarGrid == null)
         {
-            GD.PrintErr("CalculatePathForCurrentGoal: GridArea is null");
+            Log.Error("CalculatePathForCurrentGoal: GridArea is null");
             return false;
         }
 
@@ -356,14 +352,14 @@ public class PathFinder
                     // Check if target position is in bounds
                     if (!astar.IsInBoundsv(_targetPosition))
                     {
-                        GD.PrintErr($"Target position {_targetPosition} is out of bounds");
+                        Log.Error($"Target position {_targetPosition} is out of bounds");
                         return false;
                     }
 
                     // If start and target are the same, no path needed
                     if (startPos == _targetPosition)
                     {
-                        GD.Print("Target and start are same");
+                        Log.Print("Target and start are same");
                         return true;
                     }
 
@@ -376,7 +372,7 @@ public class PathFinder
                     }
                     else
                     {
-                        GD.PrintErr($"No path found to position {_targetPosition}");
+                        Log.Error($"No path found to position {_targetPosition}");
                         return false;
                     }
 
@@ -428,13 +424,13 @@ public class PathFinder
 
                         if (!foundPath)
                         {
-                            GD.PrintErr($"No path found to entity {_targetEntity.Name}");
+                            Log.Error($"No path found to entity {_targetEntity.Name}");
                             return false;
                         }
                     }
                     else
                     {
-                        GD.PrintErr("Target entity is null");
+                        Log.Error("Target entity is null");
                         return false;
                     }
 
@@ -470,13 +466,13 @@ public class PathFinder
 
                         if (!foundAreaPath)
                         {
-                            GD.PrintErr("No path found to any position in area");
+                            Log.Error("No path found to any position in area");
                             return false;
                         }
                     }
                     else
                     {
-                        GD.PrintErr("No valid positions found in area");
+                        Log.Error("No valid positions found in area");
                         return false;
                     }
 
@@ -535,13 +531,13 @@ public class PathFinder
 
                         if (!foundPath)
                         {
-                            GD.PrintErr($"No path found to building {_targetBuilding.BuildingType}");
+                            Log.Error($"No path found to building {_targetBuilding.BuildingType}");
                             return false;
                         }
                     }
                     else
                     {
-                        GD.PrintErr("Target building is null");
+                        Log.Error("Target building is null");
                         return false;
                     }
 
@@ -556,12 +552,12 @@ public class PathFinder
 
             PathIndex = 0;
             _pathNeedsCalculation = false;
-            _lastRecalculationTick = CurrentTick;
+            _lastRecalculationTick = GameController.CurrentTick;
             return CurrentPath.Count > 0;
         }
         catch (Exception e)
         {
-            GD.PrintErr($"Exception in path calculation: {e.Message}\n{e.StackTrace}");
+            Log.Error($"Exception in path calculation: {e.Message}\n{e.StackTrace}");
             return false;
         }
     }

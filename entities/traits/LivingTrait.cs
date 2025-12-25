@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Needs;
 
@@ -19,6 +20,6 @@ public class LivingTrait : BeingTrait
             needsSystem.AddNeed(hunger);
         }
 
-        GD.Print($"{owner.Name}: Living trait initialized with hunger need");
+        Log.Print($"{owner.Name}: Living trait initialized with hunger need");
     }
 }

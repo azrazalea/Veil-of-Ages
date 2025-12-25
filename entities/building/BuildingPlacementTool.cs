@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Grid;
 
 // TODO: Rewrite
@@ -46,7 +47,7 @@ public partial class BuildingPlacementTool : Node
         _buildingManager = GetNode<BuildingManager>("/root/BuildingManager");
         if (_buildingManager == null)
         {
-            GD.PrintErr("BuildingPlacementTool: BuildingManager not found!");
+            Log.Error("BuildingPlacementTool: BuildingManager not found!");
         }
 
         // Initially hide preview
@@ -62,7 +63,7 @@ public partial class BuildingPlacementTool : Node
         _currentTemplate = _buildingManager?.GetTemplate(templateName);
         if (_currentTemplate == null)
         {
-            GD.PrintErr($"BuildingPlacementTool: Template not found: {templateName}");
+            Log.Error($"BuildingPlacementTool: Template not found: {templateName}");
             return;
         }
 

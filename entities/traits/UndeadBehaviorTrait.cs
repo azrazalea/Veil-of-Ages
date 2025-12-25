@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Sensory;
@@ -21,7 +22,7 @@ public abstract class UndeadBehaviorTrait : UndeadTrait
     {
         base.Initialize(owner, health, initQueue);
         _stateTimer = IdleTime;
-        GD.Print($"{owner.Name}: UndeadBehavior trait initialized");
+        Log.Print($"{owner.Name}: UndeadBehavior trait initialized");
     }
 
     public override EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)

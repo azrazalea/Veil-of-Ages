@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using VeilOfAges.Core.Lib;
 
 namespace VeilOfAges.Entities.Beings.Health;
 
@@ -25,7 +26,7 @@ public class BodyHealth(Being owner)
         }
         else
         {
-            GD.Print($"Failed to add body part {bodyPart.Name} to group {groupName} as group did not exist");
+            Log.Warn($"Failed to add body part {bodyPart.Name} to group {groupName} as group did not exist");
         }
     }
 
@@ -37,7 +38,7 @@ public class BodyHealth(Being owner)
         }
         else
         {
-            GD.Print($"Failed to remove body part {bodyPartName} from group {groupName} as group did not exist");
+            Log.Warn($"Failed to remove body part {bodyPartName} from group {groupName} as group did not exist");
         }
     }
 
@@ -57,7 +58,7 @@ public class BodyHealth(Being owner)
         }
         else
         {
-            GD.Print($"Failed to disable body system {systemType}");
+            Log.Warn($"Failed to disable body system {systemType}");
         }
     }
 
@@ -217,10 +218,10 @@ public class BodyHealth(Being owner)
 
     public void PrintSystemStatuses()
     {
-        GD.Print($"Health status for {_owner.Name}");
+        Log.Print($"Health status for {_owner.Name}");
         foreach (var system in BodySystems.Values)
         {
-            GD.Print($"{system.Name} => {GetSystemStatus(system.Type)}");
+            Log.Print($"{system.Name} => {GetSystemStatus(system.Type)}");
         }
     }
 

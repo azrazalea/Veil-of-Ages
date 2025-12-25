@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using Godot;
+using VeilOfAges.Core;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Activities;
 using VeilOfAges.Entities.Beings.Health;
@@ -72,11 +74,11 @@ public class ConsumptionBehaviorTrait : BeingTrait
 
         if (_need == null)
         {
-            GD.PrintErr($"{_owner?.Name}: ConsumptionBehaviorTrait could not find need '{_needId}'");
+            Log.Error($"{_owner?.Name}: ConsumptionBehaviorTrait could not find need '{_needId}'");
         }
         else
         {
-            GD.Print($"{_owner?.Name}: ConsumptionBehaviorTrait initialized for need '{_needId}'");
+            Log.Print($"{_owner?.Name}: ConsumptionBehaviorTrait initialized for need '{_needId}'");
         }
     }
 
@@ -108,9 +110,9 @@ public class ConsumptionBehaviorTrait : BeingTrait
             if (foodSource == null)
             {
                 // Only log occasionally to avoid spam
-                if (MyPathfinder.CurrentTick % 200 == 0)
+                if (GameController.CurrentTick % 200 == 0)
                 {
-                    GD.Print($"{_owner.Name}: No food source found for '{_needId}'");
+                    Log.Print($"{_owner.Name}: No food source found for '{_needId}'");
                 }
 
                 // No food source found

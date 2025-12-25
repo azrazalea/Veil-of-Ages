@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Sensory;
 
 namespace VeilOfAges.Entities;
@@ -42,12 +43,12 @@ public partial class Building : Node2D, IEntity<Trait>
 
     public override void _Ready()
     {
-        GD.Print($"Building grid position _Ready: {_gridPosition}");
+        Log.Print($"Building grid position _Ready: {_gridPosition}");
 
         // Snap to grid
         Position = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
 
-        GD.Print($"{BuildingType} registered at grid position {_gridPosition}");
+        Log.Print($"{BuildingType} registered at grid position {_gridPosition}");
     }
 
     // Initialize with an external grid system (useful for programmatic placement)
@@ -73,7 +74,7 @@ public partial class Building : Node2D, IEntity<Trait>
 
         ZIndex = 2;
 
-        GD.Print($"Building grid position Initialize: {_gridPosition}");
+        Log.Print($"Building grid position Initialize: {_gridPosition}");
 
         // Update the actual position
         Position = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
@@ -112,9 +113,9 @@ public partial class Building : Node2D, IEntity<Trait>
         // Setup the TileSet with all required atlas sources
         TileResourceManager.Instance.SetupTileSet(_tileMap);
         TileResourceManager.Instance.SetupTileSet(_groundTileMap);
-        GD.Print($"Tile set {_tileMap.TileSet}");
+        Log.Print($"Tile set {_tileMap.TileSet}");
 
-        GD.Print($"Building grid position Initialize: {_gridPosition}");
+        Log.Print($"Building grid position Initialize: {_gridPosition}");
 
         // Update the actual position
         Position = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
@@ -220,7 +221,7 @@ public partial class Building : Node2D, IEntity<Trait>
             {
                 // Log the error and throw an exception
                 var errorMessage = $"Critical Error: Failed to create building tile at position {tileData.Position} with type '{tileDefId}' and material '{materialId}' variant '{variantName}'";
-                GD.PrintErr(errorMessage);
+                Log.Error(errorMessage);
                 throw new System.InvalidOperationException(errorMessage);
             }
 
@@ -243,7 +244,7 @@ public partial class Building : Node2D, IEntity<Trait>
                 }
             }
 
-            GD.Print($"{tileDefId} {tileData.Position} tile with source {buildingTile.SourceId} and coords {buildingTile.AtlasCoords}");
+            Log.Print($"{tileDefId} {tileData.Position} tile with source {buildingTile.SourceId} and coords {buildingTile.AtlasCoords}");
 
             // Add to tile dictionary (using relative position)
             if (buildingTile.Type == TileType.Floor)
@@ -258,7 +259,7 @@ public partial class Building : Node2D, IEntity<Trait>
             }
 
             // Set the tile in the tilemap for visualization
-            GD.Print($"Confirm cell {tileData.Position} atlas source {_tileMap.GetCellSourceId(tileData.Position)} {_tileMap.GetCellAtlasCoords(tileData.Position)}");
+            Log.Print($"Confirm cell {tileData.Position} atlas source {_tileMap.GetCellSourceId(tileData.Position)} {_tileMap.GetCellAtlasCoords(tileData.Position)}");
         }
     }
 
@@ -287,7 +288,7 @@ public partial class Building : Node2D, IEntity<Trait>
     // Method for when player interacts with building
     public void Interact()
     {
-        GD.Print($"Player is interacting with {BuildingType}");
+        Log.Print($"Player is interacting with {BuildingType}");
 
         // This would later handle entering buildings, triggering events, etc.
     }

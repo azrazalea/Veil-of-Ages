@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
 using VeilOfAges.Entities.Sensory;
 
@@ -54,7 +55,7 @@ public partial class EntityThinkingSystem : Node
         if (!_entities.Contains(entity))
         {
             _entities.Add(entity);
-            GD.Print($"Registered entity {entity.Name} with thinking system");
+            Log.Print($"Registered entity {entity.Name} with thinking system");
         }
     }
 
@@ -67,7 +68,7 @@ public partial class EntityThinkingSystem : Node
     {
         if (_isProcessingTick)
         {
-            GD.PrintErr("Attempted to process game tick while another tick is in progress");
+            Log.Error("Attempted to process game tick while another tick is in progress");
             return;
         }
 

@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Beings;
 using VeilOfAges.Entities.Beings.Health;
@@ -38,7 +39,7 @@ public class SkeletonTrait : UndeadBehaviorTrait
         WanderRange = 10.0f;      // And stay closer to their area
         IdleTime = 15;            // Stand idle longer
 
-        GD.Print($"{owner.Name}: Skeleton behavior initialized");
+        Log.Print($"{owner.Name}: Skeleton behavior initialized");
     }
 
     protected override EntityAction? ProcessState(Vector2I currentOwnerGridPosition, Perception currentPerception)
@@ -103,14 +104,14 @@ public class SkeletonTrait : UndeadBehaviorTrait
                 // Make a skeleton rattle when first seeing an intruder
                 if (!_hasRattled)
                 {
-                    GD.Print($"{_owner?.Name}: *bones rattle menacingly*");
+                    Log.Print($"{_owner?.Name}: *bones rattle menacingly*");
 
                     // Play sound effect
                     PlayBoneRattle();
                     _hasRattled = true;
                 }
 
-                GD.Print($"{_owner?.Name}: Intruder detected in territory!");
+                Log.Print($"{_owner?.Name}: Intruder detected in territory!");
                 return;
             }
         }
@@ -178,7 +179,7 @@ public class SkeletonTrait : UndeadBehaviorTrait
         // Check if we've lost interest or the intruder left the territory
         if (_intimidationTimer == 0 || !IsIntruderInTerritory())
         {
-            GD.Print($"{_owner.Name}: Intruder gone, returning to patrol");
+            Log.Print($"{_owner.Name}: Intruder gone, returning to patrol");
             _currentState = SkeletonState.Wandering;
             _stateTimer = (uint)_rng.RandiRange(60, 180);
             _intruder = null;

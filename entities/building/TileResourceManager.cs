@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Sensory;
 
 namespace VeilOfAges.Entities;
@@ -57,7 +58,7 @@ public class TileResourceManager
         LoadAllTileDefinitions();
 
         _initialized = true;
-        GD.Print($"TileResourceManager initialized with {_materials.Count} materials, {_atlasSources.Count} atlas sources, and {_tileDefinitions.Count} tile definitions");
+        Log.Print($"TileResourceManager initialized with {_materials.Count} materials, {_atlasSources.Count} atlas sources, and {_tileDefinitions.Count} tile definitions");
     }
 
     /// <summary>
@@ -70,7 +71,7 @@ public class TileResourceManager
 
         if (!Directory.Exists(projectPath))
         {
-            GD.PrintErr($"Materials directory not found: {projectPath}");
+            Log.Error($"Materials directory not found: {projectPath}");
             return;
         }
 
@@ -80,11 +81,11 @@ public class TileResourceManager
             if (material != null && material.Validate())
             {
                 _materials[material.Id] = material;
-                GD.Print($"Loaded material: {material.Id}");
+                Log.Print($"Loaded material: {material.Id}");
             }
             else
             {
-                GD.PrintErr($"Failed to load material from: {file}");
+                Log.Error($"Failed to load material from: {file}");
             }
         }
     }
@@ -99,7 +100,7 @@ public class TileResourceManager
 
         if (!Directory.Exists(projectPath))
         {
-            GD.PrintErr($"Atlas sources directory not found: {projectPath}");
+            Log.Error($"Atlas sources directory not found: {projectPath}");
             return;
         }
 
@@ -109,11 +110,11 @@ public class TileResourceManager
             if (atlasSource != null && atlasSource.Validate())
             {
                 _atlasSources[atlasSource.Id] = atlasSource;
-                GD.Print($"Loaded atlas source: {atlasSource.Id}");
+                Log.Print($"Loaded atlas source: {atlasSource.Id}");
             }
             else
             {
-                GD.PrintErr($"Failed to load atlas source from: {file}");
+                Log.Error($"Failed to load atlas source from: {file}");
             }
         }
     }
@@ -128,7 +129,7 @@ public class TileResourceManager
 
         if (!Directory.Exists(projectPath))
         {
-            GD.PrintErr($"Tile definitions directory not found: {projectPath}");
+            Log.Error($"Tile definitions directory not found: {projectPath}");
             return;
         }
 
@@ -143,12 +144,12 @@ public class TileResourceManager
                 if (id != null)
                 {
                     baseDefinitions[id] = tileDefinition;
-                    GD.Print($"Loaded base tile definition: {tileDefinition.Id}");
+                    Log.Print($"Loaded base tile definition: {tileDefinition.Id}");
                 }
             }
             else
             {
-                GD.PrintErr($"Failed to load base tile definition from: {file}");
+                Log.Error($"Failed to load base tile definition from: {file}");
             }
         }
 
@@ -175,22 +176,22 @@ public class TileResourceManager
                             baseDefinitions[dirName] = mergedDefinition;
 
                             string variantFileName = Path.GetFileNameWithoutExtension(variantFile);
-                            GD.Print($"Merged variant definition: {dirName}/{variantFileName}");
+                            Log.Print($"Merged variant definition: {dirName}/{variantFileName}");
                         }
                         else
                         {
-                            GD.PrintErr($"Merged tile definition failed validation: {dirName}/{Path.GetFileName(variantFile)}");
+                            Log.Error($"Merged tile definition failed validation: {dirName}/{Path.GetFileName(variantFile)}");
                         }
                     }
                     else
                     {
-                        GD.PrintErr($"Failed to load variant definition from: {variantFile}");
+                        Log.Error($"Failed to load variant definition from: {variantFile}");
                     }
                 }
             }
             else
             {
-                GD.PrintErr($"Found variant directory '{dirName}' but no corresponding base definition");
+                Log.Error($"Found variant directory '{dirName}' but no corresponding base definition");
             }
         }
 
@@ -206,11 +207,11 @@ public class TileResourceManager
             if (usesCategories || hasLegacyAtlas)
             {
                 _tileDefinitions[kvp.Key] = tileDefinition;
-                GD.Print($"Registered tile definition: {tileDefinition.Id}");
+                Log.Print($"Registered tile definition: {tileDefinition.Id}");
             }
             else
             {
-                GD.PrintErr($"Tile definition has neither categories nor a legacy atlas source: {tileDefinition.Id}");
+                Log.Error($"Tile definition has neither categories nor a legacy atlas source: {tileDefinition.Id}");
             }
         }
     }
@@ -249,7 +250,7 @@ public class TileResourceManager
                     }
                     else
                     {
-                        GD.PrintErr($"Failed to load texture: {atlasSource.TexturePath}");
+                        Log.Error($"Failed to load texture: {atlasSource.TexturePath}");
                         continue;
                     }
                 }
@@ -276,12 +277,12 @@ public class TileResourceManager
                 // Store the mapping
                 _tilesetSourceIds[atlasSource.Id] = sourceId;
 
-                GD.Print($"Added atlas source {atlasSource.Id} as source ID {sourceId} with texture ${texture.GetSize()}");
+                Log.Print($"Added atlas source {atlasSource.Id} as source ID {sourceId} with texture ${texture.GetSize()}");
                 sourceId++;
             }
             catch (Exception e)
             {
-                GD.PrintErr($"Error adding atlas source {atlasSource.Id}: {e.Message}");
+                Log.Error($"Error adding atlas source {atlasSource.Id}: {e.Message}");
             }
         }
     }
@@ -459,7 +460,7 @@ public class TileResourceManager
         if (!_tileDefinitions.TryGetValue(tileId, out var tileDef))
         {
             var errorMessage = $"Tile definition not found: {tileId}";
-            GD.PrintErr(errorMessage);
+            Log.Error(errorMessage);
             throw new System.InvalidOperationException(errorMessage);
         }
 
@@ -491,7 +492,7 @@ public class TileResourceManager
         if (sourceId == -1)
         {
             var errorMessage = $"Atlas source not found: {atlasSource}";
-            GD.PrintErr(errorMessage);
+            Log.Error(errorMessage);
             throw new System.InvalidOperationException(errorMessage);
         }
 
@@ -500,7 +501,7 @@ public class TileResourceManager
         if (!Enum.TryParse(tileDef.Type, out tileType))
         {
             var errorMessage = $"Invalid tile type: {tileDef.Type}";
-            GD.PrintErr(errorMessage);
+            Log.Error(errorMessage);
             throw new System.InvalidOperationException(errorMessage);
         }
 
@@ -512,7 +513,7 @@ public class TileResourceManager
             if (material == null)
             {
                 var errorMessage = $"Material definition not found: {materialId}";
-                GD.PrintErr(errorMessage);
+                Log.Error(errorMessage);
                 throw new System.InvalidOperationException(errorMessage);
             }
         }

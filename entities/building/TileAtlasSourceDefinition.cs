@@ -4,6 +4,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Godot;
+using VeilOfAges.Core.Lib;
 
 namespace VeilOfAges.Entities;
 
@@ -56,7 +57,7 @@ public class TileAtlasSourceDefinition
         }
         catch (Exception e)
         {
-            GD.PrintErr($"Error loading tile atlas source definition: {e.Message}");
+            Log.Error($"Error loading tile atlas source definition: {e.Message}");
             return null;
         }
     }

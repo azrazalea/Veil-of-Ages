@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Godot;
+using VeilOfAges.Core.Lib;
 
 namespace VeilOfAges.Entities;
 
@@ -35,7 +36,7 @@ public partial class RoofSystem : Node
         _building = GetParent<Building>();
         if (_building == null)
         {
-            GD.PrintErr("RoofSystem: Not attached to a Building node!");
+            Log.Error("RoofSystem: Not attached to a Building node!");
             return;
         }
     }
@@ -53,7 +54,7 @@ public partial class RoofSystem : Node
         var tileMap = _building.GetNode<TileMap>("TileMap");
         if (tileMap == null)
         {
-            GD.PrintErr("RoofSystem: TileMap not found!");
+            Log.Error("RoofSystem: TileMap not found!");
             return;
         }
 

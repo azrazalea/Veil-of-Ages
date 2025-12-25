@@ -1,4 +1,5 @@
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Needs;
 using VeilOfAges.Entities.Sensory;
@@ -82,7 +83,7 @@ public class EatActivity : Activity
             if (_goToPhase.State == ActivityState.Completed)
             {
                 _isConsuming = true;
-                GD.Print($"{_owner.Name}: Started eating at {_target.BuildingType}");
+                Log.Print($"{_owner.Name}: Started eating at {_target.BuildingType}");
             }
             else
             {
@@ -100,7 +101,7 @@ public class EatActivity : Activity
             {
                 // Apply effect
                 _need.Restore(_restoreAmount);
-                GD.Print($"{_owner.Name}: Finished eating, restored {_restoreAmount} {_need.DisplayName}");
+                Log.Print($"{_owner.Name}: Finished eating, restored {_restoreAmount} {_need.DisplayName}");
                 Complete();
                 return null;
             }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Godot;
+using VeilOfAges.Core.Lib;
 
 namespace VeilOfAges.Entities;
 
@@ -37,7 +38,7 @@ public partial class BuildingManager : Node
         _world = GetTree().GetFirstNodeInGroup("World") as World;
         if (_world == null)
         {
-            GD.PrintErr("BuildingManager: Could not find World node!");
+            Log.Error("BuildingManager: Could not find World node!");
             return;
         }
 
@@ -56,7 +57,7 @@ public partial class BuildingManager : Node
         string templatesDir = ProjectSettings.GlobalizePath(_templatesPath);
         if (!Directory.Exists(templatesDir))
         {
-            GD.PrintErr($"BuildingManager: Templates directory not found: {templatesDir}");
+            Log.Error($"BuildingManager: Templates directory not found: {templatesDir}");
             return;
         }
 
@@ -69,20 +70,20 @@ public partial class BuildingManager : Node
                 if (template != null && template.Name != null && template.Validate())
                 {
                     _templates[template.Name] = template;
-                    GD.Print($"Loaded building template: {template.Name}");
+                    Log.Print($"Loaded building template: {template.Name}");
                 }
                 else
                 {
-                    GD.PrintErr($"BuildingManager: Invalid template in file: {file}");
+                    Log.Error($"BuildingManager: Invalid template in file: {file}");
                 }
             }
             catch (Exception e)
             {
-                GD.PrintErr($"BuildingManager: Error loading template from {file}: {e.Message}");
+                Log.Error($"BuildingManager: Error loading template from {file}: {e.Message}");
             }
         }
 
-        GD.Print($"BuildingManager: Loaded {_templates.Count} building templates");
+        Log.Print($"BuildingManager: Loaded {_templates.Count} building templates");
     }
 
     /// <summary>
@@ -96,7 +97,7 @@ public partial class BuildingManager : Node
             return template;
         }
 
-        GD.PrintErr($"BuildingManager: Template not found: {name}");
+        Log.Error($"BuildingManager: Template not found: {name}");
         return null;
     }
 
@@ -126,14 +127,14 @@ public partial class BuildingManager : Node
         var targetArea = area ?? _currentArea;
         if (targetArea == null)
         {
-            GD.PrintErr("BuildingManager: No area specified for building placement");
+            Log.Error("BuildingManager: No area specified for building placement");
             return null;
         }
 
         // Check if the space is available
         if (!CanPlaceBuildingAt(template, gridPosition, targetArea))
         {
-            GD.PrintErr($"BuildingManager: Cannot place {templateName} at {gridPosition} - space occupied");
+            Log.Error($"BuildingManager: Cannot place {templateName} at {gridPosition} - space occupied");
             return null;
         }
 
@@ -194,7 +195,7 @@ public partial class BuildingManager : Node
         // TODO: Implement custom building saving
         // This would extract all tile information from an existing building
         // and create a new template from it
-        GD.PrintErr("BuildingManager: SaveAsTemplate not implemented yet");
+        Log.Error("BuildingManager: SaveAsTemplate not implemented yet");
         return false;
     }
 }

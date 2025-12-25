@@ -4,6 +4,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Sensory;
 
 namespace VeilOfAges.Entities;
@@ -187,7 +188,7 @@ public class TileDefinition
         }
         catch (Exception e)
         {
-            GD.PrintErr($"Error loading tile definition: {e.Message}");
+            Log.Error($"Error loading tile definition: {e.Message}");
             return null;
         }
     }

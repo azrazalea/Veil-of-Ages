@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using VeilOfAges.Core;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
 using VeilOfAges.Grid;
 
@@ -39,7 +40,7 @@ public class VillageGenerator
         _entityThinkingSystem = entityThinkingSystem;
         _buildingManager = BuildingManager.Instance; // Get the singleton instance
 
-        GD.Print(_buildingManager);
+        Log.Print($"BuildingManager instance: {_buildingManager}");
 
         // Set the current area for BuildingManager
         _buildingManager?.SetCurrentArea(gridArea);
@@ -71,7 +72,7 @@ public class VillageGenerator
         // Create the visual village square (dirt area)
         CreateVillageSquare(villageCenter);
 
-        GD.Print("Hello my baby");
+        Log.Print("Hello my baby");
 
         // Place various buildings around the village
         PlaceVillageBuildings(villageCenter);
@@ -109,7 +110,7 @@ public class VillageGenerator
             return;
         }
 
-        GD.Print("Hello my darling");
+        Log.Print("Hello my darling");
 
         // Define the building types to place
         string[] buildingTypes = ["Simple Farm", "Graveyard", "Simple House", "Simple House"];
@@ -126,7 +127,7 @@ public class VillageGenerator
             var template = _buildingManager.GetTemplate(buildingType);
             if (template == null)
             {
-                GD.PrintErr($"Failed to find template for building type: {buildingType}");
+                Log.Error($"Failed to find template for building type: {buildingType}");
                 continue;
             }
 
@@ -206,18 +207,18 @@ public class VillageGenerator
                                 break;
                         }
 
-                        GD.Print($"Placed {buildingType} at {buildingPos}");
+                        Log.Print($"Placed {buildingType} at {buildingPos}");
                     }
                     else
                     {
-                        GD.PrintErr($"Failed to create building of type {buildingType} at {buildingPos}");
+                        Log.Error($"Failed to create building of type {buildingType} at {buildingPos}");
                     }
                 }
             }
 
             if (!foundValidPosition)
             {
-                GD.PrintErr($"Failed to place {buildingType} after {maxPlacementAttempts} attempts");
+                Log.Error($"Failed to place {buildingType} after {maxPlacementAttempts} attempts");
             }
         }
     }
@@ -238,7 +239,7 @@ public class VillageGenerator
         var template = _buildingManager.GetTemplate(newBuildingType);
         if (template == null)
         {
-            GD.PrintErr($"Failed to find template for building type: {newBuildingType}");
+            Log.Error($"Failed to find template for building type: {newBuildingType}");
             return false;
         }
 
@@ -252,7 +253,7 @@ public class VillageGenerator
         // If no valid position was found, return false
         if (newBuildingPos == baseBuilingPos)
         {
-            GD.PrintErr($"Could not find valid position to spawn {newBuildingType} near building at {baseBuilingPos}");
+            Log.Error($"Could not find valid position to spawn {newBuildingType} near building at {baseBuilingPos}");
             return false;
         }
 
@@ -261,12 +262,12 @@ public class VillageGenerator
 
         if (typedBuilding != null)
         {
-            GD.Print($"Placed {newBuildingType} at {newBuildingPos} near building at {baseBuilingPos}");
+            Log.Print($"Placed {newBuildingType} at {newBuildingPos} near building at {baseBuilingPos}");
             return true;
         }
         else
         {
-            GD.PrintErr($"Failed to create building of type {newBuildingType} at {newBuildingPos}");
+            Log.Error($"Failed to create building of type {newBuildingType} at {newBuildingPos}");
             return false;
         }
     }
@@ -289,7 +290,7 @@ public class VillageGenerator
             {
                 typedBeing.Initialize(_gridArea, beingPos);
                 _entityThinkingSystem.RegisterEntity(typedBeing);
-                GD.Print($"Spawned {typedBeing.GetType().Name} at {beingPos} near building at {buildingPos}");
+                Log.Print($"Spawned {typedBeing.GetType().Name} at {beingPos} near building at {buildingPos}");
             }
             else
             {
@@ -302,7 +303,7 @@ public class VillageGenerator
         }
         else
         {
-            GD.PrintErr($"Could not find valid position to spawn being near building at {buildingPos}");
+            Log.Error($"Could not find valid position to spawn being near building at {buildingPos}");
         }
     }
 

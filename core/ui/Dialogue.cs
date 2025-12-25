@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Core;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
 using VeilOfAges.UI.Commands;
 
@@ -34,7 +35,7 @@ public partial class Dialogue : CanvasLayer
     {
         if (target.WillRefuseCommand(new TalkCommand(target, speaker)))
         {
-            GD.Print($"{target.Name} does not want to talk right now.");
+            Log.Print($"{target.Name} does not want to talk right now.");
             return false; // The target doesn't want to talk right now
 
             // TODO: Tell the player about this response.

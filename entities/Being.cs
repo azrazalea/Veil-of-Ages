@@ -391,7 +391,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             }
             else
             {
-                GD.Print($"Sorry player, I have to run because {entityAction?.GetType()} is more important");
+                Log.Print($"Sorry player, I have to run because {entityAction?.GetType()} is more important");
                 EndDialogue(null);
             }
         }

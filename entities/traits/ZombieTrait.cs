@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Beings;
 using VeilOfAges.Entities.Beings.Health;
@@ -58,7 +59,7 @@ public class ZombieTrait : UndeadBehaviorTrait
         WanderProbability = 0.3f; // Zombies wander more often
         WanderRange = 15.0f;      // And further from spawn
 
-        GD.Print($"{owner.Name}: Zombie trait initialized with brain hunger");
+        Log.Print($"{owner.Name}: Zombie trait initialized with brain hunger");
     }
 
     protected override EntityAction? ProcessState(Vector2I currentOwnerGridPosition, Perception currentPerception)
@@ -98,7 +99,7 @@ public class ZombieTrait : UndeadBehaviorTrait
                 // Occasionally make zombie sounds
                 if (!_hasGroaned && _rng.Randf() < 0.3f)
                 {
-                    GD.Print($"{_owner.Name}: *groans*");
+                    Log.Print($"{_owner.Name}: *groans*");
                     PlayZombieGroan();
                     _hasGroaned = true;
                 }

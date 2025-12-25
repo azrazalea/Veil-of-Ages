@@ -71,7 +71,7 @@ public class VillagerTrait : BeingTrait
         _owner?.SelfAsEntity().AddTraitToQueue(consumptionTrait, Priority - 1, initQueue);
 
         _currentState = VillagerState.IdleAtHome;
-        GD.Print($"{_owner?.Name}: Villager trait initialized fully");
+        Log.Print($"{_owner?.Name}: Villager trait initialized fully");
         IsInitialized = true;
     }
 
@@ -92,7 +92,7 @@ public class VillagerTrait : BeingTrait
             }
         }
 
-        GD.Print($"{_owner?.Name}: Discovered {_knownBuildings.Count} buildings");
+        Log.Print($"{_owner?.Name}: Discovered {_knownBuildings.Count} buildings");
     }
 
     public override EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
@@ -146,7 +146,7 @@ public class VillagerTrait : BeingTrait
                 // Set goal to go to village square - lazy path calculation
                 MyPathfinder.SetPositionGoal(_owner, _squarePosition);
 
-                GD.Print($"{_owner.Name}: Going to village square");
+                Log.Print($"{_owner.Name}: Going to village square");
                 return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: 1);
             }
 
@@ -163,7 +163,7 @@ public class VillagerTrait : BeingTrait
                     MyPathfinder.SetPositionGoal(_owner, buildingPos);
 
                     _stateTimer = (uint)_rng.RandiRange(80, 150);
-                    GD.Print($"{_owner.Name}: Going to visit {_currentDestinationBuilding.BuildingType}");
+                    Log.Print($"{_owner.Name}: Going to visit {_currentDestinationBuilding.BuildingType}");
 
                     return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: 1);
                 }
@@ -203,7 +203,7 @@ public class VillagerTrait : BeingTrait
             MyPathfinder.SetPositionGoal(_owner, _homePosition);
 
             _stateTimer = (uint)_rng.RandiRange(150, 300);
-            GD.Print($"{_owner.Name}: Going back home");
+            Log.Print($"{_owner.Name}: Going back home");
 
             return new MoveAlongPathAction(_owner, this, MyPathfinder);
         }
@@ -250,7 +250,7 @@ public class VillagerTrait : BeingTrait
             MyPathfinder.SetPositionGoal(_owner, _homePosition);
 
             _stateTimer = (uint)_rng.RandiRange(150, 300);
-            GD.Print($"{_owner.Name}: Finished visiting, going home");
+            Log.Print($"{_owner.Name}: Finished visiting, going home");
 
             return new MoveAlongPathAction(_owner, this, MyPathfinder);
         }

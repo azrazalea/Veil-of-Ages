@@ -1,5 +1,6 @@
 using System.Linq;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Traits;
 
 namespace VeilOfAges.Entities.Beings;
@@ -39,7 +40,7 @@ public partial class MindlessSkeleton : Being
 
         base._Ready();
 
-        GD.Print("Skeleton initialized with traits");
+        Log.Print("Skeleton initialized with traits");
     }
 
     public override void Initialize(Grid.Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null)
@@ -47,7 +48,7 @@ public partial class MindlessSkeleton : Being
         base.Initialize(gridArea, startGridPos, attributes);
 
         // Any skeleton-specific initialization after base initialization
-        GD.Print($"Skeleton spawned at {startGridPos}");
+        Log.Print($"Skeleton spawned at {startGridPos}");
     }
 
     protected override void InitializeBodyStructure()
@@ -70,7 +71,7 @@ public partial class MindlessSkeleton : Being
         if (IsMoving() && new RandomNumberGenerator().RandfRange(0f, 1f) < 0.01f)
         {
             PlayBoneRattle();
-            GD.Print($"{Name}: *bones rattle*");
+            Log.Print($"{Name}: *bones rattle*");
         }
     }
 

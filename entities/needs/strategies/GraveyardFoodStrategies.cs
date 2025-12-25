@@ -60,7 +60,7 @@ public class ZombieConsumptionEffect : IConsumptionEffect
             zombie.CallDeferred("PlayZombieGroan");
         }
 
-        GD.Print($"{owner.Name}: *groans with satisfaction* - Brains consumed at graveyard, hunger level restored to {need.Value}");
+        Log.Print($"{owner.Name}: *groans with satisfaction* - Brains consumed at graveyard, hunger level restored to {need.Value}");
     }
 }
 
@@ -79,7 +79,7 @@ public class ZombieCriticalHungerHandler : ICriticalStateHandler
         // Zombies become more aggressive when critically hungry
         if (_rng.Randf() < 0.05f)
         {
-            GD.Print($"{owner.Name}: *growls ferociously* Desperately needs brains!");
+            Log.Print($"{owner.Name}: *growls ferociously* Desperately needs brains!");
 
             if (owner is MindlessZombie zombie)
             {

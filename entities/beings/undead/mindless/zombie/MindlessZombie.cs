@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.BeingServices;
 using VeilOfAges.Entities.Traits;
@@ -41,7 +42,7 @@ public partial class MindlessZombie : Being
         _zombieGroan = GetNode<AudioStreamPlayer2D>("AudioStreamPlayer2D");
 
         base._Ready();
-        GD.Print("Zombie initialized with traits");
+        Log.Print("Zombie initialized with traits");
     }
 
     public override void Initialize(Grid.Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null)
@@ -50,7 +51,7 @@ public partial class MindlessZombie : Being
         ApplyRandomDecayDamage();
 
         // Any zombie-specific initialization after base initialization
-        GD.Print($"Zombie spawned at {startGridPos}");
+        Log.Print($"Zombie spawned at {startGridPos}");
         Health?.PrintSystemStatuses();
     }
 
@@ -128,7 +129,7 @@ public partial class MindlessZombie : Being
                     float damageAmount = part.MaxHealth * rng.RandfRange(0.3f, 0.7f);
                     DamageBodyPart(groupName, partName, damageAmount);
 
-                    GD.Print($"Zombie {Name}: {partName} shows decay damage");
+                    Log.Print($"Zombie {Name}: {partName} shows decay damage");
                     affected++;
                 }
             }

@@ -1,6 +1,7 @@
 using System;
 using Godot;
 using VeilOfAges;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
 
 public partial class Tree : Node2D
@@ -16,7 +17,7 @@ public partial class Tree : Node2D
         // Find the grid system
         if (GetTree().GetFirstNodeInGroup("World") is not World)
         {
-            GD.PrintErr("Building: Could not find World node with GridSystem!");
+            Log.Error("Building: Could not find World node with GridSystem!");
             return;
         }
 
@@ -43,7 +44,7 @@ public partial class Tree : Node2D
     // Method for when player interacts with tree
     public void Interact()
     {
-        GD.Print("Player is interacting with tree");
+        Log.Print("Player is interacting with tree");
 
         // This could later handle resource gathering, cutting down the tree, etc.
     }

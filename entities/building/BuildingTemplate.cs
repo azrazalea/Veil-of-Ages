@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Grid;
 
 namespace VeilOfAges.Entities;
@@ -63,7 +64,7 @@ public class BuildingTemplate
         }
         catch (Exception e)
         {
-            GD.PrintErr($"Error loading building template: {e.Message}");
+            Log.Error($"Error loading building template: {e.Message}");
             return null;
         }
     }
@@ -89,7 +90,7 @@ public class BuildingTemplate
         }
         catch (Exception e)
         {
-            GD.PrintErr($"Error saving building template: {e.Message}");
+            Log.Error($"Error saving building template: {e.Message}");
             return false;
         }
     }
@@ -103,19 +104,19 @@ public class BuildingTemplate
         // Basic validation
         if (string.IsNullOrEmpty(Name))
         {
-            GD.PrintErr($"Building validation failed: Name is null or empty");
+            Log.Error($"Building validation failed: Name is null or empty");
             return false;
         }
 
         if (Size.X <= 0 || Size.Y <= 0)
         {
-            GD.PrintErr($"Building validation failed: Invalid size dimensions ({Size.X}, {Size.Y}). Both dimensions must be positive");
+            Log.Error($"Building validation failed: Invalid size dimensions ({Size.X}, {Size.Y}). Both dimensions must be positive");
             return false;
         }
 
         if (Tiles.Count == 0)
         {
-            GD.PrintErr($"Building validation failed: Building '{Name}' has no tiles defined");
+            Log.Error($"Building validation failed: Building '{Name}' has no tiles defined");
             return false;
         }
 
@@ -125,7 +126,7 @@ public class BuildingTemplate
             if (tile.Position.X < 0 || tile.Position.X >= Size.X ||
                 tile.Position.Y < 0 || tile.Position.Y >= Size.Y)
             {
-                GD.PrintErr($"Building validation failed: Tile at position ({tile.Position.X}, {tile.Position.Y}) is outside the building boundaries (0-{Size.X - 1}, 0-{Size.Y - 1})");
+                Log.Error($"Building validation failed: Tile at position ({tile.Position.X}, {tile.Position.Y}) is outside the building boundaries (0-{Size.X - 1}, 0-{Size.Y - 1})");
                 return false;
             }
         }
@@ -136,7 +137,7 @@ public class BuildingTemplate
             if (entrance.X < 0 || entrance.X >= Size.X ||
                 entrance.Y < 0 || entrance.Y >= Size.Y)
             {
-                GD.PrintErr($"Building validation failed: Entrance position ({entrance.X}, {entrance.Y}) is outside the building boundaries (0-{Size.X - 1}, 0-{Size.Y - 1})");
+                Log.Error($"Building validation failed: Entrance position ({entrance.X}, {entrance.Y}) is outside the building boundaries (0-{Size.X - 1}, 0-{Size.Y - 1})");
                 return false;
             }
 
@@ -147,14 +148,14 @@ public class BuildingTemplate
             {
                 if (tile.Type == null)
                 {
-                    GD.PrintErr($"Tile at {tile.Position} does not have a Type");
+                    Log.Error($"Tile at {tile.Position} does not have a Type");
                     return false;
                 }
 
                 var tileDef = TileResourceManager.Instance.GetTileDefinition(tile.Type.ToLower());
                 if (tileDef == null)
                 {
-                    GD.PrintErr($"Tile at {tile.Position} of type {tile.Type} has no corresponding tile definition");
+                    Log.Error($"Tile at {tile.Position} of type {tile.Type} has no corresponding tile definition");
                     return false;
                 }
 
@@ -167,7 +168,7 @@ public class BuildingTemplate
 
             if (badEntrances.Length > 0)
             {
-                GD.PrintErr($"Building validation failed: Entrances {badEntrances} at position ({entrance.X}, {entrance.Y}) are not a door or walkable tile");
+                Log.Error($"Building validation failed: Entrances {badEntrances} at position ({entrance.X}, {entrance.Y}) are not a door or walkable tile");
                 return false;
             }
         }

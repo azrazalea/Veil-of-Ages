@@ -54,7 +54,7 @@ public class FarmConsumptionEffect : IConsumptionEffect
         // Restore the need value
         need.Restore(60f);
 
-        GD.Print($"{owner.Name}: Satisfied {need.DisplayName} at farm, level restored to {need.Value}");
+        Log.Print($"{owner.Name}: Satisfied {need.DisplayName} at farm, level restored to {need.Value}");
     }
 }
 
@@ -73,7 +73,7 @@ public class VillagerCriticalHungerHandler : ICriticalStateHandler
         // Villagers just complain when critically hungry
         if (_rng.Randf() < 0.05f)
         {
-            GD.Print($"{owner.Name}: Desperately hungry but can't find a farm!");
+            Log.Print($"{owner.Name}: Desperately hungry but can't find a farm!");
         }
 
         // No special action, they'll just keep trying to find a farm

@@ -4,6 +4,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Sensory;
 
 namespace VeilOfAges.Entities;
@@ -50,7 +51,7 @@ public class TileMaterialDefinition
         }
         catch (Exception e)
         {
-            GD.PrintErr($"Error loading material definition: {e.Message}");
+            Log.Error($"Error loading material definition: {e.Message}");
             return null;
         }
     }

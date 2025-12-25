@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
 using VeilOfAges.Entities.Actions;
@@ -48,7 +49,7 @@ public class FollowCommand : EntityCommand
                 commanderVisible = true;
                 commanderPosition = position;
                 _lastKnownPosition = position;
-                _lastSeenTick = MyPathfinder.CurrentTick;
+                _lastSeenTick = GameController.CurrentTick;
                 _isSearching = false;
                 break;
             }
@@ -73,12 +74,12 @@ public class FollowCommand : EntityCommand
         else
         {
             // Check if it's been too long since we've seen the commander
-            uint ticksSinceLastSeen = MyPathfinder.CurrentTick - _lastSeenTick;
+            uint ticksSinceLastSeen = GameController.CurrentTick - _lastSeenTick;
 
             if (ticksSinceLastSeen > SEARCHTIMEOUT)
             {
                 // Commander lost for too long, give up
-                GD.Print($"{_owner.Name}: Lost commander for too long, giving up follow command");
+                Log.Print($"{_owner.Name}: Lost commander for too long, giving up follow command");
                 return null; // End command
             }
 

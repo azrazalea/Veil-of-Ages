@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Grid;
@@ -44,7 +45,7 @@ public partial class PlayerInputController : Node
 
         if (_gameController == null || _player == null)
         {
-            GD.PrintErr("PlayerInputController: Failed to find required nodes!");
+            Log.Error("PlayerInputController: Failed to find required nodes!");
         }
     }
 
@@ -210,7 +211,7 @@ public partial class PlayerInputController : Node
                     _quickActions.Visible = false;
                 }
 
-                GD.Print($"Interacting with {entity.Name}");
+                Log.Print($"Interacting with {entity.Name}");
             }
             else
             {
@@ -224,7 +225,7 @@ public partial class PlayerInputController : Node
             var moveCommand = new MoveToCommand(_player, _player);
             moveCommand.WithParameter("targetPos", gridPos);
             _player.QueueCommand(moveCommand);
-            GD.Print($"Moving to position {gridPos}");
+            Log.Print($"Moving to position {gridPos}");
         }
     }
 
@@ -289,7 +290,7 @@ public partial class PlayerInputController : Node
                     var moveCommand = new MoveToCommand(_player, _player);
                     moveCommand.WithParameter("targetPos", gridPos);
                     _player.QueueCommand(moveCommand);
-                    GD.Print($"Moving to position {gridPos}");
+                    Log.Print($"Moving to position {gridPos}");
                 }
 
                 break;
@@ -317,7 +318,7 @@ public partial class PlayerInputController : Node
                             _quickActions.Visible = false;
                         }
 
-                        GD.Print($"Interacting with {entity.Name}");
+                        Log.Print($"Interacting with {entity.Name}");
                     }
                     else
                     {
@@ -330,22 +331,22 @@ public partial class PlayerInputController : Node
 
             case var s when s.StartsWith("Command "):
                 // Future implementation for command menu
-                GD.Print("Command functionality not yet implemented");
+                Log.Print("Command functionality not yet implemented");
                 break;
 
             case var s when s.StartsWith("Examine "):
                 // Future implementation for examine functionality
-                GD.Print("Examine functionality not yet implemented");
+                Log.Print("Examine functionality not yet implemented");
                 break;
 
             case "Build here":
                 // Future implementation for building
-                GD.Print("Building functionality not yet implemented");
+                Log.Print("Building functionality not yet implemented");
                 break;
 
             case "Direct control":
                 // Future implementation for direct control
-                GD.Print("Direct control functionality not yet implemented");
+                Log.Print("Direct control functionality not yet implemented");
                 break;
 
             case "Cancel":
@@ -380,12 +381,12 @@ public partial class PlayerInputController : Node
                 // Resume simulation
                 _gameController?.ResumeSimulation();
 
-                GD.Print($"Command target location set to {gridPos}");
+                Log.Print($"Command target location set to {gridPos}");
             }
         }
         else
         {
-            GD.Print("Invalid location selected");
+            Log.Print("Invalid location selected");
         }
 
         // Clear selection state
@@ -415,7 +416,7 @@ public partial class PlayerInputController : Node
 
         // Create and assign a cancel command
         _player.AssignCommand(null);
-        GD.Print("Canceled current player command");
+        Log.Print("Canceled current player command");
     }
 
     public void PopulateCommandList()
@@ -471,6 +472,6 @@ public partial class PlayerInputController : Node
         var approachCommand = new MoveToCommand(_player, _player);
         approachCommand.WithParameter("targetEntity", entity);
         _player.QueueCommand(approachCommand);
-        GD.Print($"Moving to approach {entity.Name}");
+        Log.Print($"Moving to approach {entity.Name}");
     }
 }

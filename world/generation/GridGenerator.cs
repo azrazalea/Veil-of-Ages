@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Core;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
 using VeilOfAges.Grid;
 
@@ -46,7 +47,7 @@ public partial class GridGenerator : Node
         if (_entitiesContainer == null || _activeGridArea == null || _entitiesContainer == null ||
             BuildingScene == null || SkeletonScene == null || ZombieScene == null || TownsfolkScene == null)
         {
-            GD.PrintErr("WorldGenerator: Missing required nodes!");
+            Log.Error("WorldGenerator: Missing required nodes!");
             return;
         }
 
@@ -73,7 +74,7 @@ public partial class GridGenerator : Node
 
         // // Add some decorative elements
         // GenerateDecorations();
-        GD.Print("Done generating!");
+        Log.Print("Done generating!");
     }
 
     // Generate basic terrain
@@ -149,7 +150,7 @@ public partial class GridGenerator : Node
             }
         }
 
-        GD.Print($"Added water pond at {waterStart} with size {pondSize}, created {waterTilesCount} water tiles");
+        Log.Print($"Added water pond at {waterStart} with size {pondSize}, created {waterTilesCount} water tiles");
     }
 
     private void GenerateTrees()
@@ -226,7 +227,7 @@ public partial class GridGenerator : Node
             treesPlaced++;
         }
 
-        GD.Print($"Placed {treesPlaced} trees after {attempts} attempts");
+        Log.Print($"Placed {treesPlaced} trees after {attempts} attempts");
     }
 
     private void GenerateDecorations()
@@ -280,14 +281,14 @@ public partial class GridGenerator : Node
         if (beingPos != buildingPos && _activeGridArea.IsCellWalkable(beingPos))
         {
             Node2D being = beingScene.Instantiate<Node2D>();
-            GD.Print($"Spawning being of type {being.GetType().Name}");
+            Log.Print($"Spawning being of type {being.GetType().Name}");
 
             // Initialize the skeleton if it has the correct type
             if (being is Being typedBeing)
             {
                 typedBeing.Initialize(_activeGridArea, beingPos);
                 _entityThinkingSystem.RegisterEntity(typedBeing);
-                GD.Print($"Spawned being at {beingPos} near building at {buildingPos}");
+                Log.Print($"Spawned being at {beingPos} near building at {buildingPos}");
             }
             else
             {
@@ -300,7 +301,7 @@ public partial class GridGenerator : Node
         }
         else
         {
-            GD.PrintErr($"Could not find valid position to spawn being near graveyard at {buildingPos}");
+            Log.Error($"Could not find valid position to spawn being near graveyard at {buildingPos}");
         }
     }
 

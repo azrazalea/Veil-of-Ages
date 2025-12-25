@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Godot;
+using VeilOfAges.Core.Lib;
 
 // This class manages the grid-based collision system
 namespace VeilOfAges.Grid;
@@ -18,7 +19,7 @@ public class System<T>
             GridSize = (Vector2I)gridSize;
         }
 
-        GD.Print($"Grid system initialized with size {GridSize.X}x{GridSize.Y}");
+        Log.Print($"Grid system initialized with size {GridSize.X}x{GridSize.Y}");
     }
 
     public T? GetCell(Vector2I gridPos)
@@ -63,7 +64,7 @@ public class System<T>
         if (gridPos.X < 0 || gridPos.X >= GridSize.X ||
             gridPos.Y < 0 || gridPos.Y >= GridSize.Y)
         {
-            GD.Print("Out of bounds!");
+            Log.Print("Out of bounds!");
             return true; // Consider out-of-bounds as occupied
         }
 
@@ -142,6 +143,6 @@ public class System<T>
             gridString += "\n";
         }
 
-        GD.Print(gridString);
+        Log.Print(gridString);
     }
 }

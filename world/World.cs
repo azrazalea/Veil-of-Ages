@@ -57,7 +57,7 @@ public partial class World : Node2D
         }
         else
         {
-            GD.PrintErr("Player node not found! Make sure you've instanced Player.tscn as a child of Entities.");
+            Log.Error("Player node not found! Make sure you've instanced Player.tscn as a child of Entities.");
         }
 
         if (GenerateOnReady)
