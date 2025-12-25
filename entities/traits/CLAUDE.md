@@ -221,6 +221,99 @@ Traits trigger audio via deferred calls:
 (_owner as MindlessZombie)?.CallDeferred("PlayZombieGroan");
 ```
 
+## Creating a New Trait
+
+### Step-by-Step Guide
+
+1. **Create the file** in `/entities/traits/` (e.g., `MyNewTrait.cs`)
+
+2. **Choose the base class**:
+   - `BeingTrait` - For most entity behaviors
+   - `UndeadBehaviorTrait` - For undead with wandering behavior (abstract, override `ProcessState`)
+
+3. **Basic trait template**:
+```csharp
+namespace VeilOfAges.Entities.Traits;
+
+public class MyNewTrait : BeingTrait
+{
+    private enum State { Idle, Active }
+    private State _currentState = State.Idle;
+    private int _stateTimer = 0;
+
+    public override void Initialize(Being owner, object? data)
+    {
+        base.Initialize(owner, data);
+        // Add any sub-traits here:
+        // _owner?.selfAsEntity().AddTraitToQueue<OtherTrait>(Priority - 1, initQueue);
+    }
+
+    public override EntityAction? SuggestAction(Vector2I currentPosition, Perception perception)
+    {
+        // Decrement timer
+        if (_stateTimer > 0) _stateTimer--;
+
+        // State machine logic
+        switch (_currentState)
+        {
+            case State.Idle:
+                if (_stateTimer == 0)
+                {
+                    // Make decision, transition states
+                    _stateTimer = 10; // Reset timer
+                }
+                return new IdleAction(_owner!, this, priority: 1);
+
+            case State.Active:
+                // Return appropriate action
+                return new IdleAction(_owner!, this, priority: 0);
+        }
+
+        return null;
+    }
+}
+```
+
+4. **Add the trait to a Being** in the Being's `_Ready()` method:
+```csharp
+selfAsEntity().AddTraitToQueue<MyNewTrait>(1); // priority 1
+```
+
+### Key Considerations
+
+- **Priority**: Lower values execute first (0 = highest priority)
+- **Action priorities**: Return actions with appropriate priority (-2 for urgent, 0-1 for normal)
+- **State timer**: Use `_stateTimer` pattern to pace decisions
+- **Thread safety**: Use `CallDeferred()` for any Godot scene operations
+- **Composition**: Complex traits should compose simpler traits via `AddTraitToQueue()`
+
+### Common Patterns
+
+**Adding a need with consumption behavior**:
+```csharp
+// In Initialize():
+_owner?.NeedsSystem.AddNeed(new Need("thirst", "Thirst", 80f, 0.01f, 15f, 30f, 90f));
+
+var consumptionTrait = new ConsumptionBehaviorTrait(
+    "thirst",
+    new WellSourceIdentifier(),      // You implement these
+    new WellAcquisitionStrategy(),
+    new DrinkingEffect(),
+    new ThirstCriticalHandler(),
+    120  // Duration in ticks
+);
+_owner?.selfAsEntity().AddTraitToQueue(consumptionTrait, Priority - 1, initQueue);
+```
+
+**Detecting other entities**:
+```csharp
+foreach (var entity in perception.GetEntitiesOfType<Being>())
+{
+    if (entity.selfAsEntity().HasTrait<UndeadTrait>()) continue; // Skip undead
+    // React to living entity
+}
+```
+
 ## Dependencies
 
 ### Depends On

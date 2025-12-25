@@ -36,4 +36,4 @@ The project follows a phased development approach. Kingdom management is Phase 5
 
 ## Related Documentation
 
-- See `.serena/memories/project_purpose.md` for the full development roadmap
+- See `.claude/context/project_purpose.md` for the full development roadmap

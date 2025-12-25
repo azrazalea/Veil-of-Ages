@@ -9,11 +9,12 @@ Configuration and context directory for Claude Code (Anthropic's CLI tool). Cont
 ```
 .claude/
 ├── settings.local.json   # Local permission settings
-└── context/              # Project context files (migrated from .serena)
+└── context/              # Project context files
     ├── CLAUDE.md         # Context directory documentation
     ├── project_purpose.md    # Core game vision and design
     ├── code_style.md         # Coding conventions
-    └── entity_ai_improvement_plan.md  # AI roadmap
+    ├── entity_ai_improvement_plan.md  # AI roadmap
+    └── building_system_roadmap.md    # Building system future features
 ```
 
 ## Files

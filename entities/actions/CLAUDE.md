@@ -71,6 +71,76 @@ public ActionName(Being entity, object source, [specific params], int priority =
 ```
 The `source` parameter tracks which trait/system created the action for debugging.
 
+## Creating a New Action
+
+### Step-by-Step Guide
+
+1. **Create the file** in `/entities/actions/` (e.g., `MyNewAction.cs`)
+
+2. **Basic action template**:
+```csharp
+namespace VeilOfAges.Entities.Actions;
+
+public class MyNewAction : EntityAction
+{
+    private readonly Vector2I _targetPosition;
+
+    public MyNewAction(Being entity, object source, Vector2I targetPosition, int priority = 1)
+        : base(entity, priority)
+    {
+        Source = source;
+        _targetPosition = targetPosition;
+    }
+
+    public override bool Execute()
+    {
+        // Perform the action
+        // Return true if successful, false if failed
+
+        // Example: Try to interact with something at target
+        // var world = Entity.GetTree().GetFirstNodeInGroup("World") as World;
+        // return world?.InteractAt(_targetPosition) ?? false;
+
+        return true;
+    }
+}
+```
+
+3. **Use from a trait**:
+```csharp
+public override EntityAction? SuggestAction(Vector2I currentPosition, Perception perception)
+{
+    return new MyNewAction(_owner!, this, targetPos, priority: 0);
+}
+```
+
+### Key Considerations
+
+- **Constructor signature**: Always follow `(Being entity, object source, [params], int priority = 1)`
+- **Source tracking**: Set `Source = source` for debugging (shows which trait created the action)
+- **Return value**: `true` = success, `false` = failure
+- **Thread safety**: Actions execute on main thread, so Godot operations are safe here
+- **Priority**: Lower = higher priority (negative for urgent actions)
+
+### Common Action Types
+
+**Movement action** (use existing `MoveAlongPathAction`):
+```csharp
+var pathfinder = new PathFinder();
+pathfinder.SetPositionGoal(_owner, targetPos);
+return new MoveAlongPathAction(_owner!, this, pathfinder, priority: 0);
+```
+
+**Idle action** (do nothing this tick):
+```csharp
+return new IdleAction(_owner!, this, priority: 1);
+```
+
+**Single-tile move** (to adjacent cell):
+```csharp
+return new MoveAction(_owner!, this, adjacentGridPos, priority: 1);
+```
+
 ## Dependencies
 
 ### Depends On

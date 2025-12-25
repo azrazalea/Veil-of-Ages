@@ -116,6 +116,103 @@ if (_rng.Randf() < 0.05f)
 ```
 This prevents log spam while indicating distress.
 
+## Creating New Food Strategies
+
+### Step-by-Step Guide
+
+When adding a new entity type that eats from a different source (e.g., vampires feeding from crypts), implement all four strategy interfaces:
+
+1. **Create a new file** (e.g., `CryptFoodStrategies.cs`)
+
+2. **Implement IFoodSourceIdentifier** - finds the food source:
+```csharp
+public class CryptSourceIdentifier : IFoodSourceIdentifier
+{
+    public Building? IdentifyFoodSource(Being owner, Perception perception)
+    {
+        foreach (var entity in owner.GridArea?.EntitiesGridSystem.OccupiedCells.Values ?? [])
+        {
+            if (entity is Building building && building.BuildingType == "Crypt")
+                return building;
+        }
+        return null;
+    }
+}
+```
+
+3. **Implement IFoodAcquisitionStrategy** - moves to the food:
+```csharp
+public class CryptAcquisitionStrategy : IFoodAcquisitionStrategy
+{
+    private PathFinder _pathfinder = new();
+
+    public EntityAction? GetAcquisitionAction(Being owner, Building foodSource)
+    {
+        _pathfinder.SetBuildingGoal(owner, foodSource);
+        return new MoveAlongPathAction(owner, this, _pathfinder, priority: 0);
+    }
+
+    public bool IsAtFoodSource(Being owner, Building foodSource)
+    {
+        return _pathfinder.IsGoalReached(owner);
+    }
+}
+```
+
+4. **Implement IConsumptionEffect** - applies the consumption result:
+```csharp
+public class VampireConsumptionEffect : IConsumptionEffect
+{
+    public void Apply(Being owner, Need need, Building foodSource)
+    {
+        need.Restore(80f);  // How much to restore
+        GD.Print($"{owner.Name} feeds at the crypt...");
+
+        // Optional: Play sound
+        if (owner is Vampire vampire)
+            vampire.CallDeferred("PlayFeedingSound");
+    }
+}
+```
+
+5. **Implement ICriticalStateHandler** - handles starvation:
+```csharp
+public class VampireCriticalHungerHandler : ICriticalStateHandler
+{
+    private RandomNumberGenerator _rng = new();
+
+    public EntityAction? HandleCriticalState(Being owner, Need need)
+    {
+        if (_rng.Randf() < 0.05f)  // 5% chance per tick
+        {
+            GD.Print($"{owner.Name} is desperately hungry!");
+            // Could return an aggressive action here
+        }
+        return null;  // Keep searching normally
+    }
+}
+```
+
+6. **Wire up in the entity's trait**:
+```csharp
+var consumptionTrait = new ConsumptionBehaviorTrait(
+    "blood_hunger",
+    new CryptSourceIdentifier(),
+    new CryptAcquisitionStrategy(),
+    new VampireConsumptionEffect(),
+    new VampireCriticalHungerHandler(),
+    200  // Duration in ticks (longer = slower eater)
+);
+```
+
+### Key Considerations
+
+- **Building type matching**: Use exact string match for `BuildingType` (e.g., "Farm", "Graveyard", "Crypt")
+- **PathFinder reuse**: Keep `_pathfinder` as instance field, reuse across calls
+- **Thread safety**: Use `CallDeferred()` for audio or Godot operations
+- **Restoration amounts**: Villagers restore 60, zombies restore 70 - balance accordingly
+- **Consumption duration**: Villagers use 244 ticks, zombies use 365 (messier eaters)
+
 ## Dependencies
 
 ### Depends On

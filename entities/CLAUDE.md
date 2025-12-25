@@ -98,6 +98,129 @@ World-level sensory coordination system. Manages:
 - Memory has configurable duration (default 3000 ticks, roughly 5 minutes game time)
 - Memory is automatically cleaned up each tick
 
+### Human-Like AI Architecture (BDI Pattern)
+
+The entity AI system intentionally mimics human cognition using a **Belief-Desire-Intention (BDI)** architecture. Entities are NOT omniscient - they act on beliefs that may be wrong.
+
+**Perception Snapshots (Intentional "Stale Data")**:
+- `EntityThinkingSystem` captures perception data BEFORE entity thinking begins
+- Entities act on what they believed was true at tick start, not real-time state
+- Creates emergent behavior: entity moves to where target *was*, must search if target moved
+- This is intentional design, not a bug - avoids robotic instant-reaction behavior
+
+**Priority-Based Interruption ("One Track Mind")**:
+- Traits suggest actions with priority values (lower number = more urgent)
+- Entity continues current behavior unless something more urgent arises
+- Priority examples:
+  - Idle wandering: priority 1
+  - Normal tasks: priority 0
+  - Hungry (not critical): priority 0 (won't interrupt)
+  - Starving (critical): priority -2 (interrupts most things)
+  - Emergency/threat: priority -10 (interrupts almost everything)
+- This creates focused behavior - entities don't constantly re-evaluate unless urgent
+
+**Two-Tier Memory System (Planned)**:
+
+*Individual Memory* (`BeingTrait._memory` - exists, not yet fully used):
+- Personal experiences: "I saw entity X at position Y, 30 ticks ago"
+- Last known positions of tracked entities
+- Discovered locations through exploration
+
+*Shared/Collective Memory* (not yet implemented):
+- Common knowledge shared by community/faction
+- All villagers know where the well, town hall, and farms are
+- Undead in a graveyard know the graveyard bounds
+- New members inherit community knowledge on spawn
+- Avoids every entity having to "discover" common locations
+
+This architecture creates realistic behavior where entities:
+- Use shared knowledge for navigation to known places
+- Use individual memory for dynamic/personal information
+- Act on beliefs that may become outdated
+- Stay focused unless urgently interrupted
+
+### Event Queue Pattern (Ready to Implement)
+
+Instead of Godot signals (which execute immediately on emitting thread), use a message queue that processes events during the think cycle. This fits the BDI architecture: events become "new beliefs" processed at think time.
+
+**Step 1: Add event types and queue to Being** (`Being.cs`):
+```csharp
+public enum EntityEventType
+{
+    MovementCompleted,
+    DamageTaken,
+    NeedCritical,
+    TargetLost,
+    ActionCompleted,
+    // Add more as needed
+}
+
+public record EntityEvent(EntityEventType Type, object? Data = null);
+
+// Thread-safe queue (written on main thread, read on think thread)
+private ConcurrentQueue<EntityEvent> _pendingEvents = new();
+
+public void QueueEvent(EntityEventType type, object? data = null)
+{
+    _pendingEvents.Enqueue(new EntityEvent(type, data));
+}
+
+public List<EntityEvent> ConsumePendingEvents()
+{
+    var events = new List<EntityEvent>();
+    while (_pendingEvents.TryDequeue(out var evt))
+    {
+        events.Add(evt);
+    }
+    return events;
+}
+```
+
+**Step 2: Queue events from main thread** (during action execution):
+```csharp
+// In MovementController when movement completes:
+_owner.QueueEvent(EntityEventType.MovementCompleted, finalGridPos);
+
+// In health system when damage taken:
+being.QueueEvent(EntityEventType.DamageTaken, damageAmount);
+
+// In needs system when need becomes critical:
+being.QueueEvent(EntityEventType.NeedCritical, needId);
+```
+
+**Step 3: Process events at start of Think cycle**:
+```csharp
+// In Being.Think() - at start of thinking
+var pendingEvents = ConsumePendingEvents();
+foreach (var evt in pendingEvents)
+{
+    OnTraitEvent(evt);  // Notify all traits
+}
+```
+
+**Step 4: Traits react to events**:
+```csharp
+public override void OnEvent(EntityEvent evt)
+{
+    switch (evt.Type)
+    {
+        case EntityEventType.MovementCompleted:
+            _arrivedAtDestination = true;
+            break;
+        case EntityEventType.NeedCritical:
+            _urgentNeed = (string)evt.Data!;
+            break;
+    }
+}
+```
+
+**Benefits over Godot signals:**
+- Events processed during think cycle (not immediately)
+- Fits BDI pattern: events become "new beliefs"
+- Thread-safe by design (ConcurrentQueue)
+- Centralized processing in Think() flow
+- No callback complexity or threading issues
+
 ## Dependencies
 
 ### Depends On

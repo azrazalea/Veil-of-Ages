@@ -85,9 +85,66 @@ Handles all movement logic for a Being, including animation.
 
 ### Line of Sight Algorithm
 - Uses Bresenham's line algorithm for efficiency
-- `IsLOSBlocking()` is virtual and returns false by default
+- `IsLOSBlocking()` is virtual and returns false by default (placeholder)
 - Can be overridden for entities with different blocking rules
 - Checks all cells between entity and target
+
+### LOS Implementation Plan (Ready to Implement)
+
+The Bresenham algorithm exists in `HasLineOfSight()`. The placeholder `IsLOSBlocking()` needs implementation:
+
+**Step 1: Add `BlocksLOS` to Tile** (`world/Tile.cs`):
+```csharp
+public class Tile(
+    int sourceId,
+    Vector2I atlasCoords,
+    bool isWalkable,
+    float walkDifficulty = 0,
+    bool blocksLOS = false  // NEW
+)
+```
+
+**Step 2: Update static tiles** (`world/GridArea.cs`):
+```csharp
+public static Tile WaterTile = new(1, new(3, 16), false, 0, false);
+public static Tile GrassTile = new(0, new(1, 3), true, 1.0f, false);
+// Wall tiles would have blocksLOS = true
+```
+
+**Step 3: Add public accessor to GridArea** for ground tile lookup:
+```csharp
+public Tile? GetGroundTile(Vector2I pos) => _groundGridSystem.GetCell(pos);
+```
+
+**Step 4: Implement IsLOSBlocking** (`BeingPerceptionSystem.cs`):
+```csharp
+protected bool IsLOSBlocking(Vector2I position)
+{
+    var gridArea = _owner.GridArea;
+    if (gridArea == null) return false;
+
+    // Check ground tile
+    var groundTile = gridArea.GetGroundTile(position);
+    if (groundTile?.BlocksLOS == true)
+        return true;
+
+    // Check for blocking entities (buildings)
+    var entity = gridArea.EntitiesGridSystem.GetCell(position);
+    if (entity is Building building && building.BlocksLOS)
+        return true;
+
+    return false;
+}
+```
+
+**Step 5: Add BlocksLOS to Building** (if not present):
+```csharp
+public bool BlocksLOS { get; set; } = true;
+```
+
+**Design decisions needed when implementing:**
+- Trees/vegetation: block LOS or not?
+- Some buildings transparent (fences)?
 
 ### Animation Integration
 - Uses `AnimatedSprite2D` child node named "AnimatedSprite2D"

@@ -148,6 +148,70 @@ This avoids O(n^2) entity-to-entity checks.
 
 Memory persists across ticks (with decay), perception is rebuilt each tick.
 
+## Future Improvements
+
+These optimizations should be implemented incrementally as needed, not all at once. Tackle when performance becomes an issue or when a feature naturally requires it.
+
+### Dijkstra Maps for Need Satisfaction
+
+Instead of each hungry entity pathfinding to find food independently, precompute distance maps from food sources.
+
+**Idea:**
+- When food sources change (farm built/destroyed), regenerate Dijkstra map
+- Entities query "distance to nearest food" in O(1)
+- Useful for any "find nearest X" pattern (wells, graveyards, town hall)
+- Could share one map per resource type across all entities
+
+**When to implement:** When many entities pathfind to same destinations and it becomes a bottleneck.
+
+### Shared LOS / Perception Data
+
+Multiple entities in same area recalculate similar LOS checks.
+
+**Ideas:**
+- Cache LOS results for recent tile pairs (with tick-based invalidation)
+- Share "visible from position X" bitmaps for static geometry
+- Only recalculate when buildings/walls change
+
+**When to implement:** When LOS checks become expensive (many entities, complex geometry).
+
+### Object Pooling for Allocations
+
+Current system allocates new lists/collections each tick, creating GC pressure.
+
+**Ideas:**
+- Pool `ObservationGrid` instances - reset and reuse
+- Pool `Perception` instances
+- Pool `List<ISensable>` for position lookups
+- Use `ArrayPool<T>` for temporary arrays
+
+**When to implement:** When profiler shows GC spikes correlating with perception system.
+
+### Incremental Spatial Partitioning
+
+Currently rebuilds full spatial hash every tick.
+
+**Ideas:**
+- Track entity movement, only update changed positions
+- Dirty flag per grid cell
+- Batch updates at end of movement phase
+
+**When to implement:** When `PrepareForTick()` shows up in profiler.
+
+### Perception Range Tiers
+
+Not all entities need full-resolution perception.
+
+**Ideas:**
+- Close range: full detail, every tick
+- Medium range: reduced detail, every 2-4 ticks
+- Far range: coarse detail, every 8+ ticks
+- Priority entities (threats, targets) always full detail
+
+**When to implement:** When entity count grows significantly (100+).
+
+---
+
 ## Dependencies
 
 ### Depends On

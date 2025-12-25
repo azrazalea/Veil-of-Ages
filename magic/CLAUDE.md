@@ -42,5 +42,5 @@ The project follows a phased development approach. Necromancy Systems is Phase 3
 
 ## Related Documentation
 
-- See `.serena/memories/project_purpose.md` for the full development roadmap
+- See `.claude/context/project_purpose.md` for the full development roadmap
 - See `/entities/traits/UndeadTrait.cs` for current undead behavior

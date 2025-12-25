@@ -27,6 +27,25 @@ Planned improvements to entity AI system:
 - Behavior priorities
 - Memory and perception improvements
 
+### building_system_roadmap.md
+Future building system features and ideas:
+- Room detection system (flood-fill, room quality)
+- Building construction/modification (tile-by-tile)
+- Roof system (visibility, LOS-based fading)
+- Z-levels system (multi-story, vertical pathfinding)
+- Special building interactions (doors, furniture, environment)
+
+## Architecture Decisions (December 2025)
+
+A comprehensive architecture review was completed. Key decisions and implementation plans are now documented in the relevant CLAUDE.md files:
+
+- **LOS Implementation**: Grid-based approach, plan in `entities/being_services/CLAUDE.md`
+- **Event Queue Pattern**: Alternative to Godot signals, plan in `entities/CLAUDE.md`
+- **BDI Architecture**: Documented in `entities/CLAUDE.md` (intentional design)
+- **Perception Improvements**: Future plans in `entities/sensory/CLAUDE.md`
+- **Grid System**: Custom dicts appropriate for discrete grid game (no changes needed)
+- **Godot Usage**: Custom data structures preferred over physics for this game type
+
 ## What NOT to Put Here
 
 - Implementation details that belong in directory CLAUDE.md files

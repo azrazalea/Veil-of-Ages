@@ -15,6 +15,7 @@ This project uses directory-level CLAUDE.md files for context injection:
 ├── .claude/context/        # Project context files (design principles, code style)
 ├── wiki/                   # Human-readable documentation (GitHub wiki submodule)
 ├── godot-docs/             # Official Godot documentation (submodule)
+├── assets/                 # Game assets (sprites, fonts) - see assets/CLAUDE.md
 ├── core/                   # Game controller, input, time system, UI
 │   ├── lib/               # PathFinder, GameTime, utilities
 │   └── ui/dialogue/       # Dialogue system and commands
@@ -34,7 +35,14 @@ This project uses directory-level CLAUDE.md files for context injection:
 └── magic/                 # (Placeholder) Necromancy system
 ```
 
-Each directory has its own CLAUDE.md with detailed file descriptions, key classes, and important notes.
+**Every directory has a CLAUDE.md file** providing:
+- Purpose and responsibility of that module
+- File-by-file documentation with key classes and methods
+- Important notes (threading, patterns, gotchas)
+- Dependencies (what it uses and what uses it)
+- "Creating New X" guides for adding new entities, traits, actions, etc.
+
+Always read the relevant directory's CLAUDE.md before modifying code in that area.
 
 ## Development Commands
 

@@ -117,6 +117,106 @@ cmd.WithParameter("targetPos", gridPosition);
 ### Location Selection Commands
 `MoveToCommand` and `GuardCommand` trigger the UI's location selection mode, which pauses the game and waits for player to click a destination.
 
+## Creating a New Command
+
+### Step-by-Step Guide
+
+1. **Create the file** in `/core/ui/dialogue/commands/` (e.g., `HarvestCommand.cs`)
+
+2. **Basic command template**:
+```csharp
+namespace VeilOfAges.UI.Commands;
+
+public class HarvestCommand : EntityCommand
+{
+    private bool _goalSet = false;
+
+    public HarvestCommand(Being owner, Being commander)
+        : base(owner, commander, IsComplex: true)  // true = sapient only
+    {
+    }
+
+    public override EntityAction? SuggestAction(Vector2I currentGridPos, Perception currentPerception)
+    {
+        // Get parameters (injected via WithParameter after construction)
+        if (!Parameters.TryGetValue("targetPos", out var targetObj))
+            return new IdleAction(_owner, this, priority: 0);  // Wait for params
+
+        var targetPos = (Vector2I)targetObj;
+
+        // Set pathfinder goal once
+        if (!_goalSet)
+        {
+            MyPathfinder.SetPositionGoal(_owner, targetPos);
+            _goalSet = true;
+        }
+
+        // Check if we've arrived
+        if (MyPathfinder.IsGoalReached(_owner))
+        {
+            // Do the harvest action
+            GD.Print($"{_owner.Name} harvests at {targetPos}");
+            return null;  // Command complete
+        }
+
+        // Still moving
+        return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: -1);
+    }
+}
+```
+
+3. **Register in DialogueController** (if it should appear in dialogue):
+```csharp
+// In DialogueController.GenerateOptionsFor():
+options.Add(new DialogueOption(
+    "Harvest resources.",
+    new HarvestCommand(target, speaker),
+    "I'll gather what I can.",
+    "I cannot do that."
+));
+```
+
+4. **Handle location selection** (if command needs a target position):
+```csharp
+// In Dialogue.cs ProcessSelectedOption():
+if (command is HarvestCommand)
+{
+    _playerInputController.StartLocationSelection(command, "Select harvest location");
+    Hide();
+    return;
+}
+```
+
+### Key Considerations
+
+- **IsComplex flag**:
+  - `true` (default) = Only sapient entities can perform
+  - `false` = Mindless entities can also perform (simple commands)
+
+- **Action priorities in commands**:
+  - `-10`: Emergency override
+  - `-1`: Normal command execution
+  - `0`: Idle/waiting for parameters
+  - `1`: Default (commands should be lower than this)
+
+- **PathFinder per command**: Each `EntityCommand` has its own `MyPathfinder` instance
+
+- **Parameter injection pattern**:
+```csharp
+var cmd = new HarvestCommand(entity, player);
+cmd.WithParameter("targetPos", gridPosition);
+cmd.WithParameter("resourceType", "wood");
+```
+
+- **Command completion**: Return `null` from `SuggestAction()` when done
+
+### Command Types Reference
+
+| IsComplex | Who can perform | Examples |
+|-----------|-----------------|----------|
+| `false` | All entities | MoveTo, Follow, Talk, Guard, Attack |
+| `true` | Sapient only | Patrol, Gather, Build, Rest |
+
 ## Dependencies
 
 ### This module depends on:

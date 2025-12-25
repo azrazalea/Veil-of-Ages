@@ -94,6 +94,52 @@ The strategies are consumed by `ConsumptionBehaviorTrait` which:
 4. Uses effect to apply results
 5. Uses critical handler when needed
 
+## Creating a New Need
+
+### Step-by-Step Guide
+
+1. **Define the need** in a trait's `Initialize()` method:
+```csharp
+_owner?.NeedsSystem.AddNeed(new Need(
+    "thirst",           // id - unique identifier
+    "Thirst",           // displayName - shown in UI
+    80f,                // initialValue - starting level (0-100)
+    0.01f,              // decayRate - per tick decrease
+    15f,                // criticalThreshold - emergency level
+    30f,                // lowThreshold - needs attention
+    90f                 // satisfiedThreshold - fully satisfied
+));
+```
+
+2. **Create satisfaction strategies** (see `/entities/needs/strategies/`)
+
+3. **Wire up with ConsumptionBehaviorTrait**:
+```csharp
+var consumptionTrait = new ConsumptionBehaviorTrait(
+    "thirst",                        // needId - matches the Need's id
+    new WellSourceIdentifier(),      // where to find the resource
+    new WellAcquisitionStrategy(),   // how to get there
+    new DrinkingEffect(),            // what happens when consuming
+    new ThirstCriticalHandler(),     // what to do in emergencies
+    120                              // consumptionDuration in ticks
+);
+_owner?.selfAsEntity().AddTraitToQueue(consumptionTrait, Priority - 1, initQueue);
+```
+
+### Key Considerations
+
+- **Value direction**: 0 = bad (starving), 100 = good (full)
+- **Decay rate**: Villager hunger is 0.02/tick, zombie is 0.0015/tick (much slower)
+- **Thresholds**: Critical < Low < Satisfied (e.g., 15, 30, 90)
+- **ConsumptionBehaviorTrait priority**: Should be `Priority - 1` so it can override the parent trait when the entity is hungry
+
+### Decay Rate Reference
+
+At 8 ticks/second:
+- `0.02` = ~62.5 seconds from 100 to 0
+- `0.01` = ~125 seconds from 100 to 0
+- `0.0015` = ~833 seconds (~14 minutes) from 100 to 0
+
 ## Dependencies
 
 ### Depends On
