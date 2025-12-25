@@ -9,136 +9,150 @@ using VeilOfAges.Entities.Needs;
 using VeilOfAges.Entities.Needs.Strategies;
 using VeilOfAges.Entities.Sensory;
 
-namespace VeilOfAges.Entities.Traits
+namespace VeilOfAges.Entities.Traits;
+
+public class ZombieTrait : UndeadBehaviorTrait
 {
-    public class ZombieTrait : UndeadBehaviorTrait
+    // Zombie-specific properties
+    private enum ZombieState
     {
-        // Zombie-specific properties
-        private enum ZombieState { Idle, Wandering }
-        private ZombieState _currentState = ZombieState.Idle;
+        Idle,
+        Wandering
+    }
 
-        private bool _hasGroaned = false;
+    private ZombieState _currentState = ZombieState.Idle;
 
-        public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue)
+    private bool _hasGroaned = false;
+
+    public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue)
+    {
+        base.Initialize(owner, health, initQueue);
+
+        if (owner?.Health == null)
         {
-            base.Initialize(owner, health, initQueue);
-
-            if (owner?.Health == null) return;
-
-            // Initialize zombie-specific hunger need directly in this trait
-            var needsSystem = owner.NeedsSystem;
-            if (needsSystem != null)
-            {
-                // Zombies get hungrier much slower than living beings
-                var brainHunger = new Need("hunger", "Brain Hunger", 60f, 0.0015f, 15f, 40f, 90f);
-                needsSystem.AddNeed(brainHunger);
-            }
-
-            // Add ConsumptionBehaviorTrait for brain hunger
-            var consumptionTrait = new ConsumptionBehaviorTrait(
-                "hunger",
-                new GraveyardSourceIdentifier(),
-                new GraveyardAcquisitionStrategy(),
-                new ZombieConsumptionEffect(),
-                new ZombieCriticalHungerHandler(),
-                365  // Zombies take longer to feed as they're messier eaters
-            );
-
-            consumptionTrait.Initialize(owner, owner.Health);
-            // Add the consumption trait with a priority just above this trait
-            owner.selfAsEntity().AddTrait(consumptionTrait, this.Priority - 1);
-
-            // Zombie-specific initialization
-            WanderProbability = 0.3f; // Zombies wander more often
-            WanderRange = 15.0f;      // And further from spawn
-
-            GD.Print($"{owner.Name}: Zombie trait initialized with brain hunger");
+            return;
         }
 
-        protected override EntityAction? ProcessState(Vector2I currentOwnerGridPosition, Perception currentPerception)
+        // Initialize zombie-specific hunger need directly in this trait
+        var needsSystem = owner.NeedsSystem;
+        if (needsSystem != null)
         {
-            if (_owner == null) return null;
-
-            // Process current state
-            switch (_currentState)
-            {
-                case ZombieState.Idle:
-                    return ProcessIdleState();
-                case ZombieState.Wandering:
-                    return ProcessWanderingState();
-                default:
-                    return new IdleAction(_owner, this);
-            }
+            // Zombies get hungrier much slower than living beings
+            var brainHunger = new Need("hunger", "Brain Hunger", 60f, 0.0015f, 15f, 40f, 90f);
+            needsSystem.AddNeed(brainHunger);
         }
 
-        private EntityAction? ProcessIdleState()
-        {
-            if (_owner == null) return null;
+        // Add ConsumptionBehaviorTrait for brain hunger
+        // Uses Activity system: trait finds graveyard, EatActivity handles navigation and consumption
+        var consumptionTrait = new ConsumptionBehaviorTrait(
+            needId: "hunger",
+            sourceIdentifier: new GraveyardSourceIdentifier(),
+            criticalStateHandler: new ZombieCriticalHungerHandler(),
+            restoreAmount: 70f,  // Zombies get more from feeding
+            consumptionDuration: 365);  // Zombies take longer to feed as they're messier eaters
 
-            if (_stateTimer == 0)
+        // Add the consumption trait with a priority just above this trait
+        owner.SelfAsEntity().AddTraitToQueue(consumptionTrait, Priority - 1, initQueue);
+
+        // Zombie-specific initialization
+        WanderProbability = 0.3f; // Zombies wander more often
+        WanderRange = 15.0f;      // And further from spawn
+
+        GD.Print($"{owner.Name}: Zombie trait initialized with brain hunger");
+    }
+
+    protected override EntityAction? ProcessState(Vector2I currentOwnerGridPosition, Perception currentPerception)
+    {
+        if (_owner == null)
+        {
+            return null;
+        }
+
+        // Process current state
+        switch (_currentState)
+        {
+            case ZombieState.Idle:
+                return ProcessIdleState();
+            case ZombieState.Wandering:
+                return ProcessWanderingState();
+            default:
+                return new IdleAction(_owner, this);
+        }
+    }
+
+    private EntityAction? ProcessIdleState()
+    {
+        if (_owner == null)
+        {
+            return null;
+        }
+
+        if (_stateTimer == 0)
+        {
+            // Chance to start wandering
+            if (_rng.Randf() < WanderProbability)
             {
-                // Chance to start wandering
-                if (_rng.Randf() < WanderProbability)
+                _currentState = ZombieState.Wandering;
+                _stateTimer = (uint)_rng.RandiRange(60, 180);
+
+                // Occasionally make zombie sounds
+                if (!_hasGroaned && _rng.Randf() < 0.3f)
                 {
-                    _currentState = ZombieState.Wandering;
-                    _stateTimer = (uint)_rng.RandiRange(60, 180);
-
-                    // Occasionally make zombie sounds
-                    if (!_hasGroaned && _rng.Randf() < 0.3f)
-                    {
-                        GD.Print($"{_owner.Name}: *groans*");
-                        PlayZombieGroan();
-                        _hasGroaned = true;
-                    }
-
-                    return TryToWander();
+                    GD.Print($"{_owner.Name}: *groans*");
+                    PlayZombieGroan();
+                    _hasGroaned = true;
                 }
-                else
-                {
-                    // Reset idle timer
-                    _stateTimer = IdleTime;
-                }
+
+                return TryToWander();
             }
-
-            return new IdleAction(_owner, this);
-        }
-
-        private EntityAction? ProcessWanderingState()
-        {
-            if (_owner == null) return null;
-
-            if (_stateTimer == 0)
+            else
             {
-                // Either continue wandering or return to idle
-                if (_rng.Randf() < 0.3f)
-                {
-                    _currentState = ZombieState.Idle;
-                    _stateTimer = IdleTime;
-                    _owner.SetDirection(Vector2.Zero);
-                    _hasGroaned = false;
-                }
-                else
-                {
-                    _stateTimer = (uint)_rng.RandiRange(60, 180);
-                    return TryToWander();
-                }
+                // Reset idle timer
+                _stateTimer = IdleTime;
             }
-
-            // Check if we've wandered too far from spawn
-            if (IsOutsideWanderRange())
-            {
-                // Return to spawn area
-                MyPathfinder.SetPositionGoal(_owner, _spawnPosition);
-                return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: 1);
-            }
-
-            return new IdleAction(_owner, this);
         }
 
-        private void PlayZombieGroan()
+        return new IdleAction(_owner, this);
+    }
+
+    private EntityAction? ProcessWanderingState()
+    {
+        if (_owner == null)
         {
-            // Access the AudioStreamPlayer2D component
-            (_owner as MindlessZombie)?.CallDeferred("PlayZombieGroan");
+            return null;
         }
+
+        if (_stateTimer == 0)
+        {
+            // Either continue wandering or return to idle
+            if (_rng.Randf() < 0.3f)
+            {
+                _currentState = ZombieState.Idle;
+                _stateTimer = IdleTime;
+                _owner.SetDirection(Vector2.Zero);
+                _hasGroaned = false;
+            }
+            else
+            {
+                _stateTimer = (uint)_rng.RandiRange(60, 180);
+                return TryToWander();
+            }
+        }
+
+        // Check if we've wandered too far from spawn
+        if (IsOutsideWanderRange())
+        {
+            // Return to spawn area
+            MyPathfinder.SetPositionGoal(_owner, _spawnPosition);
+            return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: 1);
+        }
+
+        return new IdleAction(_owner, this);
+    }
+
+    private void PlayZombieGroan()
+    {
+        // Access the AudioStreamPlayer2D component
+        (_owner as MindlessZombie)?.CallDeferred("PlayZombieGroan");
     }
 }

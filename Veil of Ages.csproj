@@ -1,4 +1,9 @@
 <Project Sdk="Godot.NET.Sdk/4.5.1">
+  <!-- Run dotnet format before every build -->
+  <Target Name="FormatCode" BeforeTargets="BeforeBuild">
+    <Exec Command="dotnet format &quot;$(MSBuildProjectFullPath)&quot; --no-restore --verbosity quiet" />
+  </Target>
+
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <LangVersion>12.0</LangVersion>
@@ -6,5 +11,33 @@
     <Nullable>enable</Nullable>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <RootNamespace>VeilOfAges</RootNamespace>
+
+    <!-- Code Quality Settings -->
+    <WarningLevel>9999</WarningLevel>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <!-- Warnings to allow (not treat as errors) -->
+    <WarningsNotAsErrors>
+      CS0612;  <!-- Using obsolete member -->
+      CS0618;  <!-- Obsolete warnings (e.g., TileMap deprecated) -->
+      CS8618;  <!-- Non-nullable field not initialized (for unused files) -->
+      CS8601;  <!-- Possible null reference assignment -->
+      CS8602;  <!-- Dereference of possibly null reference -->
+      CS8604   <!-- Possible null reference argument -->
+    </WarningsNotAsErrors>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Code Analyzers -->
+    <PackageReference Include="Roslynator.Analyzers" Version="4.12.9">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="StyleCop.Analyzers" Version="1.1.118">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
 </Project>

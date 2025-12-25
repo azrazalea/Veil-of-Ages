@@ -5,86 +5,92 @@ using VeilOfAges.Entities;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.WorldGeneration;
 
-namespace VeilOfAges
+namespace VeilOfAges;
+
+public partial class World : Node2D
 {
-    public partial class World : Node2D
+    // Global world properties
+    [Export]
+    public int WorldSeed { get; set; } = 0;
+    [Export]
+    public float GlobalTimeScale { get; set; } = 1.0f;
+    [Export]
+    public bool GenerateOnReady = true;
+    public Grid.Area? ActiveGridArea;
+    private readonly List<Grid.Area> _gridAreas = [];
+
+    // Entities container
+    private Node? _entitiesContainer;
+    private GridGenerator? _gridGenerator;
+    private SensorySystem? _sensorySystem;
+    private EventSystem? _eventSystem;
+
+    // References
+    private Player? _player;
+
+    [Export]
+    public Vector2I WorldSizeInTiles = new (100, 100);
+
+    public override void _Ready()
     {
-        // Global world properties
-        [Export] public int WorldSeed { get; set; } = 0;
-        [Export] public float GlobalTimeScale { get; set; } = 1.0f;
-        [Export]
-        public bool GenerateOnReady = true;
-        public Grid.Area? ActiveGridArea;
-        private List<Grid.Area> _gridAreas = [];
+        // Get references to nodes
+        _entitiesContainer = GetNode<Node>("Entities");
+        _gridGenerator = GetNode<GridGenerator>("GridGenerator");
+        var gridAreasContainer = GetNode<Node>("GridAreas");
 
-        // Entities container
-        private Node? _entitiesContainer;
-        private GridGenerator? _gridGenerator;
-        private SensorySystem? _sensorySystem;
-        private EventSystem? _eventSystem;
+        // Initialize grid system with world bounds
+        ActiveGridArea = new Grid.Area(WorldSizeInTiles);
+        _gridAreas.Add(ActiveGridArea);
+        gridAreasContainer.AddChild(ActiveGridArea);
 
-        // References
-        private Player? _player;
+        // Get reference to the Player scene instance
+        _player = GetNode<Player>("Entities/Player");
 
-        [Export]
-        public Vector2I WorldSizeInTiles = new(100, 100);
+        _sensorySystem = new SensorySystem(this);
+        _eventSystem = new EventSystem();
 
-        public override void _Ready()
+        // Register the player with the grid system
+        if (_player != null)
         {
-            // Get references to nodes
-            _entitiesContainer = GetNode<Node>("Entities");
-            _gridGenerator = GetNode<GridGenerator>("GridGenerator");
-            var gridAreasContainer = GetNode<Node>("GridAreas");
+            _player.Initialize(ActiveGridArea, new Vector2I(50, 50));
+            ActiveGridArea.MakePlayerArea(_player, new Vector2I(50, 50));
+        }
+        else
+        {
+            GD.PrintErr("Player node not found! Make sure you've instanced Player.tscn as a child of Entities.");
+        }
 
-            // Initialize grid system with world bounds
-            ActiveGridArea = new Grid.Area(WorldSizeInTiles);
-            _gridAreas.Add(ActiveGridArea);
-            gridAreasContainer.AddChild(ActiveGridArea);
+        if (GenerateOnReady)
+        {
+            _gridGenerator.CallDeferred(GridGenerator.MethodName.Generate, this);
+        }
+    }
 
-            // Get reference to the Player scene instance
-            _player = GetNode<Player>("Entities/Player");
+    public SensorySystem? GetSensorySystem() => _sensorySystem;
+    public EventSystem? GetEventSystem() => _eventSystem;
 
-            _sensorySystem = new SensorySystem(this);
-            _eventSystem = new EventSystem();
+    public void PrepareForTick()
+    {
+        GetSensorySystem()?.PrepareForTick();
 
-            // Register the player with the grid system
-            if (_player != null)
+        // Update needs for all beings
+        foreach (var being in GetBeings())
+        {
+            being.NeedsSystem?.UpdateNeeds();
+        }
+    }
+
+    public List<Being> GetBeings()
+    {
+        var entities = new List<Being>();
+        foreach (Node entity in _entitiesContainer?.GetChildren() ?? [])
+        {
+            if (entity is Being being)
             {
-                _player.Initialize(ActiveGridArea, new Vector2I(50, 50));
-                ActiveGridArea.MakePlayerArea(_player, new Vector2I(50, 50));
-            }
-            else
-            {
-                GD.PrintErr("Player node not found! Make sure you've instanced Player.tscn as a child of Entities.");
-            }
-            if (GenerateOnReady)
-            {
-                _gridGenerator.CallDeferred(GridGenerator.MethodName.Generate, this);
+                entities.Add(being);
             }
         }
 
-        public SensorySystem? GetSensorySystem() => _sensorySystem;
-        public EventSystem? GetEventSystem() => _eventSystem;
-
-        public void PrepareForTick()
-        {
-            GetSensorySystem()?.PrepareForTick();
-            // Update needs for all beings
-            foreach (var being in GetBeings())
-            {
-                being.NeedsSystem?.UpdateNeeds();
-            }
-        }
-
-        public List<Being> GetBeings()
-        {
-            var entities = new List<Being>();
-            foreach (Node entity in _entitiesContainer?.GetChildren() ?? [])
-            {
-                if (entity is Being being) entities.Add(being);
-            }
-
-            return entities;
-        }
+        return entities;
     }
 }

@@ -4,14 +4,13 @@ using VeilOfAges.Entities;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.UI;
 
-namespace VeilOfAges.UI.Commands
+namespace VeilOfAges.UI.Commands;
+
+public class CancelCommand(Being owner, Being commander, bool isComplex = false)
+: EntityCommand(owner, commander, isComplex)
 {
-    public class CancelCommand(Being owner, Being commander, bool isComplex = false)
-    : EntityCommand(owner, commander, isComplex)
+    public override EntityAction? SuggestAction(Vector2I currentGridPos, Perception currentPerception)
     {
-        public override EntityAction? SuggestAction(Vector2I currentGridPos, Perception currentPerception)
-        {
-            return null;
-        }
+        return null;
     }
 }

@@ -35,6 +35,15 @@ Future building system features and ideas:
 - Z-levels system (multi-story, vertical pathfinding)
 - Special building interactions (doors, furniture, environment)
 
+### current_work.md
+**Claude's current work-in-progress.** This file tracks:
+- What Claude is currently implementing
+- Design decisions made during the work
+- Implementation phases and progress
+- File locations and class structures
+
+Use this file to resume work after context compaction or new sessions. Update it as work progresses.
+
 ## Architecture Decisions (December 2025)
 
 A comprehensive architecture review was completed. Key decisions and implementation plans are now documented in the relevant CLAUDE.md files:

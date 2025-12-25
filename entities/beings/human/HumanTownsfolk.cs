@@ -2,27 +2,28 @@ using Godot;
 using VeilOfAges.Entities.Traits;
 using VeilOfAges.Grid;
 
-namespace VeilOfAges.Entities.Beings
+namespace VeilOfAges.Entities.Beings;
+
+public partial class HumanTownsfolk : Being
 {
-	public partial class HumanTownsfolk : Being
-	{
-		public override BeingAttributes DefaultAttributes { get; } = BaseAttributesSet;
+    public override BeingAttributes DefaultAttributes { get; } = BaseAttributesSet;
 
-		public override void _Ready()
-		{
-			if (Health == null) return;
+    public override void _Ready()
+    {
+        if (Health == null)
+        {
+            return;
+        }
 
-			var villagerTrait = new VillagerTrait();
-			villagerTrait.Initialize(this, Health);
-			selfAsEntity().AddTrait(villagerTrait, 1);
+        // Just add the trait - Being._Ready() handles initialization with proper queue and Health
+        SelfAsEntity().AddTrait<VillagerTrait>(1);
 
-			base._Ready();
+        base._Ready();
+    }
 
-		}
-		public override void Initialize(Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null)
-		{
-			_baseMovementPointsPerTick = 0.33f; // Average human speed (3.33 ticks per tile)
-			base.Initialize(gridArea, startGridPos, attributes);
-		}
-	}
+    public override void Initialize(Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null)
+    {
+        BaseMovementPointsPerTick = 0.33f; // Average human speed (3.33 ticks per tile)
+        base.Initialize(gridArea, startGridPos, attributes);
+    }
 }

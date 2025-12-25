@@ -3,7 +3,7 @@ using VeilOfAges.Entities;
 
 public class MoveAlongPathAction : EntityAction
 {
-    private PathFinder _pathFinder;
+    private readonly PathFinder _pathFinder;
 
     public MoveAlongPathAction(Being entity, object source, PathFinder pathFinder, int priority = 1)
         : base(entity, source, priority: priority)

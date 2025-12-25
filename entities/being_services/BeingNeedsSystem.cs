@@ -1,44 +1,43 @@
 using System.Collections.Generic;
 using Godot;
 
-namespace VeilOfAges.Entities.Needs
+namespace VeilOfAges.Entities.Needs;
+
+public class BeingNeedsSystem
 {
-    public class BeingNeedsSystem
+    private readonly Dictionary<string, Need> _needs = new ();
+    private readonly Being _owner;
+
+    public BeingNeedsSystem(Being owner)
     {
-        private Dictionary<string, Need> _needs = new();
-        private Being _owner;
+        _owner = owner;
+    }
 
-        public BeingNeedsSystem(Being owner)
-        {
-            _owner = owner;
-        }
+    public void AddNeed(Need need)
+    {
+        _needs[need.Id] = need;
+    }
 
-        public void AddNeed(Need need)
-        {
-            _needs[need.Id] = need;
-        }
+    public Need? GetNeed(string id)
+    {
+        return _needs.TryGetValue(id, out var need) ? need : null;
+    }
 
-        public Need? GetNeed(string id)
+    public void UpdateNeeds()
+    {
+        foreach (var need in _needs.Values)
         {
-            return _needs.TryGetValue(id, out var need) ? need : null;
+            need.Decay();
         }
+    }
 
-        public void UpdateNeeds()
-        {
-            foreach (var need in _needs.Values)
-            {
-                need.Decay();
-            }
-        }
+    public bool HasNeed(string id)
+    {
+        return _needs.ContainsKey(id);
+    }
 
-        public bool HasNeed(string id)
-        {
-            return _needs.ContainsKey(id);
-        }
-
-        public IEnumerable<Need> GetAllNeeds()
-        {
-            return _needs.Values;
-        }
+    public IEnumerable<Need> GetAllNeeds()
+    {
+        return _needs.Values;
     }
 }

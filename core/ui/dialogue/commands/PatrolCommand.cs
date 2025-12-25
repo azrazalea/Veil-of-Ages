@@ -4,14 +4,13 @@ using VeilOfAges.Entities;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.UI;
 
-namespace VeilOfAges.UI.Commands
+namespace VeilOfAges.UI.Commands;
+
+public class PatrolCommand(Being owner, Being commander)
+: EntityCommand(owner, commander)
 {
-    public class PatrolCommand(Being owner, Being commander)
-    : EntityCommand(owner, commander)
+    public override EntityAction? SuggestAction(Vector2I currentGridPos, Perception currentPerception)
     {
-        public override EntityAction? SuggestAction(Vector2I currentGridPos, Perception currentPerception)
-        {
-            return null;
-        }
+        return null;
     }
 }
