@@ -5,9 +5,29 @@ using Godot;
 namespace VeilOfAges.Core.Lib;
 
 /// <summary>
+/// The four phases of a day in the game world.
+/// </summary>
+public enum DayPhaseType
+{
+    Dawn,
+    Day,
+    Dusk,
+    Night
+}
+
+/// <summary>
 /// Utility class for managing and converting game time in the Veil of Ages time system.
 /// Game time is stored in centiseconds (1/100th of a second) as a ulong.
 /// Base-56 calendar structure with 28-day months and 13-month years.
+///
+/// Day/Night Cycle:
+/// - 14 hours per day total
+/// - 1 hour dawn (always hour 0)
+/// - 1 hour dusk (position varies by season)
+/// - Remaining 12 hours split between day and night based on season
+/// - Base split favors night (necromancy theme): 5 day / 7 night
+/// - Summer: 6 day / 6 night (living advantage)
+/// - Winter: 4 day / 8 night (undead advantage).
 /// </summary>
 public class GameTime
 {
@@ -189,29 +209,132 @@ public class GameTime
     public ulong DayOfYear => ((Month - 1) * DAYSPERMONTH) + Day;
 
     /// <summary>
-    /// Gets the phase of the day (Morning, Afternoon, Evening, Night).
+    /// Gets the number of daylight hours for the current season (excluding dawn/dusk).
+    /// Base: 5 hours (Spring/Autumn), Summer: 6 hours, Winter: 4 hours.
     /// </summary>
-    public string DayPhase
+    public ulong DayHours => Season switch
+    {
+        "Summer" => 6,
+        "Winter" => 4,
+        _ => 5 // Spring, Autumn
+    };
+
+    /// <summary>
+    /// Gets the number of night hours for the current season.
+    /// Base: 7 hours (Spring/Autumn), Summer: 6 hours, Winter: 8 hours.
+    /// </summary>
+    public ulong NightHours => Season switch
+    {
+        "Summer" => 6,
+        "Winter" => 8,
+        _ => 7 // Spring, Autumn
+    };
+
+    /// <summary>
+    /// Gets the hour when dawn starts (always 0).
+    /// </summary>
+    public ulong DawnStartHour => 0;
+
+    /// <summary>
+    /// Gets the hour when full daylight begins (always 1, after dawn).
+    /// </summary>
+    public ulong DayStartHour => 1;
+
+    /// <summary>
+    /// Gets the hour when dusk begins (varies by season).
+    /// </summary>
+    public ulong DuskStartHour => DayStartHour + DayHours;
+
+    /// <summary>
+    /// Gets the hour when night begins (one hour after dusk starts).
+    /// </summary>
+    public ulong NightStartHour => DuskStartHour + 1;
+
+    /// <summary>
+    /// Gets the current phase of the day based on hour and season.
+    /// </summary>
+    public DayPhaseType CurrentDayPhase
     {
         get
         {
             ulong hour = Hour;
-            if (hour < 4)
+            if (hour < DayStartHour)
             {
-                return "Morning";
+                return DayPhaseType.Dawn;
             }
 
-            if (hour < 8)
+            if (hour < DuskStartHour)
             {
-                return "Afternoon";
+                return DayPhaseType.Day;
             }
 
-            if (hour < 12)
+            if (hour < NightStartHour)
             {
-                return "Evening";
+                return DayPhaseType.Dusk;
             }
 
-            return "Night";
+            return DayPhaseType.Night;
+        }
+    }
+
+    /// <summary>
+    /// Gets the phase of the day as a string (for backwards compatibility and display).
+    /// </summary>
+    public string DayPhase => CurrentDayPhase.ToString();
+
+    /// <summary>
+    /// Gets a value indicating whether returns true if it is currently full daylight (not dawn, dusk, or night).
+    /// </summary>
+    public bool IsDaytime => CurrentDayPhase == DayPhaseType.Day;
+
+    /// <summary>
+    /// Gets a value indicating whether returns true if it is currently night (not dawn, dusk, or day).
+    /// </summary>
+    public bool IsNighttime => CurrentDayPhase == DayPhaseType.Night;
+
+    /// <summary>
+    /// Gets a value indicating whether returns true if it is currently a twilight period (dawn or dusk).
+    /// </summary>
+    public bool IsTwilight => CurrentDayPhase is DayPhaseType.Dawn or DayPhaseType.Dusk;
+
+    /// <summary>
+    /// Gets a value indicating whether returns true if it is dark enough for light-sensitive undead to be comfortable.
+    /// This includes night and dusk (sun is setting/set).
+    /// </summary>
+    public bool IsDark => CurrentDayPhase is DayPhaseType.Night or DayPhaseType.Dusk;
+
+    /// <summary>
+    /// Gets a value indicating whether returns true if sunlight is present (dangerous for vampires, etc.).
+    /// This includes day and dawn (sun is rising/up).
+    /// </summary>
+    public bool HasSunlight => CurrentDayPhase is DayPhaseType.Day or DayPhaseType.Dawn;
+
+    /// <summary>
+    /// Gets the current daylight level as a value from 0.0 (full dark) to 1.0 (full bright).
+    /// Includes smooth transitions within dawn and dusk hours based on minutes.
+    /// </summary>
+    public float DaylightLevel
+    {
+        get
+        {
+            _ = Hour;
+            float minuteProgress = Minute / (float)MINUTESPERHOUR;
+
+            return CurrentDayPhase switch
+            {
+                // Dawn: transition from 0.1 to 1.0 over the hour
+                DayPhaseType.Dawn => 0.1f + (0.9f * minuteProgress),
+
+                // Day: full brightness
+                DayPhaseType.Day => 1.0f,
+
+                // Dusk: transition from 1.0 to 0.1 over the hour
+                DayPhaseType.Dusk => 1.0f - (0.9f * minuteProgress),
+
+                // Night: dark (but not pitch black for gameplay)
+                DayPhaseType.Night => 0.1f,
+                _ => 1.0f
+            };
         }
     }
 
@@ -454,28 +577,12 @@ public class GameTime
 
     /// <summary>
     /// Generates a description of what phase of day/year it is.
+    /// Descriptions adapt to the seasonal day/night schedule.
     /// </summary>
     /// <returns>A descriptive string about the current time.</returns>
     public string GetTimeDescription()
     {
-        string timeOfDay = Hour switch
-        {
-            0 => "dawn",
-            1 => "early morning",
-            2 => "mid-morning",
-            3 => "late morning",
-            4 => "noon",
-            5 => "early afternoon",
-            6 => "mid-afternoon",
-            7 => "late afternoon",
-            8 => "dusk",
-            9 => "early evening",
-            10 => "evening",
-            11 => "night",
-            12 => "midnight",
-            13 => "late night",
-            _ => "unknown time"
-        };
+        string timeOfDay = GetTimeOfDayDescription();
 
         string dayDescription = Day switch
         {
@@ -487,6 +594,93 @@ public class GameTime
         };
 
         return $"It is {timeOfDay} on {dayDescription} {MonthName}, Year {Year}";
+    }
+
+    /// <summary>
+    /// Gets a descriptive string for the current time of day, accounting for seasonal variation.
+    /// </summary>
+    /// <returns>A string like "dawn", "mid-morning", "dusk", "midnight", etc.</returns>
+    public string GetTimeOfDayDescription()
+    {
+        ulong hour = Hour;
+
+        // Dawn is always hour 0
+        if (hour == DawnStartHour)
+        {
+            return "dawn";
+        }
+
+        // Dusk hour varies by season
+        if (hour == DuskStartHour)
+        {
+            return "dusk";
+        }
+
+        // Day phase descriptions (hours 1 to DuskStartHour-1)
+        if (hour >= DayStartHour && hour < DuskStartHour)
+        {
+            ulong dayProgress = hour - DayStartHour;
+            ulong totalDayHours = DayHours;
+
+            // Map progress through day to descriptions
+            float progressRatio = dayProgress / (float)totalDayHours;
+
+            if (progressRatio < 0.25f)
+            {
+                return "early morning";
+            }
+
+            if (progressRatio < 0.4f)
+            {
+                return "mid-morning";
+            }
+
+            if (progressRatio < 0.5f)
+            {
+                return "late morning";
+            }
+
+            if (progressRatio < 0.6f)
+            {
+                return "midday";
+            }
+
+            if (progressRatio < 0.75f)
+            {
+                return "afternoon";
+            }
+
+            return "late afternoon";
+        }
+
+        // Night phase descriptions (hours NightStartHour to 13)
+        if (hour >= NightStartHour)
+        {
+            ulong nightProgress = hour - NightStartHour;
+            ulong totalNightHours = NightHours;
+
+            // Map progress through night to descriptions
+            float progressRatio = nightProgress / (float)totalNightHours;
+
+            if (progressRatio < 0.25f)
+            {
+                return "early night";
+            }
+
+            if (progressRatio < 0.5f)
+            {
+                return "night";
+            }
+
+            if (progressRatio < 0.75f)
+            {
+                return "midnight";
+            }
+
+            return "late night";
+        }
+
+        return "unknown time";
     }
 
     /// <summary>

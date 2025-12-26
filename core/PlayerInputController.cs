@@ -33,6 +33,12 @@ public partial class PlayerInputController : Node
     private VBoxContainer? _commandQueueContainer;
     [Export]
     private Label? _activityLabel;
+    [Export]
+    private Label? _timeLabel;
+    [Export]
+    private Label? _dateLabel;
+    [Export]
+    private Label? _speedLabel;
     private EntityCommand? _pendingCommand = null;
     private Being? _commandTarget = null;
     private Vector2I _contextGridPos;
@@ -69,7 +75,54 @@ public partial class PlayerInputController : Node
             _hungerBar.Value = hungerNeed.Value;
         }
 
+        UpdateTimeDisplay();
         PopulateCommandList();
+    }
+
+    private void UpdateTimeDisplay()
+    {
+        if (_gameController == null)
+        {
+            return;
+        }
+
+        var gameTime = _gameController.CurrentGameTime;
+
+        // Update time of day label (e.g., "Early Morning", "Dusk", "Midnight")
+        if (_timeLabel != null)
+        {
+            _timeLabel.Text = CapitalizeFirst(gameTime.GetTimeOfDayDescription());
+        }
+
+        // Update date label (e.g., "Day 5, Seedweave")
+        if (_dateLabel != null)
+        {
+            _dateLabel.Text = $"Day {gameTime.Day}, {gameTime.MonthName}";
+        }
+
+        // Update speed label
+        if (_speedLabel != null)
+        {
+            if (_gameController.SimulationPaused())
+            {
+                _speedLabel.Text = "Paused";
+            }
+            else
+            {
+                float scale = _gameController.TimeScale;
+                _speedLabel.Text = scale >= 1.0f ? $"{scale:0.#}x" : $"{scale:0.##}x";
+            }
+        }
+    }
+
+    private static string CapitalizeFirst(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+        {
+            return input;
+        }
+
+        return char.ToUpper(input[0]) + input[1..];
     }
 
     public override void _Input(InputEvent @event)

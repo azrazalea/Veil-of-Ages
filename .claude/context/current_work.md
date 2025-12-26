@@ -1,11 +1,26 @@
-# Current Work: Activity System Implementation
+# Current Work: Daily Rhythm Simulation
 
-## Status: Phase 1-3 Complete, Ready for Testing
+## Status: Day/Night Cycle Complete, Activities Next
 
 ## Goal
-Make the village simulation interesting enough to watch by adding an Activity system that enables richer behaviors (sleep, work, socialize) on top of the existing trait system.
+Make the village simulation interesting enough to watch by adding:
+1. Day/night cycle (visual and behavioral) ← DONE
+2. Activities system for richer behaviors (sleep, work, socialize)
+3. Daily rhythm where entities respond to time of day
 
 ## What Was Built
+
+### Day/Night Cycle (Complete)
+- **GameTime.cs** - Seasonal day/night calculations:
+  - `DayPhaseType` enum (Dawn, Day, Dusk, Night)
+  - Seasonal variation: Spring/Autumn (5 day/7 night), Summer (6/6), Winter (4/8)
+  - `DaylightLevel` (0.1-1.0) with smooth transitions
+  - Helper properties: `IsDaytime`, `IsNighttime`, `IsDark`, `HasSunlight`
+- **DayNightCycle.cs** - Visual modulation:
+  - CanvasModulate-based world tinting
+  - Smooth color transitions between phases
+  - Dawn (warm orange), Day (white), Dusk (warm sunset), Night (cool blue)
+- **Wiki updated** - Game-time-and-Calendar.md documents the cycle
 
 ### Core Infrastructure (Complete)
 - **Activity base class** (`/entities/activities/Activity.cs`)

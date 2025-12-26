@@ -111,12 +111,38 @@ offset_right = 449.5
 offset_bottom = 40.0
 grow_horizontal = 2
 
-[node name="Location Name" type="Label" parent="Top Bar Container"]
+[node name="Top Bar HBox" type="HBoxContainer" parent="Top Bar Container"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Location Name" type="Label" parent="Top Bar Container/Top Bar HBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 0.658824)
 theme_override_fonts/font = ExtResource("1_l3ow8")
 theme_override_font_sizes/font_size = 21
 text = "Greyhaven"
+
+[node name="Spacer" type="Control" parent="Top Bar Container/Top Bar HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Time Label" type="Label" parent="Top Bar Container/Top Bar HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.9, 0.7, 0.9)
+theme_override_font_sizes/font_size = 14
+text = "Early Morning"
+
+[node name="Date Label" type="Label" parent="Top Bar Container/Top Bar HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 1, 0.8)
+theme_override_font_sizes/font_size = 14
+text = "Day 1, Seedweave"
+
+[node name="Speed Label" type="Label" parent="Top Bar Container/Top Bar HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 1, 0.7, 0.9)
+theme_override_font_sizes/font_size = 14
+text = "1x"
 
 [node name="Minimap Container" type="PanelContainer" parent="."]
 anchors_preset = 7
@@ -174,7 +200,7 @@ autowrap_mode = 0
 
 [node name="Context Menu" type="PopupMenu" parent="."]
 
-[node name="PlayerInputController" type="Node2D" parent="." node_paths=PackedStringArray("_dialogueUI", "_quickActions", "_minimap", "_chooseLocationPrompt", "_contextMenu", "_nameLabel", "_hungerBar", "_commandQueueContainer", "_activityLabel")]
+[node name="PlayerInputController" type="Node2D" parent="." node_paths=PackedStringArray("_dialogueUI", "_quickActions", "_minimap", "_chooseLocationPrompt", "_contextMenu", "_nameLabel", "_hungerBar", "_commandQueueContainer", "_activityLabel", "_timeLabel", "_dateLabel", "_speedLabel")]
 script = ExtResource("4_whbmk")
 _dialogueUI = NodePath("../Dialogue")
 _quickActions = NodePath("../Quick Actions Container")
@@ -185,6 +211,9 @@ _nameLabel = NodePath("../Character Container/Basic Info Container/Player Name L
 _hungerBar = NodePath("../Character Container/Basic Info Container/Needs Container/Needs Vbox/Hunger Need Bar")
 _commandQueueContainer = NodePath("../Character Container/Basic Info Container/Command Queue Panel Container/Command Queue List")
 _activityLabel = NodePath("../Character Container/Basic Info Container/Activity Label")
+_timeLabel = NodePath("../Top Bar Container/Top Bar HBox/Time Label")
+_dateLabel = NodePath("../Top Bar Container/Top Bar HBox/Date Label")
+_speedLabel = NodePath("../Top Bar Container/Top Bar HBox/Speed Label")
 
 [connection signal="index_pressed" from="Context Menu" to="PlayerInputController" method="HandleContextMenuSelection"]
 

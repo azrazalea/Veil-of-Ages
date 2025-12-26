@@ -15,6 +15,13 @@ run/main_scene="uid://ba8h7co1n3v3u"
 config/features=PackedStringArray("4.5", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
+
 [dotnet]
 
 project/assembly_name="Veil of Ages"

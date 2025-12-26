@@ -14,6 +14,7 @@
 [ext_resource type="Script" uid="uid://barxyo8p3oyvt" path="res://entities/EntityThinkingSystem.cs" id="11_bad00"]
 [ext_resource type="PackedScene" uid="uid://dnseqlvnfuids" path="res://core/GameController.tscn" id="13_liapn"]
 [ext_resource type="PackedScene" uid="uid://cmmglr0mto4me" path="res://core/hud.tscn" id="14_liapn"]
+[ext_resource type="Script" path="res://core/DayNightCycle.cs" id="20_cycle"]
 [ext_resource type="Texture2D" uid="uid://cwumnqftoow08" path="res://assets/minifantasy/buildings/farm/Minifantasy_FarmTileset.png" id="14_lle4j"]
 [ext_resource type="Texture2D" uid="uid://wcpf14ai1fds" path="res://assets/minifantasy/buildings/graveyard/Tileset.png" id="14_pmgec"]
 [ext_resource type="Texture2D" uid="uid://bxljdy4mwptcb" path="res://assets/minifantasy/buildings/farm/Minifantasy_FarmSeedsAndCrops.png" id="15_4c652"]
@@ -1549,6 +1550,9 @@ TownsfolkScene = ExtResource("7_ob0ca")
 script = ExtResource("11_bad00")
 
 [node name="GameController" parent="." instance=ExtResource("13_liapn")]
+
+[node name="DayNightCycle" type="CanvasModulate" parent="."]
+script = ExtResource("20_cycle")
 
 [node name="BuildingManager" type="Node" parent="."]
 script = ExtResource("10_liapn")
