@@ -2,52 +2,54 @@
 
 ## Current State Analysis
 
-The current entity AI system has a solid foundation with:
+The entity AI system has evolved significantly:
 - **Being.cs**: Core entity foundation with attributes, health, traits, perception
 - **Traits System**: Modular behaviors (VillagerTrait, UndeadTrait, etc.)
 - **Actions System**: Priority-based action execution
-- **Needs System**: Basic hunger need with strategy pattern
+- **Activities System**: Multi-step behavior coordination (EatActivity, SleepActivity, etc.)
+- **Needs System**: Hunger need with strategy pattern and activity-based decay multipliers
 - **Sensory System**: Perception, memory, line-of-sight
 
-**Current Flow**: Needs → Traits → Actions
-
-## Identified Gaps
-
-1. **Missing coordination layer**: Traits must micromanage every action
-2. **Limited daily life**: Only basic survival behaviors
-3. **No social intelligence**: No relationships or social dynamics
-4. **Simple psychology**: Only basic needs, no emotions or complex motivations
+**Current Flow**: Needs → Traits → **Activities** → Actions
 
 ## Development Phases (In Order)
 
-### **Phase 1: Activities System**
-**Priority**: Highest - Essential coordination layer for everything else
+### **Phase 1: Activities System** ✅ COMPLETE
+**Status**: Implemented December 2025
 
-**Key Insight**: Activities are temporary traits that coordinate complex behaviors. They're interruptible and can be started by actual traits.
+**What was built**:
+- `Activity` base class with lifecycle (Running/Completed/Failed states)
+- Priority-based action selection (lower number = higher priority)
+- `StartActivityAction` for traits to delegate to activities
+- `EatActivity` - Navigate to food source, consume, restore hunger
+- `SleepActivity` - Idle during night, auto-wake at dawn
+- Activity-based need decay multipliers (`NeedDecayMultipliers` dictionary)
+- `IdleAction` for activities that just wait
 
-**Implementation**:
-- Activity base class (temporary trait with lifecycle management)
-- Activity interruption system (priority-based pausing/resuming) 
-- Common activities: GetFood, Socialize, Sleep, Work, Explore
-- Player integration (commands can trigger activities)
-- Progress tracking and completion status
+**Architecture**: Traits DECIDE what to do → Activities EXECUTE multi-step behaviors → Actions are ATOMIC
 
-**Architecture Change**: Needs → Traits → **Activities** → Actions
+**Key Files**:
+- `entities/activities/Activity.cs` - Base class
+- `entities/activities/EatActivity.cs` - Food consumption
+- `entities/activities/SleepActivity.cs` - Sleep behavior
+- `entities/actions/StartActivityAction.cs` - Bridge from traits
 
-**Benefits**: 
-- Traits become decision-makers, not micromanagers
-- Shared logic between player commands and NPC behaviors
-- Foundation for complex behaviors without trait complexity
-
-### **Phase 2: Expanded Daily Life**
+### **Phase 2: Expanded Daily Life** 🔄 IN PROGRESS
 **Priority**: High - Creates engaging village simulation
 
-**Implementation**:
-- Sleep cycles and day/night rhythms
+**Completed**:
+- ✅ Sleep cycles and day/night rhythms (villagers sleep at night/dusk, wake at dawn)
+- ✅ Activity-based need modifiers (sleep reduces hunger decay to 25%)
+- ✅ Priority-based interruption (critical hunger interrupts sleep, low hunger doesn't)
+- ✅ Day/night visual cycle with smooth transitions
+- ✅ Time/date HUD with speed controls (up to 25x)
+
+**Remaining**:
 - Work schedules and job-based routines
 - Seasonal activities and weather responses
 - Home life activities (cooking, cleaning, family)
 - Recreation and entertainment systems
+- Energy/rest need that sleep restores
 
 **Benefits**:
 - Village feels alive with realistic daily patterns
@@ -100,11 +102,14 @@ The current entity AI system has a solid foundation with:
 
 ## Success Metrics
 
-- **Phase 1**: NPCs can perform multi-step behaviors (like "get food from farm")
-- **Phase 2**: Village has realistic daily rhythms and work patterns
+- **Phase 1**: ✅ NPCs can perform multi-step behaviors (like "get food from farm")
+- **Phase 2**: 🔄 Village has realistic daily rhythms and work patterns
 - **Phase 3**: Emergent social events and relationship dynamics
 - **Phase 4**: NPCs display believable emotional responses and long-term goals
 
 ## Next Steps
 
-Start with Phase 1 - Activities System implementation. This provides the foundation that all other improvements will build upon.
+Continue Phase 2 - Expanded Daily Life:
+- Add energy/rest need that SleepActivity restores
+- Implement work schedules (farmers tend crops during day, etc.)
+- Add more activities that use the need decay multiplier system

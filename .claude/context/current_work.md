@@ -1,12 +1,12 @@
 # Current Work: Daily Rhythm Simulation
 
-## Status: Day/Night Cycle Complete, Activities Next
+## Status: Sleep Schedule Complete, Phase 2 In Progress
 
 ## Goal
 Make the village simulation interesting enough to watch by adding:
 1. Day/night cycle (visual and behavioral) ← DONE
-2. Activities system for richer behaviors (sleep, work, socialize)
-3. Daily rhythm where entities respond to time of day
+2. Activities system for richer behaviors ← DONE
+3. Daily rhythm where entities respond to time of day ← SLEEP DONE
 
 ## What Was Built
 
@@ -16,6 +16,7 @@ Make the village simulation interesting enough to watch by adding:
   - Seasonal variation: Spring/Autumn (5 day/7 night), Summer (6/6), Winter (4/8)
   - `DaylightLevel` (0.1-1.0) with smooth transitions
   - Helper properties: `IsDaytime`, `IsNighttime`, `IsDark`, `HasSunlight`
+  - `FromTicks(ulong)` static helper for cleaner tick-to-time conversion
 - **DayNightCycle.cs** - Visual modulation:
   - CanvasModulate-based world tinting
   - Smooth color transitions between phases
@@ -26,6 +27,8 @@ Make the village simulation interesting enough to watch by adding:
 - **Activity base class** (`/entities/activities/Activity.cs`)
   - ActivityState enum (Running, Completed, Failed)
   - DisplayName, Priority, Initialize(), GetNextAction(), Cleanup()
+  - `NeedDecayMultipliers` dictionary for per-need decay rate modifiers
+  - `GetNeedDecayMultiplier(needId)` returns multiplier or default 1.0
 
 - **Being integration** (`/entities/Being.cs`)
   - `_currentActivity` field
@@ -43,22 +46,45 @@ Make the village simulation interesting enough to watch by adding:
 ### Consumption Activity (Complete)
 - **EatActivity** - Uses GoToBuildingActivity internally, then consumes for duration
 - **ConsumptionBehaviorTrait** - Migrated to use EatActivity instead of internal state machine
+  - Priority-based hunger: critical hunger (-1) interrupts sleep, low hunger (1) doesn't
+
+### Sleep Activity (Complete - December 2025)
+- **SleepActivity** (`/entities/activities/SleepActivity.cs`)
+  - Villagers sleep during Night/Dusk phases
+  - Auto-wakes at Dawn by calling Complete()
+  - Reduces hunger decay to 25% via NeedDecayMultipliers
+  - Priority 0 (between critical hunger -1 and low hunger 1)
+- **VillagerTrait** - Added Sleeping state and schedule logic
+  - Checks GameTime.CurrentDayPhase for Night/Dusk
+  - Starts SleepActivity when at home during sleep hours
+  - Transitions out of Sleeping state when activity completes
+- **BeingNeedsSystem** - Queries current activity for per-need decay multipliers
+- **Need.cs** - Decay() now accepts multiplier parameter
 
 ## Architecture Summary
 
 ### Three Layers
 | Layer | Role | Examples |
 |-------|------|----------|
-| **Traits** | DECIDE | VillagerTrait finds food source |
-| **Activities** | EXECUTE | EatActivity handles go-to + consume |
+| **Traits** | DECIDE | VillagerTrait chooses to sleep or eat |
+| **Activities** | EXECUTE | SleepActivity, EatActivity handle multi-step behavior |
 | **Actions** | ATOMIC | MoveAlongPathAction, IdleAction |
+
+### Priority System
+| Behavior | Priority | Wins Against |
+|----------|----------|--------------|
+| Critical hunger | -1 | Everything |
+| Sleep | 0 | Low hunger, wandering |
+| Low hunger | 1 | Nothing special |
+| Wandering | 1 | Nothing special |
 
 ### Key Decisions
 1. Activities separate from traits (threading safety)
 2. ActivityState is source of truth (not null checks)
-3. Priority-based implicit interruption
+3. Priority-based implicit interruption (lower number = higher priority)
 4. Internal composition (EatActivity uses GoToBuildingActivity)
-5. Commands will own activities (TODO)
+5. Activity-based need decay multipliers (extensible per-activity effects)
+6. Commands will own activities (TODO)
 
 ## Files Created/Modified
 
@@ -67,39 +93,45 @@ Make the village simulation interesting enough to watch by adding:
 - `/entities/activities/GoToLocationActivity.cs`
 - `/entities/activities/GoToBuildingActivity.cs`
 - `/entities/activities/EatActivity.cs`
+- `/entities/activities/SleepActivity.cs`
 - `/entities/activities/CLAUDE.md`
 - `/entities/actions/StartActivityAction.cs`
 
 ### Modified Files
 - `/entities/Being.cs` - Activity integration
-- `/entities/traits/ConsumptionBehaviorTrait.cs` - Uses EatActivity
-- `/entities/traits/VillagerTrait.cs` - Updated constructor
-- `/entities/traits/ZombieTrait.cs` - Updated constructor
+- `/entities/traits/ConsumptionBehaviorTrait.cs` - Uses EatActivity, priority logic
+- `/entities/traits/VillagerTrait.cs` - Sleeping state and schedule logic
+- `/entities/being_services/BeingNeedsSystem.cs` - Activity-based decay multipliers
+- `/entities/needs/Need.cs` - Decay accepts multiplier
+- `/core/lib/GameTime.cs` - Added FromTicks() helper
+- `/core/GameController.cs` - Time scale limit raised to 25x
 - `/core/ui/dialogue/commands/MoveToCommand.cs` - Added TODO
 - `/core/ui/dialogue/commands/FollowCommand.cs` - Added TODO
 
 ## Next Steps
 
-### Phase 4: Commands Integration (TODO)
+### Phase 2 Continued: Daily Life (TODO)
+- [ ] Add energy/rest need that SleepActivity restores
+- [ ] WorkActivity for farmers (tend crops during day)
+- [ ] Work schedules and job-based routines
+- [ ] Recreation and entertainment activities
+
+### Commands Integration (TODO)
 - [ ] Update MoveToCommand to use GoToLocationActivity
 - [ ] Commands own activities, poll state for completion
 
-### Phase 5: New Behaviors (TODO)
-- [ ] SleepActivity with day/night integration
-- [ ] WorkActivity for farmers
-- [ ] SocializeActivity for villager interactions
-
-### Phase 6: GoToEntityActivity (TODO)
+### GoToEntityActivity (TODO)
 - [ ] Implement with proper BDI behavior
 - [ ] Use perception/memory for target location
 - [ ] Handle target movement and search
 
-## Testing Needed
-- Run game and verify villagers eat correctly using new Activity system
-- Check that EatActivity navigates to farms and restores hunger
-- Verify no threading issues during Think() cycle
+## Testing Verified
+- Villagers sleep at night/dusk, wake at dawn
+- Low hunger doesn't interrupt sleep
+- Critical hunger interrupts sleep
+- Sleep reduces hunger decay to 25%
+- 25x time scale works for fast-forward testing
 
 ## Documentation
 - See `/entities/activities/CLAUDE.md` for full Activity system docs
-- Future GoToEntityActivity design documented there
-- Future consumption variants (vampire feeding, etc.) documented there
+- Entity AI roadmap in `/.claude/context/entity_ai_improvement_plan.md`
