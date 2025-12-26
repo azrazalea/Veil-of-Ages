@@ -102,7 +102,7 @@ public partial class GameController : Node
 
     public void SetTimeScale(float scale)
     {
-        TimeScale = Mathf.Clamp(scale, 0.1f, 10f);
+        TimeScale = Mathf.Clamp(scale, 0.1f, 25f);
     }
 
     // Time skip functionality

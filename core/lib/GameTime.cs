@@ -154,6 +154,16 @@ public class GameTime
     }
 
     /// <summary>
+    /// Creates a GameTime from game ticks.
+    /// </summary>
+    /// <param name="ticks">Number of game ticks since simulation start.</param>
+    /// <returns>A new GameTime instance.</returns>
+    public static GameTime FromTicks(ulong ticks)
+    {
+        return new GameTime(ticks * GameCentisecondsPerGameTick);
+    }
+
+    /// <summary>
     /// Gets the year component (0-based) of the game time.
     /// </summary>
     public ulong Year => (Value / CENTISECONDSPERYEAR) + 1;
