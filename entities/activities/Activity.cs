@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Entities.Sensory;
 
@@ -33,6 +34,23 @@ public abstract class Activity
     /// Lower values = higher priority.
     /// </summary>
     public int Priority { get; protected set; } = 0;
+
+    /// <summary>
+    /// Gets or sets maps need IDs to decay rate multipliers for this activity.
+    /// Needs not in this dictionary use the default multiplier of 1.0.
+    /// Example: Sleep sets hunger to 0.25 (1/4 decay rate).
+    /// </summary>
+    protected Dictionary<string, float> NeedDecayMultipliers { get; set; } = new ();
+
+    /// <summary>
+    /// Gets the decay multiplier for a specific need while this activity is active.
+    /// Returns the configured multiplier if set, otherwise 1.0 (normal decay).
+    /// </summary>
+    /// <returns></returns>
+    public float GetNeedDecayMultiplier(string needId)
+    {
+        return NeedDecayMultipliers.TryGetValue(needId, out var multiplier) ? multiplier : 1.0f;
+    }
 
     /// <summary>
     /// The entity performing this activity.

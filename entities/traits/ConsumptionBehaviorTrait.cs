@@ -124,15 +124,20 @@ public class ConsumptionBehaviorTrait : BeingTrait
                 return null;
             }
 
+            // Determine priority based on hunger severity
+            // Critical hunger (≤15): priority -1 (interrupts sleep)
+            // Low hunger (>15): priority 1 (doesn't interrupt sleep)
+            int actionPriority = _need.IsCritical() ? -1 : 1;
+
             // Start eating activity
             var eatActivity = new EatActivity(
                 foodSource,
                 _need,
                 _restoreAmount,
                 _consumptionDuration,
-                priority: Priority);
+                priority: actionPriority);
 
-            return new StartActivityAction(_owner, this, eatActivity, priority: Priority);
+            return new StartActivityAction(_owner, this, eatActivity, priority: actionPriority);
         }
 
         return null;

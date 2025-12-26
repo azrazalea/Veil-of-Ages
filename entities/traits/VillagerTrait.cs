@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
+using VeilOfAges.Entities.Activities;
 using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Needs;
 using VeilOfAges.Entities.Needs.Strategies;
@@ -23,7 +25,8 @@ public class VillagerTrait : BeingTrait
     {
         IdleAtHome,
         IdleAtSquare,
-        VisitingBuilding
+        VisitingBuilding,
+        Sleeping
     }
 
     private VillagerState _currentState = VillagerState.IdleAtHome;
@@ -108,6 +111,26 @@ public class VillagerTrait : BeingTrait
             return null;
         }
 
+        // Schedule-based behavior: check time of day
+        var gameTime = GameTime.FromTicks(GameController.CurrentTick);
+        bool shouldSleep = gameTime.CurrentDayPhase is DayPhaseType.Night or
+                           DayPhaseType.Dusk;
+
+        // If nighttime and not already heading home or sleeping, go home
+        if (shouldSleep && _currentState != VillagerState.Sleeping &&
+            _currentState != VillagerState.IdleAtHome)
+        {
+            _currentState = VillagerState.IdleAtHome;
+            _stateTimer = 0;
+        }
+
+        // If daytime and sleeping, wake up
+        if (!shouldSleep && _currentState == VillagerState.Sleeping)
+        {
+            _currentState = VillagerState.IdleAtHome;
+            _stateTimer = IdleTime;
+        }
+
         // Decrement timers
         if (_stateTimer > 0)
         {
@@ -118,23 +141,44 @@ public class VillagerTrait : BeingTrait
         switch (_currentState)
         {
             case VillagerState.IdleAtHome:
-                return ProcessIdleAtHomeState();
+                return ProcessIdleAtHomeState(shouldSleep);
             case VillagerState.IdleAtSquare:
                 return ProcessIdleAtSquareState();
             case VillagerState.VisitingBuilding:
                 return ProcessVisitingBuildingState();
+            case VillagerState.Sleeping:
+                return ProcessSleepingState();
             default:
                 return new IdleAction(_owner, this);
         }
     }
 
-    private EntityAction? ProcessIdleAtHomeState()
+    private EntityAction? ProcessIdleAtHomeState(bool shouldSleep = false)
     {
         if (_owner == null)
         {
             return null;
         }
 
+        // Check if we're at home first
+        Vector2I currentPos = _owner.GetCurrentGridPosition();
+        if (currentPos != _homePosition)
+        {
+            // We're not at home, so let's go there using lazy path calculation
+            MyPathfinder.SetPositionGoal(_owner, _homePosition);
+            return new MoveAlongPathAction(_owner, this, MyPathfinder);
+        }
+
+        // We're at home - should we sleep?
+        if (shouldSleep)
+        {
+            _currentState = VillagerState.Sleeping;
+            Log.Print($"{_owner.Name}: Going to sleep");
+            var sleepActivity = new SleepActivity(priority: 0);
+            return new StartActivityAction(_owner, this, sleepActivity, priority: 0);
+        }
+
+        // Daytime behavior
         if (_stateTimer == 0)
         {
             // Chance to go to the village square
@@ -175,16 +219,7 @@ public class VillagerTrait : BeingTrait
             }
         }
 
-        // Check if we're already at home
-        Vector2I currentPos = _owner.GetCurrentGridPosition();
-        if (currentPos != _homePosition)
-        {
-            // We're not at home, so let's go there using lazy path calculation
-            MyPathfinder.SetPositionGoal(_owner, _homePosition);
-            return new MoveAlongPathAction(_owner, this, MyPathfinder);
-        }
-
-        return new IdleAction(_owner, this);
+        return new IdleAction(_owner, this, priority: 1);
     }
 
     private EntityAction? ProcessIdleAtSquareState()
@@ -288,6 +323,26 @@ public class VillagerTrait : BeingTrait
 
         // If we're at the building, just idle
         return new IdleAction(_owner, this);
+    }
+
+    private EntityAction? ProcessSleepingState()
+    {
+        if (_owner == null)
+        {
+            return null;
+        }
+
+        // Check if sleep activity is still running
+        if (_owner.GetCurrentActivity() is SleepActivity)
+        {
+            // Let the activity handle things
+            return null;
+        }
+
+        // Activity completed or was interrupted - transition back to idle at home
+        _currentState = VillagerState.IdleAtHome;
+        _stateTimer = IdleTime;
+        return new IdleAction(_owner, this, priority: 1);
     }
 
     public override string InitialDialogue(Being speaker)

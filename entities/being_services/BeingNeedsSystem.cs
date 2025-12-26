@@ -25,9 +25,12 @@ public class BeingNeedsSystem
 
     public void UpdateNeeds()
     {
+        var activity = _owner.GetCurrentActivity();
+
         foreach (var need in _needs.Values)
         {
-            need.Decay();
+            float multiplier = activity?.GetNeedDecayMultiplier(need.Id) ?? 1.0f;
+            need.Decay(multiplier);
         }
     }
 

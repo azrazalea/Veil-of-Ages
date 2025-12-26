@@ -36,9 +36,9 @@ public class Need
         SatisfiedThreshold = satisfiedThreshold;
     }
 
-    public void Decay()
+    public void Decay(float multiplier = 1.0f)
     {
-        Value -= DecayRate;
+        Value -= DecayRate * multiplier;
     }
 
     public void Restore(float amount)
