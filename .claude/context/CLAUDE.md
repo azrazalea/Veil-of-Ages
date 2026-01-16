@@ -36,13 +36,16 @@ Future building system features and ideas:
 - Special building interactions (doors, furniture, environment)
 
 ### current_work.md
-**Claude's current work-in-progress.** This file tracks:
+**Claude's current work-in-progress and the primary source for "what to work on next".**
+
+This file tracks:
 - What Claude is currently implementing
 - Design decisions made during the work
 - Implementation phases and progress
 - File locations and class structures
+- Next steps and TODO items
 
-Use this file to resume work after context compaction or new sessions. Update it as work progresses.
+**IMPORTANT**: When starting a new session or unsure what to work on, **read this file first**. It contains the prioritized next steps for the project. Update it as work progresses and when completing major milestones.
 
 ## Architecture Decisions (December 2025)
 

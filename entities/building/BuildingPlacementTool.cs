@@ -110,7 +110,7 @@ public partial class BuildingPlacementTool : Node
     /// </summary>
     private void SetupPreviewTileMap()
     {
-        if (_previewTileMap == null || _currentTemplate == null)
+        if (_previewTileMap == null || _currentTemplate == null || _currentTemplate.Name == null)
         {
             return;
         }
@@ -209,7 +209,7 @@ public partial class BuildingPlacementTool : Node
     /// </summary>
     private void PlaceBuildingAtCurrentPosition()
     {
-        if (_buildingManager == null || _currentTemplate == null || _gridArea == null)
+        if (_buildingManager == null || _currentTemplate == null || _currentTemplate.Name == null || _gridArea == null)
         {
             return;
         }

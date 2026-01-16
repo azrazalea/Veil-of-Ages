@@ -17,16 +17,6 @@
     <AnalysisLevel>latest</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-
-    <!-- Warnings to allow (not treat as errors) -->
-    <WarningsNotAsErrors>
-      CS0612;  <!-- Using obsolete member -->
-      CS0618;  <!-- Obsolete warnings (e.g., TileMap deprecated) -->
-      CS8618;  <!-- Non-nullable field not initialized (for unused files) -->
-      CS8601;  <!-- Possible null reference assignment -->
-      CS8602;  <!-- Dereference of possibly null reference -->
-      CS8604   <!-- Possible null reference argument -->
-    </WarningsNotAsErrors>
   </PropertyGroup>
 
   <ItemGroup>

@@ -12,8 +12,8 @@ public partial class RoofSystem : Node
     // Reference to the parent building
     private Building? _building;
 
-    // TileMap layer for roof tiles
-    private int _roofLayerId = 2; // Assuming layer 2 is the roof layer
+    // TileMapLayer for roof tiles (each layer is now its own node)
+    private TileMapLayer? _roofTileMap;
 
     // Dictionary of roof tiles by position
     private readonly Dictionary<Vector2I, RoofTile> _roofTiles = new ();
@@ -44,18 +44,32 @@ public partial class RoofSystem : Node
     /// <summary>
     /// Initialize roof tiles from a building template.
     /// </summary>
-    [System.Obsolete]
     public void InitializeFromTemplate(BuildingTemplate template)
     {
         // Clear existing roof tiles
         _roofTiles.Clear();
 
-        // Get the TileMap reference
-        var tileMap = _building.GetNode<TileMap>("TileMap");
-        if (tileMap == null)
+        if (_building == null)
         {
-            Log.Error("RoofSystem: TileMap not found!");
+            Log.Error("RoofSystem: Building reference is null!");
             return;
+        }
+
+        // Create the roof TileMapLayer if it doesn't exist
+        if (_roofTileMap == null)
+        {
+            _roofTileMap = new TileMapLayer
+            {
+                Visible = true
+            };
+            _building.AddChild(_roofTileMap);
+
+            // Position and Z-index to render above other building layers
+            _roofTileMap.ZIndex = 10;
+            _roofTileMap.ZAsRelative = true;
+
+            // Setup tileset using TileResourceManager
+            TileResourceManager.Instance.SetupTileSet(_roofTileMap);
         }
 
         // Find all roof tiles in the template
@@ -76,8 +90,8 @@ public partial class RoofSystem : Node
                 // Add to dictionary
                 _roofTiles[tileData.Position] = roofTile;
 
-                // Set in TileMap
-                tileMap.SetCell(_roofLayerId, tileData.Position, tileData.SourceId, tileData.AtlasCoords);
+                // Set in TileMapLayer (no layer ID needed - each layer is its own node)
+                _roofTileMap.SetCell(tileData.Position, tileData.SourceId, tileData.AtlasCoords);
             }
         }
 
@@ -88,7 +102,6 @@ public partial class RoofSystem : Node
     /// <summary>
     /// Update roof visibility based on player's line of sight.
     /// </summary>
-    [System.Obsolete]
     public void UpdateRoofVisibility(bool forceVisible = false)
     {
         // If we're forcing visibility, show all roof tiles
@@ -98,38 +111,26 @@ public partial class RoofSystem : Node
             return;
         }
 
-        // TODO: Implement proper visibility checks based on the player's line of sight
-        // For now, we'll just make the roof visible if the player is not inside the building
-
-        // Get the TileMap reference
-        var tileMap = _building.GetNode<TileMap>("TileMap");
-        if (tileMap == null)
+        if (_roofTileMap == null)
         {
             return;
         }
 
-        // Update layer modulation
-        if (_roofVisible)
-        {
-            tileMap.SetLayerModulate(_roofLayerId, _visibleColor);
-        }
-        else
-        {
-            tileMap.SetLayerModulate(_roofLayerId, _invisibleColor);
-        }
+        // TODO: Implement proper visibility checks based on the player's line of sight
+        // For now, we'll just make the roof visible if the player is not inside the building
+
+        // Update layer modulation using CanvasItem.Modulate property
+        _roofTileMap.Modulate = _roofVisible ? _visibleColor : _invisibleColor;
     }
 
     /// <summary>
     /// Set all roof tiles to visible or invisible.
     /// </summary>
-    [System.Obsolete]
     public void SetAllRoofTilesVisible(bool visible)
     {
         _roofVisible = visible;
 
-        // Get the TileMap reference
-        var tileMap = _building.GetNode<TileMap>("TileMap");
-        if (tileMap == null)
+        if (_roofTileMap == null)
         {
             return;
         }
@@ -140,19 +141,16 @@ public partial class RoofSystem : Node
             tile.Value.IsVisible = visible;
         }
 
-        // Update layer modulation
-        tileMap.SetLayerModulate(_roofLayerId, visible ? _visibleColor : _invisibleColor);
+        // Update modulation using CanvasItem.Modulate property
+        _roofTileMap.Modulate = visible ? _visibleColor : _invisibleColor;
     }
 
     /// <summary>
     /// Make specific roof tiles fade (partially visible) based on line of sight.
     /// </summary>
-    [System.Obsolete]
     public void FadeRoofTiles(List<Vector2I> positions)
     {
-        // Get the TileMap reference
-        var tileMap = _building.GetNode<TileMap>("TileMap");
-        if (tileMap == null)
+        if (_roofTileMap == null)
         {
             return;
         }
@@ -162,7 +160,7 @@ public partial class RoofSystem : Node
         // the player's line of sight and other entities
 
         // For now, just set the modulation of the entire roof layer to fade
-        tileMap.SetLayerModulate(_roofLayerId, _fadeColor);
+        _roofTileMap.Modulate = _fadeColor;
     }
 
     /// <summary>

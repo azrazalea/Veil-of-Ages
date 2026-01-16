@@ -1,5 +1,44 @@
 # Code Style and Conventions
 
+## Compiler Settings (Strict)
+
+The project enforces strict code quality through compiler settings in `Veil of Ages.csproj`:
+
+### Warning and Error Policy
+- **WarningLevel**: 9999 (maximum - all possible warnings enabled)
+- **AnalysisLevel**: latest (newest C# analysis rules)
+- **TreatWarningsAsErrors**: true (warnings break the build)
+- **EnforceCodeStyleInBuild**: true (style violations break the build)
+
+**Philosophy**: All warnings should be fixed, not suppressed. If a warning seems incorrect, understand why it's being raised before working around it.
+
+### Code Analyzers
+- **Roslynator.Analyzers**: Extended code analysis and refactoring suggestions
+- **StyleCop.Analyzers**: Enforces consistent code style
+
+### Auto-Formatting
+- `dotnet format` runs automatically before every build
+- Code is formatted to match `.editorconfig` rules (if present) and analyzer defaults
+
+### Nullable Reference Types
+Nullable reference types are **enabled** project-wide. This means:
+- All reference types are non-nullable by default
+- Use `Type?` suffix to mark a type as nullable
+- The compiler tracks null flow and warns about potential null dereferences
+- **Do not suppress null warnings** - fix the underlying issue:
+  - Initialize fields properly (in constructor or with default values)
+  - Use null checks or the null-conditional operator (`?.`)
+  - Use `ArgumentNullException.ThrowIfNull()` for parameters that must not be null
+  - Use the `!` null-forgiving operator only when you can prove the value is not null
+
+### Common Warning Fixes
+| Warning | Issue | Fix |
+|---------|-------|-----|
+| CS8618 | Non-nullable field not initialized | Initialize in constructor or make nullable |
+| CS8601 | Possible null reference assignment | Add null check or make target nullable |
+| CS8602 | Dereference of possibly null reference | Add null check before access |
+| CS8604 | Possible null reference argument | Validate argument or make parameter nullable |
+
 ## General Conventions
 - **C# Language Version**: 12.0 (as specified in .csproj)
 - **Nullable Reference Types**: Enabled (nullable context is enabled)
