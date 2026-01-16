@@ -34,7 +34,15 @@ A* pathfinding system that wraps Godot's `AStarGrid2D`.
   - `Position`: Navigate to exact grid position
   - `EntityProximity`: Get within range of a moving entity
   - `Area`: Reach any position within a circular area
-  - `Building`: Navigate to adjacent position of a multi-tile building
+  - `Building`: Navigate to a building. Has `requireInterior` parameter (default `true`):
+    - When `true`: Entity must reach a walkable interior position; no perimeter fallback
+    - When `false`: Entity can reach either an interior position or an adjacent perimeter position
+  - `Facility`: Navigate adjacent to a specific facility within a building
+- **Key Methods**:
+  - `SetBuildingGoal(entity, building, requireInterior = true)`: Sets building navigation goal with interior/adjacency control
+  - `IsGoalReached(entity)`: Checks if entity has reached goal, respects `requireInterior` flag for Building goals
+  - `CalculatePathForCurrentGoal(entity)`: Calculates path based on current goal type, respects `requireInterior` flag
+  - `GetBuildingPerimeterPositions(buildingPos, buildingSize)`: Helper method that returns all positions one tile outside the building bounds (used by both `IsGoalReached` and `CalculatePathForCurrentGoal` to avoid code duplication)
 - **Features**:
   - Automatic path recalculation with cooldown (5 ticks)
   - Maximum 3 recalculation attempts before failure

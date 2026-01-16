@@ -16,6 +16,6 @@ public class MoveAlongPathAction : EntityAction
     public override bool Execute()
     {
         // The PathFinder knows the goal and handles calculation on demand
-        return _pathFinder.TryFollowPath(Entity);
+        return _pathFinder.TryFollowPath(Entity!);
     }
 }

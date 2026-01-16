@@ -4,6 +4,7 @@ using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
+using VeilOfAges.Entities.Activities;
 using VeilOfAges.Entities.Beings;
 using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Needs;
@@ -136,6 +137,13 @@ public class ZombieTrait : UndeadBehaviorTrait
             return null;
         }
 
+        // Check if we're currently executing a GoToLocationActivity (returning to spawn)
+        if (_owner.GetCurrentActivity() is GoToLocationActivity)
+        {
+            // Let the activity handle navigation
+            return null;
+        }
+
         if (_stateTimer == 0)
         {
             // Either continue wandering or return to idle
@@ -156,9 +164,9 @@ public class ZombieTrait : UndeadBehaviorTrait
         // Check if we've wandered too far from spawn
         if (IsOutsideWanderRange())
         {
-            // Return to spawn area
-            MyPathfinder.SetPositionGoal(_owner, _spawnPosition);
-            return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: 1);
+            // Return to spawn area using GoToLocationActivity
+            var returnActivity = new GoToLocationActivity(_spawnPosition, priority: 1);
+            return new StartActivityAction(_owner, this, returnActivity, priority: 1);
         }
 
         return new IdleAction(_owner, this);

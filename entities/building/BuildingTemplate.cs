@@ -45,6 +45,7 @@ public class BuildingTemplate
     public string TileMapPath { get; set; } = "res://resources/tilesets/buildings_tileset.tres";
     public int Capacity { get; set; }
     public StorageConfig? Storage { get; set; }
+    public List<FacilityData> Facilities { get; set; } = new ();
     public Dictionary<string, string> Metadata { get; set; } = new ();
 
     /// <summary>
@@ -195,6 +196,15 @@ public class RoomData
     public Vector2I TopLeft { get; set; }
     public Vector2I Size { get; set; }
     public Dictionary<string, string> Properties { get; set; } = new ();
+}
+
+/// <summary>
+/// Data structure for a facility location in a building template.
+/// </summary>
+public class FacilityData
+{
+    public string Id { get; set; } = string.Empty;
+    public Vector2I Position { get; set; }
 }
 
 /// <summary>

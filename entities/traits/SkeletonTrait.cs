@@ -1,8 +1,8 @@
-using System.Collections;
 using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
+using VeilOfAges.Entities.Activities;
 using VeilOfAges.Entities.Beings;
 using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Sensory;
@@ -29,6 +29,10 @@ public class SkeletonTrait : UndeadBehaviorTrait
     private uint _intimidationTimer;
     private bool _hasRattled;
     private Vector2I? _lastIntruderPosition;
+
+    // Activities for position-based navigation
+    private GoToLocationActivity? _returnToSpawnActivity;
+    private GoToLocationActivity? _pursueActivity;
 
     public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue)
     {
@@ -185,18 +189,19 @@ public class SkeletonTrait : UndeadBehaviorTrait
             _intruder = null;
             _lastIntruderPosition = null;
             _hasRattled = false;
+            _pursueActivity = null;
 
             // Return to spawn area if we strayed too far
             if (IsOutsideWanderRange())
             {
-                MyPathfinder.SetPositionGoal(_owner, _spawnPosition);
-                return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: -1);
+                return StartReturnToSpawn();
             }
 
             return new IdleAction(_owner, this);
         }
 
         bool intruderVisible = false;
+        Vector2I? currentIntruderPosition = null;
 
         // Try to find the intruder in perception
         foreach (var (entity, position) in currentPerception.GetEntitiesOfType<Being>())
@@ -204,29 +209,111 @@ public class SkeletonTrait : UndeadBehaviorTrait
             if (entity == _intruder)
             {
                 intruderVisible = true;
+                currentIntruderPosition = position;
                 _lastIntruderPosition = position;
-
-                // Set entity proximity goal - path calculation will be lazy
-                MyPathfinder.SetEntityProximityGoal(_owner, _intruder, 1);
 
                 // Reset intimidation timer since we can still see the intruder
                 _intimidationTimer = IntimidationTime;
-
-                // Higher priority when defending
-                return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: -2);
+                break;
             }
         }
 
-        // If intruder not visible but we have a last known position
-        if (!intruderVisible && _lastIntruderPosition.HasValue)
+        // Determine target position for pursuit
+        Vector2I? targetPosition = intruderVisible ? currentIntruderPosition : _lastIntruderPosition;
+
+        if (targetPosition.HasValue)
         {
-            // Go to last known position
-            MyPathfinder.SetPositionGoal(_owner, _lastIntruderPosition.Value);
-            return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: -2);
+            return ContinuePursuit(targetPosition.Value);
         }
 
-        // If we have no path or target info, just idle
+        // If we have no target info, just idle
         return new IdleAction(_owner, this);
+    }
+
+    /// <summary>
+    /// Start or continue returning to spawn position using GoToLocationActivity.
+    /// </summary>
+    private EntityAction? StartReturnToSpawn()
+    {
+        if (_owner == null)
+        {
+            return null;
+        }
+
+        // Start a new return activity if we don't have one
+        if (_returnToSpawnActivity == null)
+        {
+            _returnToSpawnActivity = new GoToLocationActivity(_spawnPosition, priority: -1);
+            _returnToSpawnActivity.Initialize(_owner);
+        }
+
+        // Check activity state
+        if (_returnToSpawnActivity.State == Activity.ActivityState.Completed)
+        {
+            _returnToSpawnActivity = null;
+            return new IdleAction(_owner, this);
+        }
+
+        if (_returnToSpawnActivity.State == Activity.ActivityState.Failed)
+        {
+            // Reset and try again next tick
+            _returnToSpawnActivity = null;
+            return new IdleAction(_owner, this);
+        }
+
+        // Continue the activity
+        return _returnToSpawnActivity.GetNextAction(_owner.GetCurrentGridPosition(), new Perception());
+    }
+
+    /// <summary>
+    /// Start or continue pursuit of a target position using GoToLocationActivity.
+    /// Uses BDI pattern: goes to believed position, not tracking entity directly.
+    /// </summary>
+    private EntityAction? ContinuePursuit(Vector2I targetPosition)
+    {
+        if (_owner == null)
+        {
+            return null;
+        }
+
+        // Check if we need a new pursuit activity (target moved significantly or no activity)
+        bool needNewActivity = _pursueActivity == null ||
+                               _pursueActivity.State != Activity.ActivityState.Running;
+
+        // Also restart if target position has changed significantly (entity moved)
+        // This allows skeleton to re-path when intruder moves
+        if (!needNewActivity && _pursueActivity != null)
+        {
+            // If we reached the believed position but intruder isn't there, get new activity
+            if (_pursueActivity.State == Activity.ActivityState.Completed)
+            {
+                needNewActivity = true;
+            }
+        }
+
+        if (needNewActivity)
+        {
+            _pursueActivity = new GoToLocationActivity(targetPosition, priority: -2);
+            _pursueActivity.Initialize(_owner);
+        }
+
+        // Check activity state
+        if (_pursueActivity!.State == Activity.ActivityState.Completed)
+        {
+            // Reached the position - if intruder still here, we'll get new position next tick
+            _pursueActivity = null;
+            return new IdleAction(_owner, this, priority: -2);
+        }
+
+        if (_pursueActivity.State == Activity.ActivityState.Failed)
+        {
+            // Path failed - reset and idle
+            _pursueActivity = null;
+            return new IdleAction(_owner, this);
+        }
+
+        // Continue the activity
+        return _pursueActivity.GetNextAction(_owner.GetCurrentGridPosition(), new Perception());
     }
 
     private bool IsIntruderInTerritory()

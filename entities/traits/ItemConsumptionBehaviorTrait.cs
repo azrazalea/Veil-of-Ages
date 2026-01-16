@@ -71,15 +71,11 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
             return null;
         }
 
-        // If already moving, don't interrupt
-        if (_owner.IsMoving())
-        {
-            return null;
-        }
-
         // If we already have a consume activity running, let it handle things
-        if (_owner.GetCurrentActivity() is ConsumeItemActivity)
+        var currentActivity = _owner.GetCurrentActivity();
+        if (currentActivity is ConsumeItemActivity)
         {
+            DebugLog("EATING", $"ConsumeItemActivity already running, state: {currentActivity.State}");
             return null;
         }
 
@@ -89,23 +85,29 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
             return null;
         }
 
+        // Log hunger status when low/critical
+        DebugLog("EATING", $"Hunger is {(_need.IsCritical() ? "CRITICAL" : "low")}: {_need.Value:F1}, current activity: {currentActivity?.GetType().Name ?? "none"}");
+
+        // Note: This check is technically redundant because Being.Think() returns early
+        // if IsMoving() is true - traits are never consulted while moving.
+        // Kept for defensive programming in case the architecture changes.
+        if (_owner.IsMoving())
+        {
+            return null;
+        }
+
         // Check if we have food available
         if (!HasFoodAvailable())
         {
-            // Only log occasionally to avoid spam
-            if (GameController.CurrentTick % 200 == 0)
-            {
-                Log.Print($"{_owner.Name}: No {_foodTag} food available for '{_needId}'");
-            }
-
-            // TODO: Critical state handling
+            // Log debug info about why food wasn't found
+            DebugLogFoodSearch();
             return null;
         }
 
         // Determine priority based on hunger severity
-        // Critical hunger: priority -1 (interrupts sleep)
-        // Low hunger: priority 1 (doesn't interrupt sleep)
-        int actionPriority = _need.IsCritical() ? -1 : 1;
+        // Critical hunger: priority -2 (interrupts everything)
+        // Low hunger: priority -1 (interrupts work but not sleep)
+        int actionPriority = _need.IsCritical() ? -2 : -1;
 
         // Start consume activity
         var home = _getHome();
@@ -117,7 +119,38 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
             _consumptionDuration,
             priority: actionPriority);
 
+        DebugLog("EATING", $"Starting ConsumeItemActivity (priority {actionPriority}), home: {home?.BuildingName ?? "null"}", 0);
         return new StartActivityAction(_owner, this, consumeActivity, priority: actionPriority);
+    }
+
+    /// <summary>
+    /// Log detailed debug info about food search results.
+    /// Only logs when owner has debug enabled.
+    /// </summary>
+    private void DebugLogFoodSearch()
+    {
+        if (_owner?.DebugEnabled != true)
+        {
+            return;
+        }
+
+        var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
+        var inventoryFood = inventory?.FindItemByTag(_foodTag);
+        var home = _getHome();
+        StorageTrait? homeStorage = null;
+        Items.Item? homeFood = null;
+
+        if (home != null && GodotObject.IsInstanceValid(home))
+        {
+            homeStorage = home.GetStorage();
+            homeFood = homeStorage?.FindItemByTag(_foodTag);
+        }
+
+        var invInfo = inventoryFood != null ? $"{inventoryFood.Quantity} {inventoryFood.Definition.Name}" : "none";
+        var homeInfo = home?.BuildingName ?? "null";
+        var storageInfo = homeStorage != null ? "exists" : "null";
+        var homeFoodInfo = homeFood != null ? $"{homeFood.Quantity} {homeFood.Definition.Name}" : "none";
+        Log.EntityDebug(_owner.Name, "EATING", $"No {_foodTag} available - Inventory: {invInfo}, Home: {homeInfo}, HomeStorage: {storageInfo}, HomeFood: {homeFoodInfo}", 0);
     }
 
     /// <summary>

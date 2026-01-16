@@ -196,11 +196,17 @@ Territorial behavior for skeleton entities.
 - Intruder detection and pursuit
 - Bone rattle audio integration
 - Last-known-position tracking
+- Uses GoToLocationActivity for returning to spawn and pursuing intruders
 
 **States:**
 - `Idle` - Standing still, chance to wander
 - `Wandering` - Moving within territory
-- `Defending` - Pursuing intruder
+- `Defending` - Pursuing intruder using GoToLocationActivity
+
+**Navigation Pattern:**
+- Uses `GoToLocationActivity` for position-based navigation (return to spawn, pursue intruder)
+- Starts activity with `StartActivityAction`, then checks if activity is running and returns `null` to let activity handle navigation
+- Pursuit uses BDI pattern: goes to believed position, not tracking entity directly
 
 **Territory Parameters:**
 - `TerritoryRange`: 12 tiles
@@ -212,13 +218,18 @@ Hunger-driven behavior for zombie entities.
 
 **Features:**
 - Brain hunger need initialization
-- ConsumptionBehaviorTrait composition
+- ItemConsumptionBehaviorTrait composition for feeding
 - Groan audio integration
 - Wider wander range than skeletons
+- Uses GoToLocationActivity for returning to spawn when wandering too far
 
 **States:**
 - `Idle` - Standing still, chance to groan and wander
-- `Wandering` - Shambling movement
+- `Wandering` - Shambling movement, returns to spawn if too far
+
+**Navigation Pattern:**
+- Uses `GoToLocationActivity` for returning to spawn position
+- Checks if activity is running via `_owner.GetCurrentActivity()` and returns `null` to let activity handle navigation
 
 **Behavior Parameters:**
 - `WanderProbability`: 0.3 (more active)
@@ -226,7 +237,7 @@ Hunger-driven behavior for zombie entities.
 
 **Hunger Configuration:**
 - Need: "Brain Hunger", 60 initial, 0.0015 decay
-- Source: GraveyardSourceIdentifier
+- Food tag: "zombie_food" (corpses)
 - Consumption duration: 365 ticks (messy eaters)
 
 ### VillagerTrait.cs
@@ -237,12 +248,21 @@ Autonomous village life behavior.
 - State-based daily routine with sleep schedule
 - LivingTrait + ItemConsumptionBehaviorTrait composition
 - Home-based food acquisition
+- Uses GoToBuildingActivity for visiting buildings (home, other buildings)
+- Uses GoToLocationActivity for going to village square
 
 **States:**
-- `IdleAtHome` - At home position, may wander or start sleeping
-- `IdleAtSquare` - At village center, social time
-- `VisitingBuilding` - At a specific building
+- `IdleAtHome` - At home position, may wander or start sleeping; uses GoToBuildingActivity to navigate home
+- `IdleAtSquare` - At village center, social time; uses GoToLocationActivity to navigate to square
+- `VisitingBuilding` - At a specific building; uses GoToBuildingActivity to navigate
 - `Sleeping` - Sleeping at home during Night/Dusk (uses SleepActivity)
+
+**Navigation Pattern:**
+- Uses `GoToBuildingActivity` for building-based navigation (home, visiting buildings)
+- Uses `GoToLocationActivity` for position-based navigation (village square)
+- Pattern: start activity with `StartActivityAction`, then check if activity is running and return `null` to let activity handle navigation
+- Example: `return new StartActivityAction(_owner, this, visitActivity, priority: 1);`
+- Then check: `if (_owner.GetCurrentActivity() is GoToBuildingActivity) return null;`
 
 **Discovery:**
 Scans Entities node for Building children on initialization.
@@ -406,6 +426,50 @@ Checking if an entity is undead:
 if (entity.SelfAsEntity().HasTrait<UndeadTrait>())
 ```
 
+### Activity-Based Navigation Pattern
+Traits should use activities (GoToBuildingActivity, GoToLocationActivity) for navigation instead of manual pathfinding. This centralizes navigation logic and handles edge cases.
+
+**Pattern for starting navigation:**
+```csharp
+// Start an activity to navigate somewhere
+var activity = new GoToLocationActivity(targetPosition, priority: 1);
+return new StartActivityAction(_owner, this, activity, priority: 1);
+```
+
+**Pattern for checking if navigation is in progress:**
+```csharp
+// Check if activity is still running - return null to let it handle things
+if (_owner.GetCurrentActivity() is GoToLocationActivity)
+{
+    return null;  // Activity handles navigation
+}
+```
+
+**Common navigation activities:**
+- `GoToBuildingActivity` - Navigate to a building's interior (finds door, enters)
+- `GoToLocationActivity` - Navigate to a specific grid position
+
+**Activity state checking (for traits that manage activities directly):**
+```csharp
+if (_myActivity != null)
+{
+    if (_myActivity.State == Activity.ActivityState.Running)
+    {
+        return _myActivity.GetNextAction(position, perception);
+    }
+    if (_myActivity.State == Activity.ActivityState.Completed)
+    {
+        _myActivity = null;  // Clear completed activity
+        // Handle arrival
+    }
+    if (_myActivity.State == Activity.ActivityState.Failed)
+    {
+        _myActivity = null;  // Clear failed activity
+        // Handle failure (retry or give up)
+    }
+}
+```
+
 ### Audio Integration Pattern
 Traits trigger audio via deferred calls:
 ```csharp
@@ -546,6 +610,71 @@ public class MyJobTrait : BeingTrait
         var workActivity = new MyWorkActivity(_workplace, priority: 0);
         return new StartActivityAction(_owner, this, workActivity, priority: 0);
     }
+}
+```
+
+**Navigating to a building using activity**:
+```csharp
+// Start navigation to a building
+var goToBuildingActivity = new GoToBuildingActivity(targetBuilding, priority: 1);
+return new StartActivityAction(_owner, this, goToBuildingActivity, priority: 1);
+
+// In subsequent calls, check if activity is still running
+if (_owner.GetCurrentActivity() is GoToBuildingActivity)
+{
+    return null;  // Let activity handle navigation
+}
+// Activity completed - we've arrived at the building
+```
+
+**Navigating to a position using activity**:
+```csharp
+// Start navigation to a specific position
+var goToLocationActivity = new GoToLocationActivity(targetPosition, priority: 1);
+return new StartActivityAction(_owner, this, goToLocationActivity, priority: 1);
+
+// In subsequent calls, check if activity is still running
+if (_owner.GetCurrentActivity() is GoToLocationActivity)
+{
+    return null;  // Let activity handle navigation
+}
+// Activity completed - we've arrived at the position
+```
+
+**Managing activity state directly (for more control)**:
+```csharp
+private GoToLocationActivity? _navigationActivity;
+
+public override EntityAction? SuggestAction(Vector2I pos, Perception perception)
+{
+    // Check if we're in the middle of navigation
+    if (_navigationActivity != null)
+    {
+        if (_navigationActivity.State == Activity.ActivityState.Running)
+        {
+            return _navigationActivity.GetNextAction(pos, new Perception());
+        }
+        if (_navigationActivity.State == Activity.ActivityState.Completed)
+        {
+            _navigationActivity = null;
+            // Handle arrival...
+        }
+        if (_navigationActivity.State == Activity.ActivityState.Failed)
+        {
+            _navigationActivity = null;
+            // Handle failure, maybe retry...
+        }
+    }
+
+    // Start new navigation if needed
+    if (needToNavigate)
+    {
+        _navigationActivity = new GoToLocationActivity(target, priority: 1);
+        _navigationActivity.Initialize(_owner);
+        return _navigationActivity.GetNextAction(pos, new Perception());
+    }
+
+    return new IdleAction(_owner, this);
 }
 ```
 

@@ -10,8 +10,8 @@ namespace VeilOfAges.Entities.Activities;
 
 /// <summary>
 /// Activity for processing a reaction (crafting).
-/// Goes to workplace (if specified), checks inputs, waits for duration,
-/// consumes inputs, and produces outputs.
+/// Goes to workplace (if specified), navigates to required facility,
+/// checks inputs, waits for duration, consumes inputs, and produces outputs.
 /// </summary>
 public class ProcessReactionActivity : Activity
 {
@@ -19,8 +19,11 @@ public class ProcessReactionActivity : Activity
     private readonly Building? _workplace;
     private readonly StorageTrait _storage;
 
-    private GoToBuildingActivity? _goToPhase;
+    private GoToBuildingActivity? _goToBuildingPhase;
+    private GoToFacilityActivity? _goToFacilityPhase;
     private uint _processTimer;
+    private bool _isAtBuilding;
+    private bool _isAtFacility;
     private bool _isProcessing;
     private bool _inputsConsumed;
 
@@ -52,50 +55,95 @@ public class ProcessReactionActivity : Activity
             return null;
         }
 
-        // Phase 1: Go to workplace if specified
-        if (_workplace != null && !_isProcessing)
+        // Check workplace still exists (if we have one)
+        if (_workplace != null && !GodotObject.IsInstanceValid(_workplace))
         {
-            // Check workplace still exists
-            if (!GodotObject.IsInstanceValid(_workplace))
+            Log.Warn($"{_owner.Name}: Workplace destroyed while processing {_reaction.Name}");
+            Fail();
+            return null;
+        }
+
+        // Phase 1: Go to workplace building if specified and not yet there
+        if (_workplace != null && !_isAtBuilding)
+        {
+            // Initialize go-to-building phase if needed
+            if (_goToBuildingPhase == null)
             {
-                Log.Warn($"{_owner.Name}: Workplace destroyed while heading to process {_reaction.Name}");
-                Fail();
-                return null;
+                _goToBuildingPhase = new GoToBuildingActivity(_workplace, Priority);
+                _goToBuildingPhase.Initialize(_owner);
             }
 
-            // Initialize go-to phase if needed
-            if (_goToPhase == null)
+            // Run the navigation sub-activity
+            var (result, action) = RunSubActivity(_goToBuildingPhase, position, perception);
+            switch (result)
             {
-                _goToPhase = new GoToBuildingActivity(_workplace, Priority);
-                _goToPhase.Initialize(_owner);
+                case SubActivityResult.Failed:
+                    Fail();
+                    return null;
+                case SubActivityResult.Continue:
+                    return action;
+                case SubActivityResult.Completed:
+                    // Fall through to mark as arrived
+                    break;
             }
 
-            // Check if navigation failed
-            if (_goToPhase.State == ActivityState.Failed)
-            {
-                Fail();
-                return null;
-            }
+            // We've arrived at the building
+            _isAtBuilding = true;
+            Log.Print($"{_owner.Name}: Arrived at {_workplace.BuildingName} to process {_reaction.Name}");
+        }
+        else if (_workplace == null)
+        {
+            // No workplace needed
+            _isAtBuilding = true;
+        }
 
-            // Check if we've arrived
-            if (_goToPhase.State == ActivityState.Completed)
+        // Phase 2: Go to specific facility if reaction requires one and not yet there
+        if (_isAtBuilding && !_isAtFacility)
+        {
+            // Check if reaction requires a facility
+            if (_workplace != null && _reaction.RequiredFacilities.Count > 0)
             {
-                _isProcessing = true;
-                Log.Print($"{_owner.Name}: Arrived at workplace to process {_reaction.Name}");
+                // Initialize go-to-facility phase if needed
+                if (_goToFacilityPhase == null)
+                {
+                    // Use the first required facility
+                    string facilityId = _reaction.RequiredFacilities[0];
+                    _goToFacilityPhase = new GoToFacilityActivity(_workplace, facilityId, Priority);
+                    _goToFacilityPhase.Initialize(_owner);
+                }
+
+                // Run the navigation sub-activity
+                var (result, action) = RunSubActivity(_goToFacilityPhase, position, perception);
+                switch (result)
+                {
+                    case SubActivityResult.Failed:
+                        // Fall back to just being at the building
+                        Log.Warn($"{_owner.Name}: Could not reach facility for {_reaction.Name}, proceeding anyway");
+                        _isAtFacility = true;
+                        break;
+                    case SubActivityResult.Continue:
+                        return action;
+                    case SubActivityResult.Completed:
+                        _isAtFacility = true;
+                        Log.Print($"{_owner.Name}: At {_reaction.RequiredFacilities[0]} to process {_reaction.Name}");
+                        break;
+                }
             }
             else
             {
-                // Still navigating
-                return _goToPhase.GetNextAction(position, perception);
+                // No facility required
+                _isAtFacility = true;
             }
         }
-        else if (_workplace == null && !_isProcessing)
+
+        // Phase 3: Start processing once at facility
+        if (_isAtFacility && !_isProcessing)
         {
-            // No workplace needed, start processing immediately
             _isProcessing = true;
+            Log.Print($"{_owner.Name}: Ready to process {_reaction.Name} (Storage: {_storage.GetContentsSummary()})");
         }
 
-        // Phase 2: Check inputs and process
+        // Phase 4: Check inputs and process
         if (_isProcessing)
         {
             // On first processing tick, verify and consume inputs
@@ -118,7 +166,7 @@ public class ProcessReactionActivity : Activity
             {
                 // Processing complete - produce outputs
                 ProduceOutputs();
-                Log.Print($"{_owner.Name}: Completed {_reaction.Name}");
+                Log.Print($"{_owner.Name}: Completed {_reaction.Name} (Storage: {_storage.GetContentsSummary()})");
                 Complete();
                 return null;
             }

@@ -75,7 +75,6 @@ public class ConsumeItemActivity : Activity
                 {
                     _sourceStorage = inventory;
                     _isConsuming = true;
-                    Log.Print($"{_owner.Name}: Found food in inventory, eating");
                 }
             }
         }
@@ -98,45 +97,42 @@ public class ConsumeItemActivity : Activity
                 _goToPhase.Initialize(_owner);
             }
 
-            // Check if navigation failed
-            if (_goToPhase.State == ActivityState.Failed)
+            // Run the navigation sub-activity
+            var (result, action) = RunSubActivity(_goToPhase, position, perception);
+            switch (result)
             {
-                Fail();
-                return null;
+                case SubActivityResult.Failed:
+                    Fail();
+                    return null;
+                case SubActivityResult.Continue:
+                    return action;
+                case SubActivityResult.Completed:
+                    // Fall through to check storage
+                    break;
             }
 
-            // Check if we've arrived
-            if (_goToPhase.State == ActivityState.Completed)
+            // We've arrived - check home storage for food
+            var homeStorage = _home.GetStorage();
+            if (homeStorage != null)
             {
-                // Check home storage for food
-                var homeStorage = _home.GetStorage();
-                if (homeStorage != null)
+                var foodItem = homeStorage.FindItemByTag(_foodTag);
+                if (foodItem != null)
                 {
-                    var foodItem = homeStorage.FindItemByTag(_foodTag);
-                    if (foodItem != null)
-                    {
-                        _sourceStorage = homeStorage;
-                        _isConsuming = true;
-                        Log.Print($"{_owner.Name}: Found food at home, eating");
-                    }
-                    else
-                    {
-                        Log.Warn($"{_owner.Name}: No food at home");
-                        Fail();
-                        return null;
-                    }
+                    _sourceStorage = homeStorage;
+                    _isConsuming = true;
                 }
                 else
                 {
-                    Log.Warn($"{_owner.Name}: Home has no storage");
+                    Log.Warn($"{_owner.Name}: No food at home");
                     Fail();
                     return null;
                 }
             }
             else
             {
-                // Still navigating
-                return _goToPhase.GetNextAction(position, perception);
+                Log.Warn($"{_owner.Name}: Home has no storage");
+                Fail();
+                return null;
             }
         }
 
@@ -162,7 +158,6 @@ public class ConsumeItemActivity : Activity
                     if (consumed != null)
                     {
                         _itemConsumed = true;
-                        Log.Print($"{_owner.Name}: Consuming {consumed.Definition.Name}");
                     }
                     else
                     {
@@ -185,7 +180,6 @@ public class ConsumeItemActivity : Activity
             {
                 // Apply restoration
                 _need.Restore(_restoreAmount);
-                Log.Print($"{_owner.Name}: Finished eating, restored {_restoreAmount} {_need.DisplayName}");
                 Complete();
                 return null;
             }

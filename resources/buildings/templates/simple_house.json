@@ -13,8 +13,22 @@
     "VolumeCapacity": 1.0,
     "WeightCapacity": -1,
     "DecayRateModifier": 1.0,
-    "Facilities": ["hearth", "quern", "oven"]
+    "Facilities": []
   },
+  "Facilities": [
+    {
+      "Id": "oven",
+      "Position": [1, 2]
+    },
+    {
+      "Id": "quern",
+      "Position": [4, 2]
+    },
+    {
+      "Id": "storage",
+      "Position": [2, 3]
+    }
+  ],
   "EntrancePositions": [
     [
       3,
@@ -330,12 +344,11 @@
       "Material": "Wood"
     },
     {
-      "Position": [
-        1,
-        2
-      ],
-      "Type": "Floor",
-      "Material": "Wood"
+      "Position": [1, 2],
+      "Type": "Decoration",
+      "Material": "Stone",
+      "Category": "Oven",
+      "IsWalkable": false
     },
     {
       "Position": [
@@ -354,12 +367,11 @@
       "Material": "Wood"
     },
     {
-      "Position": [
-        4,
-        2
-      ],
-      "Type": "Floor",
-      "Material": "Wood"
+      "Position": [4, 2],
+      "Type": "Decoration",
+      "Material": "Stone",
+      "Category": "Quern",
+      "IsWalkable": false
     },
     {
       "Position": [
@@ -370,18 +382,14 @@
       "Material": "Wood"
     },
     {
-      "Position": [
-        2,
-        3
-      ],
-      "Type": "Floor",
-      "Material": "Wood"
+      "Position": [2, 3],
+      "Type": "Decoration",
+      "Material": "Wood",
+      "Category": "Chest",
+      "IsWalkable": false
     },
     {
-      "Position": [
-        3,
-        3
-      ],
+      "Position": [3, 3],
       "Type": "Floor",
       "Material": "Wood"
     },

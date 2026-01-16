@@ -42,6 +42,9 @@ public partial class Building : Node2D, IEntity<Trait>
     // Residents tracking
     private readonly List<Being> _residents = [];
 
+    // Facility positions (keyed by facility ID, with list of positions for each)
+    private readonly Dictionary<string, List<Vector2I>> _facilityPositions = new ();
+
     private const int HORIZONTALPIXELOFFSET = -4;
     private const int VERTICALPIXELOFFSET = 1;
 
@@ -81,6 +84,18 @@ public partial class Building : Node2D, IEntity<Trait>
                     template.Storage.DecayRateModifier,
                     template.Storage.Facilities);
                 Traits.Add(storageTrait);
+            }
+
+            // Populate facility positions from template
+            foreach (var facility in template.Facilities)
+            {
+                if (!_facilityPositions.TryGetValue(facility.Id, out var positions))
+                {
+                    positions = new List<Vector2I>();
+                    _facilityPositions[facility.Id] = positions;
+                }
+
+                positions.Add(facility.Position);
             }
 
             // Initialize and setup TileMap
@@ -460,11 +475,43 @@ public partial class Building : Node2D, IEntity<Trait>
     }
 
     /// <summary>
-    /// Get all walkable positions inside the building bounds.
-    /// Queries the GridArea for actual walkability (source of truth).
+    /// Get all interior positions based on tile definitions (inherently walkable tiles).
+    /// Excludes entrance positions (doors) so entities don't idle in doorways.
+    /// Does NOT check current occupancy - use for goal checking (IsGoalReached).
     /// Returns relative positions to building origin.
     /// </summary>
-    /// <returns></returns>
+    public List<Vector2I> GetInteriorPositions()
+    {
+        var result = new HashSet<Vector2I>();
+
+        // Include all tile positions (walls, doors, furniture, etc.)
+        foreach (var tile in _tiles)
+        {
+            if (!_entrancePositions.Contains(tile.Key))
+            {
+                result.Add(tile.Key);
+            }
+        }
+
+        // Include all ground tile positions (floors)
+        foreach (var tile in _groundTiles)
+        {
+            if (!_entrancePositions.Contains(tile.Key))
+            {
+                result.Add(tile.Key);
+            }
+        }
+
+        return result.ToList();
+    }
+
+    /// <summary>
+    /// Get all walkable positions inside the building bounds.
+    /// Excludes entrance positions (doors) so entities don't path to doorways.
+    /// Queries the GridArea for actual walkability (checks current occupancy).
+    /// Use for pathfinding destinations.
+    /// Returns relative positions to building origin.
+    /// </summary>
     public List<Vector2I> GetWalkableInteriorPositions()
     {
         var result = new List<Vector2I>();
@@ -482,7 +529,8 @@ public partial class Building : Node2D, IEntity<Trait>
                 Vector2I relativePos = new (x, y);
                 Vector2I absolutePos = _gridPosition + relativePos;
 
-                if (GridArea.IsCellWalkable(absolutePos))
+                // Exclude entrance positions so entities don't target doorways
+                if (GridArea.IsCellWalkable(absolutePos) && !_entrancePositions.Contains(relativePos))
                 {
                     result.Add(relativePos);
                 }
@@ -534,7 +582,68 @@ public partial class Building : Node2D, IEntity<Trait>
 
     public IEnumerable<string> GetFacilities()
     {
-        var storage = GetStorage();
-        return storage?.Facilities ?? Enumerable.Empty<string>();
+        return _facilityPositions.Keys;
+    }
+
+    /// <summary>
+    /// Get all positions for a given facility type.
+    /// </summary>
+    /// <param name="facilityId">The facility ID to look up.</param>
+    /// <returns>List of relative positions for the facility, or empty list if not found.</returns>
+    public List<Vector2I> GetFacilityPositions(string facilityId)
+    {
+        if (_facilityPositions.TryGetValue(facilityId, out var positions))
+        {
+            return new List<Vector2I>(positions);
+        }
+
+        return new List<Vector2I>();
+    }
+
+    /// <summary>
+    /// Check if building has a specific facility.
+    /// </summary>
+    /// <param name="facilityId">The facility ID to check for.</param>
+    /// <returns>True if the building has at least one instance of the facility.</returns>
+    public bool HasFacility(string facilityId)
+    {
+        return _facilityPositions.ContainsKey(facilityId) && _facilityPositions[facilityId].Count > 0;
+    }
+
+    /// <summary>
+    /// Get a walkable position adjacent to a facility.
+    /// Returns null if no adjacent walkable position exists.
+    /// </summary>
+    /// <param name="facilityPosition">The relative position of the facility within the building.</param>
+    /// <returns>A relative position that is walkable and adjacent to the facility, or null if none exists.</returns>
+    public Vector2I? GetAdjacentWalkablePosition(Vector2I facilityPosition)
+    {
+        // Cardinal directions to check
+        Vector2I[] directions = new[]
+        {
+            new Vector2I(0, -1),  // Up
+            new Vector2I(1, 0),   // Right
+            new Vector2I(0, 1),   // Down
+            new Vector2I(-1, 0) // Left
+        };
+
+        foreach (var direction in directions)
+        {
+            Vector2I adjacentPos = facilityPosition + direction;
+
+            // Check if this position has a walkable tile in our building
+            if (_tiles.TryGetValue(adjacentPos, out var tile) && tile.IsWalkable)
+            {
+                return adjacentPos;
+            }
+
+            // Also check ground tiles (floors are typically in _groundTiles)
+            if (_groundTiles.TryGetValue(adjacentPos, out var groundTile) && groundTile.IsWalkable)
+            {
+                return adjacentPos;
+            }
+        }
+
+        return null;
     }
 }

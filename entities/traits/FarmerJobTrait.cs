@@ -1,5 +1,4 @@
 using Godot;
-using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Activities;
@@ -41,7 +40,7 @@ public class FarmerJobTrait : BeingTrait
         }
 
         // Only work during work hours (Dawn/Day)
-        var gameTime = GameTime.FromTicks(GameController.CurrentTick);
+        var gameTime = _owner.GameController?.CurrentGameTime ?? new GameTime(0);
         if (gameTime.CurrentDayPhase is not(DayPhaseType.Dawn or DayPhaseType.Day))
         {
             return null; // Let VillagerTrait handle night behavior
@@ -58,7 +57,7 @@ public class FarmerJobTrait : BeingTrait
 
     public override string InitialDialogue(Being speaker)
     {
-        var gameTime = GameTime.FromTicks(GameController.CurrentTick);
+        var gameTime = _owner?.GameController?.CurrentGameTime ?? new GameTime(0);
         if (gameTime.CurrentDayPhase is DayPhaseType.Dawn or DayPhaseType.Day)
         {
             return $"Can't talk long, {speaker.Name}. The fields need tending!";

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Activities;
@@ -62,11 +63,12 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     /// </summary>
     /// <param name="category">Category of the message (e.g., "NEEDS", "ACTIVITY").</param>
     /// <param name="message">The message to log.</param>
-    protected void DebugLog(string category, string message)
+    /// <param name="tickInterval">Minimum ticks between logs for this category (0 = always log).</param>
+    protected void DebugLog(string category, string message, int tickInterval = 100)
     {
         if (DebugEnabled)
         {
-            Log.EntityDebug(Name, category, message);
+            Log.EntityDebug(Name, category, message, tickInterval);
         }
     }
 
@@ -88,6 +90,9 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     // Reference to the grid system
     public Area? GridArea { get; protected set; }
 
+    // Reference to the game controller (cached to avoid repeated tree lookups)
+    public GameController? GameController { get; protected set; }
+
     // Trait system
     public SortedSet<BeingTrait> Traits { get; protected set; } = [];
     public Dictionary<SenseType, float> DetectionDifficulties { get; protected set; } = [];
@@ -96,6 +101,9 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
 
     public override void _Ready()
     {
+        // Cache the GameController reference to avoid repeated tree lookups
+        GameController = GetTree().GetFirstNodeInGroup("GameController") as GameController;
+
         // MovementController handles it from here
         var animatedSprite = GetNode<AnimatedSprite2D>("AnimatedSprite2D");
         animatedSprite.Play("idle");
@@ -131,13 +139,34 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             }
         }
 
+        // Log trait information for debug-enabled entities
+        if (DebugEnabled)
+        {
+            LogTraitSummary();
+        }
+
         ZIndex = 7;
     }
 
-    public virtual void Initialize(Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null)
+    /// <summary>
+    /// Log a summary of all traits for debugging purposes.
+    /// </summary>
+    private void LogTraitSummary()
+    {
+        var traitNames = new List<string>();
+        foreach (var trait in Traits)
+        {
+            traitNames.Add($"{trait.GetType().Name}(p:{trait.Priority})");
+        }
+
+        Log.EntityDebug(Name, "TRAITS", $"Initialized with {Traits.Count} traits: {string.Join(", ", traitNames)}", 0);
+    }
+
+    public virtual void Initialize(Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null, bool debugEnabled = false)
     {
         GridArea = gridArea;
         DetectionDifficulties = [];
+        DebugEnabled = debugEnabled;
 
         Name = $"{GetType().Name}-{Guid.NewGuid().ToString("N")[..8]}";
 
@@ -417,9 +446,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         // Choose the highest priority action or default to idle
         if (possibleActions.Count > 0)
         {
-            var action = possibleActions.Dequeue();
-
-            return action;
+            return possibleActions.Dequeue();
         }
 
         // Default idle behavior

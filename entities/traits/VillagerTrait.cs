@@ -1,7 +1,5 @@
-using System;
 using System.Collections.Generic;
 using Godot;
-using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Activities;
@@ -42,6 +40,9 @@ public class VillagerTrait : BeingTrait
 
     // Activity for navigating home
     private GoToBuildingActivity? _goHomeActivity;
+
+    // Activity for navigating to village square
+    private GoToLocationActivity? _goToSquareActivity;
 
     public VillagerTrait(Building? home = null)
     {
@@ -128,6 +129,31 @@ public class VillagerTrait : BeingTrait
     }
 
     /// <summary>
+    /// Check if the entity is currently inside their home building.
+    /// </summary>
+    private bool IsAtHome()
+    {
+        if (_owner == null || _home == null)
+        {
+            return false;
+        }
+
+        Vector2I entityPos = _owner.GetCurrentGridPosition();
+        Vector2I homePos = _home.GetCurrentGridPosition();
+        var interiorPositions = _home.GetInteriorPositions();
+
+        foreach (var relativePos in interiorPositions)
+        {
+            if (entityPos == homePos + relativePos)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Start navigating home using GoToBuildingActivity.
     /// </summary>
     private void StartGoingHome()
@@ -155,7 +181,7 @@ public class VillagerTrait : BeingTrait
         }
 
         // Schedule-based behavior: check time of day
-        var gameTime = GameTime.FromTicks(GameController.CurrentTick);
+        var gameTime = _owner.GameController?.CurrentGameTime ?? new GameTime(0);
         bool shouldSleep = gameTime.CurrentDayPhase is DayPhaseType.Night or
                            DayPhaseType.Dusk;
 
@@ -206,20 +232,59 @@ public class VillagerTrait : BeingTrait
             return null;
         }
 
-        // Start going home if we haven't already
-        if (_goHomeActivity == null)
+        // If already at home, skip navigation entirely
+        if (IsAtHome())
         {
-            StartGoingHome();
-        }
+            // Clear any pending navigation activity
+            if (_goHomeActivity != null)
+            {
+                _goHomeActivity = null;
+            }
 
-        // Still navigating home
-        if (_goHomeActivity != null && _goHomeActivity.State == Activity.ActivityState.Running)
+            // Fall through to at-home logic below
+        }
+        else
         {
-            return _goHomeActivity.GetNextAction(_owner.GetCurrentGridPosition(), new Perception());
-        }
+            // Not at home - need to navigate there
+            // Start going home if we haven't already
+            if (_goHomeActivity == null)
+            {
+                StartGoingHome();
+            }
 
-        // We're at home - clear the activity
-        _goHomeActivity = null;
+            // Check if we have an active go-home activity
+            if (_goHomeActivity != null)
+            {
+                // Still navigating home
+                if (_goHomeActivity.State == Activity.ActivityState.Running)
+                {
+                    return _goHomeActivity.GetNextAction(_owner.GetCurrentGridPosition(), new Perception());
+                }
+
+                // Activity completed - arrived at home
+                if (_goHomeActivity.State == Activity.ActivityState.Completed)
+                {
+                    DebugLog("STATE", "GoHomeActivity completed - arrived at home", 0);
+                    _goHomeActivity = null;
+
+                    // Fall through to at-home logic below
+                }
+                else if (_goHomeActivity.State == Activity.ActivityState.Failed)
+                {
+                    // Navigation failed - restart the activity to try again
+                    DebugLog("STATE", "GoHomeActivity FAILED - restarting navigation", 0);
+                    _goHomeActivity = null;
+                    StartGoingHome();
+                    if (_goHomeActivity != null)
+                    {
+                        return _goHomeActivity.GetNextAction(_owner.GetCurrentGridPosition(), new Perception());
+                    }
+
+                    // If we still can't start navigation, idle for now
+                    return new IdleAction(_owner, this, priority: 1);
+                }
+            }
+        }
 
         // Should we sleep?
         if (shouldSleep)
@@ -237,8 +302,8 @@ public class VillagerTrait : BeingTrait
             {
                 ChangeState(VillagerState.IdleAtSquare, "Going to village square");
                 _stateTimer = (uint)_rng.RandiRange(100, 200);
-                MyPathfinder.SetPositionGoal(_owner, _squarePosition);
-                return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: 1);
+                _goToSquareActivity = new GoToLocationActivity(_squarePosition, priority: 1);
+                return new StartActivityAction(_owner, this, _goToSquareActivity, priority: 1);
             }
 
             // Chance to visit a building
@@ -249,10 +314,9 @@ public class VillagerTrait : BeingTrait
                 if (_currentDestinationBuilding != null)
                 {
                     ChangeState(VillagerState.VisitingBuilding, $"Visiting {_currentDestinationBuilding.BuildingType}");
-                    Vector2I buildingPos = _currentDestinationBuilding.GetCurrentGridPosition();
-                    MyPathfinder.SetPositionGoal(_owner, buildingPos);
                     _stateTimer = (uint)_rng.RandiRange(80, 150);
-                    return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: 1);
+                    var visitActivity = new GoToBuildingActivity(_currentDestinationBuilding, priority: 1);
+                    return new StartActivityAction(_owner, this, visitActivity, priority: 1);
                 }
             }
 
@@ -274,16 +338,28 @@ public class VillagerTrait : BeingTrait
             // Time to go back home - ProcessIdleAtHomeState will handle navigation
             ChangeState(VillagerState.IdleAtHome, "Finished at square, going home");
             _stateTimer = (uint)_rng.RandiRange(150, 300);
+            _goToSquareActivity = null; // Clear the activity when leaving state
             return null;
         }
 
-        // Check if we're already at the square
+        // Check if GoToLocationActivity is still running
+        if (_owner.GetCurrentActivity() is GoToLocationActivity)
+        {
+            // Let the activity handle navigation
+            return null;
+        }
+
+        // Activity completed or not started - check if we're at the square
         Vector2I currentPos = _owner.GetCurrentGridPosition();
         if (currentPos.DistanceTo(_squarePosition) > 3)
         {
-            MyPathfinder.SetPositionGoal(_owner, _squarePosition);
-            return new MoveAlongPathAction(_owner, this, MyPathfinder);
+            // Need to navigate to square (activity failed or wasn't started)
+            _goToSquareActivity = new GoToLocationActivity(_squarePosition, priority: 1);
+            return new StartActivityAction(_owner, this, _goToSquareActivity, priority: 1);
         }
+
+        // We're at the square - clear activity reference
+        _goToSquareActivity = null;
 
         // If we're at the square, just idle or wander slightly
         if (_rng.Randf() < 0.2f)
@@ -308,38 +384,30 @@ public class VillagerTrait : BeingTrait
             return null;
         }
 
-        if (_stateTimer == 0 || _currentDestinationBuilding == null)
+        if (_currentDestinationBuilding == null)
         {
-            // Time to go back home - ProcessIdleAtHomeState will handle navigation
+            ChangeState(VillagerState.IdleAtHome, "No destination building");
+            return null;
+        }
+
+        // Check if GoToBuildingActivity is still running
+        if (_owner.GetCurrentActivity() is GoToBuildingActivity)
+        {
+            // Let the activity handle navigation
+            return null;
+        }
+
+        // Activity completed (we're inside) or failed - check timer for how long to stay
+        if (_stateTimer == 0)
+        {
+            // Time to go back home
             ChangeState(VillagerState.IdleAtHome, "Finished visiting, going home");
             _stateTimer = (uint)_rng.RandiRange(150, 300);
             return null;
         }
 
-        // Check if we're at the building
-        Vector2I currentPos = _owner.GetCurrentGridPosition();
-        Vector2I buildingPos = _currentDestinationBuilding.GetCurrentGridPosition();
-        Vector2I buildingSize = _currentDestinationBuilding.GridSize;
-
-        bool atBuilding = false;
-        for (int x = -1; x <= buildingSize.X && !atBuilding; x++)
-        {
-            for (int y = -1; y <= buildingSize.Y && !atBuilding; y++)
-            {
-                if (currentPos == buildingPos + new Vector2I(x, y))
-                {
-                    atBuilding = true;
-                }
-            }
-        }
-
-        if (!atBuilding)
-        {
-            MyPathfinder.SetPositionGoal(_owner, buildingPos);
-            return new MoveAlongPathAction(_owner, this, MyPathfinder);
-        }
-
-        return new IdleAction(_owner, this);
+        // We're at the building, idle until timer expires
+        return new IdleAction(_owner, this, priority: 1);
     }
 
     private EntityAction? ProcessSleepingState()

@@ -18,10 +18,10 @@ public partial class Player : Being
     public override BeingAttributes DefaultAttributes { get; } = BaseAttributesSet;
     private readonly ReorderableQueue<EntityCommand> _commandQueue = new ();
 
-    public override void Initialize(Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null)
+    public override void Initialize(Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null, bool debugEnabled = false)
     {
         BaseMovementPointsPerTick = 0.5f; // Fast entity (2 ticks per tile)
-        base.Initialize(gridArea, startGridPos, attributes);
+        base.Initialize(gridArea, startGridPos, attributes, debugEnabled);
         Name = "Lilith Galonadel";
 
         // Example of the new AddTraitToQueue method - much cleaner than creating and adding separately

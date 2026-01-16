@@ -43,9 +43,9 @@ public partial class MindlessSkeleton : Being
         Log.Print("Skeleton initialized with traits");
     }
 
-    public override void Initialize(Grid.Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null)
+    public override void Initialize(Grid.Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null, bool debugEnabled = false)
     {
-        base.Initialize(gridArea, startGridPos, attributes);
+        base.Initialize(gridArea, startGridPos, attributes, debugEnabled);
 
         // Any skeleton-specific initialization after base initialization
         Log.Print($"Skeleton spawned at {startGridPos}");

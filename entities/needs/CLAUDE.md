@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This directory implements the needs system for entities. Needs represent ongoing requirements (like hunger) that decay over time and must be satisfied. The system uses a strategy pattern to allow different entity types to satisfy needs in different ways.
+This directory implements the needs system for entities. Needs represent ongoing requirements (like hunger) that decay over time and must be satisfied.
 
 ## Files
 
@@ -26,36 +26,31 @@ Core need class representing a single need type.
 - `IsCritical()`, `IsLow()`, `IsSatisfied()` - Threshold checks
 - `GetStatus()` - String status ("Critical", "Low", "Normal", "Satisfied")
 
-### IFoodStrategies.cs
-Strategy interfaces for the food acquisition system.
+### IFoodStrategies.cs (Legacy - May Be Removed)
+Strategy interfaces for the old food acquisition system. These are **no longer actively used** - the system has migrated to `ItemConsumptionBehaviorTrait`.
 
-**IFoodSourceIdentifier:**
-- `IdentifyFoodSource(owner, perception)` - Find appropriate food building
+**Legacy Interfaces:**
+- `IFoodSourceIdentifier` - Find appropriate food building
+- `IFoodAcquisitionStrategy` - Create movement action to food source
+- `IConsumptionEffect` - Execute consumption effects
+- `ICriticalStateHandler` - Handle emergency state
 
-**IFoodAcquisitionStrategy:**
-- `GetAcquisitionAction(owner, foodSource)` - Create movement action
-- `IsAtFoodSource(owner, foodSource)` - Check arrival
-
-**IConsumptionEffect:**
-- `Apply(owner, need, foodSource)` - Execute consumption effects
-
-**ICriticalStateHandler:**
-- `HandleCriticalState(owner, need)` - Handle emergency state
+**Note:** These interfaces and the old `ConsumptionBehaviorTrait` have been superseded by `ItemConsumptionBehaviorTrait`, which uses items and inventory/storage instead of building-based strategies.
 
 ## Subdirectory
 
 ### /strategies
-Contains concrete implementations of the strategy interfaces for different entity types.
+Previously contained concrete implementations of the strategy interfaces (FarmFoodStrategies.cs, GraveyardFoodStrategies.cs). These files have been **deleted** as the system now uses `ItemConsumptionBehaviorTrait` instead.
 
 ## Key Classes/Interfaces
 
 | Type | Description |
 |------|-------------|
 | `Need` | Single need instance with decay |
-| `IFoodSourceIdentifier` | Find food source strategy |
-| `IFoodAcquisitionStrategy` | Movement to food strategy |
-| `IConsumptionEffect` | Consumption result strategy |
-| `ICriticalStateHandler` | Emergency state handler |
+| `IFoodSourceIdentifier` | (Legacy) Find food source strategy |
+| `IFoodAcquisitionStrategy` | (Legacy) Movement to food strategy |
+| `IConsumptionEffect` | (Legacy) Consumption result strategy |
+| `ICriticalStateHandler` | (Legacy) Emergency state handler |
 
 ## Important Notes
 
@@ -78,7 +73,7 @@ This is inverted from some other systems - higher is better.
 **Hunger** (living entities):
 - Added by: `LivingTrait`
 - Initial: 75, Decay: 0.02/tick, Thresholds: 15/40/90
-- Satisfied by: `ConsumptionBehaviorTrait` + `EatActivity` at farms
+- Satisfied by: `ItemConsumptionBehaviorTrait` with food items from inventory or home storage
 - Modified by activities:
   - Sleep: 0.25x decay (slower)
   - Work: 1.2x decay (faster)
@@ -94,29 +89,37 @@ This is inverted from some other systems - higher is better.
 **Brain Hunger** (zombies):
 - Added by: `ZombieTrait`
 - Initial: 60, Decay: 0.0015/tick (very slow)
-- Satisfied by: `ConsumptionBehaviorTrait` at graveyards
+- Satisfied by: `ItemConsumptionBehaviorTrait` with "zombie_food" tagged items
 
-### Strategy Pattern Usage
-The strategy pattern allows entity-specific behavior:
+### ItemConsumptionBehaviorTrait (Current System)
+The new item-based consumption system uses `ItemConsumptionBehaviorTrait` which:
+1. Checks if the need is low/critical
+2. Looks for food in inventory first, then home storage
+3. Starts `ConsumeItemActivity` to handle consumption
+4. Uses tag-based food identification (e.g., "food", "zombie_food")
+
 ```csharp
-// Villagers use farms
-new FarmSourceIdentifier()
-new FarmAcquisitionStrategy()
-new FarmConsumptionEffect()
+// Villagers consume items with "food" tag
+new ItemConsumptionBehaviorTrait(
+    "hunger",
+    "food",
+    () => villagerTrait?.Home,
+    restoreAmount: 60f,
+    consumptionDuration: 244
+);
 
-// Zombies use graveyards
-new GraveyardSourceIdentifier()
-new GraveyardAcquisitionStrategy()
-new ZombieConsumptionEffect()
+// Zombies consume items with "zombie_food" tag
+new ItemConsumptionBehaviorTrait(
+    "Brain Hunger",
+    "zombie_food",
+    () => null,  // No home for zombies
+    restoreAmount: 70f,
+    consumptionDuration: 365
+);
 ```
 
-### Integration with ConsumptionBehaviorTrait
-The strategies are consumed by `ConsumptionBehaviorTrait` which:
-1. Uses identifier to find food
-2. Uses acquisition to move to food
-3. Handles consumption timing
-4. Uses effect to apply results
-5. Uses critical handler when needed
+### Legacy Strategy Pattern (Deprecated)
+The old strategy pattern (`ConsumptionBehaviorTrait` with `IFoodSourceIdentifier`, `IFoodAcquisitionStrategy`, etc.) has been replaced by the item-based system above. The strategy interfaces in `IFoodStrategies.cs` may be removed in a future cleanup.
 
 ## Creating a New Need
 
@@ -135,27 +138,27 @@ _owner?.NeedsSystem.AddNeed(new Need(
 ));
 ```
 
-2. **Create satisfaction strategies** (see `/entities/needs/strategies/`)
-
-3. **Wire up with ConsumptionBehaviorTrait**:
+2. **Wire up with ItemConsumptionBehaviorTrait** (recommended approach):
 ```csharp
-var consumptionTrait = new ConsumptionBehaviorTrait(
+var consumptionTrait = new ItemConsumptionBehaviorTrait(
     "thirst",                        // needId - matches the Need's id
-    new WellSourceIdentifier(),      // where to find the resource
-    new WellAcquisitionStrategy(),   // how to get there
-    new DrinkingEffect(),            // what happens when consuming
-    new ThirstCriticalHandler(),     // what to do in emergencies
-    120                              // consumptionDuration in ticks
+    "drink",                         // foodTag - tag to identify consumable items
+    () => _home,                     // getHome - function to get home building
+    restoreAmount: 50f,              // how much to restore on consumption
+    consumptionDuration: 120         // ticks to spend consuming
 );
-_owner?.selfAsEntity().AddTraitToQueue(consumptionTrait, Priority - 1, initQueue);
+_owner?.SelfAsEntity().AddTraitToQueue(consumptionTrait, Priority - 1, initQueue);
 ```
+
+3. **Ensure items exist** with the appropriate tag in your item definitions (e.g., items with "drink" tag for thirst).
 
 ### Key Considerations
 
 - **Value direction**: 0 = bad (starving), 100 = good (full)
 - **Decay rate**: Villager hunger is 0.02/tick, zombie is 0.0015/tick (much slower)
 - **Thresholds**: Critical < Low < Satisfied (e.g., 15, 30, 90)
-- **ConsumptionBehaviorTrait priority**: Should be `Priority - 1` so it can override the parent trait when the entity is hungry
+- **ItemConsumptionBehaviorTrait priority**: Should be `Priority - 1` so it can override the parent trait when the entity needs satisfaction
+- **Item tags**: Use the item tagging system (in item definitions) to identify consumables for each need
 
 ### Decay Rate Reference
 
@@ -169,10 +172,11 @@ At 8 ticks/second:
 
 ### Depends On
 - `VeilOfAges.Entities.Being` - Owner reference
-- `VeilOfAges.Entities.Building` - Food source buildings
-- `VeilOfAges.Entities.Sensory.Perception` - For source identification
+- `VeilOfAges.Entities.Building` - Home storage access
+- `VeilOfAges.Entities.Items` - Item and inventory system
 
 ### Depended On By
 - `VeilOfAges.Entities.BeingServices.BeingNeedsSystem` - Need management
-- `VeilOfAges.Entities.Traits.ConsumptionBehaviorTrait` - Need satisfaction
+- `VeilOfAges.Entities.Traits.ItemConsumptionBehaviorTrait` - Need satisfaction via items
+- `VeilOfAges.Entities.Activities.ConsumeItemActivity` - Actual consumption logic
 - Individual trait implementations (VillagerTrait, ZombieTrait)

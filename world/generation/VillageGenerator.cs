@@ -22,18 +22,23 @@ public class VillageGenerator
     private readonly Node _entitiesContainer;
     private readonly Area _gridArea;
     private readonly RandomNumberGenerator _rng = new ();
-    private readonly EntityThinkingSystem _entityThinkingSystem;
     private readonly BuildingManager? _buildingManager;
+    private readonly EntityThinkingSystem _entityThinkingSystem;
 
     // Track placed farms for assigning farmers
     private readonly List<Building> _placedFarms = new ();
-    private bool _farmerSpawned;
 
     // Track placed houses for assigning villagers
     private readonly List<Building> _placedHouses = new ();
 
     // Track spawned villagers for debug selection
     private readonly List<Being> _spawnedVillagers = new ();
+
+    // Debug villager selection - specifically target bakers for debugging
+    private bool _debugVillagerSelected;
+#pragma warning disable CS0649 // Field never assigned (intentional: set to job name for debugging)
+    private readonly string? _debugTargetJob; // Set to a job name (e.g., "baker") to target, or leave unset for random
+#pragma warning restore CS0649
 
     public VillageGenerator(
         Area gridArea,
@@ -88,31 +93,35 @@ public class VillageGenerator
 
         Log.Print("Hello my baby");
 
+        // Reset debug selection state
+        _debugVillagerSelected = false;
+
         // Place various buildings around the village
         PlaceVillageBuildings(villageCenter);
 
         CreateVillagePaths(villageCenter);
 
-        // Enable debug mode on a random villager
-        EnableDebugOnRandomVillager();
+        // Log which villager was selected for debug
+        LogDebugVillagerSelection();
     }
 
     /// <summary>
-    /// Randomly selects one villager and enables debug logging for them.
+    /// Logs which villager was selected for debug mode.
+    /// Debug mode is enabled during initialization, this just confirms the selection.
     /// </summary>
-    private void EnableDebugOnRandomVillager()
+    private void LogDebugVillagerSelection()
     {
-        if (_spawnedVillagers.Count == 0)
+        // Find the debug-enabled villager
+        foreach (var villager in _spawnedVillagers)
         {
-            Log.Warn("No villagers spawned, cannot enable debug mode");
-            return;
+            if (villager.DebugEnabled)
+            {
+                Log.Print($"DEBUG MODE ENABLED for villager: {villager.Name}");
+                return;
+            }
         }
 
-        int index = _rng.RandiRange(0, _spawnedVillagers.Count - 1);
-        var debugVillager = _spawnedVillagers[index];
-        debugVillager.DebugEnabled = true;
-
-        Log.Print($"DEBUG MODE ENABLED for villager: {debugVillager.Name}");
+        Log.Warn("No villagers spawned with debug mode enabled");
     }
 
     /// <summary>
@@ -251,15 +260,15 @@ public class VillageGenerator
                                 StockHouseWithFood(typedBuilding);
 
                                 // Spawn 2 villagers per house
-                                // First villager: farmer if farms exist, otherwise regular villager
-                                if (!_farmerSpawned && _placedFarms.Count > 0)
+                                // First villager: farmer if farms exist (multiple farmers can share a farm)
+                                if (_placedFarms.Count > 0)
                                 {
                                     SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene,
                                         home: typedBuilding, job: "farmer", workplace: _placedFarms[0]);
-                                    _farmerSpawned = true;
                                 }
                                 else
                                 {
+                                    // No farms available, spawn regular villager
                                     SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene,
                                         home: typedBuilding);
                                 }
@@ -360,7 +369,26 @@ public class VillageGenerator
 
             if (being is Being typedBeing)
             {
-                typedBeing.Initialize(_gridArea, beingPos);
+                // Check if this villager should have debug enabled
+                // If targeting a specific job, only that job gets debug. Otherwise, first villager.
+                bool isDebugVillager = false;
+                if (!_debugVillagerSelected)
+                {
+                    if (_debugTargetJob == null)
+                    {
+                        // No target job: debug the first villager
+                        isDebugVillager = true;
+                        _debugVillagerSelected = true;
+                    }
+                    else if (string.Equals(job, _debugTargetJob, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Target job matches: debug this villager
+                        isDebugVillager = true;
+                        _debugVillagerSelected = true;
+                    }
+                }
+
+                typedBeing.Initialize(_gridArea, beingPos, debugEnabled: isDebugVillager);
 
                 // Set pending home before adding to scene tree (HumanTownsfolk._Ready will use it)
                 if (home != null && typedBeing is HumanTownsfolk townsfolk)
@@ -395,18 +423,19 @@ public class VillageGenerator
                     Log.Print($"Spawned villager at {beingPos} (no job)");
                 }
 
-                _entityThinkingSystem.RegisterEntity(typedBeing);
-
                 // Track villager for debug selection
                 _spawnedVillagers.Add(typedBeing);
+
+                _gridArea.AddEntity(beingPos, being);
+                _entitiesContainer.AddChild(being);
+                _entityThinkingSystem.RegisterEntity(typedBeing);
             }
             else
             {
                 being.Position = Utils.GridToWorld(beingPos);
+                _gridArea.AddEntity(beingPos, being);
+                _entitiesContainer.AddChild(being);
             }
-
-            _gridArea.AddEntity(beingPos, being);
-            _entitiesContainer.AddChild(being);
         }
         else
         {
@@ -495,7 +524,6 @@ public class VillageGenerator
                 var zombieTrait = typedBeing.SelfAsEntity().GetTrait<ZombieTrait>();
                 zombieTrait?.SetHomeGraveyard(homeGraveyard);
 
-                _entityThinkingSystem.RegisterEntity(typedBeing);
                 Log.Print($"Spawned {typedBeing.GetType().Name} at {beingPos} (home: {homeGraveyard.BuildingName})");
             }
             else
@@ -506,6 +534,11 @@ public class VillageGenerator
 
             _gridArea.AddEntity(beingPos, being);
             _entitiesContainer.AddChild(being);
+
+            if (being is Being typedBeingForRegister)
+            {
+                _entityThinkingSystem.RegisterEntity(typedBeingForRegister);
+            }
         }
         else
         {

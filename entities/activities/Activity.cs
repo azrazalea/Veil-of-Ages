@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Core.Lib;
+using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Sensory;
 
 namespace VeilOfAges.Entities.Activities;
@@ -17,6 +18,21 @@ public abstract class Activity
     {
         Running,
         Completed,
+        Failed
+    }
+
+    /// <summary>
+    /// Result of running a sub-activity via RunSubActivity helper.
+    /// </summary>
+    public enum SubActivityResult
+    {
+        /// <summary>Sub-activity is still running, use the returned action.</summary>
+        Continue,
+
+        /// <summary>Sub-activity completed successfully, proceed to next phase.</summary>
+        Completed,
+
+        /// <summary>Sub-activity failed.</summary>
         Failed
     }
 
@@ -91,6 +107,75 @@ public abstract class Activity
     /// Marks the activity as failed.
     /// </summary>
     protected void Fail() => State = ActivityState.Failed;
+
+    /// <summary>
+    /// Runs a sub-activity and handles the common pattern where the sub-activity may
+    /// complete immediately (returning null) on the same tick. This prevents the parent
+    /// activity from being overwritten by other traits when the sub-activity completes.
+    /// </summary>
+    /// <param name="subActivity">The sub-activity to run.</param>
+    /// <param name="position">Current position to pass to sub-activity.</param>
+    /// <param name="perception">Current perception to pass to sub-activity.</param>
+    /// <returns>
+    /// A tuple of (result, action):
+    /// - Continue: Sub-activity is running, return the action
+    /// - Completed: Sub-activity finished, proceed to next phase
+    /// - Failed: Sub-activity failed, handle the failure.
+    /// </returns>
+    /// <example>
+    /// var (result, action) = RunSubActivity(_goToPhase, position, perception);
+    /// switch (result)
+    /// {
+    ///     case SubActivityResult.Failed:
+    ///         Fail();
+    ///         return null;
+    ///     case SubActivityResult.Continue:
+    ///         return action;
+    ///     case SubActivityResult.Completed:
+    ///         // Fall through to next phase
+    ///         break;
+    /// }.
+    /// </example>
+    protected (SubActivityResult result, EntityAction? action) RunSubActivity(
+        Activity subActivity,
+        Vector2I position,
+        Perception perception)
+    {
+        // Already failed
+        if (subActivity.State == ActivityState.Failed)
+        {
+            return (SubActivityResult.Failed, null);
+        }
+
+        // Already completed
+        if (subActivity.State == ActivityState.Completed)
+        {
+            return (SubActivityResult.Completed, null);
+        }
+
+        // Try to get next action
+        var action = subActivity.GetNextAction(position, perception);
+
+        // Got an action - sub-activity is running
+        if (action != null)
+        {
+            return (SubActivityResult.Continue, action);
+        }
+
+        // Action was null - state may have changed during GetNextAction
+        if (subActivity.State == ActivityState.Completed)
+        {
+            return (SubActivityResult.Completed, null);
+        }
+
+        if (subActivity.State == ActivityState.Failed)
+        {
+            return (SubActivityResult.Failed, null);
+        }
+
+        // Still running but returned null - return idle to hold our slot
+        return (SubActivityResult.Continue, new IdleAction(_owner!, this, Priority));
+    }
 
     /// <summary>
     /// Log a debug message if the owner has debugging enabled.

@@ -71,6 +71,53 @@ DebugLog("SLEEP", $"Energy: {_energyNeed.CurrentValue:F1}", 50);
 - Use default `tickInterval=100` for recurring status messages to avoid log spam
 - Category names should be consistent within an activity (e.g., "WORK_FIELD" for WorkFieldActivity)
 
+**Sub-Activity Helper (RunSubActivity):**
+
+When activities compose other activities (e.g., ConsumeItemActivity uses GoToBuildingActivity), the sub-activity may complete immediately on the same tick if the goal is already reached. Without proper handling, this can cause the parent activity to return `null`, allowing other traits to overwrite it.
+
+The `RunSubActivity` helper method handles this pattern safely:
+
+```csharp
+protected (SubActivityResult result, EntityAction? action) RunSubActivity(
+    Activity subActivity,
+    Vector2I position,
+    Perception perception)
+```
+
+**Returns a tuple with:**
+- `SubActivityResult.Continue` - Sub-activity is running, return the action
+- `SubActivityResult.Completed` - Sub-activity finished, proceed to next phase
+- `SubActivityResult.Failed` - Sub-activity failed, handle the error
+
+**Usage Pattern:**
+```csharp
+// Initialize sub-activity if needed
+if (_goToPhase == null)
+{
+    _goToPhase = new GoToBuildingActivity(_building, Priority);
+    _goToPhase.Initialize(_owner);
+}
+
+// Run it using the helper
+var (result, action) = RunSubActivity(_goToPhase, position, perception);
+switch (result)
+{
+    case SubActivityResult.Failed:
+        Fail();
+        return null;
+    case SubActivityResult.Continue:
+        return action;  // Still navigating
+    case SubActivityResult.Completed:
+        break;  // Fall through to next phase
+}
+
+// We've arrived - continue with next phase logic
+```
+
+**Why this matters:**
+- If a sub-activity's `GetNextAction()` returns `null` (e.g., goal already reached), the helper checks if the state changed to Completed
+- If still Running but returned null (edge case), it returns an IdleAction to "hold the slot" and prevent other traits from overwriting the activity
+
 ### GoToLocationActivity.cs
 Moves an entity to a specific grid position.
 

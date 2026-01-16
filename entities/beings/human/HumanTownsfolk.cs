@@ -31,9 +31,9 @@ public partial class HumanTownsfolk : Being
         base._Ready();
     }
 
-    public override void Initialize(Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null)
+    public override void Initialize(Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null, bool debugEnabled = false)
     {
         BaseMovementPointsPerTick = 0.33f; // Average human speed (3.33 ticks per tile)
-        base.Initialize(gridArea, startGridPos, attributes);
+        base.Initialize(gridArea, startGridPos, attributes, debugEnabled);
     }
 }

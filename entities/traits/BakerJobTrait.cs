@@ -1,5 +1,5 @@
+using System.Linq;
 using Godot;
-using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Activities;
@@ -45,7 +45,7 @@ public class BakerJobTrait : BeingTrait
         }
 
         // Only work during work hours (Dawn/Day)
-        var gameTime = GameTime.FromTicks(GameController.CurrentTick);
+        var gameTime = _owner.GameController?.CurrentGameTime ?? new GameTime(0);
         if (gameTime.CurrentDayPhase is not(DayPhaseType.Dawn or DayPhaseType.Day))
         {
             return null; // Let VillagerTrait handle night behavior
@@ -55,7 +55,6 @@ public class BakerJobTrait : BeingTrait
         var storage = _workplace.GetStorage();
         if (storage == null)
         {
-            Log.Warn($"{_owner.Name}: Workplace {_workplace.BuildingName} has no storage");
             return null;
         }
 
@@ -66,16 +65,21 @@ public class BakerJobTrait : BeingTrait
 
         foreach (var tag in _reactionTags)
         {
-            foreach (var reaction in ReactionResourceManager.Instance.GetReactionsByTag(tag))
+            var taggedReactions = ReactionResourceManager.Instance.GetReactionsByTag(tag);
+
+            foreach (var reaction in taggedReactions)
             {
                 // Check if we have the required facilities
-                if (!reaction.CanPerformWith(facilities))
+                bool hasFacilities = reaction.CanPerformWith(facilities);
+                bool hasInputs = HasRequiredInputs(reaction, storage);
+
+                if (!hasFacilities)
                 {
                     continue;
                 }
 
                 // Check if we have the required inputs
-                if (HasRequiredInputs(reaction, storage))
+                if (hasInputs)
                 {
                     selectedReaction = reaction;
                     break;
@@ -90,11 +94,11 @@ public class BakerJobTrait : BeingTrait
 
         if (selectedReaction == null)
         {
-            // No reaction available, just idle
-            return new IdleAction(_owner, this, priority: 1);
+            return null;
         }
 
         // Start processing the reaction
+        DebugLog("BAKER", $"Starting reaction: {selectedReaction.Id}");
         var processActivity = new ProcessReactionActivity(selectedReaction, _workplace, storage, priority: 0);
         return new StartActivityAction(_owner, this, processActivity, priority: 0);
     }
@@ -122,7 +126,7 @@ public class BakerJobTrait : BeingTrait
 
     public override string InitialDialogue(Being speaker)
     {
-        var gameTime = GameTime.FromTicks(GameController.CurrentTick);
+        var gameTime = _owner?.GameController?.CurrentGameTime ?? new GameTime(0);
         if (gameTime.CurrentDayPhase is DayPhaseType.Dawn or DayPhaseType.Day)
         {
             return $"Morning, {speaker.Name}! The mill waits for no one.";

@@ -1,5 +1,4 @@
 using Godot;
-using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Items;
@@ -12,11 +11,12 @@ namespace VeilOfAges.Entities.Activities;
 /// <summary>
 /// Activity for working at a field/farm during daytime.
 /// Phases:
-/// 1. Navigate to workplace
-/// 2. Work (idle, produce wheat)
-/// 3. Take wheat from farm storage into inventory
-/// 4. Navigate home
-/// 5. Deposit wheat to home storage
+/// 1. Navigate to workplace building
+/// 2. Navigate to crop facility (if available)
+/// 3. Work (idle, produce wheat)
+/// 4. Take wheat from farm storage into inventory
+/// 5. Navigate home
+/// 6. Deposit wheat to home storage
 /// Completes after depositing or if day phase ends.
 /// Drains energy while working (restored by sleeping).
 /// </summary>
@@ -25,6 +25,7 @@ public class WorkFieldActivity : Activity
     private enum WorkPhase
     {
         GoingToWork,
+        GoingToCrop,
         Working,
         TakingWheat,
         GoingHome,
@@ -47,6 +48,7 @@ public class WorkFieldActivity : Activity
     private readonly uint _workDuration;
 
     private GoToBuildingActivity? _goToWorkPhase;
+    private GoToFacilityActivity? _goToCropPhase;
     private GoToBuildingActivity? _goToHomePhase;
     private uint _workTimer;
     private WorkPhase _currentPhase = WorkPhase.GoingToWork;
@@ -55,6 +57,7 @@ public class WorkFieldActivity : Activity
     public override string DisplayName => _currentPhase switch
     {
         WorkPhase.GoingToWork => "Going to work",
+        WorkPhase.GoingToCrop => "Going to crops",
         WorkPhase.Working => $"Working at {_workplace.BuildingType}",
         WorkPhase.TakingWheat => "Gathering harvest",
         WorkPhase.GoingHome => "Bringing harvest home",
@@ -88,7 +91,7 @@ public class WorkFieldActivity : Activity
         // Get energy need - work directly costs energy (not via decay multiplier)
         _energyNeed = owner.NeedsSystem?.GetNeed("energy");
 
-        DebugLog("ACTIVITY", $"Started WorkFieldActivity at {_workplace.BuildingName}, home: {_home?.BuildingName ?? "none"}", 0);
+        DebugLog("ACTIVITY", $"Started WorkFieldActivity at {_workplace.BuildingName}, home: {_home?.BuildingName ?? "none"}, priority: {Priority}", 0);
     }
 
     public override EntityAction? GetNextAction(Vector2I position, Perception perception)
@@ -107,11 +110,11 @@ public class WorkFieldActivity : Activity
         }
 
         // Check if work time has ended (day phase changed to dusk/night)
-        // If we're still working, transition to taking wheat and going home
-        var gameTime = GameTime.FromTicks(GameController.CurrentTick);
+        // If we're still working or navigating to crops, transition to taking wheat and going home
+        var gameTime = _owner.GameController?.CurrentGameTime ?? new GameTime(0);
         if (gameTime.CurrentDayPhase is not(DayPhaseType.Dawn or DayPhaseType.Day))
         {
-            if (_currentPhase == WorkPhase.Working)
+            if (_currentPhase is WorkPhase.Working or WorkPhase.GoingToCrop)
             {
                 Log.Print($"{_owner.Name}: Work time ended, gathering harvest to bring home");
                 _currentPhase = WorkPhase.TakingWheat;
@@ -121,6 +124,7 @@ public class WorkFieldActivity : Activity
         return _currentPhase switch
         {
             WorkPhase.GoingToWork => ProcessGoingToWork(position, perception),
+            WorkPhase.GoingToCrop => ProcessGoingToCrop(position, perception),
             WorkPhase.Working => ProcessWorking(),
             WorkPhase.TakingWheat => ProcessTakingWheat(),
             WorkPhase.GoingHome => ProcessGoingHome(position, perception),
@@ -143,25 +147,79 @@ public class WorkFieldActivity : Activity
             _goToWorkPhase.Initialize(_owner);
         }
 
-        // Check if navigation failed
-        if (_goToWorkPhase.State == ActivityState.Failed)
+        // Run the navigation sub-activity
+        var (result, action) = RunSubActivity(_goToWorkPhase, position, perception);
+        switch (result)
         {
-            Fail();
+            case SubActivityResult.Failed:
+                Fail();
+                return null;
+            case SubActivityResult.Continue:
+                return action;
+            case SubActivityResult.Completed:
+                // Fall through to handle arrival
+                break;
+        }
+
+        // We've arrived at building
+        Log.Print($"{_owner.Name}: Arrived at {_workplace.BuildingType}");
+        DebugLog("ACTIVITY", $"Arrived at workplace, now navigating to crop facility", 0);
+
+        // If the workplace has a crop facility, navigate to it; otherwise start working directly
+        if (_workplace.HasFacility("crop"))
+        {
+            _currentPhase = WorkPhase.GoingToCrop;
+        }
+        else
+        {
+            // No crop facility defined, proceed to work directly
+            _currentPhase = WorkPhase.Working;
+            Log.Print($"{_owner.Name}: Started working at {_workplace.BuildingType}");
+            DebugLog("ACTIVITY", $"No crop facility, starting work phase directly (duration: {_workDuration} ticks)", 0);
+            LogStorageInfo();
+        }
+
+        return new IdleAction(_owner, this, Priority);
+    }
+
+    private EntityAction? ProcessGoingToCrop(Vector2I position, Perception perception)
+    {
+        if (_owner == null)
+        {
             return null;
         }
 
-        // Check if we've arrived
-        if (_goToWorkPhase.State == ActivityState.Completed)
+        // Initialize go-to-crop phase if needed
+        if (_goToCropPhase == null)
         {
-            _currentPhase = WorkPhase.Working;
-            Log.Print($"{_owner.Name}: Started working at {_workplace.BuildingType}");
-            DebugLog("ACTIVITY", $"Arrived at workplace, starting work phase (duration: {_workDuration} ticks)", 0);
-            LogStorageInfo();
-            return new IdleAction(_owner, this, Priority);
+            _goToCropPhase = new GoToFacilityActivity(_workplace, "crop", Priority);
+            _goToCropPhase.Initialize(_owner);
         }
 
-        // Still navigating
-        return _goToWorkPhase.GetNextAction(position, perception);
+        // Run the navigation sub-activity
+        var (result, action) = RunSubActivity(_goToCropPhase, position, perception);
+        switch (result)
+        {
+            case SubActivityResult.Failed:
+                // Fall back to working at current position
+                Log.Warn($"{_owner.Name}: Could not reach crop facility, working at current position");
+                DebugLog("ACTIVITY", "Failed to reach crop facility, starting work phase anyway", 0);
+                _currentPhase = WorkPhase.Working;
+                LogStorageInfo();
+                return new IdleAction(_owner, this, Priority);
+            case SubActivityResult.Continue:
+                return action;
+            case SubActivityResult.Completed:
+                // Fall through to handle arrival
+                break;
+        }
+
+        // We've arrived at crop
+        _currentPhase = WorkPhase.Working;
+        Log.Print($"{_owner.Name}: Started working at crops in {_workplace.BuildingType}");
+        DebugLog("ACTIVITY", $"Arrived at crop facility, starting work phase (duration: {_workDuration} ticks)", 0);
+        LogStorageInfo();
+        return new IdleAction(_owner, this, Priority);
     }
 
     private EntityAction? ProcessWorking()
@@ -234,24 +292,26 @@ public class WorkFieldActivity : Activity
             _goToHomePhase.Initialize(_owner);
         }
 
-        // Check if navigation failed - just complete, we tried our best
-        if (_goToHomePhase.State == ActivityState.Failed)
+        // Run the navigation sub-activity
+        var (result, action) = RunSubActivity(_goToHomePhase, position, perception);
+        switch (result)
         {
-            Log.Warn($"{_owner.Name}: Couldn't reach home, wheat stays in inventory");
-            Complete();
-            return null;
+            case SubActivityResult.Failed:
+                // Just complete, we tried our best
+                Log.Warn($"{_owner.Name}: Couldn't reach home, wheat stays in inventory");
+                Complete();
+                return null;
+            case SubActivityResult.Continue:
+                return action;
+            case SubActivityResult.Completed:
+                // Fall through to handle arrival
+                break;
         }
 
-        // Check if we've arrived
-        if (_goToHomePhase.State == ActivityState.Completed)
-        {
-            DebugLog("ACTIVITY", "Arrived at home, transitioning to DepositingWheat", 0);
-            _currentPhase = WorkPhase.DepositingWheat;
-            return new IdleAction(_owner, this, Priority);
-        }
-
-        // Still navigating
-        return _goToHomePhase.GetNextAction(position, perception);
+        // We've arrived at home
+        DebugLog("ACTIVITY", "Arrived at home, transitioning to DepositingWheat", 0);
+        _currentPhase = WorkPhase.DepositingWheat;
+        return new IdleAction(_owner, this, Priority);
     }
 
     private EntityAction? ProcessDepositingWheat()
@@ -295,7 +355,7 @@ public class WorkFieldActivity : Activity
 
         if (storage.AddItem(wheat))
         {
-            Log.Print($"{_owner?.Name}: Harvested {WHEATPRODUCEDPERSHIFT} wheat at {_workplace.BuildingName}");
+            Log.Print($"{_owner?.Name}: Harvested {WHEATPRODUCEDPERSHIFT} wheat at {_workplace.BuildingName} (Farm: {storage.GetContentsSummary()})");
         }
         else
         {
@@ -347,7 +407,7 @@ public class WorkFieldActivity : Activity
         {
             if (inventory.AddItem(wheat))
             {
-                Log.Print($"{_owner.Name}: Took {wheat.Quantity} wheat to bring home");
+                Log.Print($"{_owner.Name}: Took {wheat.Quantity} wheat to bring home (Farm: {farmStorage.GetContentsSummary()}, Inventory: {inventory.GetContentsSummary()})");
             }
             else
             {
@@ -393,7 +453,7 @@ public class WorkFieldActivity : Activity
         {
             if (homeStorage.AddItem(wheat))
             {
-                Log.Print($"{_owner.Name}: Stored {wheat.Quantity} wheat at home");
+                Log.Print($"{_owner.Name}: Stored {wheat.Quantity} wheat at home (Home: {homeStorage.GetContentsSummary()})");
             }
             else
             {

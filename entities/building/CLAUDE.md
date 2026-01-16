@@ -23,6 +23,20 @@ Main building entity class that implements `IEntity<Trait>`.
 - `GridSize` - Size in tiles
 - `CanEnter` - Whether entities can enter
 
+**Interior Position Methods:**
+- `GetInteriorPositions()` - Returns ALL tile positions from both `_tiles` (walls, doors, furniture) AND `_groundTiles` (floors), excluding entrance positions. Used for goal checking (e.g., `IsGoalReached`) to determine if an entity is inside the building bounds. Does NOT check current walkability.
+- `GetWalkableInteriorPositions()` - Returns positions within the building bounds that are currently walkable according to `GridArea.IsCellWalkable()`, excluding entrance positions. Used for pathfinding destinations where entities can actually move to.
+- `GetWalkableTiles()` - Legacy method returning tiles marked as inherently walkable in their definition. Prefer `GetWalkableInteriorPositions()` for pathfinding.
+
+**Facility Methods:**
+- `GetFacilities()` - Returns all facility IDs available in this building (from `_facilityPositions.Keys`). Populated from the building template's `Facilities` array during initialization.
+- `HasFacility(facilityId)` - Check if building has at least one instance of the specified facility.
+- `GetFacilityPositions(facilityId)` - Get all relative positions for a given facility type.
+- `GetAdjacentWalkablePosition(facilityPosition)` - Get a walkable position adjacent to a facility for entity positioning.
+
+**Storage Methods:**
+- `GetStorage()` - Returns the `StorageTrait` for this building if it has one.
+
 ### BuildingManager.cs
 Singleton manager for building templates and placement.
 

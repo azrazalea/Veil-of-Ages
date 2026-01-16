@@ -45,9 +45,9 @@ public partial class MindlessZombie : Being
         Log.Print("Zombie initialized with traits");
     }
 
-    public override void Initialize(Grid.Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null)
+    public override void Initialize(Grid.Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null, bool debugEnabled = false)
     {
-        base.Initialize(gridArea, startGridPos, attributes);
+        base.Initialize(gridArea, startGridPos, attributes, debugEnabled);
         ApplyRandomDecayDamage();
 
         // Any zombie-specific initialization after base initialization

@@ -56,10 +56,16 @@ public class GoToBuildingActivity : Activity
         }
 
         // Check if we're stuck
-        if (!_pathFinder.HasValidPath() && _stuckTicks++ > MAXSTUCKTICKS)
+        bool hasValidPath = _pathFinder.HasValidPath();
+        if (!hasValidPath)
         {
-            Fail();
-            return null;
+            _stuckTicks++;
+            if (_stuckTicks > MAXSTUCKTICKS)
+            {
+                DebugLog("GO_TO_BUILDING", $"Failed: stuck at {position} trying to reach {_targetBuilding.BuildingName}");
+                Fail();
+                return null;
+            }
         }
 
         // Return movement action

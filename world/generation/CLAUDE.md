@@ -106,12 +106,12 @@ World._Ready()
 - Path generation is O(distance) but may loop on blocked paths
 
 ### Debug Villager Selection
-At the end of village generation, `EnableDebugOnRandomVillager()` is called to enable detailed logging for one randomly selected villager:
-- The `_spawnedVillagers` list accumulates all villagers spawned by `SpawnVillagerNearBuilding()`
-- A random index is selected using the generator's RNG
-- The selected villager's `DebugEnabled` property is set to `true`
-- The selected villager's name is logged for identification
-- If no villagers were spawned, a warning is logged and no debug is enabled
+Debug mode is enabled for one randomly selected villager during village generation:
+- Before spawning, `_debugVillagerIndex` is pre-determined using the RNG based on expected villager count
+- During `SpawnVillagerNearBuilding()`, each villager checks if its spawn index matches `_debugVillagerIndex`
+- The matching villager has `debugEnabled: true` passed to its `Initialize()` call
+- After all spawning, `LogDebugVillagerSelection()` logs which villager was selected
+- The `_spawnedVillagers` list tracks all spawned villagers for this purpose
 
 This helps with debugging AI behavior by providing detailed logs from one villager's perspective without flooding the console with output from all entities.
 

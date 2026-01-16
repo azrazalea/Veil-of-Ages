@@ -31,6 +31,14 @@ public class PathFinder
     private const uint RECALCULATIONCOOLDOWN = 5;
     private bool _firstGoalCalculation;
 
+    // Facility goal tracking - stores the facility position to check adjacency in IsGoalReached
+    private Vector2I? _targetFacilityPosition;
+    private Building? _targetFacilityBuilding;
+    private string? _targetFacilityId;
+
+    // Building goal: if true, entity must be inside; if false, adjacent is acceptable
+    private bool _requireInterior;
+
     // Simple enum to track goal type
     public enum PathGoalType
     {
@@ -38,7 +46,70 @@ public class PathFinder
         Position,
         EntityProximity,
         Area,
-        Building
+        Building,
+        Facility
+    }
+
+    /// <summary>
+    /// Returns a detailed summary of the current pathfinder state for debugging.
+    /// </summary>
+    public string GetDebugSummary(Being? entity = null)
+    {
+        try
+        {
+            var culture = new System.Globalization.CultureInfo("en-US");
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine(culture, $"=== PathFinder State ===");
+            sb.AppendLine(culture, $"GoalType: {_goalType}");
+            sb.AppendLine(culture, $"PathNeedsCalculation: {_pathNeedsCalculation}");
+            sb.AppendLine(culture, $"FirstGoalCalculation: {_firstGoalCalculation}");
+            sb.AppendLine(culture, $"RecalculationAttempts: {_recalculationAttempts}/{MAXRECALCULATIONATTEMPTS}");
+            sb.AppendLine(culture, $"LastRecalculationTick: {_lastRecalculationTick} (current: {GameController.CurrentTick}, cooldown: {RECALCULATIONCOOLDOWN})");
+            sb.AppendLine(culture, $"CurrentPath: {CurrentPath.Count} nodes, PathIndex: {PathIndex}");
+
+            if (CurrentPath.Count > 0)
+            {
+                sb.AppendLine(culture, $"  Path: [{string.Join(" -> ", CurrentPath)}]");
+            }
+
+            if (entity != null)
+            {
+                var entityPos = entity.GetCurrentGridPosition();
+                sb.AppendLine(culture, $"Entity: {entity.Name} at {entityPos}, IsMoving: {entity.IsMoving()}");
+                sb.AppendLine(culture, $"IsGoalReached: {IsGoalReached(entity)}");
+                sb.AppendLine(culture, $"HasValidPath: {HasValidPath()}");
+            }
+
+            if (_goalType == PathGoalType.Building && _targetBuilding != null)
+            {
+                var buildingPos = _targetBuilding.GetCurrentGridPosition();
+                var buildingSize = _targetBuilding.GridSize;
+                sb.AppendLine(culture, $"--- Building Goal Details ---");
+                sb.AppendLine(culture, $"Building: {_targetBuilding.BuildingType} at {buildingPos}, size {buildingSize}");
+                sb.AppendLine(culture, $"RequireInterior: {_requireInterior}");
+
+                // Interior positions (from tile definitions)
+                var interiorPositions = _targetBuilding.GetInteriorPositions();
+                sb.AppendLine(culture, $"Interior positions ({interiorPositions.Count}): [{string.Join(", ", interiorPositions.Select(p => $"{p}->abs{buildingPos + p}"))}]");
+
+                // Walkable interior positions (filtered by walkability)
+                var walkableInterior = _targetBuilding.GetWalkableInteriorPositions();
+                sb.AppendLine(culture, $"Walkable interior ({walkableInterior.Count}): [{string.Join(", ", walkableInterior.Select(p => $"{p}->abs{buildingPos + p}"))}]");
+
+                // Perimeter positions if adjacency allowed
+                if (!_requireInterior)
+                {
+                    var perimeterPositions = GetBuildingPerimeterPositions(buildingPos, buildingSize).ToList();
+                    sb.AppendLine(culture, $"Perimeter positions ({perimeterPositions.Count}): [{string.Join(", ", perimeterPositions)}]");
+                }
+            }
+
+            return sb.ToString();
+        }
+        catch (Exception e)
+        {
+            return $"GetDebugSummary ERROR: {e.GetType().Name}: {e.Message}\n{e.StackTrace}";
+        }
     }
 
     public void ClearPath()
@@ -162,13 +233,60 @@ public class PathFinder
         _recalculationAttempts = 0;
     }
 
-    public void SetBuildingGoal(Being entity, Building targetBuilding)
+    public void SetBuildingGoal(Being entity, Building targetBuilding, bool requireInterior = true)
     {
         _goalType = PathGoalType.Building;
         _targetBuilding = targetBuilding;
+        _requireInterior = requireInterior;
         _firstGoalCalculation = true;
         _pathNeedsCalculation = true;
         _recalculationAttempts = 0;
+    }
+
+    /// <summary>
+    /// Set goal to navigate adjacent to a specific facility in a building.
+    /// </summary>
+    /// <param name="building">The building containing the facility.</param>
+    /// <param name="facilityId">The facility ID (e.g., "oven", "quern", "storage", "crop").</param>
+    /// <returns>True if a valid facility position was found, false otherwise.</returns>
+    public bool SetFacilityGoal(Building building, string facilityId)
+    {
+        // Get facility positions from building
+        var facilityPositions = building.GetFacilityPositions(facilityId);
+        if (facilityPositions.Count == 0)
+        {
+            return false;
+        }
+
+        // Store the building and facility ID for smart recalculation
+        _targetFacilityBuilding = building;
+        _targetFacilityId = facilityId;
+
+        Vector2I buildingPos = building.GetCurrentGridPosition();
+
+        // Find a facility position that has an adjacent walkable tile
+        foreach (var relativePos in facilityPositions)
+        {
+            Vector2I absoluteFacilityPos = buildingPos + relativePos;
+            Vector2I? adjacentPos = building.GetAdjacentWalkablePosition(relativePos);
+
+            if (adjacentPos.HasValue)
+            {
+                _targetFacilityPosition = absoluteFacilityPos;
+
+                // Set the actual pathfinding goal to the adjacent walkable position
+                Vector2I absoluteAdjacentPos = buildingPos + adjacentPos.Value;
+                _targetPosition = absoluteAdjacentPos;
+                _goalType = PathGoalType.Facility;
+                _firstGoalCalculation = true;
+                _pathNeedsCalculation = true;
+                _recalculationAttempts = 0;
+
+                return true;
+            }
+        }
+
+        return false; // No accessible facility found
     }
 
     // Check if goal is reached
@@ -205,50 +323,36 @@ public class PathFinder
                 if (_targetBuilding != null)
                 {
                     Vector2I buildingPos = _targetBuilding.GetCurrentGridPosition();
+                    Vector2I buildingSize = _targetBuilding.GridSize;
 
-                    // First check if building has walkable interior positions
-                    var walkableInteriorPositions = _targetBuilding.GetWalkableInteriorPositions();
-                    if (walkableInteriorPositions.Count > 0)
+                    // Build list of valid positions - interior, plus perimeter if adjacency allowed
+                    var validPositions = new HashSet<Vector2I>();
+
+                    // Interior positions (based on tile definitions, ignores current occupancy)
+                    foreach (var relativePos in _targetBuilding.GetInteriorPositions())
                     {
-                        // Check if entity is standing on any interior walkable position
-                        foreach (var relativePos in walkableInteriorPositions)
+                        validPositions.Add(buildingPos + relativePos);
+                    }
+
+                    // Perimeter positions if adjacency is acceptable
+                    if (!_requireInterior)
+                    {
+                        foreach (var pos in GetBuildingPerimeterPositions(buildingPos, buildingSize))
                         {
-                            Vector2I absolutePos = buildingPos + relativePos;
-                            if (entityPos == absolutePos)
-                            {
-                                result = true;
-                                break;
-                            }
+                            validPositions.Add(pos);
                         }
                     }
-                    else
-                    {
-                        // No interior walkable positions - fall back to perimeter check
-                        Vector2I buildingSize = _targetBuilding.GridSize;
 
-                        // Check if entity is adjacent to any part of the building (including diagonals)
-                        for (int x = -1; x <= buildingSize.X; x++)
-                        {
-                            for (int y = -1; y <= buildingSize.Y; y++)
-                            {
-                                // Only check the perimeter positions
-                                if (x == -1 || y == -1 || x == buildingSize.X || y == buildingSize.Y)
-                                {
-                                    Vector2I perimeterPos = new (buildingPos.X + x, buildingPos.Y + y);
-                                    if (entityPos == perimeterPos)
-                                    {
-                                        result = true;
-                                        break;
-                                    }
-                                }
-                            }
+                    result = validPositions.Contains(entityPos);
+                }
 
-                            if (result)
-                            {
-                                break;
-                            }
-                        }
-                    }
+                break;
+            case PathGoalType.Facility:
+                if (_targetFacilityPosition.HasValue)
+                {
+                    // Check if entity is adjacent to the facility (cardinal directions)
+                    Vector2I diff = entityPos - _targetFacilityPosition.Value;
+                    result = (Math.Abs(diff.X) + Math.Abs(diff.Y)) == 1;
                 }
 
                 break;
@@ -502,110 +606,135 @@ public class PathFinder
                     if (_targetBuilding != null)
                     {
                         Vector2I buildingPos = _targetBuilding.GetCurrentGridPosition();
+                        Vector2I buildingSize = _targetBuilding.GridSize;
                         bool foundPath = false;
 
-                        // First try to navigate to walkable interior positions
-                        var walkableInteriorPositions = _targetBuilding.GetWalkableInteriorPositions();
-                        if (walkableInteriorPositions.Count > 0)
+                        // Build list of candidate positions - interior first, then perimeter if allowed
+                        var candidatePositions = new List<Vector2I>();
+
+                        // Add walkable interior positions
+                        var walkableInterior = _targetBuilding.GetWalkableInteriorPositions();
+                        foreach (var relativePos in walkableInterior)
                         {
-                            // Convert relative positions to absolute and filter for valid targets
-                            var interiorPositions = new List<Vector2I>();
-                            foreach (var relativePos in walkableInteriorPositions)
+                            Vector2I absolutePos = buildingPos + relativePos;
+                            if (astar.IsInBoundsv(absolutePos) && !astar.IsPointSolid(absolutePos))
                             {
-                                Vector2I absolutePos = buildingPos + relativePos;
-                                if (astar.IsInBoundsv(absolutePos) && !astar.IsPointSolid(absolutePos))
-                                {
-                                    interiorPositions.Add(absolutePos);
-                                }
+                                candidatePositions.Add(absolutePos);
                             }
+                        }
 
-                            if (interiorPositions.Count > 0)
+                        // Add perimeter positions if adjacency is acceptable
+                        if (!_requireInterior)
+                        {
+                            foreach (var pos in GetBuildingPerimeterPositions(buildingPos, buildingSize))
                             {
-                                // Sort by distance to start position
-                                interiorPositions.Sort((a, b) =>
-                                    startPos.DistanceSquaredTo(a).CompareTo(startPos.DistanceSquaredTo(b)));
-
-                                // Try to find path to any interior position
-                                foreach (var pos in interiorPositions)
+                                if (astar.IsInBoundsv(pos) && !astar.IsPointSolid(pos))
                                 {
-                                    // Skip if we're already at this position
-                                    if (startPos == pos)
-                                    {
-                                        CurrentPath = [pos];
-                                        foundPath = true;
-                                        break;
-                                    }
-
-                                    var path = astar.GetIdPath(startPos, pos, true);
-                                    if (path.Count > 0)
-                                    {
-                                        CurrentPath = path.Cast<Vector2I>().ToList();
-                                        foundPath = true;
-                                        break;
-                                    }
+                                    candidatePositions.Add(pos);
                                 }
                             }
                         }
 
-                        // Fall back to perimeter positions if no interior path found
-                        if (!foundPath)
+                        // Sort by distance and try to path to each
+                        candidatePositions.Sort((a, b) =>
+                            startPos.DistanceSquaredTo(a).CompareTo(startPos.DistanceSquaredTo(b)));
+
+                        foreach (var pos in candidatePositions)
                         {
-                            Vector2I buildingSize = _targetBuilding.GridSize;
-
-                            // Get all possible adjacent positions around the building
-                            var adjacentPositions = new List<Vector2I>();
-
-                            // Add positions around the building perimeter
-                            for (int x = -1; x <= buildingSize.X; x++)
+                            if (startPos == pos)
                             {
-                                for (int y = -1; y <= buildingSize.Y; y++)
-                                {
-                                    // Only include perimeter positions
-                                    if (x == -1 || y == -1 || x == buildingSize.X || y == buildingSize.Y)
-                                    {
-                                        Vector2I pos = new (buildingPos.X + x, buildingPos.Y + y);
-                                        if (astar.IsInBoundsv(pos) && !astar.IsPointSolid(pos))
-                                        {
-                                            adjacentPositions.Add(pos);
-                                        }
-                                    }
-                                }
+                                CurrentPath = [pos];
+                                foundPath = true;
+                                break;
                             }
 
-                            // Sort by distance to start position
-                            adjacentPositions.Sort((a, b) =>
-                                startPos.DistanceSquaredTo(a).CompareTo(startPos.DistanceSquaredTo(b)));
-
-                            // Try to find path to any adjacent position
-                            foreach (var pos in adjacentPositions)
+                            var path = astar.GetIdPath(startPos, pos, true);
+                            if (path.Count > 0)
                             {
-                                // Skip if we're already at this position
-                                if (startPos == pos)
-                                {
-                                    CurrentPath = [pos];
-                                    foundPath = true;
-                                    break;
-                                }
-
-                                var path = astar.GetIdPath(startPos, pos, true);
-                                if (path.Count > 0)
-                                {
-                                    CurrentPath = path.Cast<Vector2I>().ToList();
-                                    foundPath = true;
-                                    break;
-                                }
+                                CurrentPath = path.Cast<Vector2I>().ToList();
+                                foundPath = true;
+                                break;
                             }
                         }
 
                         if (!foundPath)
                         {
-                            Log.Error($"No path found to building {_targetBuilding.BuildingType}");
+                            Log.Error($"No path found to building {_targetBuilding.BuildingType} - tried {candidatePositions.Count} positions");
                             return false;
                         }
                     }
                     else
                     {
                         Log.Error("Target building is null");
+                        return false;
+                    }
+
+                    break;
+
+                case PathGoalType.Facility:
+                    // Smart recalculation: try ALL adjacent positions to ALL facilities of this ID
+                    if (_targetFacilityBuilding == null || _targetFacilityId == null)
+                    {
+                        Log.Error("Facility goal missing building or facility ID");
+                        return false;
+                    }
+
+                    var facilityPositions = _targetFacilityBuilding.GetFacilityPositions(_targetFacilityId);
+                    Vector2I facilityBuildingPos = _targetFacilityBuilding.GetCurrentGridPosition();
+
+                    bool foundFacilityPath = false;
+
+                    // Try all facilities and all their adjacent positions
+                    foreach (var relativePos in facilityPositions)
+                    {
+                        Vector2I absoluteFacilityPos = facilityBuildingPos + relativePos;
+
+                        // Get adjacent positions (cardinal directions)
+                        foreach (var adjacentPos in GetCardinalAdjacentPositions(absoluteFacilityPos))
+                        {
+                            // Check if position is in bounds
+                            if (!astar.IsInBoundsv(adjacentPos))
+                            {
+                                continue;
+                            }
+
+                            // Check if this position is actually walkable (accounts for entities)
+                            if (!gridArea.IsCellWalkable(adjacentPos))
+                            {
+                                continue;
+                            }
+
+                            // If we're already at this position, we found it!
+                            if (startPos == adjacentPos)
+                            {
+                                _targetFacilityPosition = absoluteFacilityPos;
+                                _targetPosition = adjacentPos;
+                                foundFacilityPath = true;
+                                break;
+                            }
+
+                            // Try to path to this position
+                            var facilityPath = astar.GetIdPath(startPos, adjacentPos, true);
+                            if (facilityPath.Count > 0)
+                            {
+                                // Found a valid path!
+                                _targetFacilityPosition = absoluteFacilityPos;
+                                _targetPosition = adjacentPos;
+                                CurrentPath = facilityPath.Cast<Vector2I>().ToList();
+                                foundFacilityPath = true;
+                                break;
+                            }
+                        }
+
+                        if (foundFacilityPath)
+                        {
+                            break;
+                        }
+                    }
+
+                    if (!foundFacilityPath)
+                    {
+                        Log.Error($"No path found to any '{_targetFacilityId}' facility in building {_targetFacilityBuilding.BuildingType}");
                         return false;
                     }
 
@@ -654,6 +783,30 @@ public class PathFinder
         }
 
         return result;
+    }
+
+    // Get cardinal adjacent positions (4 directions)
+    private static IEnumerable<Vector2I> GetCardinalAdjacentPositions(Vector2I pos)
+    {
+        yield return pos + Vector2I.Up;
+        yield return pos + Vector2I.Down;
+        yield return pos + Vector2I.Left;
+        yield return pos + Vector2I.Right;
+    }
+
+    // Get perimeter positions around a building (one tile outside the building bounds)
+    private static IEnumerable<Vector2I> GetBuildingPerimeterPositions(Vector2I buildingPos, Vector2I buildingSize)
+    {
+        for (int x = -1; x <= buildingSize.X; x++)
+        {
+            for (int y = -1; y <= buildingSize.Y; y++)
+            {
+                if (x == -1 || y == -1 || x == buildingSize.X || y == buildingSize.Y)
+                {
+                    yield return new Vector2I(buildingPos.X + x, buildingPos.Y + y);
+                }
+            }
+        }
     }
 
     // Get valid positions within an area

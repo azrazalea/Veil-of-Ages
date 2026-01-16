@@ -1,5 +1,4 @@
 using Godot;
-using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Needs;
@@ -54,7 +53,7 @@ public class SleepActivity : Activity
         _energyNeed?.Restore(ENERGYRESTORERATE);
 
         // Check if it's time to wake up
-        var gameTime = GameTime.FromTicks(GameController.CurrentTick);
+        var gameTime = _owner.GameController?.CurrentGameTime ?? new GameTime(0);
         bool shouldSleep = gameTime.CurrentDayPhase is DayPhaseType.Night or
                            DayPhaseType.Dusk;
 
