@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
 
 namespace VeilOfAges.Entities.Items;
 
@@ -106,4 +108,27 @@ public interface IStorageContainer
     /// Should be called each game tick.
     /// </summary>
     void ProcessDecay();
+
+    /// <summary>
+    /// Get a summary string of all items in this container for debug logging.
+    /// Returns format like "3 wheat, 5 bread" or "empty" if no items.
+    /// </summary>
+    /// <returns>A human-readable summary of container contents.</returns>
+    string GetContentsSummary()
+    {
+        var items = GetAllItems();
+        var sb = new StringBuilder();
+
+        foreach (var item in items)
+        {
+            if (sb.Length > 0)
+            {
+                sb.Append(", ");
+            }
+
+            sb.Append(CultureInfo.InvariantCulture, $"{item.Quantity} {item.Definition.Name}");
+        }
+
+        return sb.Length > 0 ? sb.ToString() : "empty";
+    }
 }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Sensory;
 
 namespace VeilOfAges.Entities.Activities;
@@ -90,4 +91,18 @@ public abstract class Activity
     /// Marks the activity as failed.
     /// </summary>
     protected void Fail() => State = ActivityState.Failed;
+
+    /// <summary>
+    /// Log a debug message if the owner has debugging enabled.
+    /// </summary>
+    /// <param name="category">Category of the message (e.g., "ACTIVITY").</param>
+    /// <param name="message">The message to log.</param>
+    /// <param name="tickInterval">Minimum ticks between logs for this category (0 = no limit).</param>
+    protected void DebugLog(string category, string message, int tickInterval = 100)
+    {
+        if (_owner?.DebugEnabled == true)
+        {
+            Log.EntityDebug(_owner.Name, category, message, tickInterval);
+        }
+    }
 }

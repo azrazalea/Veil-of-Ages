@@ -8,6 +8,12 @@ public partial class HumanTownsfolk : Being
 {
     public override BeingAttributes DefaultAttributes { get; } = BaseAttributesSet;
 
+    /// <summary>
+    /// Gets or sets home building to assign to VillagerTrait during initialization.
+    /// Set this before adding the node to the scene tree.
+    /// </summary>
+    public Building? PendingHome { get; set; }
+
     public override void _Ready()
     {
         if (Health == null)
@@ -15,8 +21,12 @@ public partial class HumanTownsfolk : Being
             return;
         }
 
-        // Just add the trait - Being._Ready() handles initialization with proper queue and Health
-        SelfAsEntity().AddTrait<VillagerTrait>(1);
+        // Create VillagerTrait with pending home
+        var villagerTrait = new VillagerTrait(PendingHome);
+        SelfAsEntity().AddTrait(villagerTrait, 1);
+
+        // Register as resident if home was set
+        PendingHome?.AddResident(this);
 
         base._Ready();
     }

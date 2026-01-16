@@ -32,12 +32,17 @@ Handles village layout generation including buildings, characters, and connectin
   - `PackedScene` references for buildings and entity types
   - `EntityThinkingSystem`: For registering spawned beings
   - Optional `seed` for deterministic generation
+- **Key Fields**:
+  - `_placedFarms`: Tracks placed farms for assigning farmer jobs
+  - `_placedHouses`: Tracks placed houses for villager assignment
+  - `_spawnedVillagers`: List of all spawned villager `Being` instances for debug selection
 - **Key Features**:
   - Circular building placement around village center
   - Directional building spawning (supports 8 directions + diagonals)
   - Character spawning near buildings with entrance prioritization
   - Simplified pathfinding for creating dirt paths
   - Related building connections (e.g., church to graveyard)
+  - Random debug villager selection via `EnableDebugOnRandomVillager()`
 
 ## Key Classes/Interfaces
 
@@ -57,6 +62,7 @@ World._Ready()
             -> CreateVillageSquare()
             -> PlaceVillageBuildings()
             -> CreateVillagePaths()
+            -> EnableDebugOnRandomVillager()
         -> GenerateTrees()
 ```
 
@@ -98,6 +104,16 @@ World._Ready()
 - Tree placement uses up to 3x `NumberOfTrees` attempts to handle collisions
 - `FindPositionForBuildingNear()` has nested loops - can be slow with high `wiggleRoom`
 - Path generation is O(distance) but may loop on blocked paths
+
+### Debug Villager Selection
+At the end of village generation, `EnableDebugOnRandomVillager()` is called to enable detailed logging for one randomly selected villager:
+- The `_spawnedVillagers` list accumulates all villagers spawned by `SpawnVillagerNearBuilding()`
+- A random index is selected using the generator's RNG
+- The selected villager's `DebugEnabled` property is set to `true`
+- The selected villager's name is logged for identification
+- If no villagers were spawned, a warning is logged and no debug is enabled
+
+This helps with debugging AI behavior by providing detailed logs from one villager's perspective without flooding the console with output from all entities.
 
 ### Known Quirks
 - Debug print statements remain in code (`"Hello my baby"`, `"Hello my darling"`)

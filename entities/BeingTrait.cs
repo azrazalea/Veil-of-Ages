@@ -428,4 +428,18 @@ public abstract class BeingTrait : Trait
     {
         return null;
     }
+
+    /// <summary>
+    /// Log a debug message if the owner has debugging enabled.
+    /// </summary>
+    /// <param name="category">Category of the message (e.g., "STATE", "ACTIVITY").</param>
+    /// <param name="message">The message to log.</param>
+    /// <param name="tickInterval">Minimum ticks between logs for this category (0 = no limit).</param>
+    protected void DebugLog(string category, string message, int tickInterval = 100)
+    {
+        if (_owner?.DebugEnabled == true)
+        {
+            Log.EntityDebug(_owner.Name, category, message, tickInterval);
+        }
+    }
 }

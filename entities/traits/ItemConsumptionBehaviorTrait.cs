@@ -30,7 +30,7 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
     /// Create a trait for item-based consumption.
     /// </summary>
     /// <param name="needId">The need to satisfy (e.g., "hunger").</param>
-    /// <param name="foodTag">Tag to identify food items (e.g., "food", "undead_food").</param>
+    /// <param name="foodTag">Tag to identify food items (e.g., "food", "zombie_food").</param>
     /// <param name="getHome">Function to get home building (may return null).</param>
     /// <param name="restoreAmount">Amount to restore when eating.</param>
     /// <param name="consumptionDuration">Ticks to spend eating.</param>

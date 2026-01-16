@@ -288,4 +288,22 @@ public class StorageTrait : Trait, IStorageContainer
     {
         return Facilities.Contains(facility, System.StringComparer.OrdinalIgnoreCase);
     }
+
+    /// <inheritdoc/>
+    public string GetContentsSummary()
+    {
+        var sb = new System.Text.StringBuilder();
+
+        foreach (var item in _items)
+        {
+            if (sb.Length > 0)
+            {
+                sb.Append(", ");
+            }
+
+            sb.Append(string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0} {1}", item.Quantity, item.Definition.Name));
+        }
+
+        return sb.Length > 0 ? sb.ToString() : "empty";
+    }
 }

@@ -43,7 +43,7 @@ Built a comprehensive resource economy with items, storage, and a wheat-to-bread
 - **ConsumeItemActivity.cs** - Checks inventory first, then goes home, then consumes item
 - **ItemConsumptionBehaviorTrait.cs** - Replaces building-based consumption, uses food tags
 - **VillagerTrait** - Uses "food" tag, gets home from `_home` property
-- **ZombieTrait** - Uses "undead_food" tag, gets corpses from graveyard storage
+- **ZombieTrait** - Uses "zombie_food" tag, gets corpses from graveyard storage
 
 #### Village Setup (`/world/generation/VillageGenerator.cs`)
 - Spawns 2 villagers per house (farmer + baker)

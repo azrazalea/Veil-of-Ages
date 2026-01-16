@@ -1,5 +1,7 @@
 using System.Collections.Generic;
-using Godot;
+using System.Globalization;
+using System.Text;
+using VeilOfAges.Core.Lib;
 
 namespace VeilOfAges.Entities.Needs;
 
@@ -31,6 +33,24 @@ public class BeingNeedsSystem
         {
             float multiplier = activity?.GetNeedDecayMultiplier(need.Id) ?? 1.0f;
             need.Decay(multiplier);
+        }
+
+        // Periodic debug logging (rate-limited by Log.EntityDebug)
+        if (_owner.DebugEnabled && _needs.Count > 0)
+        {
+            var sb = new StringBuilder();
+            foreach (var need in _needs.Values)
+            {
+                string state = need.IsCritical() ? "CRITICAL" : (need.IsLow() ? "LOW" : "OK");
+                sb.Append(CultureInfo.InvariantCulture, $"{need.DisplayName}: {need.Value:F1}/100 ({state}), ");
+            }
+
+            if (sb.Length > 2)
+            {
+                sb.Length -= 2;
+            }
+
+            Log.EntityDebug(_owner.Name, "NEEDS", sb.ToString());
         }
     }
 

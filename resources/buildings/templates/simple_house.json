@@ -13,7 +13,7 @@
     "VolumeCapacity": 1.0,
     "WeightCapacity": -1,
     "DecayRateModifier": 1.0,
-    "Facilities": ["hearth", "mortar_and_pestle", "oven"]
+    "Facilities": ["hearth", "quern", "oven"]
   },
   "EntrancePositions": [
     [

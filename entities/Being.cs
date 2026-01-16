@@ -52,6 +52,24 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
 
     public uint MaxSenseRange = 10;
 
+    /// <summary>
+    /// Gets or sets a value indicating whether when true, this entity will output detailed debug information to a log file.
+    /// </summary>
+    public bool DebugEnabled { get; set; }
+
+    /// <summary>
+    /// Log a debug message if debugging is enabled for this entity.
+    /// </summary>
+    /// <param name="category">Category of the message (e.g., "NEEDS", "ACTIVITY").</param>
+    /// <param name="message">The message to log.</param>
+    protected void DebugLog(string category, string message)
+    {
+        if (DebugEnabled)
+        {
+            Log.EntityDebug(Name, category, message);
+        }
+    }
+
     // Body system
     public BodyHealth? Health { get; protected set; }
     protected Dictionary<string, BodyPartGroup>? BodyPartGroups

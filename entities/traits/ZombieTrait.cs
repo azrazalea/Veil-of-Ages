@@ -57,10 +57,10 @@ public class ZombieTrait : UndeadBehaviorTrait
         }
 
         // Add ItemConsumptionBehaviorTrait for brain hunger
-        // Uses item system: checks inventory then graveyard storage for "undead_food" tagged items (corpses)
+        // Uses item system: checks inventory then graveyard storage for "zombie_food" tagged items (corpses)
         var consumptionTrait = new ItemConsumptionBehaviorTrait(
             needId: "hunger",
-            foodTag: "undead_food",
+            foodTag: "zombie_food",
             getHome: () => _homeGraveyard,
             restoreAmount: 70f,  // Zombies get more from feeding
             consumptionDuration: 365);  // Zombies take longer to feed as they're messier eaters

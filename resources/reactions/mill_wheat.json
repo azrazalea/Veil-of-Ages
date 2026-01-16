@@ -1,7 +1,7 @@
 {
     "Id": "mill_wheat",
     "Name": "Mill Wheat",
-    "Description": "Grind wheat into flour using a millstone or mortar",
+    "Description": "Grind wheat into flour using a quern or millstone",
     "Inputs": [
         {"ItemId": "wheat", "Quantity": 2}
     ],
@@ -9,6 +9,6 @@
         {"ItemId": "flour", "Quantity": 1}
     ],
     "Duration": 200,
-    "RequiredFacilities": ["mortar_and_pestle"],
+    "RequiredFacilities": ["quern"],
     "Tags": ["milling", "processing"]
 }

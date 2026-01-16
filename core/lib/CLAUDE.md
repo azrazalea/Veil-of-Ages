@@ -54,6 +54,33 @@ A generic queue implementation backed by `LinkedList<T>` that supports dynamic r
   - `MoveToBefore/MoveToAfter/MoveToFront/MoveToLast`: Reposition elements
 - **Use Case**: Used for entity command queues where command priority may change.
 
+### Log.cs
+Logging utility that prefixes messages with the current game tick. Supports both console output and file-based entity debug logging.
+
+- **Namespace**: `VeilOfAges.Core.Lib`
+- **Class**: `Log` (static)
+- **Basic Methods**:
+  - `Print(string)`: Log message to console with tick prefix
+  - `Error(string)`: Push error with tick prefix
+  - `Warn(string)`: Push warning with tick prefix
+  - `PrintRich(string)`: Log with BBCode formatting support
+- **Entity Debug System**:
+  - `EntityDebug(entityName, category, message, tickInterval)`: Logs debug messages for specific entities to both console and file
+  - **Rate Limiting**: Uses `tickInterval` parameter (default: 100 ticks) to prevent log spam
+  - **Rate Limit Key**: `"{entityName}:{category}"` - each entity+category combination has independent rate limiting
+  - **File Output**: `user://logs/entities/<entityName>.log` (Godot user directory)
+  - **File Format**: `[HH:mm:ss.fff] [Tick N] [CATEGORY] message`
+  - `Shutdown()`: Closes all log file writers, clears `_debugWriters` and `_lastLogTicks` dictionaries, resets initialization flag
+- **Internal State**:
+  - `_debugWriters`: Dictionary mapping entity names to StreamWriter instances
+  - `_lastLogTicks`: Dictionary tracking last log tick per entity+category for rate limiting
+  - `_logDirectory`: Cached path to entity log directory
+  - `_debugInitialized`: Flag indicating if debug system has been initialized
+- **Initialization Behavior**:
+  - Lazy initialization on first `EntityDebug()` call
+  - Clears all existing `.log` files in the entity log directory on startup
+  - Creates log directory if it doesn't exist
+
 ## Key Classes/Interfaces
 
 | Class | Description |
@@ -61,6 +88,7 @@ A generic queue implementation backed by `LinkedList<T>` that supports dynamic r
 | `GameTime` | Immutable time value with calendar parsing and formatting |
 | `PathFinder` | A* pathfinding with multiple goal types |
 | `ReorderableQueue<T>` | Dynamic priority queue |
+| `Log` | Static logging utility with tick prefixes and entity debug file output |
 
 ## Important Notes
 

@@ -5,6 +5,7 @@ using Godot;
 using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
+using VeilOfAges.Entities.Beings;
 using VeilOfAges.Entities.Items;
 using VeilOfAges.Entities.Traits;
 using VeilOfAges.Grid;
@@ -30,6 +31,9 @@ public class VillageGenerator
 
     // Track placed houses for assigning villagers
     private readonly List<Building> _placedHouses = new ();
+
+    // Track spawned villagers for debug selection
+    private readonly List<Being> _spawnedVillagers = new ();
 
     public VillageGenerator(
         Area gridArea,
@@ -88,6 +92,27 @@ public class VillageGenerator
         PlaceVillageBuildings(villageCenter);
 
         CreateVillagePaths(villageCenter);
+
+        // Enable debug mode on a random villager
+        EnableDebugOnRandomVillager();
+    }
+
+    /// <summary>
+    /// Randomly selects one villager and enables debug logging for them.
+    /// </summary>
+    private void EnableDebugOnRandomVillager()
+    {
+        if (_spawnedVillagers.Count == 0)
+        {
+            Log.Warn("No villagers spawned, cannot enable debug mode");
+            return;
+        }
+
+        int index = _rng.RandiRange(0, _spawnedVillagers.Count - 1);
+        var debugVillager = _spawnedVillagers[index];
+        debugVillager.DebugEnabled = true;
+
+        Log.Print($"DEBUG MODE ENABLED for villager: {debugVillager.Name}");
     }
 
     /// <summary>
@@ -227,17 +252,21 @@ public class VillageGenerator
 
                                 // Spawn 2 villagers per house
                                 // First villager: farmer if farms exist, otherwise regular villager
-                                Building? farmToAssign = null;
                                 if (!_farmerSpawned && _placedFarms.Count > 0)
                                 {
-                                    farmToAssign = _placedFarms[0];
+                                    SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene,
+                                        home: typedBuilding, job: "farmer", workplace: _placedFarms[0]);
                                     _farmerSpawned = true;
                                 }
+                                else
+                                {
+                                    SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene,
+                                        home: typedBuilding);
+                                }
 
-                                SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene, typedBuilding, farmToAssign, null);
-
-                                // Second villager: baker
-                                SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene, typedBuilding, null, typedBuilding);
+                                // Second villager: baker (works at home)
+                                SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene,
+                                    home: typedBuilding, job: "baker", workplace: typedBuilding);
                                 break;
                         }
 
@@ -307,15 +336,21 @@ public class VillageGenerator
     }
 
     /// <summary>
-    /// Spawns a villager near a building, optionally assigning them as a farmer or baker.
+    /// Spawns a villager near a building with an optional job.
     /// </summary>
+    /// <param name="buildingPos">Position of the building to spawn near.</param>
+    /// <param name="buildingSize">Size of the building.</param>
+    /// <param name="beingScene">Scene to instantiate.</param>
+    /// <param name="home">Home building for the villager.</param>
+    /// <param name="job">Job name: "farmer", "baker", or null for no job.</param>
+    /// <param name="workplace">Workplace building for the job (farm for farmer, home for baker).</param>
     private void SpawnVillagerNearBuilding(
         Vector2I buildingPos,
         Vector2I buildingSize,
         PackedScene beingScene,
         Building? home,
-        Building? assignedFarm,
-        Building? bakerWorkplace)
+        string? job = null,
+        Building? workplace = null)
     {
         Vector2I beingPos = FindPositionInFrontOfBuilding(buildingPos, buildingSize);
 
@@ -327,38 +362,43 @@ public class VillageGenerator
             {
                 typedBeing.Initialize(_gridArea, beingPos);
 
-                // Set home if provided
-                if (home != null)
+                // Set pending home before adding to scene tree (HumanTownsfolk._Ready will use it)
+                if (home != null && typedBeing is HumanTownsfolk townsfolk)
                 {
-                    var villagerTrait = typedBeing.SelfAsEntity().GetTrait<VillagerTrait>();
-                    if (villagerTrait != null)
+                    townsfolk.PendingHome = home;
+                }
+
+                // Assign job trait based on job name (before adding to scene, so it gets queued)
+                if (job != null && workplace != null)
+                {
+                    switch (job.ToLowerInvariant())
                     {
-                        villagerTrait.SetHome(home);
-                        home.AddResident(typedBeing);
+                        case "farmer":
+                            var farmerTrait = new FarmerJobTrait(workplace);
+                            typedBeing.SelfAsEntity().AddTraitToQueue(farmerTrait, priority: -1);
+                            Log.Print($"Spawned farmer at {beingPos}, assigned to {workplace.BuildingName}");
+                            break;
+
+                        case "baker":
+                            var bakerTrait = new BakerJobTrait(workplace);
+                            typedBeing.SelfAsEntity().AddTraitToQueue(bakerTrait, priority: -1);
+                            Log.Print($"Spawned baker at {beingPos}, working at {workplace.BuildingName}");
+                            break;
+
+                        default:
+                            Log.Warn($"Unknown job type: {job}");
+                            break;
                     }
                 }
-
-                // If assigned a farm, add farmer job trait
-                if (assignedFarm != null)
+                else if (job == null)
                 {
-                    var farmerTrait = new FarmerJobTrait(assignedFarm);
-                    typedBeing.SelfAsEntity().AddTraitToQueue(farmerTrait, priority: -1);
-                    Log.Print($"Spawned farmer at {beingPos}, assigned to farm at {assignedFarm.GetCurrentGridPosition()}");
-                }
-
-                // If assigned baker workplace, add baker job trait
-                else if (bakerWorkplace != null)
-                {
-                    var bakerTrait = new BakerJobTrait(bakerWorkplace);
-                    typedBeing.SelfAsEntity().AddTraitToQueue(bakerTrait, priority: -1);
-                    Log.Print($"Spawned baker at {beingPos}, working at home");
-                }
-                else
-                {
-                    Log.Print($"Spawned villager at {beingPos} near building at {buildingPos}");
+                    Log.Print($"Spawned villager at {beingPos} (no job)");
                 }
 
                 _entityThinkingSystem.RegisterEntity(typedBeing);
+
+                // Track villager for debug selection
+                _spawnedVillagers.Add(typedBeing);
             }
             else
             {
@@ -386,7 +426,6 @@ public class VillageGenerator
             return;
         }
 
-        // Get bread item definition
         var breadDef = ItemResourceManager.Instance.GetDefinition("bread");
         if (breadDef == null)
         {
@@ -394,7 +433,6 @@ public class VillageGenerator
             return;
         }
 
-        // Add 3-5 loaves of bread
         int breadCount = _rng.RandiRange(3, 5);
         var bread = new Item(breadDef, breadCount);
 

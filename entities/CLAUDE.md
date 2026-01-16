@@ -98,6 +98,30 @@ World-level sensory coordination system. Manages:
 - Memory has configurable duration (default 3000 ticks, roughly 5 minutes game time)
 - Memory is automatically cleaned up each tick
 
+### Entity Debug System
+Being includes a per-entity debug logging system for troubleshooting AI behavior:
+
+**Properties and Methods:**
+- `DebugEnabled` (bool property): When set to `true`, the entity outputs detailed debug information to the log file
+- `DebugLog(string category, string message)` (protected method): Logs a debug message if `DebugEnabled` is true. Internally calls `Log.EntityDebug(Name, category, message)`
+
+**Usage:**
+```csharp
+// Enable debugging for a specific entity
+myBeing.DebugEnabled = true;
+
+// In traits or Being subclasses, use DebugLog to output categorized messages
+DebugLog("NEEDS", $"Hunger level: {hungerLevel}");
+DebugLog("ACTIVITY", $"Starting activity: {activityName}");
+DebugLog("MOVEMENT", $"Path found to {targetPosition}");
+```
+
+**Notes:**
+- Debug output is per-entity, allowing targeted debugging without flooding the log
+- Categories help filter and organize debug output (e.g., "NEEDS", "ACTIVITY", "MOVEMENT")
+- The check for `DebugEnabled` happens inside `DebugLog()`, so callers don't need to check it themselves
+- Useful for debugging specific villagers or entities without enabling global verbose logging
+
 ### Human-Like AI Architecture (BDI Pattern)
 
 The entity AI system intentionally mimics human cognition using a **Belief-Desire-Intention (BDI)** architecture. Entities are NOT omniscient - they act on beliefs that may be wrong.

@@ -39,6 +39,94 @@ Each Being type can override body structure initialization:
 - Skeletons remove soft tissues and strengthen bones
 - Zombies apply random decay damage on spawn
 
+## Entity Initialization Patterns
+
+Understanding Godot's initialization timing is critical when spawning entities and configuring their traits.
+
+### _Ready() is Asynchronous
+
+When you call `AddChild(being)`, Godot calls `_Ready()` **asynchronously** - you cannot rely on it being called immediately after `AddChild()`. This has major implications for trait access.
+
+### Trait Initialization Timing
+
+Traits are initialized during `_Ready()` via Being's init queue processing. You **CANNOT** call `GetTrait<T>()` immediately after `Initialize()` or `AddChild()` - the trait won't exist yet.
+
+```csharp
+// WRONG - trait doesn't exist yet!
+being.Initialize(gridArea, pos);
+container.AddChild(being);
+var trait = being.GetTrait<VillagerTrait>();  // Returns null or throws!
+
+// WRONG - still doesn't work
+being.Initialize(gridArea, pos);
+container.AddChild(being);
+await ToSignal(GetTree(), "process_frame");  // Even waiting a frame is unreliable
+var trait = being.GetTrait<VillagerTrait>();  // May still fail
+```
+
+### The PendingData Pattern
+
+To pass data to a trait that will be created during `_Ready()`:
+
+1. **Add a property to the Being subclass** (e.g., `PendingHome` on HumanTownsfolk)
+2. **Set it BEFORE calling AddChild()**
+3. **In _Ready(), create the trait with that data** (e.g., `new VillagerTrait(PendingHome)`)
+4. This ensures the trait has the data when it initializes
+
+```csharp
+// In HumanTownsfolk.cs
+public Building? PendingHome { get; set; }
+
+public override void _Ready()
+{
+    base._Ready();
+    // VillagerTrait receives PendingHome during construction
+    selfAsEntity().AddTraitToQueue(new VillagerTrait(PendingHome), 0);
+}
+```
+
+### Correct Spawn Sequence
+
+```csharp
+// 1. Create and configure the being
+var being = new HumanTownsfolk();
+
+// 2. Call Initialize - sets up Being basics, but traits NOT initialized yet
+being.Initialize(gridArea, pos);
+
+// 3. Set any pending data BEFORE AddChild
+townsfolk.PendingHome = home;
+
+// 4. AddChild triggers _Ready() asynchronously
+container.AddChild(being);
+
+// DON'T try to access traits here - they may not exist yet!
+// If you need post-init logic, use signals or callbacks
+```
+
+### Why Lambda Capture Works
+
+The lambda capture pattern (e.g., `getHome: () => _home`) works because it captures the **field reference**, not the value. So setting the field before or during `_Ready()` still works for lambdas that are called later.
+
+```csharp
+// This works because the lambda captures the field reference
+private Building? _home;
+
+public VillagerTrait(Building? initialHome)
+{
+    _home = initialHome;
+    // This lambda will read _home when called, not when constructed
+    _getHome = () => _home;
+}
+```
+
+### Common Mistakes
+
+1. **Trying to configure traits after AddChild()**: Traits don't exist yet
+2. **Assuming _Ready() is synchronous**: It's called by Godot's deferred call system
+3. **Not using PendingData pattern**: Leads to null traits or missing configuration
+4. **Forgetting to set PendingData before AddChild()**: Data won't be available in _Ready()
+
 ## Creating a New Being Type
 
 ### Step-by-Step Guide

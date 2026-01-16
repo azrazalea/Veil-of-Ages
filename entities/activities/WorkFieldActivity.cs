@@ -87,6 +87,8 @@ public class WorkFieldActivity : Activity
 
         // Get energy need - work directly costs energy (not via decay multiplier)
         _energyNeed = owner.NeedsSystem?.GetNeed("energy");
+
+        DebugLog("ACTIVITY", $"Started WorkFieldActivity at {_workplace.BuildingName}, home: {_home?.BuildingName ?? "none"}", 0);
     }
 
     public override EntityAction? GetNextAction(Vector2I position, Perception perception)
@@ -153,6 +155,8 @@ public class WorkFieldActivity : Activity
         {
             _currentPhase = WorkPhase.Working;
             Log.Print($"{_owner.Name}: Started working at {_workplace.BuildingType}");
+            DebugLog("ACTIVITY", $"Arrived at workplace, starting work phase (duration: {_workDuration} ticks)", 0);
+            LogStorageInfo();
             return new IdleAction(_owner, this, Priority);
         }
 
@@ -178,9 +182,14 @@ public class WorkFieldActivity : Activity
             ProduceWheat();
 
             Log.Print($"{_owner.Name}: Completed work shift, gathering harvest");
+            DebugLog("ACTIVITY", "Work phase complete, produced wheat, transitioning to TakingWheat", 0);
+            LogStorageInfo();
             _currentPhase = WorkPhase.TakingWheat;
             return new IdleAction(_owner, this, Priority);
         }
+
+        // Periodic progress log while working
+        DebugLog("ACTIVITY", $"Working... progress: {_workTimer}/{_workDuration} ticks, energy: {_energyNeed?.Value:F1}");
 
         // Still working, idle
         return new IdleAction(_owner, this, Priority);
@@ -200,10 +209,12 @@ public class WorkFieldActivity : Activity
         if (_home == null || !GodotObject.IsInstanceValid(_home))
         {
             Log.Print($"{_owner.Name}: No home to bring harvest to, shift complete");
+            DebugLog("ACTIVITY", "No home to bring harvest to, completing activity", 0);
             Complete();
             return null;
         }
 
+        DebugLog("ACTIVITY", "Wheat taken from farm, transitioning to GoingHome", 0);
         _currentPhase = WorkPhase.GoingHome;
         return new IdleAction(_owner, this, Priority);
     }
@@ -234,6 +245,7 @@ public class WorkFieldActivity : Activity
         // Check if we've arrived
         if (_goToHomePhase.State == ActivityState.Completed)
         {
+            DebugLog("ACTIVITY", "Arrived at home, transitioning to DepositingWheat", 0);
             _currentPhase = WorkPhase.DepositingWheat;
             return new IdleAction(_owner, this, Priority);
         }
@@ -254,6 +266,8 @@ public class WorkFieldActivity : Activity
         DepositWheatToHome();
 
         Log.Print($"{_owner.Name}: Work day complete, harvest stored at home");
+        DebugLog("ACTIVITY", "Wheat deposited at home, activity complete", 0);
+        LogStorageInfo();
         Complete();
         return null;
     }
@@ -387,6 +401,41 @@ public class WorkFieldActivity : Activity
                 inventory.AddItem(wheat);
                 Log.Warn($"{_owner.Name}: Home storage full, keeping wheat in inventory");
             }
+        }
+    }
+
+    /// <summary>
+    /// Log storage information for debugging.
+    /// </summary>
+    private void LogStorageInfo()
+    {
+        if (_owner?.DebugEnabled != true)
+        {
+            return;
+        }
+
+        // Farm storage info
+        var farmStorage = _workplace.GetStorage();
+        if (farmStorage != null)
+        {
+            DebugLog("STORAGE", $"Farm ({_workplace.BuildingName}): {farmStorage.GetContentsSummary()}", 0);
+        }
+
+        // Home storage info
+        if (_home != null && GodotObject.IsInstanceValid(_home))
+        {
+            var homeStorage = _home.GetStorage();
+            if (homeStorage != null)
+            {
+                DebugLog("STORAGE", $"Home ({_home.BuildingName}): {homeStorage.GetContentsSummary()}", 0);
+            }
+        }
+
+        // Inventory info
+        var inventory = _owner?.SelfAsEntity().GetTrait<InventoryTrait>();
+        if (inventory != null)
+        {
+            DebugLog("STORAGE", $"Inventory: {inventory.GetContentsSummary()}", 0);
         }
     }
 }

@@ -8,5 +8,5 @@
     "BaseDecayRatePerTick": 0.00005,
     "EdibleNutrition": 0,
     "StackLimit": 1,
-    "Tags": ["corpse", "undead_food", "organic"]
+    "Tags": ["corpse", "zombie_food", "organic"]
 }

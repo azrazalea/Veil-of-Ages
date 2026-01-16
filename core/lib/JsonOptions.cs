@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using VeilOfAges.Entities;
 
 namespace VeilOfAges.Core.Lib;
@@ -9,11 +10,12 @@ namespace VeilOfAges.Core.Lib;
 public static class JsonOptions
 {
     /// <summary>
-    /// Default options with case-insensitive property names.
+    /// Default options with case-insensitive property names and string enum support.
     /// </summary>
     public static readonly JsonSerializerOptions Default = new ()
     {
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() }
     };
 
     /// <summary>
@@ -22,7 +24,7 @@ public static class JsonOptions
     public static readonly JsonSerializerOptions WithVector2I = new ()
     {
         PropertyNameCaseInsensitive = true,
-        Converters = { new Vector2IConverter() }
+        Converters = { new JsonStringEnumConverter(), new Vector2IConverter() }
     };
 
     /// <summary>
@@ -31,7 +33,7 @@ public static class JsonOptions
     public static readonly JsonSerializerOptions WithGodotTypes = new ()
     {
         PropertyNameCaseInsensitive = true,
-        Converters = { new Vector2IConverter(), new Rect2IJsonConverter() }
+        Converters = { new JsonStringEnumConverter(), new Vector2IConverter(), new Rect2IJsonConverter() }
     };
 
     /// <summary>
@@ -40,6 +42,6 @@ public static class JsonOptions
     public static readonly JsonSerializerOptions WriteIndented = new ()
     {
         WriteIndented = true,
-        Converters = { new Vector2IConverter() }
+        Converters = { new JsonStringEnumConverter(), new Vector2IConverter() }
     };
 }

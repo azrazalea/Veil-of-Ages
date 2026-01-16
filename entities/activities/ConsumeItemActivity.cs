@@ -34,7 +34,7 @@ public class ConsumeItemActivity : Activity
     /// Initializes a new instance of the <see cref="ConsumeItemActivity"/> class.
     /// Create an activity to consume a food item.
     /// </summary>
-    /// <param name="foodTag">Tag to identify food items (e.g., "food", "undead_food").</param>
+    /// <param name="foodTag">Tag to identify food items (e.g., "food", "zombie_food").</param>
     /// <param name="need">The need to restore.</param>
     /// <param name="home">Home building with storage (can be null if only using inventory).</param>
     /// <param name="restoreAmount">Amount to restore the need.</param>

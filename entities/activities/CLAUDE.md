@@ -36,6 +36,40 @@ Abstract base class for all activities.
 - `GetNextAction(position, perception)` - Returns next action, may set State
 - `Cleanup()` - Called when activity ends (for future resource release)
 - `Complete()` / `Fail()` - Protected methods to set final state
+- `DebugLog(category, message, tickInterval)` - Protected debug logging helper
+
+**Debug Logging:**
+
+The `DebugLog` protected method provides throttled debug logging for activities. It only logs when the owning entity has `DebugEnabled = true`.
+
+```csharp
+protected void DebugLog(string category, string message, int tickInterval = 100)
+```
+
+**Parameters:**
+- `category` - Log category (e.g., "ACTIVITY", "WORK", "SLEEP")
+- `message` - The message to log
+- `tickInterval` - Minimum ticks between logs for this category (default: 100)
+  - Use `0` for immediate logging (every call logs)
+  - Use `100` (default) for periodic status updates
+
+**Usage Examples:**
+
+```csharp
+// Log phase transitions immediately (tickInterval=0)
+DebugLog("WORK", $"Transitioning to {_currentPhase} phase", 0);
+
+// Log periodic status updates (default tickInterval=100)
+DebugLog("WORK", $"Working... {_workTicks}/{_workDuration} ticks");
+
+// Log with custom interval
+DebugLog("SLEEP", $"Energy: {_energyNeed.CurrentValue:F1}", 50);
+```
+
+**Best Practices:**
+- Use `tickInterval=0` for one-time events (phase transitions, errors, completions)
+- Use default `tickInterval=100` for recurring status messages to avoid log spam
+- Category names should be consistent within an activity (e.g., "WORK_FIELD" for WorkFieldActivity)
 
 ### GoToLocationActivity.cs
 Moves an entity to a specific grid position.
@@ -63,7 +97,7 @@ new GoToBuildingActivity(farmBuilding, priority: 0)
 - Creates PathFinder with building goal
 - Validates building still exists each tick
 - Completes when adjacent to building
-- Fails if building destroyed or stuck
+- Fails if building destroyed or stuck for MAX_STUCK_TICKS (50 ticks)
 
 ### SleepActivity.cs
 Sleeping at home during night. Restores energy, reduces hunger decay.
@@ -87,28 +121,91 @@ NeedDecayMultipliers["energy"] = 0f;      // No energy decay
 ```
 
 ### WorkFieldActivity.cs
-Working at a farm/field during daytime. Costs energy, increases hunger.
+Multi-phase work activity at a farm/field. Produces wheat, brings harvest home.
 
 **Usage:**
 ```csharp
-new WorkFieldActivity(farm, workDuration: 400, priority: 0)
+new WorkFieldActivity(workplace: farm, home: house, workDuration: 400, priority: 0)
 ```
 
+**Phases:**
+1. **GoingToWork** - Navigate to workplace using GoToBuildingActivity
+2. **Working** - Idle at location, spend energy (0.05/tick), produce wheat
+3. **TakingWheat** - Gather 4-6 wheat from farm storage into inventory
+4. **GoingHome** - Navigate home using GoToBuildingActivity
+5. **DepositingWheat** - Transfer wheat from inventory to home storage
+
 **Behavior:**
-- Two-phase: navigate to workplace, then work (idle at location)
-- Ends when work duration expires OR day phase changes to Dusk/Night
-- Directly costs energy (0.05/tick) while working
-- Increases hunger decay (1.2x) while working
+- Automatically transitions to TakingWheat when day phase becomes Dusk/Night
+- Produces WHEAT_PRODUCED_PER_SHIFT (3) wheat when work duration completes
+- Takes MIN_WHEAT_TO_BRING_HOME to MAX_WHEAT_TO_BRING_HOME (4-6) wheat home
+- Completes after depositing wheat or if no home exists
 
 **Need Effects:**
 ```csharp
-NeedDecayMultipliers["hunger"] = 1.2f;  // Hungry faster
-// Direct cost: _energyNeed.Restore(-0.05f) each tick while working
+NeedDecayMultipliers["hunger"] = 1.2f;  // Hungry faster while working
+// Direct cost: _energyNeed.Restore(-0.05f) each tick while in Working phase
 ```
 
 **Design Decision:** Work uses direct energy cost rather than decay multiplier.
 This creates a clearer "work spends energy" mental model and avoids confusing
 compounding effects. Decay multipliers are reserved for passive effects.
+
+### ConsumeItemActivity.cs
+Consumes food items from inventory or home storage to restore a need.
+
+**Usage:**
+```csharp
+new ConsumeItemActivity(
+    foodTag: "food",           // Tag to identify food items
+    need: hungerNeed,          // Need to restore
+    home: houseBuilding,       // Home with storage (can be null)
+    restoreAmount: 50f,        // Amount to restore
+    consumptionDuration: 24,   // Ticks to consume
+    priority: 0
+)
+```
+
+**Phases:**
+1. **Check Inventory** - If entity has food in inventory, start consuming immediately
+2. **Go to Home** - If no food in inventory, travel to home using GoToBuildingActivity
+3. **Check Home Storage** - Look for food in home storage
+4. **Consume** - Remove 1 unit of food, idle for consumption duration, then restore need
+
+**Behavior:**
+- Checks inventory first (no travel needed if food found)
+- Validates home building still exists during travel
+- Removes food item on first consumption tick (item is "claimed")
+- Applies need restoration only after consumption duration completes
+- Fails if no food found in inventory and no home, or home has no food
+
+### ProcessReactionActivity.cs
+Processes a crafting reaction (input items -> output items) at a workplace.
+
+**Usage:**
+```csharp
+new ProcessReactionActivity(
+    reaction: breadReaction,    // ReactionDefinition to process
+    workplace: bakery,          // Building with facilities (can be null)
+    storage: storageTrait,      // Storage for inputs/outputs
+    priority: 0
+)
+```
+
+**Phases:**
+1. **Go to Workplace** - Navigate to workplace if specified (skipped if null)
+2. **Verify Inputs** - Check all required inputs are available in storage
+3. **Consume Inputs** - Remove input items from storage
+4. **Process** - Wait for reaction duration (idle)
+5. **Produce Outputs** - Create output items and add to storage
+
+**Behavior:**
+- Validates workplace exists during travel
+- Verifies all inputs available before consuming any
+- Consumes all inputs atomically on first processing tick
+- Creates output items using ItemResourceManager definitions
+- Warns if storage is full and outputs are lost
+- Works with any ReactionDefinition that specifies inputs, outputs, and duration
 
 ## Key Classes
 
@@ -118,7 +215,9 @@ compounding effects. Decay multipliers are reserved for passive effects.
 | `GoToLocationActivity` | Navigate to grid position |
 | `GoToBuildingActivity` | Navigate to building |
 | `SleepActivity` | Sleep at night, restore energy |
-| `WorkFieldActivity` | Work at building, spend energy |
+| `WorkFieldActivity` | Work at building, produce/transport wheat |
+| `ConsumeItemActivity` | Eat food from inventory/home storage |
+| `ProcessReactionActivity` | Craft items via reaction system |
 
 ## Integration with Being
 
@@ -209,18 +308,18 @@ Going to a moving entity requires BDI (Belief-Desire-Intention) architecture:
 ### Proper BDI Approach (TODO)
 
 **1. Find Phase - Where do I *believe* the entity is?**
-- Currently perceiving it? → Use current position from perception
-- Have memory of it? → Use last known position from `BeingPerceptionSystem._memory`
-- Shared knowledge? → Check collective memory (not yet implemented)
-- No information? → Fail or trigger SearchActivity
+- Currently perceiving it? -> Use current position from perception
+- Have memory of it? -> Use last known position from `BeingPerceptionSystem._memory`
+- Shared knowledge? -> Check collective memory (not yet implemented)
+- No information? -> Fail or trigger SearchActivity
 
 **2. Go Phase - Move to believed position**
 - Use GoToLocationActivity with believed position
 - NOT directly tracking the entity
 
 **3. Verify Phase - Arrived at believed position**
-- Is entity actually here? → Complete
-- Entity not here? → Update belief, decide next action:
+- Is entity actually here? -> Complete
+- Entity not here? -> Update belief, decide next action:
   - If within perception range, update position and continue
   - If entity left perception, use memory or fail
   - Let trait decide: continue searching? give up?
@@ -244,7 +343,7 @@ The key insight: **GoToEntityActivity goes to where we BELIEVE the target is, no
 
 ## Future: Consumption Activity Variants
 
-The current `EatActivity` handles eating at buildings (farms). Future variants needed:
+The current `ConsumeItemActivity` handles eating from inventory/storage. Future variants needed:
 
 ### FeedOnBeingActivity (Vampires, Predators)
 - Target: Living Being
@@ -252,12 +351,6 @@ The current `EatActivity` handles eating at buildings (farms). Future variants n
 - Consume phase: Active feeding, target may resist/flee
 - Effects: Restore blood/hunger, possibly harm target
 - Complications: Combat integration, target death handling
-
-### ConsumeItemActivity (Eating Carried/Found Items)
-- Target: Item (on ground or in inventory)
-- Go-to phase: Only if item is on ground
-- Consume phase: Item is destroyed/consumed
-- Effects: Based on item type (food restores hunger, potion gives buff)
 
 ### Design Note
 Each consumption type has different enough mechanics that separate activity classes make sense rather than one generic ConsumeActivity.
@@ -269,6 +362,9 @@ Each consumption type has different enough mechanics that separate activity clas
 - `VeilOfAges.Entities.EntityAction` - Actions returned
 - `VeilOfAges.Entities.Sensory.Perception` - Perception data
 - `VeilOfAges.Core.Lib.PathFinder` - Navigation
+- `VeilOfAges.Entities.Items` - Item, ItemResourceManager
+- `VeilOfAges.Entities.Reactions` - ReactionDefinition
+- `VeilOfAges.Entities.Traits` - InventoryTrait, StorageTrait
 
 ### Depended On By
 - `VeilOfAges.Entities.Being` - Manages _currentActivity
