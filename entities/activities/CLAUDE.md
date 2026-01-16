@@ -65,6 +65,51 @@ new GoToBuildingActivity(farmBuilding, priority: 0)
 - Completes when adjacent to building
 - Fails if building destroyed or stuck
 
+### SleepActivity.cs
+Sleeping at home during night. Restores energy, reduces hunger decay.
+
+**Usage:**
+```csharp
+new SleepActivity(priority: 0)
+```
+
+**Behavior:**
+- Completes automatically when Dawn arrives
+- Restores energy at 0.15/tick (full restore in ~84 seconds)
+- Sets energy decay to 0 (no energy loss while sleeping)
+- Sets hunger decay to 0.25x (slow hunger while sleeping)
+
+**Need Effects:**
+```csharp
+NeedDecayMultipliers["hunger"] = 0.25f;  // Slow hunger
+NeedDecayMultipliers["energy"] = 0f;      // No energy decay
+// Plus direct restoration: _energyNeed.Restore(0.15f) each tick
+```
+
+### WorkFieldActivity.cs
+Working at a farm/field during daytime. Costs energy, increases hunger.
+
+**Usage:**
+```csharp
+new WorkFieldActivity(farm, workDuration: 400, priority: 0)
+```
+
+**Behavior:**
+- Two-phase: navigate to workplace, then work (idle at location)
+- Ends when work duration expires OR day phase changes to Dusk/Night
+- Directly costs energy (0.05/tick) while working
+- Increases hunger decay (1.2x) while working
+
+**Need Effects:**
+```csharp
+NeedDecayMultipliers["hunger"] = 1.2f;  // Hungry faster
+// Direct cost: _energyNeed.Restore(-0.05f) each tick while working
+```
+
+**Design Decision:** Work uses direct energy cost rather than decay multiplier.
+This creates a clearer "work spends energy" mental model and avoids confusing
+compounding effects. Decay multipliers are reserved for passive effects.
+
 ## Key Classes
 
 | Class | Description |
@@ -72,6 +117,8 @@ new GoToBuildingActivity(farmBuilding, priority: 0)
 | `Activity` | Abstract base with state, lifecycle |
 | `GoToLocationActivity` | Navigate to grid position |
 | `GoToBuildingActivity` | Navigate to building |
+| `SleepActivity` | Sleep at night, restore energy |
+| `WorkFieldActivity` | Work at building, spend energy |
 
 ## Integration with Being
 

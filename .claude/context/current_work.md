@@ -61,6 +61,37 @@ Make the village simulation interesting enough to watch by adding:
 - **BeingNeedsSystem** - Queries current activity for per-need decay multipliers
 - **Need.cs** - Decay() now accepts multiplier parameter
 
+### Energy Need (Complete - January 2026)
+- **LivingTrait** - Added energy need alongside hunger
+  - Energy: initial 100, decay 0.008/tick, thresholds 20/40/80
+  - Decays slower than hunger (energy lasts longer)
+- **SleepActivity** - Now restores energy while sleeping
+  - Restores 0.15 energy/tick during sleep
+  - Sets energy decay multiplier to 0 (no decay while sleeping)
+  - Logs energy level when waking up
+
+### Farmer Job System (Complete - January 2026)
+- **WorkFieldActivity** (`/entities/activities/WorkFieldActivity.cs`)
+  - Two-phase: go-to workplace + work (idle at location)
+  - Ends when day phase changes to Dusk/Night
+  - Increases hunger decay (1.2x multiplier) while working
+  - Directly costs energy (0.05/tick) - creates work→sleep loop
+- **FarmerJobTrait** (`/entities/traits/FarmerJobTrait.cs`)
+  - Suggests WorkFieldActivity during Dawn/Day phases
+  - Returns null at night (VillagerTrait handles sleep)
+  - Context-aware dialogue
+- **VillageGenerator** - Spawns first villager as farmer
+  - Tracks placed farms, assigns first one to farmer
+  - FarmerJobTrait added with priority -1 (runs before VillagerTrait)
+
+### Energy Design Decision (January 2026)
+- **Direct cost vs decay multiplier**: Work uses direct energy cost (0.05/tick)
+  rather than increased decay rate. Rationale:
+  - Clearer mental model: "work spends energy"
+  - Easier to balance (one number to tune)
+  - Decay multipliers reserved for passive effects (sleep slows hunger)
+  - Avoids confusing compounding effects
+
 ## Architecture Summary
 
 ### Three Layers
@@ -94,25 +125,30 @@ Make the village simulation interesting enough to watch by adding:
 - `/entities/activities/GoToBuildingActivity.cs`
 - `/entities/activities/EatActivity.cs`
 - `/entities/activities/SleepActivity.cs`
+- `/entities/activities/WorkFieldActivity.cs` (January 2026)
 - `/entities/activities/CLAUDE.md`
 - `/entities/actions/StartActivityAction.cs`
+- `/entities/traits/FarmerJobTrait.cs` (January 2026)
 
 ### Modified Files
 - `/entities/Being.cs` - Activity integration
 - `/entities/traits/ConsumptionBehaviorTrait.cs` - Uses EatActivity, priority logic
 - `/entities/traits/VillagerTrait.cs` - Sleeping state and schedule logic
+- `/entities/traits/LivingTrait.cs` - Added energy need (January 2026)
+- `/entities/activities/SleepActivity.cs` - Energy restoration (January 2026)
 - `/entities/being_services/BeingNeedsSystem.cs` - Activity-based decay multipliers
 - `/entities/needs/Need.cs` - Decay accepts multiplier
 - `/core/lib/GameTime.cs` - Added FromTicks() helper
 - `/core/GameController.cs` - Time scale limit raised to 25x
 - `/core/ui/dialogue/commands/MoveToCommand.cs` - Added TODO
 - `/core/ui/dialogue/commands/FollowCommand.cs` - Added TODO
+- `/world/generation/VillageGenerator.cs` - Farmer spawning (January 2026)
 
 ## Next Steps
 
-### Phase 2 Continued: Daily Life (TODO)
-- [ ] Add energy/rest need that SleepActivity restores
-- [ ] WorkActivity for farmers (tend crops during day)
+### Phase 2 Continued: Daily Life
+- [x] Add energy/rest need that SleepActivity restores (January 2026)
+- [x] WorkActivity for farmers (tend crops during day) (January 2026)
 - [ ] Work schedules and job-based routines
 - [ ] Recreation and entertainment activities
 

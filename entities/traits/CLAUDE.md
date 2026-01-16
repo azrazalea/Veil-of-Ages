@@ -34,10 +34,11 @@ Generic trait for satisfying needs by consuming from sources.
 Base trait for living entities.
 
 **Features:**
-- Initializes hunger need in NeedsSystem
+- Initializes hunger and energy needs in NeedsSystem
 - Hunger: 75 initial, 0.02 decay, thresholds 15/40/90
+- Energy: 100 initial, 0.008 decay, thresholds 20/40/80
 
-Simple trait that just adds the hunger need - actual consumption behavior is handled by ConsumptionBehaviorTrait.
+Simple trait that adds needs - actual consumption behavior is handled by ConsumptionBehaviorTrait, energy is restored by SleepActivity.
 
 ### MindlessTrait.cs
 Trait for non-sapient entities.
@@ -131,27 +132,46 @@ Autonomous village life behavior.
 
 **Features:**
 - Building discovery and memory
-- State-based daily routine
+- State-based daily routine with sleep schedule
 - LivingTrait + ConsumptionBehaviorTrait composition
 - Farm-based food acquisition
 
 **States:**
-- `IdleAtHome` - At home position, may wander
+- `IdleAtHome` - At home position, may wander or start sleeping
 - `IdleAtSquare` - At village center, social time
 - `VisitingBuilding` - At a specific building
+- `Sleeping` - Sleeping at home during Night/Dusk (uses SleepActivity)
 
 **Discovery:**
 Scans Entities node for Building children on initialization.
+
+### FarmerJobTrait.cs
+Job trait for farmers who work at assigned farms during daytime.
+
+**Features:**
+- Assigned to a specific farm building on construction
+- Suggests WorkFieldActivity during Dawn/Day phases
+- Returns null at night (VillagerTrait handles sleep)
+- Context-aware dialogue based on time of day
+
+**Usage:**
+```csharp
+var farmerTrait = new FarmerJobTrait(assignedFarm);
+typedBeing.SelfAsEntity().AddTraitToQueue(farmerTrait, priority: -1);
+```
+
+**Priority:** -1 (runs before VillagerTrait at priority 1)
 
 ## Trait Hierarchy
 
 ```
 Trait (base)
   +-- BeingTrait (Being-specific helpers)
-        +-- LivingTrait (hunger need)
+        +-- LivingTrait (hunger + energy needs)
         +-- MindlessTrait (dialogue limits)
         +-- ConsumptionBehaviorTrait (need satisfaction)
-        +-- VillagerTrait (village life)
+        +-- VillagerTrait (village life + sleep)
+        +-- FarmerJobTrait (daytime work at farm)
         +-- UndeadTrait (undead properties)
               +-- UndeadBehaviorTrait (abstract, wandering)
                     +-- SkeletonTrait (territorial)
@@ -163,13 +183,14 @@ Trait (base)
 | Trait | Description |
 |-------|-------------|
 | `ConsumptionBehaviorTrait` | Strategy-based need satisfaction |
-| `LivingTrait` | Living entity needs |
+| `LivingTrait` | Living entity needs (hunger, energy) |
 | `MindlessTrait` | Non-sapient dialogue limits |
 | `UndeadTrait` | Base undead properties |
 | `UndeadBehaviorTrait` | Abstract wandering behavior |
 | `SkeletonTrait` | Territorial skeleton behavior |
 | `ZombieTrait` | Hunger-driven zombie behavior |
-| `VillagerTrait` | Village daily routine |
+| `VillagerTrait` | Village daily routine + sleep |
+| `FarmerJobTrait` | Work at assigned farm during day |
 
 ## Important Notes
 

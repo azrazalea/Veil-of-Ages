@@ -2,6 +2,7 @@ using Godot;
 using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
+using VeilOfAges.Entities.Needs;
 using VeilOfAges.Entities.Sensory;
 
 namespace VeilOfAges.Entities.Activities;
@@ -10,15 +11,21 @@ namespace VeilOfAges.Entities.Activities;
 /// Activity for working at a field/farm during daytime.
 /// Handles navigation to the workplace and idling there (working).
 /// Completes when work duration expires or day phase ends.
+/// Drains energy while working (restored by sleeping).
 /// </summary>
 public class WorkFieldActivity : Activity
 {
+    // Energy cost per tick while actively working
+    // At 0.05/tick, working for 400 ticks costs 20 energy
+    private const float ENERGYCOSTPERTICK = 0.05f;
+
     private readonly Building _workplace;
     private readonly uint _workDuration;
 
     private GoToBuildingActivity? _goToPhase;
     private uint _workTimer;
     private bool _isWorking;
+    private Need? _energyNeed;
 
     public override string DisplayName => _isWorking
         ? $"Working at {_workplace.BuildingType}"
@@ -39,6 +46,14 @@ public class WorkFieldActivity : Activity
 
         // Working makes you hungry faster
         NeedDecayMultipliers["hunger"] = 1.2f;
+    }
+
+    public override void Initialize(Being owner)
+    {
+        base.Initialize(owner);
+
+        // Get energy need - work directly costs energy (not via decay multiplier)
+        _energyNeed = owner.NeedsSystem?.GetNeed("energy");
     }
 
     public override EntityAction? GetNextAction(Vector2I position, Perception perception)
@@ -99,6 +114,9 @@ public class WorkFieldActivity : Activity
         if (_isWorking)
         {
             _workTimer++;
+
+            // Directly spend energy while working
+            _energyNeed?.Restore(-ENERGYCOSTPERTICK);
 
             if (_workTimer >= _workDuration)
             {

@@ -70,7 +70,31 @@ This is inverted from some other systems - higher is better.
 - Decay happens via `BeingNeedsSystem.UpdateNeeds()`
 - Called each game tick
 - Rate varies by need and entity type
+- Activities can modify decay via `NeedDecayMultipliers` (e.g., sleep slows hunger)
 - Example: Villager hunger decays at 0.02/tick, zombie at 0.0015/tick
+
+### Existing Needs
+
+**Hunger** (living entities):
+- Added by: `LivingTrait`
+- Initial: 75, Decay: 0.02/tick, Thresholds: 15/40/90
+- Satisfied by: `ConsumptionBehaviorTrait` + `EatActivity` at farms
+- Modified by activities:
+  - Sleep: 0.25x decay (slower)
+  - Work: 1.2x decay (faster)
+
+**Energy** (living entities):
+- Added by: `LivingTrait`
+- Initial: 100, Decay: 0.008/tick, Thresholds: 20/40/80
+- Satisfied by: `SleepActivity` (restores 0.15/tick)
+- Modified by activities:
+  - Sleep: 0x decay + direct restoration
+  - Work: direct cost (0.05/tick spent)
+
+**Brain Hunger** (zombies):
+- Added by: `ZombieTrait`
+- Initial: 60, Decay: 0.0015/tick (very slow)
+- Satisfied by: `ConsumptionBehaviorTrait` at graveyards
 
 ### Strategy Pattern Usage
 The strategy pattern allows entity-specific behavior:
@@ -136,9 +160,10 @@ _owner?.selfAsEntity().AddTraitToQueue(consumptionTrait, Priority - 1, initQueue
 ### Decay Rate Reference
 
 At 8 ticks/second:
-- `0.02` = ~62.5 seconds from 100 to 0
+- `0.02` = ~62.5 seconds from 100 to 0 (hunger)
 - `0.01` = ~125 seconds from 100 to 0
-- `0.0015` = ~833 seconds (~14 minutes) from 100 to 0
+- `0.008` = ~156 seconds from 100 to 0 (energy)
+- `0.0015` = ~833 seconds (~14 minutes) from 100 to 0 (zombie brain hunger)
 
 ## Dependencies
 
