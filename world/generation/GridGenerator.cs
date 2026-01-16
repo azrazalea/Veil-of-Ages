@@ -4,6 +4,7 @@ using Godot;
 using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
+using VeilOfAges.Entities.Terrain;
 using VeilOfAges.Grid;
 
 namespace VeilOfAges.WorldGeneration;
@@ -178,7 +179,7 @@ public partial class GridGenerator : Node
             Node2D tempTree = TreeScene.Instantiate<Node2D>();
             Vector2I treeSize = new (1, 1); // Default size
 
-            if (tempTree is Tree typedTree)
+            if (tempTree is Entities.Terrain.Tree typedTree)
             {
                 treeSize = typedTree.GridSize;
             }
@@ -212,7 +213,7 @@ public partial class GridGenerator : Node
             _entitiesContainer.AddChild(tree);
 
             // Initialize the tree at this position
-            if (tree is Tree typedTree2)
+            if (tree is Entities.Terrain.Tree typedTree2)
             {
                 typedTree2.Initialize(_activeGridArea, gridPos);
             }

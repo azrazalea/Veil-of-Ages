@@ -16,9 +16,9 @@ namespace VeilOfAges.UI.Commands;
 public class MoveToCommand(Being owner, Being commander, bool isComplex = false)
 : EntityCommand(owner, commander, isComplex)
 {
-    private Vector2I? _targetPos = null;
-    private Being? _targetEntity = null;
-    private bool _goalSet = false;
+    private Vector2I? _targetPos;
+    private Being? _targetEntity;
+    private bool _goalSet;
 
     public override EntityAction? SuggestAction(Vector2I currentGridPos, Perception currentPerception)
     {

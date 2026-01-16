@@ -11,7 +11,7 @@ public class BodyHealth(Being owner)
     public Dictionary<string, BodyPartGroup> BodyPartGroups { get; private set; } = [];
     public Dictionary<BodySystemType, BodySystem> BodySystems { get; private set; } = [];
 
-    public bool BodyStructureInitialized = false;
+    public bool BodyStructureInitialized;
     public string[] SoftTissuesAndOrgans = [
         "Stomach", "Heart", "Lungs", "Kidneys", "Liver", "Eyes", "Nose", "Gonads", "Genitals"
     ];

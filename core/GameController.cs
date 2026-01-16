@@ -17,12 +17,12 @@ public partial class GameController : Node
     /// <summary>
     /// Gets global tick counter, incremented each simulation tick.
     /// </summary>
-    public static uint CurrentTick { get; private set; } = 0;
+    public static uint CurrentTick { get; private set; }
 
-    private float TickInterval => 1f / GameTime.SimulationTickRate;
-    private float _timeSinceLastTick = 0f;
-    private bool _simulationPaused = false;
-    private bool _processingTick = false;
+    private static float TickInterval => 1f / GameTime.SimulationTickRate;
+    private float _timeSinceLastTick;
+    private bool _simulationPaused;
+    private bool _processingTick;
 
     private World? _world;
     private Player? _player;
@@ -57,12 +57,12 @@ public partial class GameController : Node
         {
             _timeSinceLastTick -= TickInterval;
             CurrentTick++;
-            ProcessNextTick();
+            _ = ProcessNextTick();
             CurrentGameTime = CurrentGameTime.Advance();
         }
     }
 
-    private async void ProcessNextTick()
+    private async Task ProcessNextTick()
     {
         _processingTick = true;
 
@@ -103,75 +103,5 @@ public partial class GameController : Node
     public void SetTimeScale(float scale)
     {
         TimeScale = Mathf.Clamp(scale, 0.1f, 25f);
-    }
-
-    // Time skip functionality
-    // public async Task SkipTime(TimeSpan duration)
-    // {
-    //     // Save current state
-    //     float previousTimeScale = TimeScale;
-    //     bool previousPauseState = _simulationPaused;
-
-    // try
-    //     {
-    //         // Calculate how many ticks to process
-    //         int ticksToProcess = (int)(duration.TotalSeconds * SimulationTickRate);
-
-    // // Show time skip UI
-    //         _world.ShowTimeSkipProgress(duration);
-
-    // // Speed up simulation
-    //         _simulationPaused = false;
-    //         TimeScale = 20f;
-
-    // // Process ticks in batches to keep UI responsive
-    //         const int batchSize = 50;
-    //         for (int i = 0; i < ticksToProcess; i += batchSize)
-    //         {
-    //             // Process a batch
-    //             int currentBatchSize = Math.Min(batchSize, ticksToProcess - i);
-    //             for (int j = 0; j < currentBatchSize; j++)
-    //             {
-    //                 await ForceProcessTick();
-    //             }
-
-    // // Update progress indicator
-    //             _world.UpdateTimeSkipProgress(i + currentBatchSize, ticksToProcess);
-
-    // // Check for critical events
-    //             if (_world.HasCriticalEventPending())
-    //             {
-    //                 _world.ShowInterruptionEvent();
-    //                 break;
-    //             }
-
-    // // Yield to allow UI updates
-    //             await Task.Delay(1);
-    //         }
-    //     }
-    //     finally
-    //     {
-    //         // Restore original settings
-    //         TimeScale = previousTimeScale;
-    //         _simulationPaused = previousPauseState;
-
-    // // Hide progress UI
-    //         _world.HideTimeSkipProgress();
-    //     }
-    // }
-    private async Task ForceProcessTick()
-    {
-        _processingTick = true;
-
-        // Process the tick
-        if (_thinkingSystem != null)
-        {
-            await _thinkingSystem.ProcessGameTick();
-        }
-
-        // _world.UpdateWorldState();
-        // _world.UpdateUI();
-        // _world.AdvanceTime();
-        _processingTick = false;
     }
 }

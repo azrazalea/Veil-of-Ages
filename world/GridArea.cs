@@ -31,33 +31,33 @@ public partial class Area(Vector2I worldSize): Node2D
     /// <summary>
     /// Is area in full detail mode with all AI active?.
     /// </summary>
-    private bool _isActive = false;
+    private bool _isActive;
 
     /// <summary>
     /// Is this the area the player is in currently?.
     /// </summary>
-    private bool _isPlayerArea = false;
-    private uint _beingNum = 0;
+    private bool _isPlayerArea;
+    private uint _beingNum;
     public List<Node2D> Entities { get; private set; } = [];
 
-    public static Tile WaterTile = new (
+    public static readonly Tile WaterTile = new (
         1,
         new (3, 16),
         false);
 
-    public static Tile GrassTile = new (
+    public static readonly Tile GrassTile = new (
         0,
         new (1, 3),
         true,
         1.0f);
 
-    public static Tile DirtTile = new (
+    public static readonly Tile DirtTile = new (
         0,
         new (5, 3),
         true,
         0.8f);
 
-    public static Tile PathTile = new (
+    public static readonly Tile PathTile = new (
         0,
         new (6, 21),
         true,
@@ -84,7 +84,7 @@ public partial class Area(Vector2I worldSize): Node2D
         AStarGrid = PathFinder.CreateNewAStarGrid(this);
     }
 
-    public void MakePlayerArea(Player _player, Vector2I playerStartingLocation)
+    public void MakePlayerArea(Player player, Vector2I playerStartingLocation)
     {
         // Disable existing player GridArea
         var playerArea = GetNode<Node>("/root/World/GridAreas/PlayerArea");
@@ -115,7 +115,7 @@ public partial class Area(Vector2I worldSize): Node2D
         // Declare we are active
         _isActive = true;
         _isPlayerArea = true;
-        _player.Position = Utils.GridToWorld(playerStartingLocation);
+        player.Position = Utils.GridToWorld(playerStartingLocation);
     }
 
     public bool HasBeings()

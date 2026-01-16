@@ -23,7 +23,7 @@ public class ZombieTrait : UndeadBehaviorTrait
 
     private ZombieState _currentState = ZombieState.Idle;
 
-    private bool _hasGroaned = false;
+    private bool _hasGroaned;
 
     public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue)
     {

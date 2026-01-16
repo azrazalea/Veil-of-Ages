@@ -5,13 +5,15 @@ using Godot;
 using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
+using VeilOfAges.Entities.Traits;
 using VeilOfAges.Grid;
 
 namespace VeilOfAges.WorldGeneration;
 
 public class VillageGenerator
 {
-    private readonly PackedScene _buildingScene;
+    // Buildings are instantiated via BuildingManager, scene kept for future direct use
+    // private readonly PackedScene _buildingScene;
     private readonly PackedScene _skeletonScene;
     private readonly PackedScene _zombieScene;
     private readonly PackedScene _townsfolkScene;
@@ -19,7 +21,11 @@ public class VillageGenerator
     private readonly Area _gridArea;
     private readonly RandomNumberGenerator _rng = new ();
     private readonly EntityThinkingSystem _entityThinkingSystem;
-    private readonly BuildingManager? _buildingManager; // Added BuildingManager reference
+    private readonly BuildingManager? _buildingManager;
+
+    // Track placed farms for assigning farmers
+    private readonly List<Building> _placedFarms = new ();
+    private bool _farmerSpawned;
 
     public VillageGenerator(
         Area gridArea,
@@ -33,7 +39,7 @@ public class VillageGenerator
     {
         _gridArea = gridArea;
         _entitiesContainer = entitiesContainer;
-        _buildingScene = buildingScene;
+        _ = buildingScene; // Kept for API compatibility, buildings use BuildingManager
         _skeletonScene = skeletonScene;
         _zombieScene = zombieScene;
         _townsfolkScene = townsfolkScene;
@@ -191,6 +197,11 @@ public class VillageGenerator
                         // Special handling based on building type
                         switch (buildingType)
                         {
+                            case "Simple Farm":
+                                // Track farm for assigning farmers later
+                                _placedFarms.Add(typedBuilding);
+                                break;
+
                             case "Graveyard":
                                 // If possible, place a Church next to the Graveyard
                                 SpawnBuildingNearBuilding(buildingPos, buildingSize, "Church", "right", 2);
@@ -201,9 +212,16 @@ public class VillageGenerator
                                 break;
 
                             case "Simple House":
-                                // Spawn townsfolk near houses
-                                SpawnBeingNearBuilding(buildingPos, buildingSize, _townsfolkScene);
-                                SpawnBeingNearBuilding(buildingPos, buildingSize, _townsfolkScene);
+                                // Spawn 1 villager per house
+                                // First villager becomes a farmer if farms exist
+                                Building? farmToAssign = null;
+                                if (!_farmerSpawned && _placedFarms.Count > 0)
+                                {
+                                    farmToAssign = _placedFarms[0];
+                                    _farmerSpawned = true;
+                                }
+
+                                SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene, farmToAssign);
                                 break;
                         }
 
@@ -304,6 +322,53 @@ public class VillageGenerator
         else
         {
             Log.Error($"Could not find valid position to spawn being near building at {buildingPos}");
+        }
+    }
+
+    /// <summary>
+    /// Spawns a villager near a building, optionally assigning them as a farmer.
+    /// </summary>
+    private void SpawnVillagerNearBuilding(
+        Vector2I buildingPos,
+        Vector2I buildingSize,
+        PackedScene beingScene,
+        Building? assignedFarm = null)
+    {
+        Vector2I beingPos = FindPositionInFrontOfBuilding(buildingPos, buildingSize);
+
+        if (beingPos != buildingPos && _gridArea.IsCellWalkable(beingPos))
+        {
+            Node2D being = beingScene.Instantiate<Node2D>();
+
+            if (being is Being typedBeing)
+            {
+                typedBeing.Initialize(_gridArea, beingPos);
+
+                // If assigned a farm, add farmer job trait
+                if (assignedFarm != null)
+                {
+                    var farmerTrait = new FarmerJobTrait(assignedFarm);
+                    typedBeing.SelfAsEntity().AddTraitToQueue(farmerTrait, priority: -1);
+                    Log.Print($"Spawned farmer at {beingPos} (home), assigned to farm at {assignedFarm.GetCurrentGridPosition()}");
+                }
+                else
+                {
+                    Log.Print($"Spawned villager at {beingPos} near building at {buildingPos}");
+                }
+
+                _entityThinkingSystem.RegisterEntity(typedBeing);
+            }
+            else
+            {
+                being.Position = Utils.GridToWorld(beingPos);
+            }
+
+            _gridArea.AddEntity(beingPos, being);
+            _entitiesContainer.AddChild(being);
+        }
+        else
+        {
+            Log.Error($"Could not find valid position to spawn villager near building at {buildingPos}");
         }
     }
 
@@ -426,9 +491,9 @@ public class VillageGenerator
     /// <summary>
     /// Calculate the ideal position based on direction.
     /// </summary>
-    private Vector2I CalculateIdealPosition(Vector2I basePos, Vector2I baseSize, Vector2I newSize, string direction)
+    private static Vector2I CalculateIdealPosition(Vector2I basePos, Vector2I baseSize, Vector2I newSize, string direction)
     {
-        return direction.ToLower() switch
+        return direction.ToLowerInvariant() switch
         {
             "right" => new Vector2I(basePos.X + baseSize.X + 1, basePos.Y + ((baseSize.Y - newSize.Y) / 2)),
             "left" => new Vector2I(basePos.X - newSize.X - 1, basePos.Y + ((baseSize.Y - newSize.Y) / 2)),
@@ -445,7 +510,7 @@ public class VillageGenerator
     /// <summary>
     /// Get positions with wiggle room.
     /// </summary>
-    private List<Vector2I> GetWigglePositions(Vector2I basePos, Vector2I buildingSize, string direction, int wiggleAmount)
+    private static List<Vector2I> GetWigglePositions(Vector2I basePos, Vector2I buildingSize, string direction, int wiggleAmount)
     {
         var positions = new List<Vector2I>();
 
@@ -484,9 +549,9 @@ public class VillageGenerator
     /// <summary>
     /// Expand the position outward in the preferred direction.
     /// </summary>
-    private Vector2I ExpandPositionOutward(Vector2I basePos, Vector2I buildingSize, string direction, int distance)
+    private static Vector2I ExpandPositionOutward(Vector2I basePos, Vector2I buildingSize, string direction, int distance)
     {
-        return direction.ToLower() switch
+        return direction.ToLowerInvariant() switch
         {
             "right" => new Vector2I(basePos.X + distance, basePos.Y),
             "left" => new Vector2I(basePos.X - distance, basePos.Y),

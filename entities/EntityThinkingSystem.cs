@@ -22,7 +22,7 @@ public partial class EntityThinkingSystem : Node
 
     private readonly SemaphoreSlim _thinkingSemaphore;
 
-    private bool _isProcessingTick = false;
+    private bool _isProcessingTick;
 
     public EntityThinkingSystem()
     {

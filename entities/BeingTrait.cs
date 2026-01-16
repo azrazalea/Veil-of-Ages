@@ -20,7 +20,7 @@ public abstract class BeingTrait : Trait
     public PathFinder MyPathfinder { get; set; } = new ();
 
     // State tracking fields
-    protected uint _stateTimer = 0;
+    protected uint _stateTimer;
     protected Vector2I _spawnPosition = Vector2I.Zero;
 
     // Memory-related fields (optional, for traits that need memory)
@@ -70,7 +70,7 @@ public abstract class BeingTrait : Trait
     /// Find entities of a specific type in perception.
     /// </summary>
     /// <returns></returns>
-    protected List<(T entity, Vector2I position)> FindEntitiesOfType<T>(Perception perception)
+    protected static List<(T entity, Vector2I position)> FindEntitiesOfType<T>(Perception perception)
         where T : Being
     {
         return perception.GetEntitiesOfType<T>();
@@ -80,7 +80,7 @@ public abstract class BeingTrait : Trait
     /// Check if a type of entity is visible in perception.
     /// </summary>
     /// <returns></returns>
-    protected bool CanSeeEntityType<T>(Perception perception)
+    protected static bool CanSeeEntityType<T>(Perception perception)
         where T : Being
     {
         return FindEntitiesOfType<T>(perception).Count > 0;
@@ -90,7 +90,7 @@ public abstract class BeingTrait : Trait
     /// Find the closest entity of a specific type.
     /// </summary>
     /// <returns></returns>
-    protected (T? entity, Vector2I position) FindClosestEntityOfType<T>(Perception perception, Vector2I fromPosition)
+    protected static (T? entity, Vector2I position) FindClosestEntityOfType<T>(Perception perception, Vector2I fromPosition)
         where T : Being
     {
         var entities = FindEntitiesOfType<T>(perception);
@@ -316,12 +316,13 @@ public abstract class BeingTrait : Trait
     /// </summary>
     protected void StoreMemory(Vector2I position, string key, object value)
     {
-        if (!_memory.ContainsKey(position))
+        if (!_memory.TryGetValue(position, out var posMemory))
         {
-            _memory[position] = new Dictionary<string, object>();
+            posMemory = new Dictionary<string, object>();
+            _memory[position] = posMemory;
         }
 
-        _memory[position][key] = value;
+        posMemory[key] = value;
         _memoryTimestamps[position] = _memoryDuration;
     }
 

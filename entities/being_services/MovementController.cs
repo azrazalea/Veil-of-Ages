@@ -18,11 +18,11 @@ public class MovementController
 
     // Movement points system
     private float _movementPointsPerTick; // Points gained per tick
-    private float _movementPointsAccumulator = 0f; // Accumulated movement points
+    private float _movementPointsAccumulator; // Accumulated movement points
 
     // Visual movement tracking
-    private bool _isMoving = false;
-    private float _currentMoveCost = 0f; // Total cost of current move
+    private bool _isMoving;
+    private float _currentMoveCost; // Total cost of current move
 
     public PathFinder MyPathfinder { get; set; } = new PathFinder();
 

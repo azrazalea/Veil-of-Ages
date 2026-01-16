@@ -39,10 +39,10 @@ public partial class PlayerInputController : Node
     private Label? _dateLabel;
     [Export]
     private Label? _speedLabel;
-    private EntityCommand? _pendingCommand = null;
-    private Being? _commandTarget = null;
+    private EntityCommand? _pendingCommand;
+    private Being? _commandTarget;
     private Vector2I _contextGridPos;
-    private bool _awaitingLocationSelection = false;
+    private bool _awaitingLocationSelection;
 
     public override void _Ready()
     {
@@ -122,7 +122,7 @@ public partial class PlayerInputController : Node
             return input;
         }
 
-        return char.ToUpper(input[0]) + input[1..];
+        return char.ToUpperInvariant(input[0]) + input[1..];
     }
 
     public override void _Input(InputEvent @event)
@@ -348,7 +348,7 @@ public partial class PlayerInputController : Node
 
                 break;
 
-            case var s when s.StartsWith("Talk to "):
+            case var s when s.StartsWith("Talk to ", StringComparison.Ordinal):
                 var entity = GetEntityAtPosition(gridPos);
                 if (entity != null && entity != _player)
                 {
@@ -382,12 +382,12 @@ public partial class PlayerInputController : Node
 
                 break;
 
-            case var s when s.StartsWith("Command "):
+            case var s when s.StartsWith("Command ", StringComparison.Ordinal):
                 // Future implementation for command menu
                 Log.Print("Command functionality not yet implemented");
                 break;
 
-            case var s when s.StartsWith("Examine "):
+            case var s when s.StartsWith("Examine ", StringComparison.Ordinal):
                 // Future implementation for examine functionality
                 Log.Print("Examine functionality not yet implemented");
                 break;

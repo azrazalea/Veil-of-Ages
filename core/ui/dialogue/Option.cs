@@ -29,7 +29,7 @@ public class DialogueOption
     /// Is this option one that does not require entity.GetSuccessReponse and entity.GetFailureResponse to be called?
     /// This is typically used when we can get the information for the response ourselves.
     /// </summary>
-    private readonly bool _isSimpleOption = false;
+    private readonly bool _isSimpleOption;
 
     public DialogueOption(string text, EntityCommand? command = null, string successResponse = "Okay", string failureResponse = "No",
                             bool isSimpleOption = false)

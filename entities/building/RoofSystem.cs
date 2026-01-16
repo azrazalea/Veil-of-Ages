@@ -167,7 +167,7 @@ public partial class RoofSystem : Node
     /// Check if the player can see inside the building.
     /// </summary>
     /// <returns></returns>
-    public bool CanPlayerSeeInside()
+    public static bool CanPlayerSeeInside()
     {
         // TODO: Implement proper check based on player position and line of sight
         // For now, return a simple placeholder

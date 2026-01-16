@@ -155,7 +155,7 @@ public partial class BuildingManager : Node
     /// Check if a building can be placed at the specified position.
     /// </summary>
     /// <returns></returns>
-    public bool CanPlaceBuildingAt(BuildingTemplate template, Vector2I gridPosition, VeilOfAges.Grid.Area area)
+    public static bool CanPlaceBuildingAt(BuildingTemplate template, Vector2I gridPosition, VeilOfAges.Grid.Area area)
     {
         // Check each tile in the template
         foreach (var tileData in template.Tiles)
@@ -190,7 +190,7 @@ public partial class BuildingManager : Node
     /// Save a custom building as a new template.
     /// </summary>
     /// <returns></returns>
-    public bool SaveAsTemplate(Building building, string templateName)
+    public static bool SaveAsTemplate(Building building, string templateName)
     {
         // TODO: Implement custom building saving
         // This would extract all tile information from an existing building

@@ -8,6 +8,8 @@ using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Grid;
 
+using static VeilOfAges.Core.Lib.JsonOptions;
+
 namespace VeilOfAges.Entities;
 
 /// <summary>
@@ -54,13 +56,7 @@ public class BuildingTemplate
         try
         {
             string jsonContent = File.ReadAllText(path);
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-                Converters = { new Vector2IConverter() }
-            };
-
-            return JsonSerializer.Deserialize<BuildingTemplate>(jsonContent, options);
+            return JsonSerializer.Deserialize<BuildingTemplate>(jsonContent, WithVector2I);
         }
         catch (Exception e)
         {
@@ -78,13 +74,7 @@ public class BuildingTemplate
     {
         try
         {
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                Converters = { new Vector2IConverter() }
-            };
-
-            string jsonContent = JsonSerializer.Serialize(this, options);
+            string jsonContent = JsonSerializer.Serialize(this, WriteIndented);
             File.WriteAllText(path, jsonContent);
             return true;
         }
@@ -152,7 +142,7 @@ public class BuildingTemplate
                     return false;
                 }
 
-                var tileDef = TileResourceManager.Instance.GetTileDefinition(tile.Type.ToLower());
+                var tileDef = TileResourceManager.Instance.GetTileDefinition(tile.Type.ToLowerInvariant());
                 if (tileDef == null)
                 {
                     Log.Error($"Tile at {tile.Position} of type {tile.Type} has no corresponding tile definition");

@@ -29,7 +29,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     [Export]
     protected float BaseMovementPointsPerTick { get; set; } = 0.3f; // Default movement points per tick (average being)
 
-    protected bool _isInDialogue = false;
+    protected bool _isInDialogue;
     protected EntityCommand? _currentCommand;
     protected Activity? _currentActivity;
 

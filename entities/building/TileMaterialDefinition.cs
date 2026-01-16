@@ -2,10 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Sensory;
+
+using static VeilOfAges.Core.Lib.JsonOptions;
 
 namespace VeilOfAges.Entities;
 
@@ -42,12 +43,7 @@ public class TileMaterialDefinition
         try
         {
             string jsonContent = File.ReadAllText(path);
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            };
-
-            return JsonSerializer.Deserialize<TileMaterialDefinition>(jsonContent, options);
+            return JsonSerializer.Deserialize<TileMaterialDefinition>(jsonContent, Default);
         }
         catch (Exception e)
         {

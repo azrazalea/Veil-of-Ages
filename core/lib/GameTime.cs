@@ -243,12 +243,12 @@ public class GameTime
     /// <summary>
     /// Gets the hour when dawn starts (always 0).
     /// </summary>
-    public ulong DawnStartHour => 0;
+    public static ulong DawnStartHour => 0;
 
     /// <summary>
     /// Gets the hour when full daylight begins (always 1, after dawn).
     /// </summary>
-    public ulong DayStartHour => 1;
+    public static ulong DayStartHour => 1;
 
     /// <summary>
     /// Gets the hour when dusk begins (varies by season).

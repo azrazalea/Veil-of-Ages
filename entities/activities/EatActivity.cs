@@ -22,8 +22,8 @@ public class EatActivity : Activity
     private readonly uint _consumptionDuration;
 
     private GoToBuildingActivity? _goToPhase;
-    private uint _consumptionTimer = 0;
-    private bool _isConsuming = false;
+    private uint _consumptionTimer;
+    private bool _isConsuming;
 
     public override string DisplayName => _isConsuming
         ? $"Eating at {_target.BuildingType}"

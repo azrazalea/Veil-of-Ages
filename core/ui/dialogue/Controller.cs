@@ -4,10 +4,10 @@ using VeilOfAges.UI.Commands;
 
 namespace VeilOfAges.UI;
 
-public class DialogueController
+public static class DialogueController
 {
     // Generate initial dialogue options based on the entity type
-    public List<DialogueOption> GenerateOptionsFor(Being speaker, Being entity)
+    public static List<DialogueOption> GenerateOptionsFor(Being speaker, Being entity)
     {
         var options = new List<DialogueOption>
         {
@@ -29,7 +29,7 @@ public class DialogueController
     }
 
     // Generate follow-up options after a command
-    public List<DialogueOption> GenerateFollowUpOptions(Being speaker, Being entity, DialogueOption previousOption)
+    public static List<DialogueOption> GenerateFollowUpOptions(Being speaker, Being entity, DialogueOption previousOption)
     {
         // If the previous command was "Goodbye", return an empty list to close the dialogue
         if (previousOption.Text == "Goodbye.")
@@ -42,12 +42,12 @@ public class DialogueController
     }
 
     // Process a command for an entity
-    public bool ProcessCommand(Being entity, EntityCommand command)
+    public static bool ProcessCommand(Being entity, EntityCommand command)
     {
         return entity.AssignCommand(command);
     }
 
-    private string GetEntityDescription(Being entity)
+    private static string GetEntityDescription(Being entity)
     {
         return entity.GetDialogueDescription();
     }

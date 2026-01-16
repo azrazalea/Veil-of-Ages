@@ -33,7 +33,7 @@ public abstract class Activity
     /// Gets or sets default priority for actions returned by this activity.
     /// Lower values = higher priority.
     /// </summary>
-    public int Priority { get; protected set; } = 0;
+    public int Priority { get; protected set; }
 
     /// <summary>
     /// Gets or sets maps need IDs to decay rate multipliers for this activity.

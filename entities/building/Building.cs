@@ -35,8 +35,8 @@ public partial class Building : Node2D, IEntity<Trait>
     private List<Vector2I> _entrancePositions = [];
 
     // For tracking residents/workers
-    private int _capacity = 0;
-    private int _occupants = 0;
+    private int _capacity;
+    private int _occupants;
 
     private const int HORIZONTALPIXELOFFSET = -4;
     private const int VERTICALPIXELOFFSET = 1;
@@ -188,10 +188,10 @@ public partial class Building : Node2D, IEntity<Trait>
             }
 
             // For the tile definition, we'll use the Type field
-            string tileDefId = tileData.Type.ToLower(); // Use lowercase to match our resource IDs
+            string tileDefId = tileData.Type.ToLowerInvariant(); // Use lowercase to match our resource IDs
 
             // For the material, we'll use the Material field
-            string materialId = tileData.Material.ToLower(); // Use lowercase to match our resource IDs
+            string materialId = tileData.Material.ToLowerInvariant(); // Use lowercase to match our resource IDs
 
             // Get the variant name if specified
             string? variantName = tileData.Variant;

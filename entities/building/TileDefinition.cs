@@ -7,6 +7,8 @@ using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Sensory;
 
+using static VeilOfAges.Core.Lib.JsonOptions;
+
 namespace VeilOfAges.Entities;
 
 /// <summary>
@@ -93,92 +95,86 @@ public class TileDefinition
             var definition = new TileDefinition();
 
             // Load basic properties
-            if (root.TryGetProperty("Id", out var idElement))
+            if (root.TryGetProperty(nameof(Id), out var idElement))
             {
                 definition.Id = idElement.GetString();
             }
 
-            if (root.TryGetProperty("Name", out var nameElement))
+            if (root.TryGetProperty(nameof(Name), out var nameElement))
             {
                 definition.Name = nameElement.GetString();
             }
 
-            if (root.TryGetProperty("Description", out var descElement))
+            if (root.TryGetProperty(nameof(Description), out var descElement))
             {
                 definition.Description = descElement.GetString();
             }
 
-            if (root.TryGetProperty("Type", out var typeElement))
+            if (root.TryGetProperty(nameof(Type), out var typeElement))
             {
                 definition.Type = typeElement.GetString();
             }
 
-            if (root.TryGetProperty("Category", out var categoryElement))
+            if (root.TryGetProperty(nameof(Category), out var categoryElement))
             {
                 definition.Category = categoryElement.GetString();
             }
 
-            if (root.TryGetProperty("DefaultMaterial", out var materialElement))
+            if (root.TryGetProperty(nameof(DefaultMaterial), out var materialElement))
             {
                 definition.DefaultMaterial = materialElement.GetString();
             }
 
-            if (root.TryGetProperty("IsWalkable", out var walkableElement))
+            if (root.TryGetProperty(nameof(IsWalkable), out var walkableElement))
             {
                 definition.IsWalkable = walkableElement.GetBoolean();
             }
 
-            if (root.TryGetProperty("BaseDurability", out var durabilityElement))
+            if (root.TryGetProperty(nameof(BaseDurability), out var durabilityElement))
             {
                 definition.BaseDurability = durabilityElement.GetInt32();
             }
 
-            if (root.TryGetProperty("AtlasSource", out var atlasElement))
+            if (root.TryGetProperty(nameof(AtlasSource), out var atlasElement))
             {
                 definition.AtlasSource = atlasElement.GetString();
             }
 
             // Handle AtlasCoords
-            if (root.TryGetProperty("AtlasCoords", out var coordsElement))
+            if (root.TryGetProperty(nameof(AtlasCoords), out var coordsElement))
             {
                 var coords = JsonSerializer.Deserialize<Vector2I>(
                     coordsElement.GetRawText(),
-                    new JsonSerializerOptions { Converters = { new Vector2IConverter() } });
+                    WithVector2I);
                 definition.AtlasCoords = coords;
             }
 
             // Handle DefaultSensoryDifficulties
-            if (root.TryGetProperty("DefaultSensoryDifficulties", out var sensoryElement))
+            if (root.TryGetProperty(nameof(DefaultSensoryDifficulties), out var sensoryElement))
             {
                 definition.DefaultSensoryDifficulties = JsonSerializer.Deserialize<Dictionary<string, float>>(
                     sensoryElement.GetRawText()) ?? new Dictionary<string, float>();
             }
 
             // Handle Properties
-            if (root.TryGetProperty("Properties", out var propsElement))
+            if (root.TryGetProperty(nameof(Properties), out var propsElement))
             {
                 definition.Properties = JsonSerializer.Deserialize<Dictionary<string, string>>(
                     propsElement.GetRawText()) ?? new Dictionary<string, string>();
             }
 
             // Handle Categories/Variants conversion
-            var jsonOptions = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-                Converters = { new Vector2IConverter() }
-            };
-
-            if (root.TryGetProperty("Categories", out var categoriesElement))
+            if (root.TryGetProperty(nameof(Categories), out var categoriesElement))
             {
                 // New format - directly deserialize Categories
                 definition.Categories = JsonSerializer.Deserialize<Dictionary<string, TileCategory>>(
-                    categoriesElement.GetRawText(), jsonOptions) ?? new Dictionary<string, TileCategory>();
+                    categoriesElement.GetRawText(), WithVector2I) ?? new Dictionary<string, TileCategory>();
             }
             else if (root.TryGetProperty("Variants", out var variantsElement))
             {
                 // Old format - convert Variants to Default category
                 var variants = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, TileVariantDefinition>>>(
-                    variantsElement.GetRawText(), jsonOptions) ?? new Dictionary<string, Dictionary<string, TileVariantDefinition>>();
+                    variantsElement.GetRawText(), WithVector2I) ?? new Dictionary<string, Dictionary<string, TileVariantDefinition>>();
 
                 string categoryName = !string.IsNullOrEmpty(definition.Category) ? definition.Category : "Default";
                 definition.Categories[categoryName] = new TileCategory { Variants = variants };
@@ -266,26 +262,27 @@ public class TileDefinition
             {
                 string categoryName = categoryKvp.Key;
 
-                if (!merged.Categories.ContainsKey(categoryName))
+                if (!merged.Categories.TryGetValue(categoryName, out var category))
                 {
-                    merged.Categories[categoryName] = new TileCategory
+                    category = new TileCategory
                     {
                         Variants = new Dictionary<string, Dictionary<string, TileVariantDefinition>>()
                     };
+                    merged.Categories[categoryName] = category;
                 }
 
                 // Merge variants within this category
                 foreach (var materialKvp in categoryKvp.Value.Variants)
                 {
-                    if (!merged.Categories[categoryName].Variants.ContainsKey(materialKvp.Key))
+                    if (!category.Variants.TryGetValue(materialKvp.Key, out var variantDict))
                     {
-                        merged.Categories[categoryName].Variants[materialKvp.Key] =
-                            new Dictionary<string, TileVariantDefinition>();
+                        variantDict = new Dictionary<string, TileVariantDefinition>();
+                        category.Variants[materialKvp.Key] = variantDict;
                     }
 
                     foreach (var variantKvp in materialKvp.Value)
                     {
-                        merged.Categories[categoryName].Variants[materialKvp.Key][variantKvp.Key] = variantKvp.Value;
+                        variantDict[variantKvp.Key] = variantKvp.Value;
                     }
                 }
             }

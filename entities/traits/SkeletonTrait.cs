@@ -26,9 +26,9 @@ public class SkeletonTrait : UndeadBehaviorTrait
     private SkeletonState _currentState = SkeletonState.Idle;
 
     private Being? _intruder;
-    private uint _intimidationTimer = 0;
-    private bool _hasRattled = false;
-    private Vector2I? _lastIntruderPosition = null;
+    private uint _intimidationTimer;
+    private bool _hasRattled;
+    private Vector2I? _lastIntruderPosition;
 
     public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue)
     {

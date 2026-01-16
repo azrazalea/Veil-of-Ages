@@ -20,9 +20,9 @@ public class FollowCommand : EntityCommand
     private const int SEARCHTIMEOUT = 100; // How many ticks before giving up on finding a lost commander
     private const int SEARCHRADIUSMAX = 8; // Maximum search radius when looking for lost commander
 
-    private Vector2I? _lastKnownPosition = null;
-    private uint _lastSeenTick = 0;
-    private bool _isSearching = false;
+    private Vector2I? _lastKnownPosition;
+    private uint _lastSeenTick;
+    private bool _isSearching;
     private int _searchRadius = 2;
 
     public FollowCommand(Being owner, Being commander, bool isComplex = false)

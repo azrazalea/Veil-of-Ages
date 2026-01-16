@@ -1,6 +1,8 @@
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
 
+namespace VeilOfAges.Entities.Actions;
+
 public class MoveAlongPathAction : EntityAction
 {
     private readonly PathFinder _pathFinder;

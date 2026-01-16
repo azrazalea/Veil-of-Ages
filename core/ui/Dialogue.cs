@@ -24,8 +24,9 @@ public partial class Dialogue : CanvasLayer
     private Being? _currentTarget;
     private Being? _currentSpeaker;
     private List<DialogueOption> _currentOptions = new ();
-    private readonly DialogueController _dialogueController = new ();
 
+    // DialogueController is used via static methods, instance not needed
+    // private readonly DialogueController _dialogueController = new ();
     public override void _Ready()
     {
         Visible = false; // Start hidden
@@ -60,7 +61,7 @@ public partial class Dialogue : CanvasLayer
         }
 
         // Generate dialogue options based on the target
-        _currentOptions = _dialogueController.GenerateOptionsFor(speaker, target);
+        _currentOptions = DialogueController.GenerateOptionsFor(speaker, target);
 
         // Create option buttons
         RefreshOptions();
@@ -121,7 +122,7 @@ public partial class Dialogue : CanvasLayer
 
         // Check if command is valid for entity and process it
         bool accepted = option.Command == null ||
-                       _dialogueController.ProcessCommand(_currentTarget, option.Command);
+                       DialogueController.ProcessCommand(_currentTarget, option.Command);
 
         // Handle commands that need location selection
         if (option.Command is MoveToCommand or GuardCommand)
@@ -151,7 +152,7 @@ public partial class Dialogue : CanvasLayer
         }
 
         // Generate new options based on the new state
-        _currentOptions = _dialogueController.GenerateFollowUpOptions(_currentSpeaker, _currentTarget, option);
+        _currentOptions = DialogueController.GenerateFollowUpOptions(_currentSpeaker, _currentTarget, option);
 
         if (_currentOptions.Count == 0)
         {

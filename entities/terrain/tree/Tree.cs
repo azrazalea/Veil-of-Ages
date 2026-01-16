@@ -1,8 +1,7 @@
-using System;
 using Godot;
-using VeilOfAges;
 using VeilOfAges.Core.Lib;
-using VeilOfAges.Entities;
+
+namespace VeilOfAges.Entities.Terrain;
 
 public partial class Tree : Node2D
 {
@@ -42,7 +41,7 @@ public partial class Tree : Node2D
     }
 
     // Method for when player interacts with tree
-    public void Interact()
+    public static void Interact()
     {
         Log.Print("Player is interacting with tree");
 

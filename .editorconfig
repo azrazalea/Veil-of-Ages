@@ -23,7 +23,7 @@ dotnet_sort_system_directives_first = true
 dotnet_separate_import_directive_groups = false
 
 # Namespace preferences
-csharp_style_namespace_declarations = file_scoped:warning
+csharp_style_namespace_declarations = file_scoped:error
 
 # this. preferences
 dotnet_style_qualification_for_field = false:warning
@@ -101,7 +101,7 @@ csharp_style_throw_expression = true:warning
 csharp_style_conditional_delegate_call = true:warning
 
 # Code-block preferences
-csharp_prefer_braces = true:warning
+csharp_prefer_braces = true:error
 csharp_prefer_simple_using_statement = true:none
 
 # 'using' directive preferences
@@ -332,6 +332,90 @@ dotnet_diagnostic.RCS1090.severity = none
 
 # RCS1194: Implement exception constructors
 dotnet_diagnostic.RCS1194.severity = none
+
+###############################
+# .NET Code Analysis (CA)     #
+###############################
+
+# CA1031: Do not catch general exception types
+# Justification: Game resource loading and pathfinding need graceful failure handling.
+# JSON deserialization and file I/O can fail in many ways; broad catch prevents crashes.
+dotnet_diagnostic.CA1031.severity = none
+
+# CA1822: Mark members as static (performance)
+dotnet_diagnostic.CA1822.severity = warning
+
+# CA1716: Identifiers should not match keywords
+# Justification: This is a standalone game, not a library for external consumption.
+dotnet_diagnostic.CA1716.severity = none
+
+# CA1711: Identifiers should not have incorrect suffix
+# Justification: ReorderableQueue accurately describes a queue data structure.
+dotnet_diagnostic.CA1711.severity = none
+
+# CA1715: Identifiers should have correct prefix
+# Justification: Generic parameters like 'TraitType' are sufficiently descriptive in context.
+dotnet_diagnostic.CA1715.severity = none
+
+# CA1036: Override methods on comparable types
+# Justification: IComparable is used only for SortedSet ordering, not general comparisons.
+dotnet_diagnostic.CA1036.severity = none
+
+# CA1859: Use concrete types for performance
+# Justification: Abstract return types are intentional for flexibility and future expansion.
+dotnet_diagnostic.CA1859.severity = none
+
+###############################
+# Godot-Incompatible Rules    #
+###############################
+# Godot nodes are IDisposable but managed by the scene tree, not user code.
+# These rules produce false positives for Godot projects.
+
+# CA1001: Types with disposable members should implement IDisposable
+# Godot Node-derived classes have disposable fields managed by scene tree
+dotnet_diagnostic.CA1001.severity = none
+
+# CA1051: Do not declare visible instance fields
+# Godot [Export] attribute requires public fields for editor integration
+dotnet_diagnostic.CA1051.severity = none
+
+# CA2000: Dispose objects before losing scope
+# Godot nodes are added to scene tree which manages their lifecycle
+dotnet_diagnostic.CA2000.severity = none
+
+# CA2213: Disposable fields should be disposed
+# Godot node fields are disposed by scene tree, not manually
+dotnet_diagnostic.CA2213.severity = none
+
+###############################
+# IDisposableAnalyzers        #
+###############################
+# Same Godot ownership issue - scene tree manages node disposal
+
+# IDISP001: Dispose created
+dotnet_diagnostic.IDISP001.severity = none
+
+# IDISP003: Dispose previous before re-assigning
+dotnet_diagnostic.IDISP003.severity = none
+
+# IDISP004: Don't ignore created IDisposable
+dotnet_diagnostic.IDISP004.severity = none
+
+# IDISP006: Implement IDisposable
+dotnet_diagnostic.IDISP006.severity = none
+
+# IDISP008: Don't assign member with injected and created disposables
+dotnet_diagnostic.IDISP008.severity = none
+
+###############################
+# IDE Code Style Rules        #
+###############################
+
+# IDE0051: Remove unused private members
+dotnet_diagnostic.IDE0051.severity = error
+
+# IDE0052: Remove unread private members
+dotnet_diagnostic.IDE0052.severity = error
 
 ###############################
 # JSON files                  #

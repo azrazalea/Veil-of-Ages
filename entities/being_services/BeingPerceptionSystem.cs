@@ -61,14 +61,15 @@ public class BeingPerceptionSystem
             var pos = entityData.position;
 
             // Create or update memory for this position
-            if (!_memory.ContainsKey(pos))
+            if (!_memory.TryGetValue(pos, out var posMemory))
             {
-                _memory[pos] = new Dictionary<string, object>();
+                posMemory = new Dictionary<string, object>();
+                _memory[pos] = posMemory;
             }
 
             // Store entity information
             string entityKey = $"entity_{entity.GetType().Name}";
-            _memory[pos][entityKey] = entity;
+            posMemory[entityKey] = entity;
 
             // Update timestamp
             _memoryTimestamps[pos] = _memoryDuration;
@@ -121,7 +122,7 @@ public class BeingPerceptionSystem
         {
             foreach (var entry in posMemory)
             {
-                if (entry.Key.StartsWith("entity_") && entry.Value is T)
+                if (entry.Key.StartsWith("entity_", StringComparison.Ordinal) && entry.Value is T)
                 {
                     return true;
                 }
@@ -223,7 +224,7 @@ public class BeingPerceptionSystem
         return true;
     }
 
-    protected bool IsLOSBlocking(Vector2I position)
+    protected static bool IsLOSBlocking(Vector2I position)
     {
         // Default implementation - override in subclasses if needed
         return false;

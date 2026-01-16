@@ -4,7 +4,7 @@ namespace VeilOfAges.Entities.Actions;
 
 public class InteractAction : EntityAction
 {
-    private Vector2I _targetPosition;
+    private readonly Vector2I _targetPosition;
 
     public InteractAction(Being entity, object source, Vector2I targetPosition, int priority = 0)
         : base(entity, source, priority: priority)
@@ -15,10 +15,14 @@ public class InteractAction : EntityAction
     public override bool Execute()
     {
         // Find what's at the target position and interact with it
-        _ = Entity.GetTree().GetFirstNodeInGroup("World") as World;
-        return false;
+        if (Entity.GetTree().GetFirstNodeInGroup("World") is not World)
+        {
+            return false;
+        }
 
         // TODO: Implement
-        // world?.InteractAtPosition(Entity, _targetPosition);
+        // world.InteractAtPosition(Entity, _targetPosition);
+        _ = _targetPosition; // Suppress warning until implemented
+        return false;
     }
 }

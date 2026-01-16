@@ -10,8 +10,9 @@ public class Perception
 {
     private readonly Dictionary<Vector2I, List<ISensable>> _detectedSensables = new ();
     private readonly List<WorldEvent> _perceivedEvents = new ();
-    private readonly Dictionary<Being, float> _threatLevels = new ();
 
+    // Placeholder for future threat assessment system
+    // private readonly Dictionary<Being, float> _threatLevels = new ();
     public void AddDetectedSensable(ISensable sensable, Vector2I position)
     {
         if (!_detectedSensables.TryGetValue(position, out var list))

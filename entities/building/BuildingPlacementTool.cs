@@ -25,7 +25,7 @@ public partial class BuildingPlacementTool : Node
     private Color _invalidColor = new (1, 0, 0, 0.5f); // Red, semi-transparent
 
     // Is placement currently valid
-    private bool _isValidPlacement = false;
+    private bool _isValidPlacement;
 
     // Reference to the grid area
     private Area? _gridArea;
@@ -198,7 +198,7 @@ public partial class BuildingPlacementTool : Node
         _previewTileMap.Position = Utils.GridToWorld(_currentGridPosition);
 
         // Check if placement is valid
-        _isValidPlacement = _buildingManager?.CanPlaceBuildingAt(_currentTemplate, _currentGridPosition, _gridArea) ?? false;
+        _isValidPlacement = _gridArea != null && BuildingManager.CanPlaceBuildingAt(_currentTemplate, _currentGridPosition, _gridArea);
 
         // Update preview color
         _previewTileMap.Modulate = _isValidPlacement ? _validColor : _invalidColor;

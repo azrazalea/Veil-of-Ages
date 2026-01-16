@@ -15,21 +15,21 @@ public class PathFinder
 {
     // Public interface remains the same
     public List<Vector2I> CurrentPath { get; private set; } = [];
-    public int PathIndex { get; private set; } = 0;
+    public int PathIndex { get; private set; }
     public int MAXPATHLENGTH = 100;
 
     // Path state tracking
     private PathGoalType _goalType = PathGoalType.None;
-    private Being? _targetEntity = null;
+    private Being? _targetEntity;
     private Vector2I _targetPosition;
-    private Building? _targetBuilding = null;
+    private Building? _targetBuilding;
     private int _proximityRange = 1;
     private bool _pathNeedsCalculation = true;
-    private int _recalculationAttempts = 0;
+    private int _recalculationAttempts;
     private const int MAXRECALCULATIONATTEMPTS = 3;
-    private uint _lastRecalculationTick = 0;
+    private uint _lastRecalculationTick;
     private const uint RECALCULATIONCOOLDOWN = 5;
-    private bool _firstGoalCalculation = false;
+    private bool _firstGoalCalculation;
 
     // Simple enum to track goal type
     public enum PathGoalType
@@ -563,7 +563,7 @@ public class PathFinder
     }
 
     // Get positions in a ring around a target
-    private List<Vector2I> GetPositionsAroundEntity(Vector2I center, int range)
+    private static List<Vector2I> GetPositionsAroundEntity(Vector2I center, int range)
     {
         var result = new List<Vector2I>
         {
@@ -589,7 +589,7 @@ public class PathFinder
     }
 
     // Get valid positions within an area
-    private List<Vector2I> GetValidPositionsInArea(Vector2I center, int radius, Grid.Area gridArea)
+    private static List<Vector2I> GetValidPositionsInArea(Vector2I center, int radius, Grid.Area gridArea)
     {
         List<Vector2I> positions = [];
 

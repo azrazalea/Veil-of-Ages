@@ -10,7 +10,7 @@ namespace VeilOfAges.Entities;
 public class Trait : IComparable
 {
     // Common properties
-    public bool IsInitialized { get; protected set; } = false;
+    public bool IsInitialized { get; protected set; }
     public int Priority { get; set; }
 
     // Random number generator for common use

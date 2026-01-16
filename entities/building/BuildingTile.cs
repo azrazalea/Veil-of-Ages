@@ -105,7 +105,7 @@ public class BuildingTile
         float soundMultiplier = 1.0f;
         float smellMultiplier = 1.0f;
 
-        switch (Material.ToLower())
+        switch (Material.ToLowerInvariant())
         {
             case "wood":
                 soundMultiplier = 0.8f;

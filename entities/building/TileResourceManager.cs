@@ -36,7 +36,7 @@ public class TileResourceManager
     private readonly Dictionary<string, Texture2D> _loadedTextures = new ();
 
     // Has this manager been initialized?
-    private bool _initialized = false;
+    private bool _initialized;
 
     // Private constructor to enforce singleton pattern
     private TileResourceManager()
@@ -538,7 +538,7 @@ public class TileResourceManager
             gridPosition);
 
         // Apply custom detection difficulties based on tile definition and material
-        foreach (SenseType senseType in Enum.GetValues(typeof(SenseType)))
+        foreach (SenseType senseType in Enum.GetValues<SenseType>())
         {
             float baseDifficulty = tileDef.GetDefaultSensoryDifficulty(senseType);
             float materialModifier = material?.GetSensoryModifier(senseType) ?? 1.0f;

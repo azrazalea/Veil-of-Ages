@@ -6,6 +6,8 @@ using System.Text.Json.Serialization;
 using Godot;
 using VeilOfAges.Core.Lib;
 
+using static VeilOfAges.Core.Lib.JsonOptions;
+
 namespace VeilOfAges.Entities;
 
 /// <summary>
@@ -47,13 +49,7 @@ public class TileAtlasSourceDefinition
         try
         {
             string jsonContent = File.ReadAllText(path);
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-                Converters = { new Vector2IConverter(), new Rect2IJsonConverter() }
-            };
-
-            return JsonSerializer.Deserialize<TileAtlasSourceDefinition>(jsonContent, options);
+            return JsonSerializer.Deserialize<TileAtlasSourceDefinition>(jsonContent, WithGodotTypes);
         }
         catch (Exception e)
         {
@@ -109,7 +105,7 @@ public class Rect2IJsonConverter : JsonConverter<Rect2I>
                 {
                     string? propertyName = reader.GetString();
                     reader.Read();
-                    switch (propertyName?.ToLower())
+                    switch (propertyName?.ToLowerInvariant())
                     {
                         case "x":
                             x = reader.GetInt32();

@@ -1,5 +1,6 @@
 using Godot;
 using VeilOfAges.Core.Lib;
+using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Sensory;
 
 namespace VeilOfAges.Entities.Activities;
@@ -13,7 +14,7 @@ public class GoToBuildingActivity : Activity
 {
     private readonly Building _targetBuilding;
     private PathFinder? _pathFinder;
-    private int _stuckTicks = 0;
+    private int _stuckTicks;
     private const int MAXSTUCKTICKS = 50;
 
     public override string DisplayName => $"Going to {_targetBuilding.BuildingType}";

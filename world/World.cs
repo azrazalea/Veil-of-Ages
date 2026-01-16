@@ -11,7 +11,7 @@ public partial class World : Node2D
 {
     // Global world properties
     [Export]
-    public int WorldSeed { get; set; } = 0;
+    public int WorldSeed { get; set; }
     [Export]
     public float GlobalTimeScale { get; set; } = 1.0f;
     [Export]
