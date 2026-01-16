@@ -3,6 +3,7 @@ using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Sensory;
+using VeilOfAges.Entities.Traits;
 
 namespace VeilOfAges.Entities;
 
@@ -38,6 +39,9 @@ public partial class Building : Node2D, IEntity<Trait>
     private int _capacity;
     private int _occupants;
 
+    // Residents tracking
+    private readonly List<Being> _residents = [];
+
     private const int HORIZONTALPIXELOFFSET = -4;
     private const int VERTICALPIXELOFFSET = 1;
 
@@ -67,6 +71,17 @@ public partial class Building : Node2D, IEntity<Trait>
             GridSize = template.Size;
             _capacity = template.Capacity;
             _entrancePositions = template.EntrancePositions;
+
+            // Initialize storage trait if template specifies storage
+            if (template.Storage != null)
+            {
+                var storageTrait = new StorageTrait(
+                    template.Storage.VolumeCapacity,
+                    template.Storage.WeightCapacity,
+                    template.Storage.DecayRateModifier,
+                    template.Storage.Facilities);
+                Traits.Add(storageTrait);
+            }
 
             // Initialize and setup TileMap
             InitializeTileMaps(template);
@@ -444,7 +459,40 @@ public partial class Building : Node2D, IEntity<Trait>
         return result;
     }
 
-    // Get all walkable tiles
+    /// <summary>
+    /// Get all walkable positions inside the building bounds.
+    /// Queries the GridArea for actual walkability (source of truth).
+    /// Returns relative positions to building origin.
+    /// </summary>
+    /// <returns></returns>
+    public List<Vector2I> GetWalkableInteriorPositions()
+    {
+        var result = new List<Vector2I>();
+
+        if (GridArea == null)
+        {
+            return result;
+        }
+
+        // Check all positions within building bounds
+        for (int x = 0; x < GridSize.X; x++)
+        {
+            for (int y = 0; y < GridSize.Y; y++)
+            {
+                Vector2I relativePos = new (x, y);
+                Vector2I absolutePos = _gridPosition + relativePos;
+
+                if (GridArea.IsCellWalkable(absolutePos))
+                {
+                    result.Add(relativePos);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    // Legacy method - kept for compatibility but prefer GetWalkableInteriorPositions
     public List<(Vector2I Position, BuildingTile Tile)> GetWalkableTiles()
     {
         var result = new List<(Vector2I, BuildingTile)>();
@@ -458,5 +506,35 @@ public partial class Building : Node2D, IEntity<Trait>
         }
 
         return result;
+    }
+
+    // Resident management methods
+    public void AddResident(Being being)
+    {
+        if (!_residents.Contains(being) && _residents.Count < _capacity)
+        {
+            _residents.Add(being);
+        }
+    }
+
+    public void RemoveResident(Being being)
+    {
+        _residents.Remove(being);
+    }
+
+    public IReadOnlyList<Being> GetResidents() => _residents.AsReadOnly();
+
+    public bool HasResident(Being being) => _residents.Contains(being);
+
+    // Storage helper methods
+    public StorageTrait? GetStorage()
+    {
+        return Traits.OfType<StorageTrait>().FirstOrDefault();
+    }
+
+    public IEnumerable<string> GetFacilities()
+    {
+        var storage = GetStorage();
+        return storage?.Facilities ?? Enumerable.Empty<string>();
     }
 }

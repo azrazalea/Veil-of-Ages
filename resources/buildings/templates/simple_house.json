@@ -9,6 +9,12 @@
   "Culture": "Human",
   "Style": "Rural",
   "Capacity": 2,
+  "Storage": {
+    "VolumeCapacity": 1.0,
+    "WeightCapacity": -1,
+    "DecayRateModifier": 1.0,
+    "Facilities": ["hearth", "mortar_and_pestle", "oven"]
+  },
   "EntrancePositions": [
     [
       3,

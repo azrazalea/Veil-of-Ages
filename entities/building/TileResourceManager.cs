@@ -25,9 +25,9 @@ public class TileResourceManager
     }
 
     // Resource collections
-    private readonly Dictionary<string, TileMaterialDefinition> _materials = new ();
+    private Dictionary<string, TileMaterialDefinition> _materials = new ();
     private readonly Dictionary<string, TileDefinition> _tileDefinitions = new ();
-    private readonly Dictionary<string, TileAtlasSourceDefinition> _atlasSources = new ();
+    private Dictionary<string, TileAtlasSourceDefinition> _atlasSources = new ();
 
     // Atlas source ID to tileset source ID mapping
     private readonly Dictionary<string, int> _tilesetSourceIds = new ();
@@ -66,28 +66,11 @@ public class TileResourceManager
     /// </summary>
     private void LoadAllMaterials()
     {
-        string materialsPath = "res://resources/tiles/materials";
-        string projectPath = ProjectSettings.GlobalizePath(materialsPath);
-
-        if (!Directory.Exists(projectPath))
-        {
-            Log.Error($"Materials directory not found: {projectPath}");
-            return;
-        }
-
-        foreach (var file in Directory.GetFiles(projectPath, "*.json"))
-        {
-            var material = TileMaterialDefinition.LoadFromJson(file);
-            if (material != null && material.Validate())
-            {
-                _materials[material.Id] = material;
-                Log.Print($"Loaded material: {material.Id}");
-            }
-            else
-            {
-                Log.Error($"Failed to load material from: {file}");
-            }
-        }
+        _materials = JsonResourceLoader.LoadAllFromDirectory<TileMaterialDefinition>(
+            "res://resources/tiles/materials",
+            m => m.Id,
+            m => m.Validate(),
+            JsonOptions.Default);
     }
 
     /// <summary>
@@ -95,28 +78,11 @@ public class TileResourceManager
     /// </summary>
     private void LoadAllAtlasSources()
     {
-        string atlasesPath = "res://resources/tiles/atlases";
-        string projectPath = ProjectSettings.GlobalizePath(atlasesPath);
-
-        if (!Directory.Exists(projectPath))
-        {
-            Log.Error($"Atlas sources directory not found: {projectPath}");
-            return;
-        }
-
-        foreach (var file in Directory.GetFiles(projectPath, "*.json"))
-        {
-            var atlasSource = TileAtlasSourceDefinition.LoadFromJson(file);
-            if (atlasSource != null && atlasSource.Validate())
-            {
-                _atlasSources[atlasSource.Id] = atlasSource;
-                Log.Print($"Loaded atlas source: {atlasSource.Id}");
-            }
-            else
-            {
-                Log.Error($"Failed to load atlas source from: {file}");
-            }
-        }
+        _atlasSources = JsonResourceLoader.LoadAllFromDirectory<TileAtlasSourceDefinition>(
+            "res://resources/tiles/atlases",
+            a => a.Id,
+            a => a.Validate(),
+            JsonOptions.WithGodotTypes);
     }
 
     /// <summary>

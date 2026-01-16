@@ -9,6 +9,12 @@
     "Culture": "Human",
     "Style": "Rural",
     "Capacity": 2,
+    "Storage": {
+        "VolumeCapacity": 5.0,
+        "WeightCapacity": -1,
+        "DecayRateModifier": 1.0,
+        "Facilities": []
+    },
     "EntrancePositions": [
         [
             3,

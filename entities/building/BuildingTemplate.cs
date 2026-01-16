@@ -44,6 +44,7 @@ public class BuildingTemplate
     // TileMap resource path - will be used to dynamically load the appropriate tilemap
     public string TileMapPath { get; set; } = "res://resources/tilesets/buildings_tileset.tres";
     public int Capacity { get; set; }
+    public StorageConfig? Storage { get; set; }
     public Dictionary<string, string> Metadata { get; set; } = new ();
 
     /// <summary>
@@ -194,6 +195,32 @@ public class RoomData
     public Vector2I TopLeft { get; set; }
     public Vector2I Size { get; set; }
     public Dictionary<string, string> Properties { get; set; } = new ();
+}
+
+/// <summary>
+/// Configuration for building storage capability.
+/// </summary>
+public class StorageConfig
+{
+    /// <summary>
+    /// Gets or sets maximum volume capacity in cubic meters.
+    /// </summary>
+    public float VolumeCapacity { get; set; } = 1.0f;
+
+    /// <summary>
+    /// Gets or sets maximum weight capacity in kilograms. -1 means unlimited.
+    /// </summary>
+    public float WeightCapacity { get; set; } = -1;
+
+    /// <summary>
+    /// Gets or sets modifier for decay rate of stored items. Lower = slower decay.
+    /// </summary>
+    public float DecayRateModifier { get; set; } = 1.0f;
+
+    /// <summary>
+    /// Gets or sets list of facility types available (e.g., "hearth", "cold_storage").
+    /// </summary>
+    public List<string> Facilities { get; set; } = [];
 }
 
 /// <summary>

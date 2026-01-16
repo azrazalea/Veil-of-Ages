@@ -47,8 +47,12 @@ public class FarmerJobTrait : BeingTrait
             return null; // Let VillagerTrait handle night behavior
         }
 
-        // Start work activity
-        var workActivity = new WorkFieldActivity(_assignedFarm, WORKDURATION, priority: 0);
+        // Get farmer's home from VillagerTrait
+        var villagerTrait = _owner.SelfAsEntity().GetTrait<VillagerTrait>();
+        Building? home = villagerTrait?.Home;
+
+        // Start work activity with home for depositing harvest
+        var workActivity = new WorkFieldActivity(_assignedFarm, home, WORKDURATION, priority: 0);
         return new StartActivityAction(_owner, this, workActivity, priority: 0);
     }
 

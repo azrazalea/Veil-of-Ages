@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
 
@@ -50,37 +47,17 @@ public partial class BuildingManager : Node
     /// </summary>
     public void LoadAllTemplates()
     {
-        // Clear existing templates
         _templates.Clear();
 
-        // Get the templates directory
-        string templatesDir = ProjectSettings.GlobalizePath(_templatesPath);
-        if (!Directory.Exists(templatesDir))
-        {
-            Log.Error($"BuildingManager: Templates directory not found: {templatesDir}");
-            return;
-        }
+        var loaded = JsonResourceLoader.LoadAllFromDirectory<BuildingTemplate>(
+            _templatesPath,
+            t => t.Name,
+            t => t.Validate(),
+            JsonOptions.WithVector2I);
 
-        // Load all JSON files in the directory
-        foreach (string file in Directory.GetFiles(templatesDir, "*.json"))
+        foreach (var kvp in loaded)
         {
-            try
-            {
-                var template = BuildingTemplate.LoadFromJson(file);
-                if (template != null && template.Name != null && template.Validate())
-                {
-                    _templates[template.Name] = template;
-                    Log.Print($"Loaded building template: {template.Name}");
-                }
-                else
-                {
-                    Log.Error($"BuildingManager: Invalid template in file: {file}");
-                }
-            }
-            catch (Exception e)
-            {
-                Log.Error($"BuildingManager: Error loading template from {file}: {e.Message}");
-            }
+            _templates[kvp.Key] = kvp.Value;
         }
 
         Log.Print($"BuildingManager: Loaded {_templates.Count} building templates");

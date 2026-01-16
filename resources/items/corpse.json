@@ -1,0 +1,12 @@
+{
+    "Id": "corpse",
+    "Name": "Corpse",
+    "Description": "The remains of a deceased being. Suitable sustenance for the undead.",
+    "Category": "Remains",
+    "VolumeM3": 0.07,
+    "WeightKg": 70.0,
+    "BaseDecayRatePerTick": 0.00005,
+    "EdibleNutrition": 0,
+    "StackLimit": 1,
+    "Tags": ["corpse", "undead_food", "organic"]
+}

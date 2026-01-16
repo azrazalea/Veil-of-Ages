@@ -205,28 +205,48 @@ public class PathFinder
                 if (_targetBuilding != null)
                 {
                     Vector2I buildingPos = _targetBuilding.GetCurrentGridPosition();
-                    Vector2I buildingSize = _targetBuilding.GridSize;
 
-                    // Check if entity is adjacent to any part of the building (including diagonals)
-                    for (int x = -1; x <= buildingSize.X; x++)
+                    // First check if building has walkable interior positions
+                    var walkableInteriorPositions = _targetBuilding.GetWalkableInteriorPositions();
+                    if (walkableInteriorPositions.Count > 0)
                     {
-                        for (int y = -1; y <= buildingSize.Y; y++)
+                        // Check if entity is standing on any interior walkable position
+                        foreach (var relativePos in walkableInteriorPositions)
                         {
-                            // Only check the perimeter positions
-                            if (x == -1 || y == -1 || x == buildingSize.X || y == buildingSize.Y)
+                            Vector2I absolutePos = buildingPos + relativePos;
+                            if (entityPos == absolutePos)
                             {
-                                Vector2I perimeterPos = new (buildingPos.X + x, buildingPos.Y + y);
-                                if (entityPos == perimeterPos)
-                                {
-                                    result = true;
-                                    break;
-                                }
+                                result = true;
+                                break;
                             }
                         }
+                    }
+                    else
+                    {
+                        // No interior walkable positions - fall back to perimeter check
+                        Vector2I buildingSize = _targetBuilding.GridSize;
 
-                        if (result)
+                        // Check if entity is adjacent to any part of the building (including diagonals)
+                        for (int x = -1; x <= buildingSize.X; x++)
                         {
-                            break;
+                            for (int y = -1; y <= buildingSize.Y; y++)
+                            {
+                                // Only check the perimeter positions
+                                if (x == -1 || y == -1 || x == buildingSize.X || y == buildingSize.Y)
+                                {
+                                    Vector2I perimeterPos = new (buildingPos.X + x, buildingPos.Y + y);
+                                    if (entityPos == perimeterPos)
+                                    {
+                                        result = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (result)
+                            {
+                                break;
+                            }
                         }
                     }
                 }
@@ -482,50 +502,98 @@ public class PathFinder
                     if (_targetBuilding != null)
                     {
                         Vector2I buildingPos = _targetBuilding.GetCurrentGridPosition();
-                        Vector2I buildingSize = _targetBuilding.GridSize;
+                        bool foundPath = false;
 
-                        // Get all possible adjacent positions around the building
-                        var adjacentPositions = new List<Vector2I>();
-
-                        // Add positions around the building perimeter
-                        for (int x = -1; x <= buildingSize.X; x++)
+                        // First try to navigate to walkable interior positions
+                        var walkableInteriorPositions = _targetBuilding.GetWalkableInteriorPositions();
+                        if (walkableInteriorPositions.Count > 0)
                         {
-                            for (int y = -1; y <= buildingSize.Y; y++)
+                            // Convert relative positions to absolute and filter for valid targets
+                            var interiorPositions = new List<Vector2I>();
+                            foreach (var relativePos in walkableInteriorPositions)
                             {
-                                // Only include perimeter positions
-                                if (x == -1 || y == -1 || x == buildingSize.X || y == buildingSize.Y)
+                                Vector2I absolutePos = buildingPos + relativePos;
+                                if (astar.IsInBoundsv(absolutePos) && !astar.IsPointSolid(absolutePos))
                                 {
-                                    Vector2I pos = new (buildingPos.X + x, buildingPos.Y + y);
-                                    if (astar.IsInBoundsv(pos) && !astar.IsPointSolid(pos))
+                                    interiorPositions.Add(absolutePos);
+                                }
+                            }
+
+                            if (interiorPositions.Count > 0)
+                            {
+                                // Sort by distance to start position
+                                interiorPositions.Sort((a, b) =>
+                                    startPos.DistanceSquaredTo(a).CompareTo(startPos.DistanceSquaredTo(b)));
+
+                                // Try to find path to any interior position
+                                foreach (var pos in interiorPositions)
+                                {
+                                    // Skip if we're already at this position
+                                    if (startPos == pos)
                                     {
-                                        adjacentPositions.Add(pos);
+                                        CurrentPath = [pos];
+                                        foundPath = true;
+                                        break;
+                                    }
+
+                                    var path = astar.GetIdPath(startPos, pos, true);
+                                    if (path.Count > 0)
+                                    {
+                                        CurrentPath = path.Cast<Vector2I>().ToList();
+                                        foundPath = true;
+                                        break;
                                     }
                                 }
                             }
                         }
 
-                        // Sort by distance to start position
-                        adjacentPositions.Sort((a, b) =>
-                            startPos.DistanceSquaredTo(a).CompareTo(startPos.DistanceSquaredTo(b)));
-
-                        // Try to find path to any adjacent position
-                        bool foundPath = false;
-                        foreach (var pos in adjacentPositions)
+                        // Fall back to perimeter positions if no interior path found
+                        if (!foundPath)
                         {
-                            // Skip if we're already at this position
-                            if (startPos == pos)
+                            Vector2I buildingSize = _targetBuilding.GridSize;
+
+                            // Get all possible adjacent positions around the building
+                            var adjacentPositions = new List<Vector2I>();
+
+                            // Add positions around the building perimeter
+                            for (int x = -1; x <= buildingSize.X; x++)
                             {
-                                CurrentPath = [pos];
-                                foundPath = true;
-                                break;
+                                for (int y = -1; y <= buildingSize.Y; y++)
+                                {
+                                    // Only include perimeter positions
+                                    if (x == -1 || y == -1 || x == buildingSize.X || y == buildingSize.Y)
+                                    {
+                                        Vector2I pos = new (buildingPos.X + x, buildingPos.Y + y);
+                                        if (astar.IsInBoundsv(pos) && !astar.IsPointSolid(pos))
+                                        {
+                                            adjacentPositions.Add(pos);
+                                        }
+                                    }
+                                }
                             }
 
-                            var path = astar.GetIdPath(startPos, pos, true);
-                            if (path.Count > 0)
+                            // Sort by distance to start position
+                            adjacentPositions.Sort((a, b) =>
+                                startPos.DistanceSquaredTo(a).CompareTo(startPos.DistanceSquaredTo(b)));
+
+                            // Try to find path to any adjacent position
+                            foreach (var pos in adjacentPositions)
                             {
-                                CurrentPath = path.Cast<Vector2I>().ToList();
-                                foundPath = true;
-                                break;
+                                // Skip if we're already at this position
+                                if (startPos == pos)
+                                {
+                                    CurrentPath = [pos];
+                                    foundPath = true;
+                                    break;
+                                }
+
+                                var path = astar.GetIdPath(startPos, pos, true);
+                                if (path.Count > 0)
+                                {
+                                    CurrentPath = path.Cast<Vector2I>().ToList();
+                                    foundPath = true;
+                                    break;
+                                }
                             }
                         }
 

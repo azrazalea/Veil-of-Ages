@@ -1,0 +1,12 @@
+{
+    "Id": "wheat",
+    "Name": "Wheat",
+    "Description": "Raw wheat grain, must be milled into flour before use",
+    "Category": "RawMaterial",
+    "VolumeM3": 0.001,
+    "WeightKg": 0.05,
+    "BaseDecayRatePerTick": 0.00001,
+    "EdibleNutrition": 0,
+    "StackLimit": 100,
+    "Tags": ["grain", "millable"]
+}

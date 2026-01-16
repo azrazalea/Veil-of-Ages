@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
+using VeilOfAges.Entities.Items;
+using VeilOfAges.Entities.Reactions;
 
 namespace VeilOfAges.Core;
 
@@ -33,6 +35,11 @@ public partial class GameController : Node
 
     public override void _Ready()
     {
+        // Initialize resource managers (centralized initialization)
+        TileResourceManager.Instance.Initialize();
+        ItemResourceManager.Instance.Initialize();
+        ReactionResourceManager.Instance.Initialize();
+
         _world = GetTree().GetFirstNodeInGroup("World") as World;
         _player = GetNode<Player>("/root/World/Entities/Player");
         _thinkingSystem = GetNode<EntityThinkingSystem>("/root/World/EntityThinkingSystem");

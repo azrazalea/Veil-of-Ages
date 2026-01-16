@@ -1,0 +1,12 @@
+{
+    "Id": "flour",
+    "Name": "Flour",
+    "Description": "Milled flour, ready to be baked into bread",
+    "Category": "ProcessedMaterial",
+    "VolumeM3": 0.0008,
+    "WeightKg": 0.04,
+    "BaseDecayRatePerTick": 0.00002,
+    "EdibleNutrition": 0,
+    "StackLimit": 100,
+    "Tags": ["flour", "bakeable"]
+}

@@ -1,0 +1,12 @@
+{
+    "Id": "bread",
+    "Name": "Bread",
+    "Description": "A loaf of bread, provides one meal",
+    "Category": "Food",
+    "VolumeM3": 0.0005,
+    "WeightKg": 0.03,
+    "BaseDecayRatePerTick": 0.0001,
+    "EdibleNutrition": 60,
+    "StackLimit": 20,
+    "Tags": ["food", "baked"]
+}

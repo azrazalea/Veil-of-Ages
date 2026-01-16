@@ -1,0 +1,14 @@
+{
+    "Id": "bake_bread",
+    "Name": "Bake Bread",
+    "Description": "Bake flour into a fresh loaf of bread",
+    "Inputs": [
+        {"ItemId": "flour", "Quantity": 2}
+    ],
+    "Outputs": [
+        {"ItemId": "bread", "Quantity": 1}
+    ],
+    "Duration": 300,
+    "RequiredFacilities": ["oven"],
+    "Tags": ["baking", "cooking"]
+}

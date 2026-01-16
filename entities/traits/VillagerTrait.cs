@@ -7,7 +7,6 @@ using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Activities;
 using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Needs;
-using VeilOfAges.Entities.Needs.Strategies;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.UI;
 
@@ -37,6 +36,10 @@ public class VillagerTrait : BeingTrait
     private readonly List<Building> _knownBuildings = new ();
     private Building? _currentDestinationBuilding;
 
+    // Home building for this villager
+    private Building? _home;
+    public Building? Home => _home;
+
     public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue = null)
     {
         base.Initialize(owner, health, initQueue);
@@ -61,12 +64,15 @@ public class VillagerTrait : BeingTrait
         // Add LivingTrait to handle basic living needs - priority -1 so it initializes before consumption trait
         _owner?.SelfAsEntity().AddTraitToQueue<LivingTrait>(-1, initQueue);
 
-        // Add ConsumptionBehaviorTrait for hunger
-        // Uses Activity system: trait finds food, EatActivity handles navigation and consumption
-        var consumptionTrait = new ConsumptionBehaviorTrait(
+        // Add InventoryTrait so villager can carry items
+        _owner?.SelfAsEntity().AddTraitToQueue<InventoryTrait>(-1, initQueue);
+
+        // Add ItemConsumptionBehaviorTrait for hunger
+        // Uses item system: checks inventory then home storage for "food" tagged items
+        var consumptionTrait = new ItemConsumptionBehaviorTrait(
             needId: "hunger",
-            sourceIdentifier: new FarmSourceIdentifier(),
-            criticalStateHandler: new VillagerCriticalHungerHandler(),
+            foodTag: "food",
+            getHome: () => _home,
             restoreAmount: 60f,
             consumptionDuration: 244);
 
@@ -96,6 +102,37 @@ public class VillagerTrait : BeingTrait
         }
 
         Log.Print($"{_owner?.Name}: Discovered {_knownBuildings.Count} buildings");
+    }
+
+    /// <summary>
+    /// Set the home building for this villager.
+    /// Called by VillageGenerator when spawning villagers.
+    /// </summary>
+    public void SetHome(Building home)
+    {
+        _home = home;
+        Log.Print($"{_owner?.Name}: Home set to {home.BuildingName}");
+    }
+
+    /// <summary>
+    /// Set the pathfinder goal to navigate home.
+    /// </summary>
+    private void SetHomeGoal()
+    {
+        if (_owner == null)
+        {
+            return;
+        }
+
+        if (_home != null && GodotObject.IsInstanceValid(_home))
+        {
+            MyPathfinder.SetBuildingGoal(_owner, _home);
+        }
+        else
+        {
+            // Fallback to spawn position if no valid home building
+            MyPathfinder.SetPositionGoal(_owner, _homePosition);
+        }
     }
 
     public override EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
@@ -160,12 +197,11 @@ public class VillagerTrait : BeingTrait
             return null;
         }
 
-        // Check if we're at home first
-        Vector2I currentPos = _owner.GetCurrentGridPosition();
-        if (currentPos != _homePosition)
+        // Set home as goal and check if we're there
+        SetHomeGoal();
+        if (!MyPathfinder.IsGoalReached(_owner))
         {
-            // We're not at home, so let's go there using lazy path calculation
-            MyPathfinder.SetPositionGoal(_owner, _homePosition);
+            // Not at home yet, navigate there
             return new MoveAlongPathAction(_owner, this, MyPathfinder);
         }
 
@@ -234,8 +270,8 @@ public class VillagerTrait : BeingTrait
             // Time to go back home
             _currentState = VillagerState.IdleAtHome;
 
-            // Set goal to go home - lazy path calculation
-            MyPathfinder.SetPositionGoal(_owner, _homePosition);
+            // Set goal to go home - navigate to building interior if possible
+            SetHomeGoal();
 
             _stateTimer = (uint)_rng.RandiRange(150, 300);
             Log.Print($"{_owner.Name}: Going back home");
@@ -281,8 +317,8 @@ public class VillagerTrait : BeingTrait
             // Time to go back home
             _currentState = VillagerState.IdleAtHome;
 
-            // Set goal to go home - lazy path calculation
-            MyPathfinder.SetPositionGoal(_owner, _homePosition);
+            // Set goal to go home - navigate to building interior if possible
+            SetHomeGoal();
 
             _stateTimer = (uint)_rng.RandiRange(150, 300);
             Log.Print($"{_owner.Name}: Finished visiting, going home");

@@ -175,3 +175,26 @@ When making changes:
 3. Request compilation to verify syntax and type errors
 4. Ask for the game to be run to test functionality
 5. When in doubt about behavior, ask the user to verify in Godot Editor
+
+## Using Subagents for Implementation
+
+**Use subagents (Task tool) liberally** for complex implementations to preserve main conversation context:
+
+- **When to use subagents**:
+  - Creating new files (classes, JSON definitions, documentation)
+  - Implementing self-contained features with clear requirements
+  - Refactoring existing code with well-defined scope
+  - Any task that can be described in a focused prompt
+
+- **Parallel execution**: Launch multiple subagents simultaneously for independent tasks
+  - Example: Create ItemDefinition.cs, Item.cs, and JSON files in parallel
+
+- **Provide context**: Give subagents enough information to work independently:
+  - Reference existing patterns (e.g., "follow TileResourceManager pattern")
+  - Specify namespaces, file paths, and key dependencies
+  - Include code snippets or class structures when helpful
+
+- **Benefits**:
+  - Saves main conversation context for coordination and decision-making
+  - Subagents can read files and understand patterns themselves
+  - Multiple files created in parallel speeds up implementation

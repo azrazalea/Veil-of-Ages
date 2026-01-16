@@ -7,7 +7,6 @@ using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Beings;
 using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Needs;
-using VeilOfAges.Entities.Needs.Strategies;
 using VeilOfAges.Entities.Sensory;
 
 namespace VeilOfAges.Entities.Traits;
@@ -23,7 +22,21 @@ public class ZombieTrait : UndeadBehaviorTrait
 
     private ZombieState _currentState = ZombieState.Idle;
 
+    // Home graveyard for this zombie
+    private Building? _homeGraveyard;
+    public Building? HomeGraveyard => _homeGraveyard;
+
     private bool _hasGroaned;
+
+    /// <summary>
+    /// Set the home graveyard for this zombie.
+    /// Called by spawning systems when creating zombies.
+    /// </summary>
+    public void SetHomeGraveyard(Building graveyard)
+    {
+        _homeGraveyard = graveyard;
+        Log.Print($"{_owner?.Name}: Home graveyard set to {graveyard.BuildingName}");
+    }
 
     public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue)
     {
@@ -43,12 +56,12 @@ public class ZombieTrait : UndeadBehaviorTrait
             needsSystem.AddNeed(brainHunger);
         }
 
-        // Add ConsumptionBehaviorTrait for brain hunger
-        // Uses Activity system: trait finds graveyard, EatActivity handles navigation and consumption
-        var consumptionTrait = new ConsumptionBehaviorTrait(
+        // Add ItemConsumptionBehaviorTrait for brain hunger
+        // Uses item system: checks inventory then graveyard storage for "undead_food" tagged items (corpses)
+        var consumptionTrait = new ItemConsumptionBehaviorTrait(
             needId: "hunger",
-            sourceIdentifier: new GraveyardSourceIdentifier(),
-            criticalStateHandler: new ZombieCriticalHungerHandler(),
+            foodTag: "undead_food",
+            getHome: () => _homeGraveyard,
             restoreAmount: 70f,  // Zombies get more from feeding
             consumptionDuration: 365);  // Zombies take longer to feed as they're messier eaters
 

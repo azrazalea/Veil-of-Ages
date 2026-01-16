@@ -5,6 +5,7 @@ using Godot;
 using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
+using VeilOfAges.Entities.Items;
 using VeilOfAges.Entities.Traits;
 using VeilOfAges.Grid;
 
@@ -26,6 +27,9 @@ public class VillageGenerator
     // Track placed farms for assigning farmers
     private readonly List<Building> _placedFarms = new ();
     private bool _farmerSpawned;
+
+    // Track placed houses for assigning villagers
+    private readonly List<Building> _placedHouses = new ();
 
     public VillageGenerator(
         Area gridArea,
@@ -203,17 +207,26 @@ public class VillageGenerator
                                 break;
 
                             case "Graveyard":
+                                // Stock graveyard with initial corpses
+                                StockGraveyardWithCorpses(typedBuilding);
+
                                 // If possible, place a Church next to the Graveyard
                                 SpawnBuildingNearBuilding(buildingPos, buildingSize, "Church", "right", 2);
 
-                                // Spawn undead near the Graveyard
-                                SpawnBeingNearBuilding(buildingPos, buildingSize, _skeletonScene);
-                                SpawnBeingNearBuilding(buildingPos, buildingSize, _zombieScene);
+                                // Spawn undead near the Graveyard and set as their home
+                                SpawnUndeadNearBuilding(buildingPos, buildingSize, _skeletonScene, typedBuilding);
+                                SpawnUndeadNearBuilding(buildingPos, buildingSize, _zombieScene, typedBuilding);
                                 break;
 
                             case "Simple House":
-                                // Spawn 1 villager per house
-                                // First villager becomes a farmer if farms exist
+                                // Track house for villager assignment
+                                _placedHouses.Add(typedBuilding);
+
+                                // Add initial bread to house storage (3-5 loaves)
+                                StockHouseWithFood(typedBuilding);
+
+                                // Spawn 2 villagers per house
+                                // First villager: farmer if farms exist, otherwise regular villager
                                 Building? farmToAssign = null;
                                 if (!_farmerSpawned && _placedFarms.Count > 0)
                                 {
@@ -221,7 +234,10 @@ public class VillageGenerator
                                     _farmerSpawned = true;
                                 }
 
-                                SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene, farmToAssign);
+                                SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene, typedBuilding, farmToAssign, null);
+
+                                // Second villager: baker
+                                SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene, typedBuilding, null, typedBuilding);
                                 break;
                         }
 
@@ -291,48 +307,15 @@ public class VillageGenerator
     }
 
     /// <summary>
-    /// Spawns a character near a building.
-    /// </summary>
-    private void SpawnBeingNearBuilding(Vector2I buildingPos, Vector2I buildingSize, PackedScene beingScene)
-    {
-        // Find a position in front of the building
-        Vector2I beingPos = FindPositionInFrontOfBuilding(buildingPos, buildingSize);
-
-        // Ensure the position is valid and not occupied
-        if (beingPos != buildingPos && _gridArea.IsCellWalkable(beingPos))
-        {
-            Node2D being = beingScene.Instantiate<Node2D>();
-
-            // Initialize the being if it has the correct type
-            if (being is Being typedBeing)
-            {
-                typedBeing.Initialize(_gridArea, beingPos);
-                _entityThinkingSystem.RegisterEntity(typedBeing);
-                Log.Print($"Spawned {typedBeing.GetType().Name} at {beingPos} near building at {buildingPos}");
-            }
-            else
-            {
-                // Fallback positioning if not the correct type
-                being.Position = Utils.GridToWorld(beingPos);
-            }
-
-            _gridArea.AddEntity(beingPos, being);
-            _entitiesContainer.AddChild(being);
-        }
-        else
-        {
-            Log.Error($"Could not find valid position to spawn being near building at {buildingPos}");
-        }
-    }
-
-    /// <summary>
-    /// Spawns a villager near a building, optionally assigning them as a farmer.
+    /// Spawns a villager near a building, optionally assigning them as a farmer or baker.
     /// </summary>
     private void SpawnVillagerNearBuilding(
         Vector2I buildingPos,
         Vector2I buildingSize,
         PackedScene beingScene,
-        Building? assignedFarm = null)
+        Building? home,
+        Building? assignedFarm,
+        Building? bakerWorkplace)
     {
         Vector2I beingPos = FindPositionInFrontOfBuilding(buildingPos, buildingSize);
 
@@ -343,13 +326,32 @@ public class VillageGenerator
             if (being is Being typedBeing)
             {
                 typedBeing.Initialize(_gridArea, beingPos);
+
+                // Set home if provided
+                if (home != null)
+                {
+                    var villagerTrait = typedBeing.SelfAsEntity().GetTrait<VillagerTrait>();
+                    if (villagerTrait != null)
+                    {
+                        villagerTrait.SetHome(home);
+                        home.AddResident(typedBeing);
+                    }
+                }
 
                 // If assigned a farm, add farmer job trait
                 if (assignedFarm != null)
                 {
                     var farmerTrait = new FarmerJobTrait(assignedFarm);
                     typedBeing.SelfAsEntity().AddTraitToQueue(farmerTrait, priority: -1);
-                    Log.Print($"Spawned farmer at {beingPos} (home), assigned to farm at {assignedFarm.GetCurrentGridPosition()}");
+                    Log.Print($"Spawned farmer at {beingPos}, assigned to farm at {assignedFarm.GetCurrentGridPosition()}");
+                }
+
+                // If assigned baker workplace, add baker job trait
+                else if (bakerWorkplace != null)
+                {
+                    var bakerTrait = new BakerJobTrait(bakerWorkplace);
+                    typedBeing.SelfAsEntity().AddTraitToQueue(bakerTrait, priority: -1);
+                    Log.Print($"Spawned baker at {beingPos}, working at home");
                 }
                 else
                 {
@@ -369,6 +371,107 @@ public class VillageGenerator
         else
         {
             Log.Error($"Could not find valid position to spawn villager near building at {buildingPos}");
+        }
+    }
+
+    /// <summary>
+    /// Stock a house with initial food supply.
+    /// </summary>
+    private void StockHouseWithFood(Building house)
+    {
+        var storage = house.GetStorage();
+        if (storage == null)
+        {
+            Log.Warn($"House {house.BuildingName} has no storage for initial food");
+            return;
+        }
+
+        // Get bread item definition
+        var breadDef = ItemResourceManager.Instance.GetDefinition("bread");
+        if (breadDef == null)
+        {
+            Log.Error("VillageGenerator: bread item definition not found");
+            return;
+        }
+
+        // Add 3-5 loaves of bread
+        int breadCount = _rng.RandiRange(3, 5);
+        var bread = new Item(breadDef, breadCount);
+
+        if (storage.AddItem(bread))
+        {
+            Log.Print($"Stocked {house.BuildingName} with {breadCount} bread");
+        }
+    }
+
+    /// <summary>
+    /// Stock a graveyard with initial corpses.
+    /// </summary>
+    private void StockGraveyardWithCorpses(Building graveyard)
+    {
+        var storage = graveyard.GetStorage();
+        if (storage == null)
+        {
+            Log.Warn($"Graveyard {graveyard.BuildingName} has no storage for corpses");
+            return;
+        }
+
+        // Get corpse item definition
+        var corpseDef = ItemResourceManager.Instance.GetDefinition("corpse");
+        if (corpseDef == null)
+        {
+            Log.Error("VillageGenerator: corpse item definition not found");
+            return;
+        }
+
+        // Add 5-10 corpses (zombies need to eat!)
+        int corpseCount = _rng.RandiRange(5, 10);
+        for (int i = 0; i < corpseCount; i++)
+        {
+            var corpse = new Item(corpseDef, 1);  // Corpses don't stack
+            storage.AddItem(corpse);
+        }
+
+        Log.Print($"Stocked {graveyard.BuildingName} with {corpseCount} corpses");
+    }
+
+    /// <summary>
+    /// Spawns an undead near a graveyard and sets it as their home.
+    /// </summary>
+    private void SpawnUndeadNearBuilding(Vector2I buildingPos, Vector2I buildingSize, PackedScene beingScene, Building homeGraveyard)
+    {
+        // Find a position in front of the building
+        Vector2I beingPos = FindPositionInFrontOfBuilding(buildingPos, buildingSize);
+
+        // Ensure the position is valid and not occupied
+        if (beingPos != buildingPos && _gridArea.IsCellWalkable(beingPos))
+        {
+            Node2D being = beingScene.Instantiate<Node2D>();
+
+            // Initialize the being if it has the correct type
+            if (being is Being typedBeing)
+            {
+                typedBeing.Initialize(_gridArea, beingPos);
+
+                // Set home graveyard for zombies
+                var zombieTrait = typedBeing.SelfAsEntity().GetTrait<ZombieTrait>();
+                zombieTrait?.SetHomeGraveyard(homeGraveyard);
+
+                _entityThinkingSystem.RegisterEntity(typedBeing);
+                Log.Print($"Spawned {typedBeing.GetType().Name} at {beingPos} (home: {homeGraveyard.BuildingName})");
+            }
+            else
+            {
+                // Fallback positioning if not the correct type
+                being.Position = Utils.GridToWorld(beingPos);
+            }
+
+            _gridArea.AddEntity(beingPos, being);
+            _entitiesContainer.AddChild(being);
+        }
+        else
+        {
+            Log.Error($"Could not find valid position to spawn undead near building at {buildingPos}");
         }
     }
 

@@ -2,45 +2,78 @@ using Godot;
 using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
+using VeilOfAges.Entities.Items;
 using VeilOfAges.Entities.Needs;
 using VeilOfAges.Entities.Sensory;
+using VeilOfAges.Entities.Traits;
 
 namespace VeilOfAges.Entities.Activities;
 
 /// <summary>
 /// Activity for working at a field/farm during daytime.
-/// Handles navigation to the workplace and idling there (working).
-/// Completes when work duration expires or day phase ends.
+/// Phases:
+/// 1. Navigate to workplace
+/// 2. Work (idle, produce wheat)
+/// 3. Take wheat from farm storage into inventory
+/// 4. Navigate home
+/// 5. Deposit wheat to home storage
+/// Completes after depositing or if day phase ends.
 /// Drains energy while working (restored by sleeping).
 /// </summary>
 public class WorkFieldActivity : Activity
 {
+    private enum WorkPhase
+    {
+        GoingToWork,
+        Working,
+        TakingWheat,
+        GoingHome,
+        DepositingWheat,
+        Done
+    }
+
     // Energy cost per tick while actively working
-    // At 0.05/tick, working for 400 ticks costs 20 energy
     private const float ENERGYCOSTPERTICK = 0.05f;
 
+    // Amount of wheat produced per work shift
+    private const int WHEATPRODUCEDPERSHIFT = 3;
+
+    // Amount of wheat to bring home (for household of ~2 people)
+    private const int MINWHEATTOBRINGHOME = 4;
+    private const int MAXWHEATTOBRINGHOME = 6;
+
     private readonly Building _workplace;
+    private readonly Building? _home;
     private readonly uint _workDuration;
 
-    private GoToBuildingActivity? _goToPhase;
+    private GoToBuildingActivity? _goToWorkPhase;
+    private GoToBuildingActivity? _goToHomePhase;
     private uint _workTimer;
-    private bool _isWorking;
+    private WorkPhase _currentPhase = WorkPhase.GoingToWork;
     private Need? _energyNeed;
 
-    public override string DisplayName => _isWorking
-        ? $"Working at {_workplace.BuildingType}"
-        : $"Going to work";
+    public override string DisplayName => _currentPhase switch
+    {
+        WorkPhase.GoingToWork => "Going to work",
+        WorkPhase.Working => $"Working at {_workplace.BuildingType}",
+        WorkPhase.TakingWheat => "Gathering harvest",
+        WorkPhase.GoingHome => "Bringing harvest home",
+        WorkPhase.DepositingWheat => "Storing harvest",
+        _ => "Working"
+    };
 
     /// <summary>
     /// Initializes a new instance of the <see cref="WorkFieldActivity"/> class.
-    /// Create an activity to work at a building.
+    /// Create an activity to work at a building and bring harvest home.
     /// </summary>
     /// <param name="workplace">The building to work at (farm, etc.)</param>
+    /// <param name="home">The home building to deposit harvest (can be null).</param>
     /// <param name="workDuration">How many ticks to work before taking a break.</param>
     /// <param name="priority">Action priority (default 0).</param>
-    public WorkFieldActivity(Building workplace, uint workDuration, int priority = 0)
+    public WorkFieldActivity(Building workplace, Building? home, uint workDuration, int priority = 0)
     {
         _workplace = workplace;
+        _home = home;
         _workDuration = workDuration;
         Priority = priority;
 
@@ -72,63 +105,288 @@ public class WorkFieldActivity : Activity
         }
 
         // Check if work time has ended (day phase changed to dusk/night)
+        // If we're still working, transition to taking wheat and going home
         var gameTime = GameTime.FromTicks(GameController.CurrentTick);
         if (gameTime.CurrentDayPhase is not(DayPhaseType.Dawn or DayPhaseType.Day))
         {
-            Log.Print($"{_owner.Name}: Work time ended, heading home");
+            if (_currentPhase == WorkPhase.Working)
+            {
+                Log.Print($"{_owner.Name}: Work time ended, gathering harvest to bring home");
+                _currentPhase = WorkPhase.TakingWheat;
+            }
+        }
+
+        return _currentPhase switch
+        {
+            WorkPhase.GoingToWork => ProcessGoingToWork(position, perception),
+            WorkPhase.Working => ProcessWorking(),
+            WorkPhase.TakingWheat => ProcessTakingWheat(),
+            WorkPhase.GoingHome => ProcessGoingHome(position, perception),
+            WorkPhase.DepositingWheat => ProcessDepositingWheat(),
+            _ => null
+        };
+    }
+
+    private EntityAction? ProcessGoingToWork(Vector2I position, Perception perception)
+    {
+        if (_owner == null)
+        {
+            return null;
+        }
+
+        // Initialize go-to phase if needed
+        if (_goToWorkPhase == null)
+        {
+            _goToWorkPhase = new GoToBuildingActivity(_workplace, Priority);
+            _goToWorkPhase.Initialize(_owner);
+        }
+
+        // Check if navigation failed
+        if (_goToWorkPhase.State == ActivityState.Failed)
+        {
+            Fail();
+            return null;
+        }
+
+        // Check if we've arrived
+        if (_goToWorkPhase.State == ActivityState.Completed)
+        {
+            _currentPhase = WorkPhase.Working;
+            Log.Print($"{_owner.Name}: Started working at {_workplace.BuildingType}");
+            return new IdleAction(_owner, this, Priority);
+        }
+
+        // Still navigating
+        return _goToWorkPhase.GetNextAction(position, perception);
+    }
+
+    private EntityAction? ProcessWorking()
+    {
+        if (_owner == null)
+        {
+            return null;
+        }
+
+        _workTimer++;
+
+        // Directly spend energy while working
+        _energyNeed?.Restore(-ENERGYCOSTPERTICK);
+
+        if (_workTimer >= _workDuration)
+        {
+            // Produce wheat and deposit to farm storage
+            ProduceWheat();
+
+            Log.Print($"{_owner.Name}: Completed work shift, gathering harvest");
+            _currentPhase = WorkPhase.TakingWheat;
+            return new IdleAction(_owner, this, Priority);
+        }
+
+        // Still working, idle
+        return new IdleAction(_owner, this, Priority);
+    }
+
+    private EntityAction? ProcessTakingWheat()
+    {
+        if (_owner == null)
+        {
+            return null;
+        }
+
+        // Take wheat from farm storage into inventory
+        TakeWheatFromFarm();
+
+        // If no home, just complete here
+        if (_home == null || !GodotObject.IsInstanceValid(_home))
+        {
+            Log.Print($"{_owner.Name}: No home to bring harvest to, shift complete");
             Complete();
             return null;
         }
 
-        // Phase 1: Get to the workplace
-        if (!_isWorking)
+        _currentPhase = WorkPhase.GoingHome;
+        return new IdleAction(_owner, this, Priority);
+    }
+
+    private EntityAction? ProcessGoingHome(Vector2I position, Perception perception)
+    {
+        if (_owner == null || _home == null)
         {
-            // Initialize go-to phase if needed
-            if (_goToPhase == null)
-            {
-                _goToPhase = new GoToBuildingActivity(_workplace, Priority);
-                _goToPhase.Initialize(_owner);
-            }
-
-            // Check if navigation failed
-            if (_goToPhase.State == ActivityState.Failed)
-            {
-                Fail();
-                return null;
-            }
-
-            // Check if we've arrived
-            if (_goToPhase.State == ActivityState.Completed)
-            {
-                _isWorking = true;
-                Log.Print($"{_owner.Name}: Started working at {_workplace.BuildingType}");
-            }
-            else
-            {
-                // Still navigating
-                return _goToPhase.GetNextAction(position, perception);
-            }
+            Complete();
+            return null;
         }
 
-        // Phase 2: Work (idle at location)
-        if (_isWorking)
+        // Initialize go-to-home phase if needed
+        if (_goToHomePhase == null)
         {
-            _workTimer++;
+            _goToHomePhase = new GoToBuildingActivity(_home, Priority);
+            _goToHomePhase.Initialize(_owner);
+        }
 
-            // Directly spend energy while working
-            _energyNeed?.Restore(-ENERGYCOSTPERTICK);
+        // Check if navigation failed - just complete, we tried our best
+        if (_goToHomePhase.State == ActivityState.Failed)
+        {
+            Log.Warn($"{_owner.Name}: Couldn't reach home, wheat stays in inventory");
+            Complete();
+            return null;
+        }
 
-            if (_workTimer >= _workDuration)
-            {
-                Log.Print($"{_owner.Name}: Completed work shift at {_workplace.BuildingType}");
-                Complete();
-                return null;
-            }
-
-            // Still working, idle
+        // Check if we've arrived
+        if (_goToHomePhase.State == ActivityState.Completed)
+        {
+            _currentPhase = WorkPhase.DepositingWheat;
             return new IdleAction(_owner, this, Priority);
         }
 
+        // Still navigating
+        return _goToHomePhase.GetNextAction(position, perception);
+    }
+
+    private EntityAction? ProcessDepositingWheat()
+    {
+        if (_owner == null)
+        {
+            Complete();
+            return null;
+        }
+
+        // Deposit wheat from inventory to home storage
+        DepositWheatToHome();
+
+        Log.Print($"{_owner.Name}: Work day complete, harvest stored at home");
+        Complete();
         return null;
+    }
+
+    /// <summary>
+    /// Produce wheat and deposit to the farm's storage.
+    /// </summary>
+    private void ProduceWheat()
+    {
+        var storage = _workplace.GetStorage();
+        if (storage == null)
+        {
+            Log.Warn($"{_owner?.Name}: Farm {_workplace.BuildingName} has no storage for wheat");
+            return;
+        }
+
+        var wheatDef = ItemResourceManager.Instance.GetDefinition("wheat");
+        if (wheatDef == null)
+        {
+            Log.Error("WorkFieldActivity: wheat item definition not found");
+            return;
+        }
+
+        var wheat = new Item(wheatDef, WHEATPRODUCEDPERSHIFT);
+
+        if (storage.AddItem(wheat))
+        {
+            Log.Print($"{_owner?.Name}: Harvested {WHEATPRODUCEDPERSHIFT} wheat at {_workplace.BuildingName}");
+        }
+        else
+        {
+            Log.Warn($"{_owner?.Name}: Farm storage full, wheat lost!");
+        }
+    }
+
+    /// <summary>
+    /// Take wheat from farm storage into inventory.
+    /// </summary>
+    private void TakeWheatFromFarm()
+    {
+        if (_owner == null)
+        {
+            return;
+        }
+
+        var farmStorage = _workplace.GetStorage();
+        if (farmStorage == null)
+        {
+            return;
+        }
+
+        var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
+        if (inventory == null)
+        {
+            Log.Warn($"{_owner.Name}: No inventory to carry wheat");
+            return;
+        }
+
+        // Determine how much wheat to take (random amount for variety)
+        var rng = new RandomNumberGenerator();
+        rng.Randomize();
+        int amountToTake = rng.RandiRange(MINWHEATTOBRINGHOME, MAXWHEATTOBRINGHOME);
+
+        // Check how much is available
+        int available = farmStorage.GetItemCount("wheat");
+        if (available == 0)
+        {
+            Log.Print($"{_owner.Name}: No wheat at farm to bring home");
+            return;
+        }
+
+        // Take what we can (up to desired amount)
+        int actualAmount = System.Math.Min(amountToTake, available);
+
+        var wheat = farmStorage.RemoveItem("wheat", actualAmount);
+        if (wheat != null)
+        {
+            if (inventory.AddItem(wheat))
+            {
+                Log.Print($"{_owner.Name}: Took {wheat.Quantity} wheat to bring home");
+            }
+            else
+            {
+                // Inventory full, put it back
+                farmStorage.AddItem(wheat);
+                Log.Warn($"{_owner.Name}: Inventory full, leaving wheat at farm");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Deposit wheat from inventory to home storage.
+    /// </summary>
+    private void DepositWheatToHome()
+    {
+        if (_owner == null || _home == null)
+        {
+            return;
+        }
+
+        var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
+        if (inventory == null)
+        {
+            return;
+        }
+
+        var homeStorage = _home.GetStorage();
+        if (homeStorage == null)
+        {
+            Log.Warn($"{_owner.Name}: Home has no storage");
+            return;
+        }
+
+        // Transfer all wheat from inventory to home storage
+        int wheatCount = inventory.GetItemCount("wheat");
+        if (wheatCount == 0)
+        {
+            return;
+        }
+
+        var wheat = inventory.RemoveItem("wheat", wheatCount);
+        if (wheat != null)
+        {
+            if (homeStorage.AddItem(wheat))
+            {
+                Log.Print($"{_owner.Name}: Stored {wheat.Quantity} wheat at home");
+            }
+            else
+            {
+                // Home storage full, keep in inventory
+                inventory.AddItem(wheat);
+                Log.Warn($"{_owner.Name}: Home storage full, keeping wheat in inventory");
+            }
+        }
     }
 }

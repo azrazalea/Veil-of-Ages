@@ -1,173 +1,174 @@
-# Current Work: Daily Rhythm Simulation
+# Current Work: Resource Economy & Village Simulation
 
-## Status: Sleep Schedule Complete, Phase 2 In Progress
+## Status: Resource System Complete, Memory System Next
 
-## Goal
-Make the village simulation interesting enough to watch by adding:
-1. Day/night cycle (visual and behavioral) ← DONE
-2. Activities system for richer behaviors ← DONE
-3. Daily rhythm where entities respond to time of day ← SLEEP DONE
+## Recently Completed (January 2026)
 
-## What Was Built
+### Resource, Storage & Production System - COMPLETE
 
-### Day/Night Cycle (Complete)
-- **GameTime.cs** - Seasonal day/night calculations:
-  - `DayPhaseType` enum (Dawn, Day, Dusk, Night)
-  - Seasonal variation: Spring/Autumn (5 day/7 night), Summer (6/6), Winter (4/8)
-  - `DaylightLevel` (0.1-1.0) with smooth transitions
-  - Helper properties: `IsDaytime`, `IsNighttime`, `IsDark`, `HasSunlight`
-  - `FromTicks(ulong)` static helper for cleaner tick-to-time conversion
-- **DayNightCycle.cs** - Visual modulation:
-  - CanvasModulate-based world tinting
-  - Smooth color transitions between phases
-  - Dawn (warm orange), Day (white), Dusk (warm sunset), Night (cool blue)
-- **Wiki updated** - Game-time-and-Calendar.md documents the cycle
+Built a comprehensive resource economy with items, storage, and a wheat-to-bread production chain.
 
-### Core Infrastructure (Complete)
-- **Activity base class** (`/entities/activities/Activity.cs`)
-  - ActivityState enum (Running, Completed, Failed)
-  - DisplayName, Priority, Initialize(), GetNextAction(), Cleanup()
-  - `NeedDecayMultipliers` dictionary for per-need decay rate modifiers
-  - `GetNeedDecayMultiplier(needId)` returns multiplier or default 1.0
+#### Item System (`/entities/items/`)
+- **ItemDefinition.cs** - JSON-serializable templates with volume, weight, decay, nutrition, tags
+- **Item.cs** - Runtime instances with stacking and decay mechanics
+- **ItemResourceManager.cs** - Singleton loader from `resources/items/`
+- **Items defined**: wheat, flour, bread, corpse
 
-- **Being integration** (`/entities/Being.cs`)
-  - `_currentActivity` field
-  - Activity processing in Think() with state checking
-  - `GetCurrentActivity()` and `SetCurrentActivity()` methods
+#### Reactions System (`/entities/reactions/`)
+- **ReactionDefinition.cs** - JSON templates with inputs, outputs, duration, facility requirements
+- **ReactionResourceManager.cs** - Singleton loader from `resources/reactions/`
+- **Reactions defined**:
+  - mill_wheat (2 wheat → 1 flour, requires mortar_and_pestle)
+  - bake_bread (2 flour → 1 bread, requires oven)
 
-- **StartActivityAction** (`/entities/actions/StartActivityAction.cs`)
-  - Thread-safe way for traits to start activities
+#### Storage System (`/entities/traits/`)
+- **IStorageContainer.cs** - Interface for unified storage access
+- **StorageTrait.cs** - Building storage with volume capacity, decay modifier, facilities list
+- **InventoryTrait.cs** - Being inventory with volume/weight limits
 
-### Movement Activities (Complete)
-- **GoToLocationActivity** - Pathfind to a grid position
-- **GoToBuildingActivity** - Pathfind to a building (adjacent position)
-- **GoToEntityActivity** - DEFERRED (needs BDI/perception integration, documented in CLAUDE.md)
+#### Production Activities (`/entities/activities/`)
+- **WorkFieldActivity.cs** - Multi-phase farmer workflow:
+  1. Go to farm
+  2. Work (produce 3 wheat to farm storage)
+  3. Take wheat from farm (4-6 units)
+  4. Go home
+  5. Deposit wheat to home storage
+- **ProcessReactionActivity.cs** - Generic reaction processor that checks facilities and processes inputs→outputs
 
-### Consumption Activity (Complete)
-- **EatActivity** - Uses GoToBuildingActivity internally, then consumes for duration
-- **ConsumptionBehaviorTrait** - Migrated to use EatActivity instead of internal state machine
-  - Priority-based hunger: critical hunger (-1) interrupts sleep, low hunger (1) doesn't
+#### Job Traits (`/entities/traits/`)
+- **FarmerJobTrait.cs** - Works at assigned farm during Dawn/Day, passes home to WorkFieldActivity
+- **BakerJobTrait.cs** - Checks home storage for reactions, prioritizes baking over milling
 
-### Sleep Activity (Complete - December 2025)
-- **SleepActivity** (`/entities/activities/SleepActivity.cs`)
-  - Villagers sleep during Night/Dusk phases
-  - Auto-wakes at Dawn by calling Complete()
-  - Reduces hunger decay to 25% via NeedDecayMultipliers
-  - Priority 0 (between critical hunger -1 and low hunger 1)
-- **VillagerTrait** - Added Sleeping state and schedule logic
-  - Checks GameTime.CurrentDayPhase for Night/Dusk
-  - Starts SleepActivity when at home during sleep hours
-  - Transitions out of Sleeping state when activity completes
-- **BeingNeedsSystem** - Queries current activity for per-need decay multipliers
-- **Need.cs** - Decay() now accepts multiplier parameter
+#### Item-Based Consumption
+- **ConsumeItemActivity.cs** - Checks inventory first, then goes home, then consumes item
+- **ItemConsumptionBehaviorTrait.cs** - Replaces building-based consumption, uses food tags
+- **VillagerTrait** - Uses "food" tag, gets home from `_home` property
+- **ZombieTrait** - Uses "undead_food" tag, gets corpses from graveyard storage
 
-### Energy Need (Complete - January 2026)
-- **LivingTrait** - Added energy need alongside hunger
-  - Energy: initial 100, decay 0.008/tick, thresholds 20/40/80
-  - Decays slower than hunger (energy lasts longer)
-- **SleepActivity** - Now restores energy while sleeping
-  - Restores 0.15 energy/tick during sleep
-  - Sets energy decay multiplier to 0 (no decay while sleeping)
-  - Logs energy level when waking up
+#### Village Setup (`/world/generation/VillageGenerator.cs`)
+- Spawns 2 villagers per house (farmer + baker)
+- Sets home ownership via `VillagerTrait.SetHome()`
+- Stocks houses with initial bread (3-5 loaves)
+- Stocks graveyards with corpses (5-10) for zombies
 
-### Farmer Job System (Complete - January 2026)
-- **WorkFieldActivity** (`/entities/activities/WorkFieldActivity.cs`)
-  - Two-phase: go-to workplace + work (idle at location)
-  - Ends when day phase changes to Dusk/Night
-  - Increases hunger decay (1.2x multiplier) while working
-  - Directly costs energy (0.05/tick) - creates work→sleep loop
-- **FarmerJobTrait** (`/entities/traits/FarmerJobTrait.cs`)
-  - Suggests WorkFieldActivity during Dawn/Day phases
-  - Returns null at night (VillagerTrait handles sleep)
-  - Context-aware dialogue
-- **VillageGenerator** - Spawns first villager as farmer
-  - Tracks placed farms, assigns first one to farmer
-  - FarmerJobTrait added with priority -1 (runs before VillagerTrait)
+#### Building Navigation Improvements
+- **Building.GetWalkableInteriorPositions()** - Queries GridArea (source of truth) for walkable tiles
+- **PathFinder** - `SetBuildingGoal()` now navigates to interior positions when available
+- **VillagerTrait** - Uses `SetBuildingGoal` so villagers go inside homes, not just to perimeter
 
-### Energy Design Decision (January 2026)
-- **Direct cost vs decay multiplier**: Work uses direct energy cost (0.05/tick)
-  rather than increased decay rate. Rationale:
-  - Clearer mental model: "work spends energy"
-  - Easier to balance (one number to tune)
-  - Decay multipliers reserved for passive effects (sleep slows hunger)
-  - Avoids confusing compounding effects
+#### Resource Manager Initialization (`/core/GameController.cs`)
+All resource managers initialized centrally in `_Ready()`:
+```csharp
+TileResourceManager.Instance.Initialize();
+ItemResourceManager.Instance.Initialize();
+ReactionResourceManager.Instance.Initialize();
+```
+
+### Production Chain Flow
+1. Farmer works at farm → produces wheat → brings harvest home → deposits to home storage
+2. Baker checks home storage → mills wheat to flour → bakes flour to bread
+3. Villager gets hungry → checks inventory → checks home storage → eats bread
+4. Zombie gets hungry → goes to graveyard → eats corpse from storage
+
+---
+
+## Next Steps: Memory System for Storage Awareness
+
+### Problem
+Villagers need to remember what they've seen in storage areas. Currently they have no memory of storage contents - they check each time they need something. This is inefficient and unrealistic.
+
+### Goal
+Implement short-term memory for beings to remember storage contents they've recently observed.
+
+### Design Ideas
+- **BeingTrait already has `_memory` dictionary** - currently stores entity positions with timestamps
+- Extend memory to store storage snapshots: `StorageMemory` with item counts and timestamp
+- When a being accesses a storage container, update their memory of its contents
+- Memory decays over time (e.g., 1000 ticks = ~2 minutes game time)
+- Beings use memory to decide WHERE to look for items, not just IF items exist
+- Example: Farmer remembers "home storage had 5 wheat last time I checked"
+
+### Implementation Approach
+1. Create `StorageMemoryEntry` record: building reference, item type → quantity map, timestamp
+2. Add `_storageMemory` dictionary to BeingTrait keyed by building
+3. When accessing storage (ConsumeItemActivity, ProcessReactionActivity), update memory
+4. Add `GetRememberedItemCount(building, itemId)` helper
+5. Consumption/production traits can use memory to make smarter decisions
+6. Memory cleanup in Think() loop (remove stale entries)
+
+### Use Cases
+- Baker checks memory before starting reaction - "do I remember having enough wheat?"
+- Villager decides which storage to check first based on remembered contents
+- Farmer decides whether to bring more wheat home based on remembered home storage levels
+
+---
 
 ## Architecture Summary
 
 ### Three Layers
 | Layer | Role | Examples |
 |-------|------|----------|
-| **Traits** | DECIDE | VillagerTrait chooses to sleep or eat |
-| **Activities** | EXECUTE | SleepActivity, EatActivity handle multi-step behavior |
+| **Traits** | DECIDE | VillagerTrait chooses to sleep, eat, or work |
+| **Activities** | EXECUTE | SleepActivity, WorkFieldActivity, ConsumeItemActivity |
 | **Actions** | ATOMIC | MoveAlongPathAction, IdleAction |
 
-### Priority System
-| Behavior | Priority | Wins Against |
-|----------|----------|--------------|
-| Critical hunger | -1 | Everything |
-| Sleep | 0 | Low hunger, wandering |
-| Low hunger | 1 | Nothing special |
-| Wandering | 1 | Nothing special |
+### Key Systems
+| System | Purpose |
+|--------|---------|
+| Items | Stackable resources with decay |
+| Storage | Building and being containers |
+| Reactions | Input→output transformations |
+| Activities | Multi-step behaviors |
+| Needs | Drive entity decisions |
 
-### Key Decisions
-1. Activities separate from traits (threading safety)
-2. ActivityState is source of truth (not null checks)
-3. Priority-based implicit interruption (lower number = higher priority)
-4. Internal composition (EatActivity uses GoToBuildingActivity)
-5. Activity-based need decay multipliers (extensible per-activity effects)
-6. Commands will own activities (TODO)
+---
 
-## Files Created/Modified
+## Files Modified in Resource System
 
 ### New Files
-- `/entities/activities/Activity.cs`
-- `/entities/activities/GoToLocationActivity.cs`
-- `/entities/activities/GoToBuildingActivity.cs`
-- `/entities/activities/EatActivity.cs`
-- `/entities/activities/SleepActivity.cs`
-- `/entities/activities/WorkFieldActivity.cs` (January 2026)
-- `/entities/activities/CLAUDE.md`
-- `/entities/actions/StartActivityAction.cs`
-- `/entities/traits/FarmerJobTrait.cs` (January 2026)
+- `/entities/items/ItemDefinition.cs`
+- `/entities/items/Item.cs`
+- `/entities/items/ItemResourceManager.cs`
+- `/entities/items/IStorageContainer.cs`
+- `/entities/items/CLAUDE.md`
+- `/entities/reactions/ReactionDefinition.cs`
+- `/entities/reactions/ReactionResourceManager.cs`
+- `/entities/reactions/ItemQuantity.cs`
+- `/entities/reactions/CLAUDE.md`
+- `/entities/traits/StorageTrait.cs`
+- `/entities/traits/InventoryTrait.cs`
+- `/entities/traits/BakerJobTrait.cs`
+- `/entities/traits/ItemConsumptionBehaviorTrait.cs`
+- `/entities/activities/ProcessReactionActivity.cs`
+- `/entities/activities/ConsumeItemActivity.cs`
+- `/resources/items/wheat.json`
+- `/resources/items/flour.json`
+- `/resources/items/bread.json`
+- `/resources/items/corpse.json`
+- `/resources/reactions/mill_wheat.json`
+- `/resources/reactions/bake_bread.json`
 
 ### Modified Files
-- `/entities/Being.cs` - Activity integration
-- `/entities/traits/ConsumptionBehaviorTrait.cs` - Uses EatActivity, priority logic
-- `/entities/traits/VillagerTrait.cs` - Sleeping state and schedule logic
-- `/entities/traits/LivingTrait.cs` - Added energy need (January 2026)
-- `/entities/activities/SleepActivity.cs` - Energy restoration (January 2026)
-- `/entities/being_services/BeingNeedsSystem.cs` - Activity-based decay multipliers
-- `/entities/needs/Need.cs` - Decay accepts multiplier
-- `/core/lib/GameTime.cs` - Added FromTicks() helper
-- `/core/GameController.cs` - Time scale limit raised to 25x
-- `/core/ui/dialogue/commands/MoveToCommand.cs` - Added TODO
-- `/core/ui/dialogue/commands/FollowCommand.cs` - Added TODO
-- `/world/generation/VillageGenerator.cs` - Farmer spawning (January 2026)
+- `/entities/building/Building.cs` - Storage trait, GetWalkableInteriorPositions()
+- `/entities/building/BuildingTemplate.cs` - Storage configuration
+- `/entities/traits/VillagerTrait.cs` - Home ownership, InventoryTrait, ItemConsumptionBehaviorTrait
+- `/entities/traits/ZombieTrait.cs` - Graveyard home, ItemConsumptionBehaviorTrait
+- `/entities/activities/WorkFieldActivity.cs` - Wheat production and transport
+- `/entities/traits/FarmerJobTrait.cs` - Passes home to WorkFieldActivity
+- `/core/lib/PathFinder.cs` - Interior building navigation
+- `/core/GameController.cs` - Resource manager initialization
+- `/world/generation/VillageGenerator.cs` - 2 villagers per house, job assignment, initial stocking
+- `/resources/buildings/templates/simple_house.json` - Storage and facilities
+- `/resources/buildings/templates/graveyard.json` - Storage for corpses
 
-## Next Steps
+---
 
-### Phase 2 Continued: Daily Life
-- [x] Add energy/rest need that SleepActivity restores (January 2026)
-- [x] WorkActivity for farmers (tend crops during day) (January 2026)
-- [ ] Work schedules and job-based routines
-- [ ] Recreation and entertainment activities
-
-### Commands Integration (TODO)
-- [ ] Update MoveToCommand to use GoToLocationActivity
-- [ ] Commands own activities, poll state for completion
-
-### GoToEntityActivity (TODO)
-- [ ] Implement with proper BDI behavior
-- [ ] Use perception/memory for target location
-- [ ] Handle target movement and search
-
-## Testing Verified
-- Villagers sleep at night/dusk, wake at dawn
-- Low hunger doesn't interrupt sleep
-- Critical hunger interrupts sleep
-- Sleep reduces hunger decay to 25%
-- 25x time scale works for fast-forward testing
-
-## Documentation
-- See `/entities/activities/CLAUDE.md` for full Activity system docs
-- Entity AI roadmap in `/.claude/context/entity_ai_improvement_plan.md`
+## Testing Checklist
+- [ ] Farmer produces wheat and brings it home
+- [ ] Baker mills wheat to flour
+- [ ] Baker bakes flour to bread
+- [ ] Villager eats bread when hungry
+- [ ] Zombie eats corpse from graveyard
+- [ ] Villagers navigate inside their homes (not just to perimeter)
+- [ ] Initial bread in houses provides first meals
+- [ ] Production chain sustains village over time
