@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.BeingServices;
@@ -45,9 +46,9 @@ public partial class MindlessZombie : Being
         Log.Print("Zombie initialized with traits");
     }
 
-    public override void Initialize(Grid.Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null, bool debugEnabled = false)
+    public override void Initialize(Grid.Area gridArea, Vector2I startGridPos, GameController? gameController = null, BeingAttributes? attributes = null, bool debugEnabled = false)
     {
-        base.Initialize(gridArea, startGridPos, attributes, debugEnabled);
+        base.Initialize(gridArea, startGridPos, gameController, attributes, debugEnabled);
         ApplyRandomDecayDamage();
 
         // Any zombie-specific initialization after base initialization

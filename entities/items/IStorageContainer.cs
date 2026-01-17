@@ -105,9 +105,9 @@ public interface IStorageContainer
 
     /// <summary>
     /// Process decay for all items in this container.
-    /// Should be called each game tick.
     /// </summary>
-    void ProcessDecay();
+    /// <param name="tickMultiplier">Number of ticks since last decay processing (for batched decay).</param>
+    void ProcessDecay(int tickMultiplier = 1);
 
     /// <summary>
     /// Get a summary string of all items in this container for debug logging.

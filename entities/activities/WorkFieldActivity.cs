@@ -34,14 +34,16 @@ public class WorkFieldActivity : Activity
     }
 
     // Energy cost per tick while actively working
-    private const float ENERGYCOSTPERTICK = 0.05f;
+    // At 0.01/tick over a 1500-tick shift = 15 energy per shift
+    // Two shifts = 30 energy from work + ~38 from decay = ~68 total
+    // Leaves farmer at ~32 energy (above critical 20) by end of day
+    private const float ENERGYCOSTPERTICK = 0.01f;
 
     // Amount of wheat produced per work shift
     private const int WHEATPRODUCEDPERSHIFT = 3;
 
-    // Amount of wheat to bring home (for household of ~2 people)
-    private const int MINWHEATTOBRINGHOME = 4;
-    private const int MAXWHEATTOBRINGHOME = 6;
+    // Amount of wheat to bring home per trip (farmer does 2 shifts/day, produces 3/shift = +1 surplus per shift)
+    private const int WHEATTOBRINGHOME = 2;
 
     private readonly Building _workplace;
     private readonly Building? _home;
@@ -51,6 +53,8 @@ public class WorkFieldActivity : Activity
     private GoToFacilityActivity? _goToCropPhase;
     private GoToBuildingActivity? _goToHomePhase;
     private uint _workTimer;
+    private uint _ticksSinceLastWheat;
+    private int _wheatProducedThisShift;
     private WorkPhase _currentPhase = WorkPhase.GoingToWork;
     private Need? _energyNeed;
 
@@ -230,24 +234,34 @@ public class WorkFieldActivity : Activity
         }
 
         _workTimer++;
+        _ticksSinceLastWheat++;
 
         // Directly spend energy while working
         _energyNeed?.Restore(-ENERGYCOSTPERTICK);
 
+        // Calculate production interval: produce wheat gradually across the shift
+        uint productionInterval = _workDuration / WHEATPRODUCEDPERSHIFT;
+
+        // Check if it's time to produce wheat (and we haven't produced all wheat yet)
+        if (_ticksSinceLastWheat >= productionInterval && _wheatProducedThisShift < WHEATPRODUCEDPERSHIFT)
+        {
+            ProduceSingleWheat();
+            _ticksSinceLastWheat = 0;
+            _wheatProducedThisShift++;
+            DebugLog("ACTIVITY", $"Produced 1 wheat ({_wheatProducedThisShift}/{WHEATPRODUCEDPERSHIFT} this shift)", 0);
+        }
+
         if (_workTimer >= _workDuration)
         {
-            // Produce wheat and deposit to farm storage
-            ProduceWheat();
-
             Log.Print($"{_owner.Name}: Completed work shift, gathering harvest");
-            DebugLog("ACTIVITY", "Work phase complete, produced wheat, transitioning to TakingWheat", 0);
+            DebugLog("ACTIVITY", $"Work phase complete, produced {_wheatProducedThisShift} wheat total, transitioning to TakingWheat", 0);
             LogStorageInfo();
             _currentPhase = WorkPhase.TakingWheat;
             return new IdleAction(_owner, this, Priority);
         }
 
         // Periodic progress log while working
-        DebugLog("ACTIVITY", $"Working... progress: {_workTimer}/{_workDuration} ticks, energy: {_energyNeed?.Value:F1}");
+        DebugLog("ACTIVITY", $"Working... progress: {_workTimer}/{_workDuration} ticks, wheat: {_wheatProducedThisShift}/{WHEATPRODUCEDPERSHIFT}, energy: {_energyNeed?.Value:F1}");
 
         // Still working, idle
         return new IdleAction(_owner, this, Priority);
@@ -333,9 +347,10 @@ public class WorkFieldActivity : Activity
     }
 
     /// <summary>
-    /// Produce wheat and deposit to the farm's storage.
+    /// Produce a single unit of wheat and deposit to the farm's storage.
+    /// Called periodically during the Working phase to spread production across the shift.
     /// </summary>
-    private void ProduceWheat()
+    private void ProduceSingleWheat()
     {
         var storage = _workplace.GetStorage();
         if (storage == null)
@@ -351,11 +366,11 @@ public class WorkFieldActivity : Activity
             return;
         }
 
-        var wheat = new Item(wheatDef, WHEATPRODUCEDPERSHIFT);
+        var wheat = new Item(wheatDef, 1);
 
         if (storage.AddItem(wheat))
         {
-            Log.Print($"{_owner?.Name}: Harvested {WHEATPRODUCEDPERSHIFT} wheat at {_workplace.BuildingName} (Farm: {storage.GetContentsSummary()})");
+            Log.Print($"{_owner?.Name}: Harvested 1 wheat at {_workplace.BuildingName} (Farm: {storage.GetContentsSummary()})");
         }
         else
         {
@@ -365,6 +380,7 @@ public class WorkFieldActivity : Activity
 
     /// <summary>
     /// Take wheat from farm storage into inventory.
+    /// Takes exactly WHEATTOBRINGHOME (2) wheat, or all available if less than that.
     /// </summary>
     private void TakeWheatFromFarm()
     {
@@ -386,11 +402,6 @@ public class WorkFieldActivity : Activity
             return;
         }
 
-        // Determine how much wheat to take (random amount for variety)
-        var rng = new RandomNumberGenerator();
-        rng.Randomize();
-        int amountToTake = rng.RandiRange(MINWHEATTOBRINGHOME, MAXWHEATTOBRINGHOME);
-
         // Check how much is available
         int available = farmStorage.GetItemCount("wheat");
         if (available == 0)
@@ -399,8 +410,8 @@ public class WorkFieldActivity : Activity
             return;
         }
 
-        // Take what we can (up to desired amount)
-        int actualAmount = System.Math.Min(amountToTake, available);
+        // Take exactly WHEATTOBRINGHOME, or all available if less
+        int actualAmount = System.Math.Min(WHEATTOBRINGHOME, available);
 
         var wheat = farmStorage.RemoveItem("wheat", actualAmount);
         if (wheat != null)

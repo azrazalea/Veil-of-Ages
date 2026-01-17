@@ -2,6 +2,7 @@ using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Items;
+using VeilOfAges.Entities.Needs;
 using VeilOfAges.Entities.Reactions;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.Entities.Traits;
@@ -12,9 +13,14 @@ namespace VeilOfAges.Entities.Activities;
 /// Activity for processing a reaction (crafting).
 /// Goes to workplace (if specified), navigates to required facility,
 /// checks inputs, waits for duration, consumes inputs, and produces outputs.
+/// Consumes energy while processing based on reaction's EnergyCostMultiplier.
 /// </summary>
 public class ProcessReactionActivity : Activity
 {
+    // Base energy cost per tick while processing (same as WorkFieldActivity)
+    // Multiplied by reaction's EnergyCostMultiplier
+    private const float BASEENERGYCOSTPERTICK = 0.01f;
+
     private readonly ReactionDefinition _reaction;
     private readonly Building? _workplace;
     private readonly StorageTrait _storage;
@@ -26,6 +32,7 @@ public class ProcessReactionActivity : Activity
     private bool _isAtFacility;
     private bool _isProcessing;
     private bool _inputsConsumed;
+    private Need? _energyNeed;
 
     public override string DisplayName => _isProcessing
         ? $"Processing {_reaction.Name}"
@@ -45,6 +52,20 @@ public class ProcessReactionActivity : Activity
         _workplace = workplace;
         _storage = storage;
         Priority = priority;
+
+        // Apply reaction's hunger multiplier (defaults to 1.0 if not specified)
+        if (reaction.HungerMultiplier != 1.0f)
+        {
+            NeedDecayMultipliers["hunger"] = reaction.HungerMultiplier;
+        }
+    }
+
+    public override void Initialize(Being owner)
+    {
+        base.Initialize(owner);
+
+        // Get energy need for direct energy cost while processing
+        _energyNeed = owner.NeedsSystem?.GetNeed("energy");
     }
 
     public override EntityAction? GetNextAction(Vector2I position, Perception perception)
@@ -161,6 +182,10 @@ public class ProcessReactionActivity : Activity
             }
 
             _processTimer++;
+
+            // Spend energy while processing (base cost * reaction multiplier)
+            float energyCost = BASEENERGYCOSTPERTICK * _reaction.EnergyCostMultiplier;
+            _energyNeed?.Restore(-energyCost);
 
             if (_processTimer >= _reaction.Duration)
             {

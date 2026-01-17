@@ -16,8 +16,8 @@ public class LivingTrait : BeingTrait
         var needsSystem = owner.NeedsSystem;
         if (needsSystem != null)
         {
-            // Hunger: decays at 0.02/tick, critical at 15, low at 40
-            var hunger = new Need("hunger", "Hunger", 75f, 0.02f, 15f, 40f, 90f);
+            // Hunger: decays at 0.012/tick for ~2 meals/day, critical at 15, low at 40
+            var hunger = new Need("hunger", "Hunger", 75f, 0.012f, 15f, 40f, 90f);
             needsSystem.AddNeed(hunger);
 
             // Energy: decays slower (0.008/tick), restored by sleep

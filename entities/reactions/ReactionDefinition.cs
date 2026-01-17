@@ -57,6 +57,22 @@ public class ReactionDefinition
     public List<string> Tags { get; set; } = [];
 
     /// <summary>
+    /// Gets or sets the energy cost multiplier for this reaction.
+    /// Applied against the base energy cost per tick in ProcessReactionActivity.
+    /// Default: 1.0 (normal energy cost)
+    /// Examples: 0.5 = light work, 1.5 = heavy labor, 2.0 = very strenuous.
+    /// </summary>
+    public float EnergyCostMultiplier { get; set; } = 1.0f;
+
+    /// <summary>
+    /// Gets or sets the hunger decay multiplier for this reaction.
+    /// Applied against the base hunger decay rate while processing.
+    /// Default: 1.0 (normal hunger rate)
+    /// Examples: 0.75 = light work, 1.2 = moderate work, 1.5 = heavy labor.
+    /// </summary>
+    public float HungerMultiplier { get; set; } = 1.0f;
+
+    /// <summary>
     /// Load a reaction definition from a JSON file.
     /// </summary>
     /// <param name="path">Path to the JSON file.</param>

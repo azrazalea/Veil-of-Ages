@@ -30,10 +30,6 @@ public class SkeletonTrait : UndeadBehaviorTrait
     private bool _hasRattled;
     private Vector2I? _lastIntruderPosition;
 
-    // Activities for position-based navigation
-    private GoToLocationActivity? _returnToSpawnActivity;
-    private GoToLocationActivity? _pursueActivity;
-
     public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue)
     {
         base.Initialize(owner, health, initQueue);
@@ -189,7 +185,6 @@ public class SkeletonTrait : UndeadBehaviorTrait
             _intruder = null;
             _lastIntruderPosition = null;
             _hasRattled = false;
-            _pursueActivity = null;
 
             // Return to spawn area if we strayed too far
             if (IsOutsideWanderRange())
@@ -231,7 +226,7 @@ public class SkeletonTrait : UndeadBehaviorTrait
     }
 
     /// <summary>
-    /// Start or continue returning to spawn position using GoToLocationActivity.
+    /// Start returning to spawn position using GoToLocationActivity.
     /// </summary>
     private EntityAction? StartReturnToSpawn()
     {
@@ -240,33 +235,19 @@ public class SkeletonTrait : UndeadBehaviorTrait
             return null;
         }
 
-        // Start a new return activity if we don't have one
-        if (_returnToSpawnActivity == null)
+        // Check if already navigating back to spawn
+        if (_owner.GetCurrentActivity() is GoToLocationActivity)
         {
-            _returnToSpawnActivity = new GoToLocationActivity(_spawnPosition, priority: -1);
-            _returnToSpawnActivity.Initialize(_owner);
+            return null; // Let the activity handle navigation
         }
 
-        // Check activity state
-        if (_returnToSpawnActivity.State == Activity.ActivityState.Completed)
-        {
-            _returnToSpawnActivity = null;
-            return new IdleAction(_owner, this);
-        }
-
-        if (_returnToSpawnActivity.State == Activity.ActivityState.Failed)
-        {
-            // Reset and try again next tick
-            _returnToSpawnActivity = null;
-            return new IdleAction(_owner, this);
-        }
-
-        // Continue the activity
-        return _returnToSpawnActivity.GetNextAction(_owner.GetCurrentGridPosition(), new Perception());
+        // Start a new return activity
+        var returnActivity = new GoToLocationActivity(_spawnPosition, priority: -1);
+        return new StartActivityAction(_owner, this, returnActivity, priority: -1);
     }
 
     /// <summary>
-    /// Start or continue pursuit of a target position using GoToLocationActivity.
+    /// Start pursuit of a target position using GoToLocationActivity.
     /// Uses BDI pattern: goes to believed position, not tracking entity directly.
     /// </summary>
     private EntityAction? ContinuePursuit(Vector2I targetPosition)
@@ -276,44 +257,15 @@ public class SkeletonTrait : UndeadBehaviorTrait
             return null;
         }
 
-        // Check if we need a new pursuit activity (target moved significantly or no activity)
-        bool needNewActivity = _pursueActivity == null ||
-                               _pursueActivity.State != Activity.ActivityState.Running;
-
-        // Also restart if target position has changed significantly (entity moved)
-        // This allows skeleton to re-path when intruder moves
-        if (!needNewActivity && _pursueActivity != null)
+        // Check if already pursuing via an activity
+        if (_owner.GetCurrentActivity() is GoToLocationActivity)
         {
-            // If we reached the believed position but intruder isn't there, get new activity
-            if (_pursueActivity.State == Activity.ActivityState.Completed)
-            {
-                needNewActivity = true;
-            }
+            return null; // Let the activity handle navigation
         }
 
-        if (needNewActivity)
-        {
-            _pursueActivity = new GoToLocationActivity(targetPosition, priority: -2);
-            _pursueActivity.Initialize(_owner);
-        }
-
-        // Check activity state
-        if (_pursueActivity!.State == Activity.ActivityState.Completed)
-        {
-            // Reached the position - if intruder still here, we'll get new position next tick
-            _pursueActivity = null;
-            return new IdleAction(_owner, this, priority: -2);
-        }
-
-        if (_pursueActivity.State == Activity.ActivityState.Failed)
-        {
-            // Path failed - reset and idle
-            _pursueActivity = null;
-            return new IdleAction(_owner, this);
-        }
-
-        // Continue the activity
-        return _pursueActivity.GetNextAction(_owner.GetCurrentGridPosition(), new Perception());
+        // Start a new pursuit activity to the target position
+        var pursueActivity = new GoToLocationActivity(targetPosition, priority: -2);
+        return new StartActivityAction(_owner, this, pursueActivity, priority: -2);
     }
 
     private bool IsIntruderInTerritory()

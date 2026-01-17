@@ -17,6 +17,11 @@ public partial class GameController : Node
     public uint MaxPlayerActions { get; set; } = 3;
 
     /// <summary>
+    /// How often to process item decay (every N ticks). Decay rates are multiplied by this value.
+    /// </summary>
+    private const int DECAYTICKINTERVAL = 32;
+
+    /// <summary>
     /// Gets global tick counter, incremented each simulation tick.
     /// </summary>
     public static uint CurrentTick { get; private set; }
@@ -72,6 +77,13 @@ public partial class GameController : Node
     private async Task ProcessNextTick()
     {
         _processingTick = true;
+
+        // Process decay for all storage containers (buildings and beings)
+        // Only runs every DECAY_TICK_INTERVAL ticks for performance
+        if (CurrentTick % DECAYTICKINTERVAL == 0)
+        {
+            _world?.ProcessDecay(DECAYTICKINTERVAL);
+        }
 
         // Process the tick with all entities (including player)
         if (_thinkingSystem != null)

@@ -22,7 +22,7 @@ public class SleepActivity : Activity
 
     public override string DisplayName => "Sleeping";
 
-    public SleepActivity(int priority = 0)
+    public SleepActivity(int priority = -1)
     {
         Priority = priority;
 

@@ -1,5 +1,6 @@
 using System.Linq;
 using Godot;
+using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Traits;
 
@@ -43,9 +44,9 @@ public partial class MindlessSkeleton : Being
         Log.Print("Skeleton initialized with traits");
     }
 
-    public override void Initialize(Grid.Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null, bool debugEnabled = false)
+    public override void Initialize(Grid.Area gridArea, Vector2I startGridPos, GameController? gameController = null, BeingAttributes? attributes = null, bool debugEnabled = false)
     {
-        base.Initialize(gridArea, startGridPos, attributes, debugEnabled);
+        base.Initialize(gridArea, startGridPos, gameController, attributes, debugEnabled);
 
         // Any skeleton-specific initialization after base initialization
         Log.Print($"Skeleton spawned at {startGridPos}");

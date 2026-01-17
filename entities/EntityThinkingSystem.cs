@@ -130,9 +130,9 @@ public partial class EntityThinkingSystem : Node
 
     private void ApplyAllPendingActions()
     {
-        // Sort actions by priority if needed
+        // Sort actions by priority (lower values = higher priority, execute first)
         var pendingActions = _pendingActions.ToList();
-        pendingActions.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+        pendingActions.Sort((a, b) => a.Priority.CompareTo(b.Priority));
 
         // Apply each action
         foreach (var action in pendingActions)

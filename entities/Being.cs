@@ -101,9 +101,6 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
 
     public override void _Ready()
     {
-        // Cache the GameController reference to avoid repeated tree lookups
-        GameController = GetTree().GetFirstNodeInGroup("GameController") as GameController;
-
         // MovementController handles it from here
         var animatedSprite = GetNode<AnimatedSprite2D>("AnimatedSprite2D");
         animatedSprite.Play("idle");
@@ -162,9 +159,10 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         Log.EntityDebug(Name, "TRAITS", $"Initialized with {Traits.Count} traits: {string.Join(", ", traitNames)}", 0);
     }
 
-    public virtual void Initialize(Area gridArea, Vector2I startGridPos, BeingAttributes? attributes = null, bool debugEnabled = false)
+    public virtual void Initialize(Area gridArea, Vector2I startGridPos, GameController? gameController = null, BeingAttributes? attributes = null, bool debugEnabled = false)
     {
         GridArea = gridArea;
+        GameController = gameController;
         DetectionDifficulties = [];
         DebugEnabled = debugEnabled;
 

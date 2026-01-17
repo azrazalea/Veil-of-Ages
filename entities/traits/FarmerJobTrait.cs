@@ -13,7 +13,7 @@ namespace VeilOfAges.Entities.Traits;
 public class FarmerJobTrait : BeingTrait
 {
     private readonly Building _assignedFarm;
-    private const uint WORKDURATION = 400; // ~50 seconds real time at 8 ticks/sec
+    private const uint WORKDURATION = 1500; // ~3.1 real minutes, ~1.75 game hours per shift (2 shifts/day)
 
     public FarmerJobTrait(Building farm)
     {
@@ -33,16 +33,19 @@ public class FarmerJobTrait : BeingTrait
             return null;
         }
 
+        var currentActivity = _owner.GetCurrentActivity();
+        var gameTime = _owner.GameController?.CurrentGameTime ?? new GameTime(0);
+
         // If already working, let the activity handle things
-        if (_owner.GetCurrentActivity() is WorkFieldActivity)
+        if (currentActivity is WorkFieldActivity)
         {
             return null;
         }
 
         // Only work during work hours (Dawn/Day)
-        var gameTime = _owner.GameController?.CurrentGameTime ?? new GameTime(0);
         if (gameTime.CurrentDayPhase is not(DayPhaseType.Dawn or DayPhaseType.Day))
         {
+            DebugLog("FARMER", $"Not work hours ({gameTime.CurrentDayPhase}), deferring to VillagerTrait");
             return null; // Let VillagerTrait handle night behavior
         }
 

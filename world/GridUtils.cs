@@ -5,7 +5,7 @@ namespace VeilOfAges.Grid;
 public class Utils
 {
     public const uint TileSize = 8;
-    public const uint WorldOffset = 5; // Fix visual difference with grid
+    public const uint WorldOffset = 0; // Fix visual difference with grid
     public static readonly Vector2I WaterAtlasCoords = new (3, 16);
     public Vector2I GridSize = new (100, 100);
 

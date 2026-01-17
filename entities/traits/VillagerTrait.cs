@@ -38,12 +38,6 @@ public class VillagerTrait : BeingTrait
     private Building? _home;
     public Building? Home => _home;
 
-    // Activity for navigating home
-    private GoToBuildingActivity? _goHomeActivity;
-
-    // Activity for navigating to village square
-    private GoToLocationActivity? _goToSquareActivity;
-
     public VillagerTrait(Building? home = null)
     {
         _home = home;
@@ -153,20 +147,6 @@ public class VillagerTrait : BeingTrait
         return false;
     }
 
-    /// <summary>
-    /// Start navigating home using GoToBuildingActivity.
-    /// </summary>
-    private void StartGoingHome()
-    {
-        if (_owner == null || _home == null)
-        {
-            return;
-        }
-
-        _goHomeActivity = new GoToBuildingActivity(_home, Priority);
-        _goHomeActivity.Initialize(_owner);
-    }
-
     public override EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
     {
         if (_owner == null)
@@ -180,15 +160,27 @@ public class VillagerTrait : BeingTrait
             return null;
         }
 
-        // Schedule-based behavior: check time of day
+        // Get current activity for debugging
+        var currentActivity = _owner.GetCurrentActivity();
         var gameTime = _owner.GameController?.CurrentGameTime ?? new GameTime(0);
         bool shouldSleep = gameTime.CurrentDayPhase is DayPhaseType.Night or
                            DayPhaseType.Dusk;
+
+        // Debug: Log current state periodically
+        DebugLog("SLEEP", $"State: {_currentState}, Phase: {gameTime.CurrentDayPhase}, ShouldSleep: {shouldSleep}, Activity: {currentActivity?.GetType().Name ?? "none"}");
+
+        // If already sleeping, let the activity handle it
+        if (currentActivity is SleepActivity)
+        {
+            DebugLog("SLEEP", "Already sleeping, returning null", 0);
+            return null;
+        }
 
         // If nighttime and not already heading home or sleeping, go home
         if (shouldSleep && _currentState != VillagerState.Sleeping &&
             _currentState != VillagerState.IdleAtHome)
         {
+            DebugLog("SLEEP", $"Night time but state is {_currentState}, changing to IdleAtHome", 0);
             ChangeState(VillagerState.IdleAtHome, "Night time, heading home");
             _stateTimer = 0;
         }
@@ -227,71 +219,39 @@ public class VillagerTrait : BeingTrait
 
     private EntityAction? ProcessIdleAtHomeState(bool shouldSleep = false)
     {
-        if (_owner == null)
+        if (_owner == null || _home == null)
         {
+            DebugLog("SLEEP", $"ProcessIdleAtHomeState: owner or home is null", 0);
             return null;
         }
 
-        // If already at home, skip navigation entirely
-        if (IsAtHome())
+        var currentActivity = _owner.GetCurrentActivity();
+
+        // Check if already navigating via an activity (let it handle things)
+        if (currentActivity is GoToBuildingActivity)
         {
-            // Clear any pending navigation activity
-            if (_goHomeActivity != null)
-            {
-                _goHomeActivity = null;
-            }
-
-            // Fall through to at-home logic below
+            DebugLog("SLEEP", $"ProcessIdleAtHomeState: Already navigating (GoToBuildingActivity), returning null");
+            return null;
         }
-        else
+
+        // If not at home, start navigation
+        if (!IsAtHome())
         {
-            // Not at home - need to navigate there
-            // Start going home if we haven't already
-            if (_goHomeActivity == null)
-            {
-                StartGoingHome();
-            }
-
-            // Check if we have an active go-home activity
-            if (_goHomeActivity != null)
-            {
-                // Still navigating home
-                if (_goHomeActivity.State == Activity.ActivityState.Running)
-                {
-                    return _goHomeActivity.GetNextAction(_owner.GetCurrentGridPosition(), new Perception());
-                }
-
-                // Activity completed - arrived at home
-                if (_goHomeActivity.State == Activity.ActivityState.Completed)
-                {
-                    DebugLog("STATE", "GoHomeActivity completed - arrived at home", 0);
-                    _goHomeActivity = null;
-
-                    // Fall through to at-home logic below
-                }
-                else if (_goHomeActivity.State == Activity.ActivityState.Failed)
-                {
-                    // Navigation failed - restart the activity to try again
-                    DebugLog("STATE", "GoHomeActivity FAILED - restarting navigation", 0);
-                    _goHomeActivity = null;
-                    StartGoingHome();
-                    if (_goHomeActivity != null)
-                    {
-                        return _goHomeActivity.GetNextAction(_owner.GetCurrentGridPosition(), new Perception());
-                    }
-
-                    // If we still can't start navigation, idle for now
-                    return new IdleAction(_owner, this, priority: 1);
-                }
-            }
+            DebugLog("SLEEP", $"ProcessIdleAtHomeState: Not at home, starting navigation. ShouldSleep={shouldSleep}");
+            var newGoHomeActivity = new GoToBuildingActivity(_home, priority: 1);
+            return new StartActivityAction(_owner, this, newGoHomeActivity, priority: 1);
         }
+
+        // We're at home - proceed with at-home logic
+        DebugLog("SLEEP", $"ProcessIdleAtHomeState: At home. ShouldSleep={shouldSleep}, CurrentActivity={currentActivity?.GetType().Name ?? "none"}");
 
         // Should we sleep?
         if (shouldSleep)
         {
+            DebugLog("SLEEP", "ProcessIdleAtHomeState: Starting SleepActivity with priority -1", 0);
             ChangeState(VillagerState.Sleeping, "Going to sleep");
-            var sleepActivity = new SleepActivity(priority: 0);
-            return new StartActivityAction(_owner, this, sleepActivity, priority: 0);
+            var sleepActivity = new SleepActivity(priority: -1);
+            return new StartActivityAction(_owner, this, sleepActivity, priority: -1);
         }
 
         // Daytime behavior
@@ -302,8 +262,8 @@ public class VillagerTrait : BeingTrait
             {
                 ChangeState(VillagerState.IdleAtSquare, "Going to village square");
                 _stateTimer = (uint)_rng.RandiRange(100, 200);
-                _goToSquareActivity = new GoToLocationActivity(_squarePosition, priority: 1);
-                return new StartActivityAction(_owner, this, _goToSquareActivity, priority: 1);
+                var goToSquareActivity = new GoToLocationActivity(_squarePosition, priority: 1);
+                return new StartActivityAction(_owner, this, goToSquareActivity, priority: 1);
             }
 
             // Chance to visit a building
@@ -338,7 +298,6 @@ public class VillagerTrait : BeingTrait
             // Time to go back home - ProcessIdleAtHomeState will handle navigation
             ChangeState(VillagerState.IdleAtHome, "Finished at square, going home");
             _stateTimer = (uint)_rng.RandiRange(150, 300);
-            _goToSquareActivity = null; // Clear the activity when leaving state
             return null;
         }
 
@@ -354,12 +313,9 @@ public class VillagerTrait : BeingTrait
         if (currentPos.DistanceTo(_squarePosition) > 3)
         {
             // Need to navigate to square (activity failed or wasn't started)
-            _goToSquareActivity = new GoToLocationActivity(_squarePosition, priority: 1);
-            return new StartActivityAction(_owner, this, _goToSquareActivity, priority: 1);
+            var goToSquareActivity = new GoToLocationActivity(_squarePosition, priority: 1);
+            return new StartActivityAction(_owner, this, goToSquareActivity, priority: 1);
         }
-
-        // We're at the square - clear activity reference
-        _goToSquareActivity = null;
 
         // If we're at the square, just idle or wander slightly
         if (_rng.Randf() < 0.2f)

@@ -34,11 +34,13 @@ public partial class GridGenerator : Node
     private RandomNumberGenerator _rng = new ();
 
     private EntityThinkingSystem? _entityThinkingSystem;
+    private GameController? _gameController;
 
     // Main generation method
     public void Generate(World world)
     {
         _entityThinkingSystem = GetNode<EntityThinkingSystem>("/root/World/EntityThinkingSystem");
+        _gameController = GetNode<GameController>("/root/World/GameController");
         _rng.Randomize();
 
         _activeGridArea = world.ActiveGridArea;
@@ -287,7 +289,7 @@ public partial class GridGenerator : Node
             // Initialize the skeleton if it has the correct type
             if (being is Being typedBeing)
             {
-                typedBeing.Initialize(_activeGridArea, beingPos);
+                typedBeing.Initialize(_activeGridArea, beingPos, _gameController);
                 _entityThinkingSystem.RegisterEntity(typedBeing);
                 Log.Print($"Spawned being at {beingPos} near building at {buildingPos}");
             }

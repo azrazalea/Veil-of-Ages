@@ -24,6 +24,7 @@ public class VillageGenerator
     private readonly RandomNumberGenerator _rng = new ();
     private readonly BuildingManager? _buildingManager;
     private readonly EntityThinkingSystem _entityThinkingSystem;
+    private readonly GameController? _gameController;
 
     // Track placed farms for assigning farmers
     private readonly List<Building> _placedFarms = new ();
@@ -58,6 +59,13 @@ public class VillageGenerator
         _townsfolkScene = townsfolkScene;
         _entityThinkingSystem = entityThinkingSystem;
         _buildingManager = BuildingManager.Instance; // Get the singleton instance
+
+        // Look up GameController from the scene tree
+        _gameController = entitiesContainer.GetNode<GameController>("/root/World/GameController");
+        if (_gameController == null)
+        {
+            Log.Warn("VillageGenerator: Could not find GameController at /root/World/GameController");
+        }
 
         Log.Print($"BuildingManager instance: {_buildingManager}");
 
@@ -388,7 +396,7 @@ public class VillageGenerator
                     }
                 }
 
-                typedBeing.Initialize(_gridArea, beingPos, debugEnabled: isDebugVillager);
+                typedBeing.Initialize(_gridArea, beingPos, _gameController, debugEnabled: isDebugVillager);
 
                 // Set pending home before adding to scene tree (HumanTownsfolk._Ready will use it)
                 if (home != null && typedBeing is HumanTownsfolk townsfolk)
@@ -518,7 +526,7 @@ public class VillageGenerator
             // Initialize the being if it has the correct type
             if (being is Being typedBeing)
             {
-                typedBeing.Initialize(_gridArea, beingPos);
+                typedBeing.Initialize(_gridArea, beingPos, _gameController);
 
                 // Set home graveyard for zombies
                 var zombieTrait = typedBeing.SelfAsEntity().GetTrait<ZombieTrait>();

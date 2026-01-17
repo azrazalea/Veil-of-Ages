@@ -257,13 +257,13 @@ public class StorageTrait : Trait, IStorageContainer
     }
 
     /// <inheritdoc/>
-    public void ProcessDecay()
+    public void ProcessDecay(int tickMultiplier = 1)
     {
         var spoiledItems = new List<Item>();
 
         foreach (var item in _items)
         {
-            item.ApplyDecay(DecayRateModifier);
+            item.ApplyDecay(DecayRateModifier * tickMultiplier);
 
             if (item.IsSpoiled)
             {

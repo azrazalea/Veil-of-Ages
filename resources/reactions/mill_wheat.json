@@ -3,12 +3,14 @@
     "Name": "Mill Wheat",
     "Description": "Grind wheat into flour using a quern or millstone",
     "Inputs": [
-        {"ItemId": "wheat", "Quantity": 2}
+        {"ItemId": "wheat", "Quantity": 1}
     ],
     "Outputs": [
         {"ItemId": "flour", "Quantity": 1}
     ],
     "Duration": 200,
     "RequiredFacilities": ["quern"],
-    "Tags": ["milling", "processing"]
+    "Tags": ["milling", "processing"],
+    "EnergyCostMultiplier": 1.5,
+    "HungerMultiplier": 1.3
 }

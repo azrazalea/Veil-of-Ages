@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using Godot;
+using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
 using VeilOfAges.Entities.Sensory;
+using VeilOfAges.Entities.Traits;
 using VeilOfAges.WorldGeneration;
 
 namespace VeilOfAges;
@@ -52,7 +54,8 @@ public partial class World : Node2D
         // Register the player with the grid system
         if (_player != null)
         {
-            _player.Initialize(ActiveGridArea, new Vector2I(50, 50));
+            var gameController = GetNode<GameController>("GameController");
+            _player.Initialize(ActiveGridArea, new Vector2I(50, 50), gameController);
             ActiveGridArea.MakePlayerArea(_player, new Vector2I(50, 50));
         }
         else
@@ -92,5 +95,28 @@ public partial class World : Node2D
         }
 
         return entities;
+    }
+
+    /// <summary>
+    /// Process decay for all storage containers in the world.
+    /// This includes building storage (StorageTrait) and being inventory (InventoryTrait).
+    /// Called periodically (not every tick) for performance.
+    /// </summary>
+    /// <param name="tickMultiplier">Number of ticks since last decay processing.</param>
+    public void ProcessDecay(int tickMultiplier)
+    {
+        foreach (Node entity in _entitiesContainer?.GetChildren() ?? [])
+        {
+            if (entity is Building building)
+            {
+                // Process building storage decay
+                building.GetStorage()?.ProcessDecay(tickMultiplier);
+            }
+            else if (entity is Being being)
+            {
+                // Process being inventory decay
+                being.SelfAsEntity().GetTrait<InventoryTrait>()?.ProcessDecay(tickMultiplier);
+            }
+        }
     }
 }

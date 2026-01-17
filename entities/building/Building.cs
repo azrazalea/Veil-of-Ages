@@ -46,7 +46,7 @@ public partial class Building : Node2D, IEntity<Trait>
     private readonly Dictionary<string, List<Vector2I>> _facilityPositions = new ();
 
     private const int HORIZONTALPIXELOFFSET = -4;
-    private const int VERTICALPIXELOFFSET = 1;
+    private const int VERTICALPIXELOFFSET = -4;
 
     public override void _Ready()
     {
@@ -315,6 +315,72 @@ public partial class Building : Node2D, IEntity<Trait>
         return _entrancePositions.Select(pos => _gridPosition + pos).ToList();
     }
 
+    /// <summary>
+    /// Get positions that are cardinally adjacent (N, S, E, W) to entrance positions.
+    /// These tiles should be avoided as pathfinding destinations to prevent doorway blocking.
+    /// Returns absolute grid positions.
+    /// </summary>
+    public HashSet<Vector2I> GetEntranceAdjacentPositions()
+    {
+        var result = new HashSet<Vector2I>();
+        Vector2I[] cardinalDirections = [
+            Vector2I.Up,
+            Vector2I.Down,
+            Vector2I.Left,
+            Vector2I.Right
+        ];
+
+        foreach (var entranceRelative in _entrancePositions)
+        {
+            Vector2I entranceAbsolute = _gridPosition + entranceRelative;
+
+            foreach (var direction in cardinalDirections)
+            {
+                Vector2I adjacentPos = entranceAbsolute + direction;
+
+                // Don't include the entrance itself
+                if (adjacentPos != entranceAbsolute)
+                {
+                    result.Add(adjacentPos);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Get relative positions that are cardinally adjacent to entrance positions.
+    /// Used internally for filtering walkable interior positions.
+    /// Returns relative positions to building origin.
+    /// </summary>
+    private HashSet<Vector2I> GetEntranceAdjacentRelativePositions()
+    {
+        var result = new HashSet<Vector2I>();
+        Vector2I[] cardinalDirections = [
+            Vector2I.Up,
+            Vector2I.Down,
+            Vector2I.Left,
+            Vector2I.Right
+        ];
+
+        foreach (var entrance in _entrancePositions)
+        {
+            foreach (var direction in cardinalDirections)
+            {
+                Vector2I adjacentPos = entrance + direction;
+
+                // Don't include the entrance itself
+                if (adjacentPos != entrance)
+                {
+                    result.Add(adjacentPos);
+                }
+            }
+        }
+
+        return result;
+    }
+
     // Method for when player interacts with building
     public void Interact()
     {
@@ -480,14 +546,21 @@ public partial class Building : Node2D, IEntity<Trait>
     /// Does NOT check current occupancy - use for goal checking (IsGoalReached).
     /// Returns relative positions to building origin.
     /// </summary>
-    public List<Vector2I> GetInteriorPositions()
+    /// <param name="excludeEntranceAdjacent">If true, also excludes positions adjacent to entrances (default: true).</param>
+    public List<Vector2I> GetInteriorPositions(bool excludeEntranceAdjacent = true)
     {
         var result = new HashSet<Vector2I>();
+
+        // Get positions to exclude
+        var entranceAdjacentPositions = excludeEntranceAdjacent
+            ? GetEntranceAdjacentRelativePositions()
+            : new HashSet<Vector2I>();
 
         // Include all tile positions (walls, doors, furniture, etc.)
         foreach (var tile in _tiles)
         {
-            if (!_entrancePositions.Contains(tile.Key))
+            if (!_entrancePositions.Contains(tile.Key) &&
+                !entranceAdjacentPositions.Contains(tile.Key))
             {
                 result.Add(tile.Key);
             }
@@ -496,7 +569,8 @@ public partial class Building : Node2D, IEntity<Trait>
         // Include all ground tile positions (floors)
         foreach (var tile in _groundTiles)
         {
-            if (!_entrancePositions.Contains(tile.Key))
+            if (!_entrancePositions.Contains(tile.Key) &&
+                !entranceAdjacentPositions.Contains(tile.Key))
             {
                 result.Add(tile.Key);
             }
@@ -507,12 +581,14 @@ public partial class Building : Node2D, IEntity<Trait>
 
     /// <summary>
     /// Get all walkable positions inside the building bounds.
-    /// Excludes entrance positions (doors) so entities don't path to doorways.
+    /// Excludes entrance positions (doors) and positions adjacent to entrances
+    /// so entities don't path to or block doorways.
     /// Queries the GridArea for actual walkability (checks current occupancy).
     /// Use for pathfinding destinations.
     /// Returns relative positions to building origin.
     /// </summary>
-    public List<Vector2I> GetWalkableInteriorPositions()
+    /// <param name="excludeEntranceAdjacent">If true, also excludes positions adjacent to entrances (default: true).</param>
+    public List<Vector2I> GetWalkableInteriorPositions(bool excludeEntranceAdjacent = true)
     {
         var result = new List<Vector2I>();
 
@@ -520,6 +596,11 @@ public partial class Building : Node2D, IEntity<Trait>
         {
             return result;
         }
+
+        // Get positions to exclude
+        var entranceAdjacentPositions = excludeEntranceAdjacent
+            ? GetEntranceAdjacentRelativePositions()
+            : new HashSet<Vector2I>();
 
         // Check all positions within building bounds
         for (int x = 0; x < GridSize.X; x++)
@@ -530,7 +611,10 @@ public partial class Building : Node2D, IEntity<Trait>
                 Vector2I absolutePos = _gridPosition + relativePos;
 
                 // Exclude entrance positions so entities don't target doorways
-                if (GridArea.IsCellWalkable(absolutePos) && !_entrancePositions.Contains(relativePos))
+                // Also exclude positions adjacent to entrances to prevent doorway blocking
+                if (GridArea.IsCellWalkable(absolutePos) &&
+                    !_entrancePositions.Contains(relativePos) &&
+                    !entranceAdjacentPositions.Contains(relativePos))
                 {
                     result.Add(relativePos);
                 }
