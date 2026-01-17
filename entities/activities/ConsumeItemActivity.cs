@@ -90,10 +90,10 @@ public class ConsumeItemActivity : Activity
                 return null;
             }
 
-            // Initialize go-to phase if needed
+            // Initialize go-to phase if needed (targeting storage position)
             if (_goToPhase == null)
             {
-                _goToPhase = new GoToBuildingActivity(_home, Priority);
+                _goToPhase = new GoToBuildingActivity(_home, Priority, targetStorage: true);
                 _goToPhase.Initialize(_owner);
             }
 
@@ -111,26 +111,18 @@ public class ConsumeItemActivity : Activity
                     break;
             }
 
-            // We've arrived - check home storage for food
-            var homeStorage = _home.GetStorage();
-            if (homeStorage != null)
+            // We've arrived - check home storage for food using wrapper (auto-observes)
+            if (_owner.StorageHasItemByTag(_home, _foodTag))
             {
-                var foodItem = homeStorage.FindItemByTag(_foodTag);
-                if (foodItem != null)
-                {
-                    _sourceStorage = homeStorage;
-                    _isConsuming = true;
-                }
-                else
-                {
-                    Log.Warn($"{_owner.Name}: No food at home");
-                    Fail();
-                    return null;
-                }
+                _isConsuming = true;
+
+                // Note: _sourceStorage stays null for home storage case
+                // We'll use the wrapper method TakeFromStorageByTag when consuming
             }
             else
             {
-                Log.Warn($"{_owner.Name}: Home has no storage");
+                // Memory was wrong or food was taken - memory is now updated
+                Log.Warn($"{_owner.Name}: No food at home (memory updated)");
                 Fail();
                 return null;
             }
@@ -145,29 +137,36 @@ public class ConsumeItemActivity : Activity
         }
 
         // Phase 2: Consume the item
-        if (_isConsuming && _sourceStorage != null)
+        if (_isConsuming)
         {
             // On first consumption tick, remove the item
             if (!_itemConsumed)
             {
-                var foodItem = _sourceStorage.FindItemByTag(_foodTag);
-                if (foodItem != null && foodItem.Definition.Id != null)
+                Item? consumed = null;
+
+                // Check if food is from inventory (_sourceStorage set) or home storage
+                if (_sourceStorage != null)
                 {
-                    // Remove 1 unit of the food item
-                    var consumed = _sourceStorage.RemoveItem(foodItem.Definition.Id, 1);
-                    if (consumed != null)
+                    // Consuming from inventory (already validated)
+                    var foodItem = _sourceStorage.FindItemByTag(_foodTag);
+                    if (foodItem?.Definition.Id != null)
                     {
-                        _itemConsumed = true;
+                        consumed = _sourceStorage.RemoveItem(foodItem.Definition.Id, 1);
                     }
-                    else
-                    {
-                        Log.Error($"{_owner.Name}: Failed to remove food item");
-                        Fail();
-                        return null;
-                    }
+                }
+                else if (_home != null)
+                {
+                    // Consuming from home storage - use wrapper method (auto-observes)
+                    consumed = _owner.TakeFromStorageByTag(_home, _foodTag, 1);
+                }
+
+                if (consumed != null)
+                {
+                    _itemConsumed = true;
                 }
                 else
                 {
+                    // Food disappeared - if from home, memory is now updated
                     Log.Warn($"{_owner.Name}: Food disappeared before consumption");
                     Fail();
                     return null;

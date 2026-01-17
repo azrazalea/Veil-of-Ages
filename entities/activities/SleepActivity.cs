@@ -14,9 +14,10 @@ namespace VeilOfAges.Entities.Activities;
 public class SleepActivity : Activity
 {
     // Energy restored per tick while sleeping
-    // At 0.15/tick, sleeping for ~670 ticks fully restores from 0 to 100
-    // This is roughly 84 seconds at 8 ticks/sec
-    private const float ENERGYRESTORERATE = 0.15f;
+    // At 0.025/tick, sleeping for ~4000 ticks fully restores from 0 to 100
+    // Night is ~4700+ ticks depending on season, so villagers reach full
+    // energy closer to dawn rather than early in the night
+    private const float ENERGYRESTORERATE = 0.025f;
 
     private Need? _energyNeed;
 
@@ -52,10 +53,9 @@ public class SleepActivity : Activity
         // Restore energy each tick
         _energyNeed?.Restore(ENERGYRESTORERATE);
 
-        // Check if it's time to wake up
+        // Check if it's time to wake up (wake at Dawn, sleep only during Night)
         var gameTime = _owner.GameController?.CurrentGameTime ?? new GameTime(0);
-        bool shouldSleep = gameTime.CurrentDayPhase is DayPhaseType.Night or
-                           DayPhaseType.Dusk;
+        bool shouldSleep = gameTime.CurrentDayPhase is DayPhaseType.Night;
 
         if (!shouldSleep)
         {

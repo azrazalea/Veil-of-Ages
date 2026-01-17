@@ -119,4 +119,26 @@ public partial class World : Node2D
             }
         }
     }
+
+    /// <summary>
+    /// Process memory cleanup for all entities and villages.
+    /// Removes expired personal memories and invalid references from shared knowledge.
+    /// Called periodically (not every tick) for performance.
+    /// </summary>
+    public void ProcessMemoryCleanup()
+    {
+        // Clean up personal memories for all beings
+        foreach (Node entity in _entitiesContainer?.GetChildren() ?? [])
+        {
+            if (entity is Being being)
+            {
+                being.Memory?.CleanupExpiredMemories();
+            }
+            else if (entity is Village village)
+            {
+                // Clean up invalid building/resident references in villages
+                village.CleanupInvalidReferences();
+            }
+        }
+    }
 }

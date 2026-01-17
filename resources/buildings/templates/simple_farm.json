@@ -53,6 +53,10 @@
         [
             4,
             5
+        ],
+        [
+            4,
+            0
         ]
     ],
     "Metadata": {
@@ -130,8 +134,8 @@
         {
             "Position": [4, 0],
             "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "HorizontalTop"
+            "Type": "Gate",
+            "Variant": "FenceTop"
         },
         {
             "Position": [4, 0],
@@ -216,12 +220,6 @@
             "Material": "Dirt",
             "Type": "Floor",
             "Variant": "Farm"
-        },
-        {
-            "Position": [4, 1],
-            "Material": "Plant",
-            "Type": "Crop",
-            "Variant": "Rice"
         },
         {
             "Position": [4, 1],

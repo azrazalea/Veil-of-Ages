@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
+using VeilOfAges.Entities.Items;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.Entities.Traits;
 
@@ -82,7 +83,8 @@ public partial class Building : Node2D, IEntity<Trait>
                     template.Storage.VolumeCapacity,
                     template.Storage.WeightCapacity,
                     template.Storage.DecayRateModifier,
-                    template.Storage.Facilities);
+                    template.Storage.Facilities,
+                    template.Storage.RequireAdjacentToFacility);
                 Traits.Add(storageTrait);
             }
 
@@ -664,6 +666,33 @@ public partial class Building : Node2D, IEntity<Trait>
         return Traits.OfType<StorageTrait>().FirstOrDefault();
     }
 
+    /// <summary>
+    /// Produces an item into this building's own storage.
+    /// This is the building adding to itself - NOT remote storage access.
+    /// Used when a worker triggers production (e.g., farmer working a field).
+    /// </summary>
+    /// <param name="itemDefId">The item definition ID to produce (e.g., "wheat").</param>
+    /// <param name="quantity">How many to produce.</param>
+    /// <returns>True if item was added to storage, false if no storage or storage full.</returns>
+    public bool ProduceItem(string itemDefId, int quantity = 1)
+    {
+        var storage = GetStorage();
+        if (storage == null)
+        {
+            return false;
+        }
+
+        var itemDef = ItemResourceManager.Instance.GetDefinition(itemDefId);
+        if (itemDef == null)
+        {
+            Log.Warn($"Building {BuildingName}: Cannot produce item '{itemDefId}' - definition not found");
+            return false;
+        }
+
+        var item = new Item(itemDef, quantity);
+        return storage.AddItem(item);
+    }
+
     public IEnumerable<string> GetFacilities()
     {
         return _facilityPositions.Keys;
@@ -692,6 +721,114 @@ public partial class Building : Node2D, IEntity<Trait>
     public bool HasFacility(string facilityId)
     {
         return _facilityPositions.ContainsKey(facilityId) && _facilityPositions[facilityId].Count > 0;
+    }
+
+    /// <summary>
+    /// Gets the position an entity should navigate to for storage access.
+    /// If RequireAdjacentToFacility is true, returns a walkable position adjacent to the storage facility.
+    /// Otherwise returns the building entrance position.
+    /// </summary>
+    /// <returns>The absolute grid position to navigate to, or null if no valid position exists.</returns>
+    public Vector2I? GetStorageAccessPosition()
+    {
+        var storage = GetStorage();
+
+        // If storage requires facility adjacency, find the facility position
+        if (storage?.RequireAdjacentToFacility == true)
+        {
+            var storagePositions = GetFacilityPositions("storage");
+            if (storagePositions.Count > 0)
+            {
+                // Find a storage facility position that has an adjacent walkable tile
+                foreach (var relativePos in storagePositions)
+                {
+                    Vector2I? adjacentPos = GetAdjacentWalkablePosition(relativePos);
+                    if (adjacentPos.HasValue)
+                    {
+                        // Return absolute position
+                        return _gridPosition + adjacentPos.Value;
+                    }
+                }
+
+                // No walkable position adjacent to storage facility
+                return null;
+            }
+        }
+
+        // Default: return first entrance position
+        var entrances = GetEntrancePositions();
+        if (entrances.Count > 0)
+        {
+            return entrances[0];
+        }
+
+        // Fallback: return building origin
+        return _gridPosition;
+    }
+
+    /// <summary>
+    /// Checks if this building requires navigating to a specific storage facility position
+    /// rather than just being adjacent to the building.
+    /// </summary>
+    /// <returns>True if navigation should target the storage facility position.</returns>
+    public bool RequiresStorageFacilityNavigation()
+    {
+        var storage = GetStorage();
+        if (storage?.RequireAdjacentToFacility != true)
+        {
+            return false;
+        }
+
+        // Check if storage facility is defined
+        return GetFacilityPositions("storage").Count > 0;
+    }
+
+    /// <summary>
+    /// Check if an entity position is adjacent to the storage facility.
+    /// Used when RequireAdjacentToFacility is true for this building's storage.
+    /// </summary>
+    /// <param name="entityPosition">The absolute grid position of the entity.</param>
+    /// <returns>True if the entity is adjacent to any storage facility, false if no storage facility exists or entity is not adjacent.</returns>
+    public bool IsAdjacentToStorageFacility(Vector2I entityPosition)
+    {
+        // Get all storage facility positions
+        var storagePositions = GetFacilityPositions("storage");
+        if (storagePositions.Count == 0)
+        {
+            // No storage facility defined - fall back to building adjacency
+            return true;
+        }
+
+        // Cardinal directions for adjacency check
+        Vector2I[] directions =
+        [
+            new Vector2I(0, -1),  // Up
+            new Vector2I(1, 0),   // Right
+            new Vector2I(0, 1),   // Down
+            new Vector2I(-1, 0) // Left
+        ];
+
+        // Check if entity is adjacent to any storage facility
+        foreach (var relativeStoragePos in storagePositions)
+        {
+            Vector2I absoluteStoragePos = _gridPosition + relativeStoragePos;
+
+            // Check if entity is at the storage position or adjacent to it
+            if (entityPosition == absoluteStoragePos)
+            {
+                return true;
+            }
+
+            foreach (var direction in directions)
+            {
+                if (entityPosition == absoluteStoragePos + direction)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

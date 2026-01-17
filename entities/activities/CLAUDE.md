@@ -133,18 +133,31 @@ new GoToLocationActivity(targetPosition, priority: 0)
 - Fails if stuck for MAX_STUCK_TICKS
 
 ### GoToBuildingActivity.cs
-Moves an entity to a building (adjacent position).
+Moves an entity to a building (adjacent position or storage access position).
 
 **Usage:**
 ```csharp
+// Basic navigation to building
 new GoToBuildingActivity(farmBuilding, priority: 0)
+
+// Navigate to storage access position (handles RequireAdjacentToFacility automatically)
+new GoToBuildingActivity(homeBuilding, priority: 0, targetStorage: true)
 ```
 
+**Parameters:**
+- `targetBuilding` - The building to navigate to
+- `priority` - Action priority (default 0)
+- `targetStorage` - If true, navigate to storage access position (default false)
+
 **Behavior:**
-- Creates PathFinder with building goal
+- Creates PathFinder with building goal or facility goal (when targetStorage=true)
+- When `targetStorage` is true and building has `RequireAdjacentToFacility` storage, uses `SetFacilityGoal("storage")` to navigate to a position adjacent to the storage facility
 - Validates building still exists each tick
-- Completes when adjacent to building
+- Completes when at goal position
 - Fails if building destroyed or stuck for MAX_STUCK_TICKS (50 ticks)
+
+**Storage Navigation:**
+When `targetStorage=true`, the activity automatically handles buildings with storage that requires facility adjacency. This removes the need for traits to know about storage configuration - they simply set `targetStorage: true` when navigating to access storage.
 
 ### SleepActivity.cs
 Sleeping at home during night. Restores energy, reduces hunger decay.
@@ -226,6 +239,34 @@ new ConsumeItemActivity(
 - Applies need restoration only after consumption duration completes
 - Fails if no food found in inventory and no home, or home has no food
 
+### CheckHomeStorageActivity.cs
+Goes to a building and observes its storage to refresh memory.
+
+**Usage:**
+```csharp
+new CheckHomeStorageActivity(homeBuilding, priority: 0)
+```
+
+**Phases:**
+1. **Navigate** - Travel to target building using GoToBuildingActivity with `targetStorage: true`
+2. **Observe** - Call AccessStorage to observe and update personal memory
+
+**Behavior:**
+- Uses `GoToBuildingActivity` with `targetStorage: true` to handle RequireAdjacentToFacility automatically
+- Used by ItemConsumptionBehaviorTrait when entity is hungry but has no memory of food
+- Validates building still exists during travel
+- Calls `_owner.AccessStorage()` which automatically updates PersonalMemory
+- Completes immediately after observing (single tick observation)
+- After completion, the consuming trait can act on the updated memory
+
+**Integration with ItemConsumptionBehaviorTrait:**
+When an entity is hungry but has no memory of food locations:
+1. Trait checks `HasFoodAvailable()` -> returns false (no inventory, no memory)
+2. Trait starts `CheckHomeStorageActivity` to go home and observe storage
+3. Activity navigates to home, calls `AccessStorage()`, completes
+4. On next think cycle, `HasFoodAvailable()` may now return true (if home had food)
+5. Trait then starts `ConsumeItemActivity` as normal
+
 ### ProcessReactionActivity.cs
 Processes a crafting reaction (input items -> output items) at a workplace.
 
@@ -261,6 +302,7 @@ new ProcessReactionActivity(
 | `Activity` | Abstract base with state, lifecycle |
 | `GoToLocationActivity` | Navigate to grid position |
 | `GoToBuildingActivity` | Navigate to building |
+| `CheckHomeStorageActivity` | Go to building and observe storage to refresh memory |
 | `SleepActivity` | Sleep at night, restore energy |
 | `WorkFieldActivity` | Work at building, produce/transport wheat |
 | `ConsumeItemActivity` | Eat food from inventory/home storage |

@@ -83,6 +83,9 @@ public partial class GameController : Node
         if (CurrentTick % DECAYTICKINTERVAL == 0)
         {
             _world?.ProcessDecay(DECAYTICKINTERVAL);
+
+            // Clean up expired memories and invalid references
+            _world?.ProcessMemoryCleanup();
         }
 
         // Process the tick with all entities (including player)

@@ -93,10 +93,95 @@ World-level sensory coordination system. Manages:
 - Actions are sorted before execution each tick
 - Dialogue commands have a specific priority (`TalkCommand.Priority`) that affects behavior
 
-### Memory System
-- BeingTrait includes a memory system with position-based storage
+### Memory System Integration in Being
+
+Being.cs provides a complete memory system integration with PersonalMemory and SharedKnowledge.
+
+**Golden Rule**: Entities only know about items in two places:
+1. **Inventory** - What they're carrying (immediate, always accurate)
+2. **Personal Memory** - What they've personally observed (may be stale)
+
+Entities do NOT omnisciently know what's in any storage container. If memory is empty or stale, the entity must go observe the storage to update their memory (see `CheckHomeStorageActivity`).
+
+### BANNED: Remote Storage Access
+
+**AI AGENTS ARE BANNED FROM ADDING REMOTE STORAGE ACCESS.**
+
+All ACTION methods (AccessStorage, TakeFromStorage, TakeFromStorageByTag, PutInStorage) require physical proximity to the building (within 1 tile). They return null/false if the entity is too far away.
+
+All CHECK methods (StorageHasItem, StorageHasItemByTag, GetStorageItemCount) query MEMORY ONLY. They never access real storage.
+
+This is intentional. Entities must physically travel to storage locations to observe contents. Their memory may become stale. This creates realistic behavior.
+
+**Memory Properties:**
+- `Memory` (PersonalMemory?) - Personal observations owned by this entity, created in `Initialize()`
+- `SharedKnowledge` (IReadOnlyList<SharedKnowledge>) - Shared knowledge sources by reference
+
+**SharedKnowledge Management:**
+- `AddSharedKnowledge(knowledge)` - Add a source (called when joining village/faction)
+- `RemoveSharedKnowledge(knowledge)` - Remove a source (called when leaving)
+- `GetSharedKnowledgeByScope(scopeType)` - Get specific source by scope
+
+**Building Lookup (from SharedKnowledge):**
+- `TryFindBuildingOfType(type, out building)` - Find any building of type
+- `FindNearestBuildingOfType(type, position)` - Find nearest building
+- `GetAllBuildingsOfType(type)` - Get all buildings of type
+
+**Storage ACTION Methods (Require Physical Proximity):**
+- `AccessStorage(building)` - Get storage and observe (returns null if not adjacent)
+- `TakeFromStorage(building, itemDefId, quantity)` - Take and observe (returns null if not adjacent)
+- `TakeFromStorageByTag(building, itemTag, quantity)` - Take by tag and observe (returns null if not adjacent)
+- `PutInStorage(building, item)` - Put and observe (returns false if not adjacent)
+
+**Storage CHECK Methods (Memory Only - No Real Storage Access):**
+- `StorageHasItem(building, itemDefId, quantity)` - Check MEMORY for item
+- `StorageHasItemByTag(building, itemTag)` - Check MEMORY for item by tag
+- `GetStorageItemCount(building, itemDefId)` - Get REMEMBERED count (may be stale)
+
+**Combined Item Search (PersonalMemory + SharedKnowledge):**
+- `FindItemLocations(itemTag)` - Find buildings with item, personal memory first
+- `FindItemLocationsById(itemDefId)` - Find by item ID
+- `FindItemInBuildingType(itemTag, buildingType)` - Filter by building type
+- `HasIdeaWhereToFind(itemTag)` - Quick check for any leads
+
+**Usage Example:**
+```csharp
+// CORRECT: Access storage when physically adjacent (updates memory)
+var storage = entity.AccessStorage(building);
+if (storage == null)
+{
+    // Either no storage, or NOT ADJACENT - must travel there first
+}
+
+// CORRECT: Check memory for what I remember (no proximity needed)
+if (entity.StorageHasItemByTag(building, "food"))
+{
+    // I REMEMBER seeing food here (may be stale)
+}
+
+// CORRECT: Find food combining personal memory and shared knowledge
+var foodLocations = entity.FindItemLocations("food");
+foreach (var (building, rememberedQty) in foodLocations)
+{
+    // rememberedQty = -1 means "I know building exists but haven't observed"
+    if (rememberedQty > 0)
+    {
+        // High confidence - I saw food here
+    }
+}
+
+// CORRECT: Query shared knowledge for buildings (locations, not contents)
+if (entity.TryFindBuildingOfType("Farm", out var farm))
+{
+    // Navigate to farm - SharedKnowledge tells us WHERE, not WHAT's inside
+}
+```
+
+### Legacy Memory (BeingTrait)
+BeingTrait includes an older position-based memory system with timestamps:
 - Memory has configurable duration (default 3000 ticks, roughly 5 minutes game time)
 - Memory is automatically cleaned up each tick
+- This is separate from PersonalMemory and may be deprecated in favor of it
 
 ### Entity Debug System
 Being includes a per-entity debug logging system for troubleshooting AI behavior:
@@ -143,23 +228,26 @@ The entity AI system intentionally mimics human cognition using a **Belief-Desir
   - Emergency/threat: priority -10 (interrupts almost everything)
 - This creates focused behavior - entities don't constantly re-evaluate unless urgent
 
-**Two-Tier Memory System (Planned)**:
+**Two-Tier Memory System (Implemented)**:
 
-*Individual Memory* (`BeingTrait._memory` - exists, not yet fully used):
-- Personal experiences: "I saw entity X at position Y, 30 ticks ago"
-- Last known positions of tracked entities
-- Discovered locations through exploration
+*PersonalMemory* (`Being.Memory`):
+- Storage observations: "I saw 5 bread at bakery at tick 12000"
+- Entity sightings: "I saw Bob at town square at tick 11500"
+- Location memories: Places visited with timestamps
+- Must personally observe to know - no omniscient knowledge
+- Configurable expiration durations per memory type
 
-*Shared/Collective Memory* (not yet implemented):
-- Common knowledge shared by community/faction
+*SharedKnowledge* (`Being.SharedKnowledge`):
+- Common knowledge shared by community/faction by reference
 - All villagers know where the well, town hall, and farms are
-- Undead in a graveyard know the graveyard bounds
-- New members inherit community knowledge on spawn
-- Avoids every entity having to "discover" common locations
+- Village scope: exact building coordinates
+- Kingdom scope (future): "Village X has a bakery"
+- New members inherit community knowledge when added to village
+- Does NOT contain storage contents (that's PersonalMemory)
 
 This architecture creates realistic behavior where entities:
-- Use shared knowledge for navigation to known places
-- Use individual memory for dynamic/personal information
+- Use shared knowledge for navigation to known buildings
+- Use personal memory for observed storage contents and entity sightings
 - Act on beliefs that may become outdated
 - Stay focused unless urgently interrupted
 
@@ -251,6 +339,7 @@ public override void OnEvent(EntityEvent evt)
 - `VeilOfAges.Grid` - Grid system and pathfinding
 - `VeilOfAges.Core.Lib` - Utilities and time system
 - `VeilOfAges.UI` - Dialogue system and commands
+- `VeilOfAges.Entities.Memory` - PersonalMemory and SharedKnowledge
 - Godot engine classes (CharacterBody2D, Node, etc.)
 
 ### Depended On By

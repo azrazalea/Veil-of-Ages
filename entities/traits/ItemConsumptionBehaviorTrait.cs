@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
@@ -13,7 +14,10 @@ namespace VeilOfAges.Entities.Traits;
 
 /// <summary>
 /// Trait that handles need satisfaction by consuming items.
-/// Checks inventory first, then home storage.
+/// Checks inventory first, then personal memory for remembered food locations.
+/// Entities only know what's in their inventory (immediate access) or what they
+/// remember observing in storage (decays over time). They do NOT omnisciently
+/// know what's in any storage container.
 /// </summary>
 public class ItemConsumptionBehaviorTrait : BeingTrait
 {
@@ -71,11 +75,17 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
             return null;
         }
 
-        // If we already have a consume activity running, let it handle things
+        // If we already have a consume or check storage activity running, let it handle things
         var currentActivity = _owner.GetCurrentActivity();
         if (currentActivity is ConsumeItemActivity)
         {
             DebugLog("EATING", $"ConsumeItemActivity already running, state: {currentActivity.State}");
+            return null;
+        }
+
+        if (currentActivity is CheckHomeStorageActivity)
+        {
+            DebugLog("EATING", $"CheckHomeStorageActivity already running, state: {currentActivity.State}");
             return null;
         }
 
@@ -99,7 +109,20 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
         // Check if we have food available
         if (!HasFoodAvailable())
         {
-            // Log debug info about why food wasn't found
+            // No food in inventory and no memory of food locations
+            // If we have a home, go check its storage to refresh memory
+            var home = _getHome();
+            if (home != null && GodotObject.IsInstanceValid(home))
+            {
+                // Determine priority - use same logic as eating
+                int checkPriority = _need.IsCritical() ? -2 : -1;
+
+                DebugLog("EATING", $"No food memory, going to check home storage (priority {checkPriority})", 0);
+                var checkActivity = new CheckHomeStorageActivity(home, priority: checkPriority);
+                return new StartActivityAction(_owner, this, checkActivity, priority: checkPriority);
+            }
+
+            // No home to check - log debug info about why food wasn't found
             DebugLogFoodSearch();
             return null;
         }
@@ -110,22 +133,23 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
         int actionPriority = _need.IsCritical() ? -2 : -1;
 
         // Start consume activity
-        var home = _getHome();
+        var homeBuilding = _getHome();
         var consumeActivity = new ConsumeItemActivity(
             _foodTag,
             _need,
-            home,
+            homeBuilding,
             _restoreAmount,
             _consumptionDuration,
             priority: actionPriority);
 
-        DebugLog("EATING", $"Starting ConsumeItemActivity (priority {actionPriority}), home: {home?.BuildingName ?? "null"}", 0);
+        DebugLog("EATING", $"Starting ConsumeItemActivity (priority {actionPriority}), home: {homeBuilding?.BuildingName ?? "null"}", 0);
         return new StartActivityAction(_owner, this, consumeActivity, priority: actionPriority);
     }
 
     /// <summary>
     /// Log detailed debug info about food search results.
     /// Only logs when owner has debug enabled.
+    /// Shows both real storage contents and what the entity remembers.
     /// </summary>
     private void DebugLogFoodSearch()
     {
@@ -137,24 +161,52 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
         var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
         var inventoryFood = inventory?.FindItemByTag(_foodTag);
         var home = _getHome();
-        StorageTrait? homeStorage = null;
-        Items.Item? homeFood = null;
 
-        if (home != null && GodotObject.IsInstanceValid(home))
-        {
-            homeStorage = home.GetStorage();
-            homeFood = homeStorage?.FindItemByTag(_foodTag);
-        }
+        // Check memory for remembered food
+        var remembersFood = _owner.Memory?.RemembersItemAvailable(_foodTag) == true;
+        var rememberedLocations = _owner.Memory?.RecallStorageWithItem(_foodTag) ?? [];
 
         var invInfo = inventoryFood != null ? $"{inventoryFood.Quantity} {inventoryFood.Definition.Name}" : "none";
         var homeInfo = home?.BuildingName ?? "null";
-        var storageInfo = homeStorage != null ? "exists" : "null";
-        var homeFoodInfo = homeFood != null ? $"{homeFood.Quantity} {homeFood.Definition.Name}" : "none";
-        Log.EntityDebug(_owner.Name, "EATING", $"No {_foodTag} available - Inventory: {invInfo}, Home: {homeInfo}, HomeStorage: {storageInfo}, HomeFood: {homeFoodInfo}", 0);
+        var memoryInfo = remembersFood ? $"yes ({rememberedLocations.Count} locations)" : "no";
+
+        // Add real vs remembered storage comparison for home
+        var storageComparison = string.Empty;
+        if (home != null && GodotObject.IsInstanceValid(home))
+        {
+            var homeStorage = home.GetStorage();
+            if (homeStorage != null)
+            {
+                var realFood = homeStorage.FindItemByTag(_foodTag);
+                var realInfo = realFood != null ? $"{realFood.Quantity} {realFood.Definition.Name}" : "none";
+
+                var memoryContents = "nothing (no memory)";
+                var storageMemory = _owner.Memory?.RecallStorageContents(home);
+                if (storageMemory != null)
+                {
+                    var rememberedFood = storageMemory.Items
+                        .Where(i => i.Tags.Contains(_foodTag, StringComparer.OrdinalIgnoreCase))
+                        .ToList();
+                    if (rememberedFood.Count > 0)
+                    {
+                        memoryContents = string.Join(", ", rememberedFood.Select(i => $"{i.Quantity} {i.Name}"));
+                    }
+                    else
+                    {
+                        memoryContents = "no food";
+                    }
+                }
+
+                storageComparison = $", [{home.BuildingName}] Real: {realInfo} | Remembered: {memoryContents}";
+            }
+        }
+
+        Log.EntityDebug(_owner.Name, "EATING", $"No {_foodTag} available - Inventory: {invInfo}, Home: {homeInfo}, RemembersFood: {memoryInfo}{storageComparison}", 0);
     }
 
     /// <summary>
-    /// Check if food is available in inventory or home storage.
+    /// Check if food is available in inventory or remembered in storage.
+    /// Uses memory-based checking - entity only knows what they've observed.
     /// </summary>
     private bool HasFoodAvailable()
     {
@@ -163,24 +215,21 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
             return false;
         }
 
-        // Check inventory
+        // Check inventory first - entity knows what they're carrying
         var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
         if (inventory?.FindItemByTag(_foodTag) != null)
         {
             return true;
         }
 
-        // Check home storage
-        var home = _getHome();
-        if (home != null && GodotObject.IsInstanceValid(home))
+        // Check personal memory - do I remember seeing food somewhere?
+        if (_owner.Memory?.RemembersItemAvailable(_foodTag) == true)
         {
-            var homeStorage = home.GetStorage();
-            if (homeStorage?.FindItemByTag(_foodTag) != null)
-            {
-                return true;
-            }
+            return true;
         }
 
+        // Don't omnisciently check storage - we don't know what's there
+        // If memory is empty/stale, entity needs to go check
         return false;
     }
 }

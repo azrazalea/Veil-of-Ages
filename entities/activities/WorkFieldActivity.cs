@@ -1,3 +1,4 @@
+using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
@@ -299,10 +300,10 @@ public class WorkFieldActivity : Activity
             return null;
         }
 
-        // Initialize go-to-home phase if needed
+        // Initialize go-to-home phase if needed (targeting storage position)
         if (_goToHomePhase == null)
         {
-            _goToHomePhase = new GoToBuildingActivity(_home, Priority);
+            _goToHomePhase = new GoToBuildingActivity(_home, Priority, targetStorage: true);
             _goToHomePhase.Initialize(_owner);
         }
 
@@ -349,48 +350,45 @@ public class WorkFieldActivity : Activity
     /// <summary>
     /// Produce a single unit of wheat and deposit to the farm's storage.
     /// Called periodically during the Working phase to spread production across the shift.
+    ///
+    /// The FARM produces wheat into its own storage directly.
+    /// This is NOT a remote storage access - the building is accessing its own storage.
+    /// The farmer triggers production, but the farm handles storage.
     /// </summary>
     private void ProduceSingleWheat()
-    {
-        var storage = _workplace.GetStorage();
-        if (storage == null)
-        {
-            Log.Warn($"{_owner?.Name}: Farm {_workplace.BuildingName} has no storage for wheat");
-            return;
-        }
-
-        var wheatDef = ItemResourceManager.Instance.GetDefinition("wheat");
-        if (wheatDef == null)
-        {
-            Log.Error("WorkFieldActivity: wheat item definition not found");
-            return;
-        }
-
-        var wheat = new Item(wheatDef, 1);
-
-        if (storage.AddItem(wheat))
-        {
-            Log.Print($"{_owner?.Name}: Harvested 1 wheat at {_workplace.BuildingName} (Farm: {storage.GetContentsSummary()})");
-        }
-        else
-        {
-            Log.Warn($"{_owner?.Name}: Farm storage full, wheat lost!");
-        }
-    }
-
-    /// <summary>
-    /// Take wheat from farm storage into inventory.
-    /// Takes exactly WHEATTOBRINGHOME (2) wheat, or all available if less than that.
-    /// </summary>
-    private void TakeWheatFromFarm()
     {
         if (_owner == null)
         {
             return;
         }
 
-        var farmStorage = _workplace.GetStorage();
-        if (farmStorage == null)
+        // The BUILDING produces wheat into its own storage.
+        // The farmer triggers production, the building handles the storage.
+        if (_workplace.ProduceItem("wheat", 1))
+        {
+            var storage = _workplace.GetStorage();
+            Log.Print($"{_owner.Name}: Harvested 1 wheat at {_workplace.BuildingName} (Farm: {storage?.GetContentsSummary() ?? "unknown"})");
+
+            // Farmer observes the storage since they're physically here working
+            if (storage != null)
+            {
+                _owner.Memory?.ObserveStorage(_workplace, storage);
+            }
+        }
+        else
+        {
+            Log.Warn($"{_owner.Name}: Farm storage full or unavailable, wheat lost!");
+        }
+    }
+
+    /// <summary>
+    /// Take wheat from farm storage into inventory.
+    /// Takes exactly WHEATTOBRINGHOME (2) wheat, or all available if less than that.
+    /// Uses Being's storage wrapper to auto-observe storage contents.
+    /// </summary>
+    private void TakeWheatFromFarm()
+    {
+        if (_owner == null)
         {
             return;
         }
@@ -402,8 +400,8 @@ public class WorkFieldActivity : Activity
             return;
         }
 
-        // Check how much is available
-        int available = farmStorage.GetItemCount("wheat");
+        // Check how much is available using wrapper (auto-observes)
+        int available = _owner.GetStorageItemCount(_workplace, "wheat");
         if (available == 0)
         {
             Log.Print($"{_owner.Name}: No wheat at farm to bring home");
@@ -413,17 +411,20 @@ public class WorkFieldActivity : Activity
         // Take exactly WHEATTOBRINGHOME, or all available if less
         int actualAmount = System.Math.Min(WHEATTOBRINGHOME, available);
 
-        var wheat = farmStorage.RemoveItem("wheat", actualAmount);
+        // Use wrapper method - auto-observes storage contents after taking
+        var wheat = _owner.TakeFromStorage(_workplace, "wheat", actualAmount);
         if (wheat != null)
         {
             if (inventory.AddItem(wheat))
             {
-                Log.Print($"{_owner.Name}: Took {wheat.Quantity} wheat to bring home (Farm: {farmStorage.GetContentsSummary()}, Inventory: {inventory.GetContentsSummary()})");
+                // Get storage for logging (already observed by TakeFromStorage)
+                var farmStorage = _workplace.GetStorage();
+                Log.Print($"{_owner.Name}: Took {wheat.Quantity} wheat to bring home (Farm: {farmStorage?.GetContentsSummary() ?? "unknown"}, Inventory: {inventory.GetContentsSummary()})");
             }
             else
             {
-                // Inventory full, put it back
-                farmStorage.AddItem(wheat);
+                // Inventory full, put it back using wrapper
+                _owner.PutInStorage(_workplace, wheat);
                 Log.Warn($"{_owner.Name}: Inventory full, leaving wheat at farm");
             }
         }
@@ -431,6 +432,7 @@ public class WorkFieldActivity : Activity
 
     /// <summary>
     /// Deposit wheat from inventory to home storage.
+    /// Uses Being's storage wrapper to auto-observe storage contents.
     /// </summary>
     private void DepositWheatToHome()
     {
@@ -445,13 +447,6 @@ public class WorkFieldActivity : Activity
             return;
         }
 
-        var homeStorage = _home.GetStorage();
-        if (homeStorage == null)
-        {
-            Log.Warn($"{_owner.Name}: Home has no storage");
-            return;
-        }
-
         // Transfer all wheat from inventory to home storage
         int wheatCount = inventory.GetItemCount("wheat");
         if (wheatCount == 0)
@@ -462,9 +457,12 @@ public class WorkFieldActivity : Activity
         var wheat = inventory.RemoveItem("wheat", wheatCount);
         if (wheat != null)
         {
-            if (homeStorage.AddItem(wheat))
+            // Use wrapper method - auto-observes storage contents
+            if (_owner.PutInStorage(_home, wheat))
             {
-                Log.Print($"{_owner.Name}: Stored {wheat.Quantity} wheat at home (Home: {homeStorage.GetContentsSummary()})");
+                // Get storage for logging (already observed by PutInStorage)
+                var homeStorage = _home.GetStorage();
+                Log.Print($"{_owner.Name}: Stored {wheat.Quantity} wheat at home (Home: {homeStorage?.GetContentsSummary() ?? "unknown"})");
             }
             else
             {
@@ -477,6 +475,8 @@ public class WorkFieldActivity : Activity
 
     /// <summary>
     /// Log storage information for debugging.
+    /// Shows both real storage contents and what the entity remembers.
+    /// Uses Being's storage wrapper to auto-observe storage contents.
     /// </summary>
     private void LogStorageInfo()
     {
@@ -485,25 +485,51 @@ public class WorkFieldActivity : Activity
             return;
         }
 
-        // Farm storage info
-        var farmStorage = _workplace.GetStorage();
+        // Farm storage info - use wrapper to auto-observe
+        var farmStorage = _owner.AccessStorage(_workplace);
         if (farmStorage != null)
         {
-            DebugLog("STORAGE", $"Farm ({_workplace.BuildingName}): {farmStorage.GetContentsSummary()}", 0);
+            var realContents = farmStorage.GetContentsSummary();
+
+            // Get remembered contents for farm
+            var memoryContents = "nothing (no memory)";
+            var storageMemory = _owner.Memory?.RecallStorageContents(_workplace);
+            if (storageMemory != null)
+            {
+                var rememberedItems = storageMemory.Items
+                    .Select(i => $"{i.Quantity} {i.Name}")
+                    .ToList();
+                memoryContents = rememberedItems.Count > 0 ? string.Join(", ", rememberedItems) : "empty";
+            }
+
+            DebugLog("STORAGE", $"[{_workplace.BuildingName}] Real: {realContents} | Remembered: {memoryContents}", 0);
         }
 
-        // Home storage info
+        // Home storage info - use wrapper to auto-observe
         if (_home != null && GodotObject.IsInstanceValid(_home))
         {
-            var homeStorage = _home.GetStorage();
+            var homeStorage = _owner.AccessStorage(_home);
             if (homeStorage != null)
             {
-                DebugLog("STORAGE", $"Home ({_home.BuildingName}): {homeStorage.GetContentsSummary()}", 0);
+                var realContents = homeStorage.GetContentsSummary();
+
+                // Get remembered contents for home
+                var memoryContents = "nothing (no memory)";
+                var storageMemory = _owner.Memory?.RecallStorageContents(_home);
+                if (storageMemory != null)
+                {
+                    var rememberedItems = storageMemory.Items
+                        .Select(i => $"{i.Quantity} {i.Name}")
+                        .ToList();
+                    memoryContents = rememberedItems.Count > 0 ? string.Join(", ", rememberedItems) : "empty";
+                }
+
+                DebugLog("STORAGE", $"[{_home.BuildingName}] Real: {realContents} | Remembered: {memoryContents}", 0);
             }
         }
 
         // Inventory info
-        var inventory = _owner?.SelfAsEntity().GetTrait<InventoryTrait>();
+        var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
         if (inventory != null)
         {
             DebugLog("STORAGE", $"Inventory: {inventory.GetContentsSummary()}", 0);

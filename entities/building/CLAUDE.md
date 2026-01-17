@@ -36,6 +36,9 @@ Main building entity class that implements `IEntity<Trait>`.
 
 **Storage Methods:**
 - `GetStorage()` - Returns the `StorageTrait` for this building if it has one.
+- `GetStorageAccessPosition()` - Returns the absolute grid position an entity should navigate to for storage access. If `RequireAdjacentToFacility` is true, returns a walkable position adjacent to the storage facility; otherwise returns the building entrance.
+- `RequiresStorageFacilityNavigation()` - Returns true if navigation should target the storage facility position (i.e., storage has `RequireAdjacentToFacility = true` and a storage facility is defined).
+- `IsAdjacentToStorageFacility(entityPosition)` - Check if an entity at the given position is adjacent to the storage facility.
 
 ### BuildingManager.cs
 Singleton manager for building templates and placement.

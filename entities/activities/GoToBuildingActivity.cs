@@ -9,19 +9,32 @@ namespace VeilOfAges.Entities.Activities;
 /// Activity that moves an entity to a building.
 /// Completes when the entity reaches a position adjacent to the building.
 /// Fails if the building no longer exists or no path can be found.
+///
+/// When targetStorage is true and the building has RequireAdjacentToFacility storage,
+/// the activity will navigate to a position adjacent to the storage facility
+/// rather than just the building entrance.
 /// </summary>
 public class GoToBuildingActivity : Activity
 {
     private readonly Building _targetBuilding;
+    private readonly bool _targetStorage;
     private PathFinder? _pathFinder;
     private int _stuckTicks;
     private const int MAXSTUCKTICKS = 50;
 
     public override string DisplayName => $"Going to {_targetBuilding.BuildingType}";
 
-    public GoToBuildingActivity(Building targetBuilding, int priority = 0)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GoToBuildingActivity"/> class.
+    /// Creates an activity to navigate to a building.
+    /// </summary>
+    /// <param name="targetBuilding">The building to navigate to.</param>
+    /// <param name="priority">Action priority.</param>
+    /// <param name="targetStorage">If true, navigate to storage access position (handles RequireAdjacentToFacility automatically).</param>
+    public GoToBuildingActivity(Building targetBuilding, int priority = 0, bool targetStorage = false)
     {
         _targetBuilding = targetBuilding;
+        _targetStorage = targetStorage;
         Priority = priority;
     }
 
@@ -30,7 +43,20 @@ public class GoToBuildingActivity : Activity
         base.Initialize(owner);
 
         _pathFinder = new PathFinder();
-        _pathFinder.SetBuildingGoal(owner, _targetBuilding);
+
+        // If targeting storage and building requires facility navigation, use SetFacilityGoal
+        if (_targetStorage && _targetBuilding.RequiresStorageFacilityNavigation())
+        {
+            if (!_pathFinder.SetFacilityGoal(_targetBuilding, "storage"))
+            {
+                // No valid storage facility position found - fall back to building goal
+                _pathFinder.SetBuildingGoal(owner, _targetBuilding);
+            }
+        }
+        else
+        {
+            _pathFinder.SetBuildingGoal(owner, _targetBuilding);
+        }
     }
 
     public override EntityAction? GetNextAction(Vector2I position, Perception perception)

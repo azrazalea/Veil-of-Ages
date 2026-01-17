@@ -66,11 +66,36 @@ Manages a discrete area of the game world with its own tile layers and entity tr
   - Supports active/inactive states and player area designation
   - Entity management with automatic pathfinding solid updates
 
+### Village.cs
+Represents a village settlement with shared knowledge about buildings and landmarks. Entities that are residents share access to the village's knowledge by reference.
+
+- **Namespace**: `VeilOfAges`
+- **Class**: `Village` (extends `Node`)
+- **Key Properties**:
+  - `VillageName`: Human-readable name of the village
+  - `Center`: Grid position of the village center
+  - `Knowledge`: `SharedKnowledge` instance containing building locations and landmarks
+  - `Residents`: Read-only list of `Being` entities that are village members
+  - `Buildings`: Read-only list of `Building` instances in the village
+- **Key Methods**:
+  - `Initialize(name, center)`: Set up the village with name and center position
+  - `AddBuilding(building)`: Register a building and add to shared knowledge
+  - `RemoveBuilding(building)`: Unregister a building from the village
+  - `AddResident(being)`: Add a resident and give them access to village knowledge
+  - `RemoveResident(being)`: Remove a resident and their knowledge access
+  - `CleanupInvalidReferences()`: Remove destroyed buildings/beings from tracking
+- **Integration with SharedKnowledge**:
+  - Village creates a `SharedKnowledge` instance with scope "village"
+  - Landmarks include "center" and "square" (village center position)
+  - All registered buildings are automatically added to shared knowledge
+  - Residents receive the village's `SharedKnowledge` reference via `Being.AddSharedKnowledge()`
+
 ## Key Classes/Interfaces
 
 | Class | Namespace | Description |
 |-------|-----------|-------------|
 | `World` | `VeilOfAges` | Main world container, Godot node |
+| `Village` | `VeilOfAges` | Settlement with shared knowledge for residents |
 | `Tile` | `VeilOfAges.Grid` | Immutable tile data record |
 | `System<T>` | `VeilOfAges.Grid` | Generic grid occupancy tracker |
 | `Utils` | `VeilOfAges.Grid` | Static coordinate utilities |
@@ -104,12 +129,13 @@ Manages a discrete area of the game world with its own tile layers and entity tr
 
 ### This Module Depends On
 - `VeilOfAges.Core.Lib` - `PathFinder` for A* grid creation
-- `VeilOfAges.Entities` - `Being`, `Player` classes
+- `VeilOfAges.Entities` - `Being`, `Player`, `Building` classes
+- `VeilOfAges.Entities.Memory` - `SharedKnowledge` for village knowledge system
 - `VeilOfAges.Entities.Sensory` - `SensorySystem`
 - `VeilOfAges.WorldGeneration` - `GridGenerator`
-- Godot types: `Node2D`, `TileMapLayer`, `AStarGrid2D`, `Vector2I`
+- Godot types: `Node`, `Node2D`, `TileMapLayer`, `AStarGrid2D`, `Vector2I`
 
 ### What Depends On This Module
-- `/world/generation/` - Uses `Area` for terrain and entity placement
-- `/entities/` - Entities reference `Area` for movement and positioning
+- `/world/generation/` - Uses `Area` for terrain and entity placement, creates `Village` instances
+- `/entities/` - Entities reference `Area` for movement and positioning, receive `SharedKnowledge` from `Village`
 - `/core/` - `GameController` likely references `World` for game loop

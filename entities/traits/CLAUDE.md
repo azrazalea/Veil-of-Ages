@@ -34,10 +34,20 @@ Generic trait for satisfying needs by consuming from sources.
 Trait that handles need satisfaction by consuming items from inventory or home storage.
 
 **Features:**
-- Checks inventory first, then home storage for food
+- Checks inventory first, then personal memory for food locations
 - Priority-based action generation (critical hunger interrupts sleep)
 - Starts ConsumeItemActivity when food is available
+- Starts CheckHomeStorageActivity when hungry but no food memory (refreshes memory)
 - Tag-based food identification
+
+**Behavior Flow:**
+1. Entity becomes hungry (need is low)
+2. Check `HasFoodAvailable()`:
+   - Has food in inventory? -> Start ConsumeItemActivity
+   - Remembers food in storage? -> Start ConsumeItemActivity
+   - No memory of food? -> Start CheckHomeStorageActivity (go home and observe storage)
+3. After CheckHomeStorageActivity completes, memory is updated
+4. On next think cycle, if home had food, ConsumeItemActivity can now start
 
 **Constructor Parameters:**
 - `needId` - The need to satisfy (e.g., "hunger")
@@ -244,9 +254,9 @@ Hunger-driven behavior for zombie entities.
 Autonomous village life behavior.
 
 **Features:**
-- Building discovery and memory
+- Uses SharedKnowledge for building awareness (via Village)
 - State-based daily routine with sleep schedule
-- LivingTrait + ItemConsumptionBehaviorTrait composition
+- LivingTrait + ItemConsumptionBehaviorTrait + InventoryTrait composition
 - Home-based food acquisition
 - Uses GoToBuildingActivity for visiting buildings (home, other buildings)
 - Uses GoToLocationActivity for going to village square
@@ -264,8 +274,15 @@ Autonomous village life behavior.
 - Example: `return new StartActivityAction(_owner, this, visitActivity, priority: 1);`
 - Then check: `if (_owner.GetCurrentActivity() is GoToBuildingActivity) return null;`
 
-**Discovery:**
-Scans Entities node for Building children on initialization.
+**Building Knowledge:**
+Uses SharedKnowledge from Village to find buildings to visit:
+```csharp
+var knownBuildings = _owner.SharedKnowledge
+    .SelectMany(k => k.GetAllBuildings())
+    .Where(b => b.IsValid && b.Building != _home)
+    .ToList();
+```
+Villagers receive SharedKnowledge when added as village residents via `Village.AddResident()`.
 
 ### FarmerJobTrait.cs
 Job trait for farmers who work at assigned farms during daytime.
@@ -296,6 +313,7 @@ Job trait for bakers who work at bakeries during daytime.
 - Finds and processes reactions with "baking" or "milling" tags
 - Checks for required facilities and input items
 - Starts ProcessReactionActivity when work is available
+- Starts CheckHomeStorageActivity when no memory of required inputs (refreshes memory)
 - Returns null at night (VillagerTrait handles sleep)
 - Context-aware dialogue based on time of day
 
@@ -315,8 +333,10 @@ typedBeing.SelfAsEntity().AddTraitToQueue(bakerTrait, priority: -1);
 1. Check if work hours (Dawn/Day)
 2. Get workplace storage and facilities
 3. Find reaction with matching tags that can be performed
-4. Check if required inputs are available in storage
-5. Start ProcessReactionActivity if all requirements met
+4. Check if required inputs are available in storage (uses memory)
+5. If inputs available: Start ProcessReactionActivity
+6. If no inputs AND no memory of required items: Start CheckHomeStorageActivity to observe workplace storage
+7. After observation, memory is updated and baker can find inputs on next think cycle
 
 ## Trait Hierarchy
 

@@ -9,6 +9,7 @@ using VeilOfAges.Entities.Beings;
 using VeilOfAges.Entities.Items;
 using VeilOfAges.Entities.Traits;
 using VeilOfAges.Grid;
+using VeilOfAges.WorldGeneration;
 
 namespace VeilOfAges.WorldGeneration;
 
@@ -40,6 +41,12 @@ public class VillageGenerator
 #pragma warning disable CS0649 // Field never assigned (intentional: set to job name for debugging)
     private readonly string? _debugTargetJob; // Set to a job name (e.g., "baker") to target, or leave unset for random
 #pragma warning restore CS0649
+
+    // The village being generated (tracks buildings and residents)
+    private Village? _currentVillage;
+
+    // Road network for lot-based building placement
+    private RoadNetwork? _roadNetwork;
 
     public VillageGenerator(
         Area gridArea,
@@ -86,7 +93,8 @@ public class VillageGenerator
     /// <summary>
     /// Generate a village centered at the given position.
     /// </summary>
-    public void GenerateVillage(Vector2I villageCenter = default)
+    /// <returns>The generated Village with all buildings and residents registered.</returns>
+    public Village GenerateVillage(Vector2I villageCenter = default)
     {
         // Default to center of map if no position specified
         if (villageCenter == default)
@@ -96,21 +104,40 @@ public class VillageGenerator
                 _gridArea.GridSize.Y / 2);
         }
 
-        // Create the visual village square (dirt area)
-        CreateVillageSquare(villageCenter);
+        // Create and initialize the village
+        _currentVillage = new Village();
+        _currentVillage.Initialize("Main Village", villageCenter);
+        _entitiesContainer.AddChild(_currentVillage);
 
-        Log.Print("Hello my baby");
+        // Calculate optimal lot size from building templates
+        int optimalLotSize = RoadNetwork.CalculateOptimalLotSize(_buildingManager);
+        Log.Print($"VillageGenerator: Calculated optimal lot size: {optimalLotSize}");
+
+        // Generate road network with lots
+        _roadNetwork = new RoadNetwork(
+            villageCenter,
+            villageSquareRadius: 3,  // 7x7 central square
+            roadWidth: 2,
+            lotSize: optimalLotSize,
+            lotsPerSide: 3);           // 24 total lots
+        _roadNetwork.GenerateLayout();
+
+        // Place village square and roads as dirt tiles
+        PlaceVillageSquare(villageCenter);
+        PlaceRoads();
 
         // Reset debug selection state
         _debugVillagerSelected = false;
 
-        // Place various buildings around the village
-        PlaceVillageBuildings(villageCenter);
-
-        CreateVillagePaths(villageCenter);
+        // Place buildings using lot system
+        PlaceBuildingsInLots();
 
         // Log which villager was selected for debug
         LogDebugVillagerSelection();
+
+        Log.Print($"Village '{_currentVillage.VillageName}' created with {_currentVillage.Buildings.Count} buildings and {_currentVillage.Residents.Count} residents");
+
+        return _currentVillage;
     }
 
     /// <summary>
@@ -134,172 +161,220 @@ public class VillageGenerator
 
     /// <summary>
     /// Creates a central village square with dirt ground.
+    /// Uses the road network's village square tiles if available.
     /// </summary>
-    private void CreateVillageSquare(Vector2I center)
+    private void PlaceVillageSquare(Vector2I center)
     {
-        int centralSquareSize = 2; // Size of the actual central square
-
-        for (int x = -centralSquareSize; x <= centralSquareSize; x++)
+        if (_roadNetwork != null)
         {
-            for (int y = -centralSquareSize; y <= centralSquareSize; y++)
+            foreach (var pos in _roadNetwork.GetVillageSquareTiles())
             {
-                Vector2I pos = new (center.X + x, center.Y + y);
                 if (IsPositionInWorldBounds(pos))
                 {
                     _gridArea.SetGroundCell(pos, Area.PathTile);
                 }
             }
         }
+        else
+        {
+            // Fallback to original behavior
+            int centralSquareSize = 2;
+
+            for (int x = -centralSquareSize; x <= centralSquareSize; x++)
+            {
+                for (int y = -centralSquareSize; y <= centralSquareSize; y++)
+                {
+                    Vector2I pos = new (center.X + x, center.Y + y);
+                    if (IsPositionInWorldBounds(pos))
+                    {
+                        _gridArea.SetGroundCell(pos, Area.PathTile);
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>
-    /// Places the various buildings around the village center.
+    /// Places road tiles from the road network.
     /// </summary>
-    private void PlaceVillageBuildings(Vector2I center)
+    private void PlaceRoads()
     {
-        if (_buildingManager == null)
+        if (_roadNetwork == null)
         {
             return;
         }
 
-        Log.Print("Hello my darling");
-
-        // Define the building types to place
-        string[] buildingTypes = ["Simple Farm", "Graveyard", "Simple House", "Simple House"];
-
-        // Calculate minimum safe distance from center for building placement
-        int minDistanceFromCenter = 15; // Based on largest building size + buffer
-        int squareSize = 15; // Buffer around village center
-
-        for (int i = 0; i < buildingTypes.Length; i++)
+        foreach (var pos in _roadNetwork.GetAllRoadTiles())
         {
-            string buildingType = buildingTypes[i];
-
-            // Get template from BuildingManager instead of using static dictionary
-            var template = _buildingManager.GetTemplate(buildingType);
-            if (template == null)
+            if (IsPositionInWorldBounds(pos))
             {
-                Log.Error($"Failed to find template for building type: {buildingType}");
-                continue;
+                _gridArea.SetGroundCell(pos, Area.PathTile);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Places buildings in available lots from the road network.
+    /// </summary>
+    private void PlaceBuildingsInLots()
+    {
+        if (_roadNetwork == null)
+        {
+            return;
+        }
+
+        // Count available lots to determine how many farms to place
+        int availableLots = _roadNetwork.GetAvailableLots().Count;
+
+        // Place 1 farm for every 4 houses, with a minimum of 2 farms
+        // Formula: for every 4 houses we need 1 farm = 5 lots total
+        // So: farmCount = availableLots / 5 (integer division)
+        // This leaves: availableLots - 1 (graveyard) - farmCount (farms) = houses
+        int farmCount = Math.Max(2, availableLots / 5);
+
+        Log.Print($"VillageGenerator: Placing {farmCount} farms in {availableLots} total lots");
+
+        // Priority 1: Required buildings (farms, graveyard)
+        for (int i = 0; i < farmCount; i++)
+        {
+            PlaceBuildingInAvailableLot("Simple Farm");
+        }
+
+        PlaceBuildingInAvailableLot("Graveyard");
+
+        // Priority 2: Fill remaining lots with houses
+        while (true)
+        {
+            var lot = _roadNetwork.GetAvailableLot();
+            if (lot == null)
+            {
+                break;
             }
 
-            Vector2I buildingSize = template.Size;
+            PlaceBuildingInLot("Simple House", lot);
+        }
+    }
 
-            // Calculate position in a circle with increased distance
-            float angle = (float)i / buildingTypes.Length * Mathf.Tau;
-            int distance = minDistanceFromCenter;
+    /// <summary>
+    /// Places a building in the next available lot.
+    /// </summary>
+    private void PlaceBuildingInAvailableLot(string buildingType)
+    {
+        var lot = _roadNetwork?.GetAvailableLot();
+        if (lot == null)
+        {
+            Log.Warn($"No available lot for {buildingType}");
+            return;
+        }
 
-            bool foundValidPosition = false;
-            int maxPlacementAttempts = 10;
+        PlaceBuildingInLot(buildingType, lot);
+    }
 
-            for (int attempt = 0; attempt < maxPlacementAttempts && !foundValidPosition; attempt++)
-            {
-                // Adjust distance slightly each attempt
-                int adjustedDistance = distance + (attempt * 2);
+    /// <summary>
+    /// Places a building in a specific lot.
+    /// </summary>
+    private void PlaceBuildingInLot(string buildingType, VillageLot lot)
+    {
+        if (_roadNetwork == null || lot == null || _buildingManager == null)
+        {
+            return;
+        }
 
-                Vector2I offset = new (
-                    Mathf.RoundToInt(Mathf.Cos(angle) * adjustedDistance),
-                    Mathf.RoundToInt(Mathf.Sin(angle) * adjustedDistance));
+        var template = _buildingManager.GetTemplate(buildingType);
+        if (template == null)
+        {
+            Log.Warn($"No template for {buildingType}");
+            return;
+        }
 
-                Vector2I buildingPos = center + offset;
+        var buildingSize = new Vector2I(template.Size[0], template.Size[1]);
 
-                // Check if position is valid
-                if (!IsPositionInWorldBounds(buildingPos, buildingSize))
+        if (!lot.CanFitBuilding(buildingSize))
+        {
+            Log.Warn($"Building {buildingType} ({buildingSize}) doesn't fit in lot {lot.Id}");
+            lot.State = LotState.Reserved;
+            return;
+        }
+
+        var position = lot.GetBuildingPlacementPosition(buildingSize);
+
+        // Verify position is valid for building placement
+        if (!IsPositionInWorldBounds(position, buildingSize))
+        {
+            Log.Warn($"Position {position} out of bounds for {buildingType}");
+            lot.State = LotState.Reserved;
+            return;
+        }
+
+        var building = _buildingManager.PlaceBuilding(buildingType, position, _gridArea);
+        if (building == null)
+        {
+            Log.Warn($"Failed to place {buildingType} at {position}");
+            lot.State = LotState.Reserved;
+            return;
+        }
+
+        RoadNetwork.MarkLotOccupied(lot, building);
+        _currentVillage?.AddBuilding(building);
+
+        // Spawn entities based on building type
+        SpawnEntitiesForBuilding(building, buildingType);
+
+        Log.Print($"Placed {buildingType} in lot {lot.Id} at {position}");
+    }
+
+    /// <summary>
+    /// Spawns appropriate entities for a building based on its type.
+    /// </summary>
+    private void SpawnEntitiesForBuilding(Building building, string buildingType)
+    {
+        Vector2I buildingPos = building.GetCurrentGridPosition();
+        Vector2I buildingSize = building.GridSize;
+
+        switch (buildingType)
+        {
+            case "Simple House":
+                // Track house for villager assignment
+                _placedHouses.Add(building);
+
+                // Add initial bread to house storage (3-5 loaves)
+                StockHouseWithFood(building);
+
+                // Spawn farmer if farms exist (distribute farmers across farms round-robin)
+                if (_placedFarms.Count > 0)
                 {
-                    continue;
+                    // Use house count to distribute farmers evenly across farms
+                    int farmIndex = (_placedHouses.Count - 1) % _placedFarms.Count;
+                    SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene,
+                        home: building, job: "farmer", workplace: _placedFarms[farmIndex]);
+                }
+                else
+                {
+                    // No farms available, spawn regular villager
+                    SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene,
+                        home: building);
                 }
 
-                // Check if the entire building area is free
-                bool areaIsFree = IsValidBuildingPosition(buildingPos, buildingSize);
+                // Second villager: baker (works at home)
+                SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene,
+                    home: building, job: "baker", workplace: building);
+                break;
 
-                // Extra check: ensure we're not too close to the village center
-                if (areaIsFree)
-                {
-                    for (int x = 0; x < buildingSize.X && areaIsFree; x++)
-                    {
-                        for (int y = 0; y < buildingSize.Y && areaIsFree; y++)
-                        {
-                            Vector2I checkPos = new (buildingPos.X + x, buildingPos.Y + y);
-                            Vector2I relativeToCenter = checkPos - center;
-                            if (Math.Abs(relativeToCenter.X) <= squareSize &&
-                                Math.Abs(relativeToCenter.Y) <= squareSize)
-                            {
-                                areaIsFree = false;
-                                break;
-                            }
-                        }
-                    }
-                }
+            case "Simple Farm":
+                // Track farm for assigning farmers later
+                _placedFarms.Add(building);
 
-                if (areaIsFree)
-                {
-                    foundValidPosition = true;
+                // Farm gets farmer assigned but farmer lives in house
+                break;
 
-                    // Use BuildingManager to place the building
-                    Building? typedBuilding = _buildingManager.PlaceBuilding(buildingType, buildingPos, _gridArea);
+            case "Graveyard":
+                // Stock graveyard with initial corpses
+                StockGraveyardWithCorpses(building);
 
-                    if (typedBuilding != null)
-                    {
-                        // Special handling based on building type
-                        switch (buildingType)
-                        {
-                            case "Simple Farm":
-                                // Track farm for assigning farmers later
-                                _placedFarms.Add(typedBuilding);
-                                break;
-
-                            case "Graveyard":
-                                // Stock graveyard with initial corpses
-                                StockGraveyardWithCorpses(typedBuilding);
-
-                                // If possible, place a Church next to the Graveyard
-                                SpawnBuildingNearBuilding(buildingPos, buildingSize, "Church", "right", 2);
-
-                                // Spawn undead near the Graveyard and set as their home
-                                SpawnUndeadNearBuilding(buildingPos, buildingSize, _skeletonScene, typedBuilding);
-                                SpawnUndeadNearBuilding(buildingPos, buildingSize, _zombieScene, typedBuilding);
-                                break;
-
-                            case "Simple House":
-                                // Track house for villager assignment
-                                _placedHouses.Add(typedBuilding);
-
-                                // Add initial bread to house storage (3-5 loaves)
-                                StockHouseWithFood(typedBuilding);
-
-                                // Spawn 2 villagers per house
-                                // First villager: farmer if farms exist (multiple farmers can share a farm)
-                                if (_placedFarms.Count > 0)
-                                {
-                                    SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene,
-                                        home: typedBuilding, job: "farmer", workplace: _placedFarms[0]);
-                                }
-                                else
-                                {
-                                    // No farms available, spawn regular villager
-                                    SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene,
-                                        home: typedBuilding);
-                                }
-
-                                // Second villager: baker (works at home)
-                                SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene,
-                                    home: typedBuilding, job: "baker", workplace: typedBuilding);
-                                break;
-                        }
-
-                        Log.Print($"Placed {buildingType} at {buildingPos}");
-                    }
-                    else
-                    {
-                        Log.Error($"Failed to create building of type {buildingType} at {buildingPos}");
-                    }
-                }
-            }
-
-            if (!foundValidPosition)
-            {
-                Log.Error($"Failed to place {buildingType} after {maxPlacementAttempts} attempts");
-            }
+                // Spawn undead near the Graveyard and set as their home
+                SpawnUndeadNearBuilding(buildingPos, buildingSize, _skeletonScene, building);
+                SpawnUndeadNearBuilding(buildingPos, buildingSize, _zombieScene, building);
+                break;
         }
     }
 
@@ -342,6 +417,9 @@ public class VillageGenerator
 
         if (typedBuilding != null)
         {
+            // Register building with village
+            _currentVillage?.AddBuilding(typedBuilding);
+
             Log.Print($"Placed {newBuildingType} at {newBuildingPos} near building at {baseBuilingPos}");
             return true;
         }
@@ -433,6 +511,9 @@ public class VillageGenerator
 
                 // Track villager for debug selection
                 _spawnedVillagers.Add(typedBeing);
+
+                // Register as village resident (gives access to village knowledge)
+                _currentVillage?.AddResident(typedBeing);
 
                 _gridArea.AddEntity(beingPos, being);
                 _entitiesContainer.AddChild(being);

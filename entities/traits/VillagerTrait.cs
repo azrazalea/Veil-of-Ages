@@ -1,10 +1,12 @@
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Activities;
 using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Items;
+using VeilOfAges.Entities.Memory;
 using VeilOfAges.Entities.Needs;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.UI;
@@ -31,7 +33,6 @@ public class VillagerTrait : BeingTrait
 
     // Village knowledge
     private Vector2I _squarePosition;
-    private readonly List<Building> _knownBuildings = [];
     private Building? _currentDestinationBuilding;
 
     // Home building for this villager
@@ -52,9 +53,6 @@ public class VillagerTrait : BeingTrait
         {
             _squarePosition = new Vector2I(owner.GridArea.GridSize.X / 2, owner.GridArea.GridSize.Y / 2);
         }
-
-        // Discover buildings in the world
-        DiscoverBuildings();
 
         if (owner == null || owner.Health == null)
         {
@@ -90,26 +88,6 @@ public class VillagerTrait : BeingTrait
         }
 
         IsInitialized = true;
-    }
-
-    private void DiscoverBuildings()
-    {
-        // Find all buildings in the scene
-        if (_owner?.GetTree().GetFirstNodeInGroup("World") is not World world)
-        {
-            return;
-        }
-
-        var entitiesNode = world.GetNode<Node>("Entities");
-        foreach (Node child in entitiesNode.GetChildren())
-        {
-            if (child is Building building)
-            {
-                _knownBuildings.Add(building);
-            }
-        }
-
-        Log.Print($"{_owner?.Name}: Discovered {_knownBuildings.Count} buildings");
     }
 
     /// <summary>
@@ -163,8 +141,9 @@ public class VillagerTrait : BeingTrait
         // Get current activity for debugging
         var currentActivity = _owner.GetCurrentActivity();
         var gameTime = _owner.GameController?.CurrentGameTime ?? new GameTime(0);
-        bool shouldSleep = gameTime.CurrentDayPhase is DayPhaseType.Night or
-                           DayPhaseType.Dusk;
+
+        // Only sleep during Night phase - Dusk is evening idle time
+        bool shouldSleep = gameTime.CurrentDayPhase is DayPhaseType.Night;
 
         // Debug: Log current state periodically
         DebugLog("SLEEP", $"State: {_currentState}, Phase: {gameTime.CurrentDayPhase}, ShouldSleep: {shouldSleep}, Activity: {currentActivity?.GetType().Name ?? "none"}");
@@ -172,7 +151,7 @@ public class VillagerTrait : BeingTrait
         // If already sleeping, let the activity handle it
         if (currentActivity is SleepActivity)
         {
-            DebugLog("SLEEP", "Already sleeping, returning null", 0);
+            DebugLog("SLEEP", "Already sleeping, returning null");
             return null;
         }
 
@@ -180,7 +159,7 @@ public class VillagerTrait : BeingTrait
         if (shouldSleep && _currentState != VillagerState.Sleeping &&
             _currentState != VillagerState.IdleAtHome)
         {
-            DebugLog("SLEEP", $"Night time but state is {_currentState}, changing to IdleAtHome", 0);
+            DebugLog("SLEEP", $"Night time but state is {_currentState}, changing to IdleAtHome");
             ChangeState(VillagerState.IdleAtHome, "Night time, heading home");
             _stateTimer = 0;
         }
@@ -266,17 +245,27 @@ public class VillagerTrait : BeingTrait
                 return new StartActivityAction(_owner, this, goToSquareActivity, priority: 1);
             }
 
-            // Chance to visit a building
-            if (_rng.Randf() < VisitBuildingProbability && _knownBuildings.Count > 0)
+            // Chance to visit a building (using SharedKnowledge)
+            if (_rng.Randf() < VisitBuildingProbability)
             {
-                _currentDestinationBuilding = _knownBuildings[_rng.RandiRange(0, _knownBuildings.Count - 1)];
+                // Get all known buildings from SharedKnowledge (using thread-safe method)
+                var knownBuildings = _owner.SharedKnowledge
+                    .SelectMany(k => k.GetAllBuildings())
+                    .Where(b => b.IsValid && b.Building != _home) // Exclude home and invalid refs
+                    .ToList();
 
-                if (_currentDestinationBuilding != null)
+                if (knownBuildings.Count > 0)
                 {
-                    ChangeState(VillagerState.VisitingBuilding, $"Visiting {_currentDestinationBuilding.BuildingType}");
-                    _stateTimer = (uint)_rng.RandiRange(80, 150);
-                    var visitActivity = new GoToBuildingActivity(_currentDestinationBuilding, priority: 1);
-                    return new StartActivityAction(_owner, this, visitActivity, priority: 1);
+                    var selectedRef = knownBuildings[_rng.RandiRange(0, knownBuildings.Count - 1)];
+                    _currentDestinationBuilding = selectedRef.Building;
+
+                    if (_currentDestinationBuilding != null)
+                    {
+                        ChangeState(VillagerState.VisitingBuilding, $"Visiting {_currentDestinationBuilding.BuildingType}");
+                        _stateTimer = (uint)_rng.RandiRange(80, 150);
+                        var visitActivity = new GoToBuildingActivity(_currentDestinationBuilding, priority: 1);
+                        return new StartActivityAction(_owner, this, visitActivity, priority: 1);
+                    }
                 }
             }
 
@@ -405,6 +394,7 @@ public class VillagerTrait : BeingTrait
 
     /// <summary>
     /// Log home storage contents periodically for debugging.
+    /// Shows both real storage contents and what the entity remembers.
     /// </summary>
     private void LogHomeStorage()
     {
@@ -416,7 +406,20 @@ public class VillagerTrait : BeingTrait
         var homeStorage = _home.GetStorage();
         if (homeStorage != null)
         {
-            DebugLog("STORAGE", $"Home ({_home.BuildingName}): {homeStorage.GetContentsSummary()}");
+            var realContents = homeStorage.GetContentsSummary();
+
+            // Get remembered contents
+            var memoryContents = "nothing (no memory)";
+            var storageMemory = _owner.Memory?.RecallStorageContents(_home);
+            if (storageMemory != null)
+            {
+                var rememberedItems = storageMemory.Items
+                    .Select(i => $"{i.Quantity} {i.Name}")
+                    .ToList();
+                memoryContents = rememberedItems.Count > 0 ? string.Join(", ", rememberedItems) : "empty";
+            }
+
+            DebugLog("STORAGE", $"[{_home.BuildingName}] Real: {realContents} | Remembered: {memoryContents}");
         }
 
         var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();

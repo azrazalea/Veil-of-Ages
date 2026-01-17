@@ -29,11 +29,13 @@ public class StorageTrait : Trait, IStorageContainer
     /// <param name="weightCapacity">Maximum weight in kg, -1 for unlimited.</param>
     /// <param name="decayRateModifier">Decay rate modifier (0.5 = half decay, 2.0 = double).</param>
     /// <param name="facilities">List of available facilities.</param>
-    public StorageTrait(float volumeCapacity, float weightCapacity = -1, float decayRateModifier = 1.0f, List<string>? facilities = null)
+    /// <param name="requireAdjacentToFacility">If true, entities must be adjacent to the storage facility position to access storage.</param>
+    public StorageTrait(float volumeCapacity, float weightCapacity = -1, float decayRateModifier = 1.0f, List<string>? facilities = null, bool requireAdjacentToFacility = false)
     {
         VolumeCapacity = volumeCapacity;
         WeightCapacity = weightCapacity;
         DecayRateModifier = decayRateModifier;
+        RequireAdjacentToFacility = requireAdjacentToFacility;
         if (facilities != null)
         {
             Facilities = facilities;
@@ -61,6 +63,13 @@ public class StorageTrait : Trait, IStorageContainer
     /// Used for crafting requirements (e.g., "oven", "workbench", "forge").
     /// </summary>
     public List<string> Facilities { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets a value indicating whether gets or sets whether entities must be adjacent to the storage facility position
+    /// (defined in the building's Facilities array with Id "storage") to access storage.
+    /// If false (default), entities can access storage from anywhere adjacent to the building.
+    /// </summary>
+    public bool RequireAdjacentToFacility { get; set; }
 
     /// <summary>
     /// Gets the currently used volume in cubic meters.

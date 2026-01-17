@@ -231,6 +231,13 @@ public class StorageConfig
     /// Gets or sets list of facility types available (e.g., "hearth", "cold_storage").
     /// </summary>
     public List<string> Facilities { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets a value indicating whether gets or sets whether entities must be adjacent to the storage facility position
+    /// (defined in the building's Facilities array with Id "storage") to access storage.
+    /// If false (default), entities can access storage from anywhere adjacent to the building.
+    /// </summary>
+    public bool RequireAdjacentToFacility { get; set; }
 }
 
 /// <summary>
