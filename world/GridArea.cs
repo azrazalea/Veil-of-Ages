@@ -202,7 +202,11 @@ public partial class Area(Vector2I worldSize): Node2D
     // TODO: We need to handle unwalkable objects here if any
     public bool IsCellWalkable(Vector2I gridPos)
     {
-        return !EntitiesGridSystem.IsCellOccupied(gridPos) && (_groundGridSystem.GetCell(gridPos)?.IsWalkable ?? false);
+        bool entityOccupied = EntitiesGridSystem.IsCellOccupied(gridPos);
+        var groundTile = _groundGridSystem.GetCell(gridPos);
+        bool groundWalkable = groundTile?.IsWalkable ?? false;
+
+        return !entityOccupied && groundWalkable;
     }
 
     public float GetTerrainDifficulty(Vector2I gridPos)

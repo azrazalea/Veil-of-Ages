@@ -3,7 +3,8 @@
     "Name": "Bake Bread",
     "Description": "Bake flour into a fresh loaf of bread",
     "Inputs": [
-        {"ItemId": "flour", "Quantity": 1}
+        {"ItemId": "flour", "Quantity": 1},
+        {"ItemId": "water", "Quantity": 1}
     ],
     "Outputs": [
         {"ItemId": "bread", "Quantity": 1}

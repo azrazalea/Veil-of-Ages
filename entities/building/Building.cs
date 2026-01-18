@@ -46,6 +46,12 @@ public partial class Building : Node2D, IEntity<Trait>
     // Facility positions (keyed by facility ID, with list of positions for each)
     private readonly Dictionary<string, List<Vector2I>> _facilityPositions = new ();
 
+    // Regeneration configuration (for buildings like wells that produce resources)
+    private string? _regenerationItem;
+    private float _regenerationRate;
+    private int _regenerationMaxQuantity;
+    private float _regenerationProgress;
+
     private const int HORIZONTALPIXELOFFSET = -4;
     private const int VERTICALPIXELOFFSET = -4;
 
@@ -86,6 +92,27 @@ public partial class Building : Node2D, IEntity<Trait>
                     template.Storage.Facilities,
                     template.Storage.RequireAdjacentToFacility);
                 Traits.Add(storageTrait);
+
+                // Store regeneration configuration
+                _regenerationItem = template.Storage.RegenerationItem;
+                _regenerationRate = template.Storage.RegenerationRate;
+                _regenerationMaxQuantity = template.Storage.RegenerationMaxQuantity;
+
+                // Add initial items if configured
+                if (!string.IsNullOrEmpty(template.Storage.RegenerationItem) &&
+                    template.Storage.RegenerationInitialQuantity > 0)
+                {
+                    var itemDef = ItemResourceManager.Instance.GetDefinition(template.Storage.RegenerationItem);
+                    if (itemDef != null)
+                    {
+                        var initialItem = new Item(itemDef, template.Storage.RegenerationInitialQuantity);
+                        storageTrait.AddItem(initialItem);
+                    }
+                    else
+                    {
+                        Log.Warn($"Building {template.Name}: Regeneration item '{template.Storage.RegenerationItem}' not found");
+                    }
+                }
             }
 
             // Populate facility positions from template
@@ -866,5 +893,57 @@ public partial class Building : Node2D, IEntity<Trait>
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Process resource regeneration for this building (e.g., wells regenerating water).
+    /// Called periodically during decay processing.
+    /// </summary>
+    /// <param name="tickMultiplier">Number of ticks since last processing.</param>
+    public void ProcessRegeneration(int tickMultiplier)
+    {
+        // Skip if no regeneration configured
+        if (string.IsNullOrEmpty(_regenerationItem) || _regenerationRate <= 0)
+        {
+            return;
+        }
+
+        var storage = GetStorage();
+        if (storage == null)
+        {
+            return;
+        }
+
+        // Check current quantity of regeneration item
+        int currentQuantity = storage.GetItemCount(_regenerationItem);
+        if (currentQuantity >= _regenerationMaxQuantity)
+        {
+            _regenerationProgress = 0f;
+            return;
+        }
+
+        // Accumulate regeneration progress
+        _regenerationProgress += _regenerationRate * tickMultiplier;
+
+        // Add items when progress reaches 1.0 or more
+        if (_regenerationProgress >= 1.0f)
+        {
+            int unitsToAdd = (int)_regenerationProgress;
+            _regenerationProgress -= unitsToAdd;
+
+            // Don't exceed max quantity
+            int spaceAvailable = _regenerationMaxQuantity - currentQuantity;
+            unitsToAdd = System.Math.Min(unitsToAdd, spaceAvailable);
+
+            if (unitsToAdd > 0)
+            {
+                var itemDef = ItemResourceManager.Instance.GetDefinition(_regenerationItem);
+                if (itemDef != null)
+                {
+                    var newItem = new Item(itemDef, unitsToAdd);
+                    storage.AddItem(newItem);
+                }
+            }
+        }
     }
 }

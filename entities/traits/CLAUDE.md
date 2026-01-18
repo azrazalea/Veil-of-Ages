@@ -314,6 +314,7 @@ Job trait for bakers who work at bakeries during daytime.
 - Checks for required facilities and input items
 - Starts ProcessReactionActivity when work is available
 - Starts CheckHomeStorageActivity when no memory of required inputs (refreshes memory)
+- Fetches water from village Well when workplace is low on water
 - Returns null at night (VillagerTrait handles sleep)
 - Context-aware dialogue based on time of day
 
@@ -335,8 +336,55 @@ typedBeing.SelfAsEntity().AddTraitToQueue(bakerTrait, priority: -1);
 3. Find reaction with matching tags that can be performed
 4. Check if required inputs are available in storage (uses memory)
 5. If inputs available: Start ProcessReactionActivity
-6. If no inputs AND no memory of required items: Start CheckHomeStorageActivity to observe workplace storage
-7. After observation, memory is updated and baker can find inputs on next think cycle
+6. If water is missing and workplace water < 10: Start FetchResourceActivity to get water from Well
+7. If no inputs AND no memory of required items: Start CheckHomeStorageActivity to observe workplace storage
+8. After observation, memory is updated and baker can find inputs on next think cycle
+
+**Water Fetching:**
+When the baker cannot bake due to missing water:
+- Checks if workplace has < 10 water (DESIRED_WATER_AT_WORKPLACE)
+- Uses SharedKnowledge to find a Well building
+- Starts FetchResourceActivity to fetch up to 5 water from Well to workplace
+- If no memory of well contents, first checks well storage
+
+**Desired Resources:**
+Bakers implement `IDesiredResources` to specify home stockpile targets:
+- 5 flour (for baking bread)
+- 10 water (for dough)
+- 5 bread (finished product)
+
+### IDesiredResources.cs
+Interface for traits that specify desired resource levels at home storage.
+
+**Features:**
+- Entities can specify target quantities for items they want stockpiled at home
+- Methods to check which resources are below desired levels
+- Used by job traits to drive resource fetching behavior
+
+**Key Interface Members:**
+- `DesiredResources` - Dictionary mapping item IDs to desired quantities
+- `GetMissingResources(storage)` - Returns items below target with needed amounts
+- `AreDesiresMet(storage)` - Quick check if all targets are met
+- `GetDeficit(storage, itemId)` - Get shortage for a specific item
+
+**Implemented By:**
+- `BakerJobTrait` - Wants flour, water, bread
+- `FarmerJobTrait` - Wants wheat
+
+**Usage:**
+```csharp
+// Check if a trait specifies desired resources
+if (trait is IDesiredResources desiredResources)
+{
+    var homeStorage = home?.GetStorage();
+    var missing = desiredResources.GetMissingResources(homeStorage);
+
+    foreach (var (itemId, neededQty) in missing)
+    {
+        // Entity needs to fetch neededQty of itemId
+    }
+}
+```
 
 ## Trait Hierarchy
 
@@ -349,13 +397,16 @@ Trait (base)
         +-- ItemConsumptionBehaviorTrait (item-based need satisfaction)
         +-- InventoryTrait (personal item storage, implements IStorageContainer)
         +-- VillagerTrait (village life + sleep)
-        +-- FarmerJobTrait (daytime work at farm)
-        +-- BakerJobTrait (daytime work at bakery)
+        +-- FarmerJobTrait (daytime work at farm, implements IDesiredResources)
+        +-- BakerJobTrait (daytime work at bakery, implements IDesiredResources)
         +-- UndeadTrait (undead properties)
               +-- UndeadBehaviorTrait (abstract, wandering)
                     +-- SkeletonTrait (territorial)
                     +-- ZombieTrait (hunger-driven)
   +-- StorageTrait (building storage, implements IStorageContainer)
+
+Interfaces:
+  +-- IDesiredResources (desired resource stockpile specification)
 ```
 
 ## Key Classes
@@ -373,8 +424,9 @@ Trait (base)
 | `SkeletonTrait` | Territorial skeleton behavior |
 | `ZombieTrait` | Hunger-driven zombie behavior |
 | `VillagerTrait` | Village daily routine + sleep |
-| `FarmerJobTrait` | Work at assigned farm during day |
-| `BakerJobTrait` | Work at assigned bakery during day |
+| `FarmerJobTrait` | Work at assigned farm during day (implements IDesiredResources) |
+| `BakerJobTrait` | Work at assigned bakery during day (implements IDesiredResources) |
+| `IDesiredResources` | Interface for traits that specify desired home stockpile levels |
 
 ## Important Notes
 

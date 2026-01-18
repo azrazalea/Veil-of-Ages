@@ -28,13 +28,13 @@ public class VillageGenerator
     private readonly GameController? _gameController;
 
     // Track placed farms for assigning farmers
-    private readonly List<Building> _placedFarms = new ();
+    private readonly List<Building> _placedFarms = [];
 
     // Track placed houses for assigning villagers
-    private readonly List<Building> _placedHouses = new ();
+    private readonly List<Building> _placedHouses = [];
 
     // Track spawned villagers for debug selection
-    private readonly List<Being> _spawnedVillagers = new ();
+    private readonly List<Being> _spawnedVillagers = [];
 
     // Debug villager selection - specifically target bakers for debugging
     private bool _debugVillagerSelected;
@@ -58,9 +58,9 @@ public class VillageGenerator
         EntityThinkingSystem entityThinkingSystem,
         int? seed = null)
     {
+        _ = buildingScene; // Kept for API compatibility, buildings use BuildingManager
         _gridArea = gridArea;
         _entitiesContainer = entitiesContainer;
-        _ = buildingScene; // Kept for API compatibility, buildings use BuildingManager
         _skeletonScene = skeletonScene;
         _zombieScene = zombieScene;
         _townsfolkScene = townsfolkScene;
@@ -128,6 +128,9 @@ public class VillageGenerator
 
         // Reset debug selection state
         _debugVillagerSelected = false;
+
+        // Place the well in the center of the village square FIRST (before other buildings)
+        PlaceWellInVillageCenter(villageCenter);
 
         // Place buildings using lot system
         PlaceBuildingsInLots();
@@ -214,6 +217,55 @@ public class VillageGenerator
     }
 
     /// <summary>
+    /// Places a well in the center of the village square.
+    /// The well is placed FIRST, directly in the village square, not in a lot.
+    /// </summary>
+    private void PlaceWellInVillageCenter(Vector2I villageCenter)
+    {
+        if (_buildingManager == null || _currentVillage == null)
+        {
+            return;
+        }
+
+        // Get the well template
+        var wellTemplate = _buildingManager.GetTemplate("Well");
+        if (wellTemplate == null)
+        {
+            Log.Warn("VillageGenerator: Well template not found");
+            return;
+        }
+
+        // Well dimensions: 2 wide x 3 tall
+        var wellSize = new Vector2I(wellTemplate.Size[0], wellTemplate.Size[1]);
+
+        // Calculate position to center the well on the village center
+        // Center = villageCenter - (wellSize / 2)
+        var wellPosition = new Vector2I(
+            villageCenter.X - (wellSize.X / 2),
+            villageCenter.Y - (wellSize.Y / 2));
+
+        // Verify position is valid for building placement
+        if (!IsPositionInWorldBounds(wellPosition, wellSize))
+        {
+            Log.Warn($"VillageGenerator: Well position {wellPosition} out of bounds");
+            return;
+        }
+
+        // Place the well using BuildingManager
+        var well = _buildingManager.PlaceBuilding("Well", wellPosition, _gridArea);
+        if (well == null)
+        {
+            Log.Warn($"VillageGenerator: Failed to place well at {wellPosition}");
+            return;
+        }
+
+        // Register the well with the village
+        _currentVillage.AddBuilding(well);
+
+        Log.Print($"VillageGenerator: Placed well at {wellPosition}, centered on village center {villageCenter}");
+    }
+
+    /// <summary>
     /// Places buildings in available lots from the road network.
     /// </summary>
     private void PlaceBuildingsInLots()
@@ -229,18 +281,21 @@ public class VillageGenerator
         // Place 1 farm for every 4 houses, with a minimum of 2 farms
         // Formula: for every 4 houses we need 1 farm = 5 lots total
         // So: farmCount = availableLots / 5 (integer division)
-        // This leaves: availableLots - 1 (graveyard) - farmCount (farms) = houses
+        // This leaves: availableLots - 1 (graveyard) - 1 (pond) - farmCount (farms) = houses
         int farmCount = Math.Max(2, availableLots / 5);
 
         Log.Print($"VillageGenerator: Placing {farmCount} farms in {availableLots} total lots");
 
-        // Priority 1: Required buildings (farms, graveyard)
+        // Priority 1: Required buildings and features (farms, graveyard, pond)
         for (int i = 0; i < farmCount; i++)
         {
             PlaceBuildingInAvailableLot("Simple Farm");
         }
 
         PlaceBuildingInAvailableLot("Graveyard");
+
+        // Place pond in an available lot
+        PlacePondInAvailableLot();
 
         // Priority 2: Fill remaining lots with houses
         while (true)
@@ -253,6 +308,21 @@ public class VillageGenerator
 
             PlaceBuildingInLot("Simple House", lot);
         }
+    }
+
+    /// <summary>
+    /// Places a pond in the next available lot.
+    /// </summary>
+    private void PlacePondInAvailableLot()
+    {
+        var lot = _roadNetwork?.GetAvailableLot();
+        if (lot == null)
+        {
+            Log.Warn("No available lot for pond");
+            return;
+        }
+
+        PlacePondInLot(lot);
     }
 
     /// <summary>
@@ -324,6 +394,56 @@ public class VillageGenerator
     }
 
     /// <summary>
+    /// Places a pond in a specific lot, filling the lot with water tiles.
+    /// The pond is oval-shaped and fills as much of the lot as possible.
+    /// </summary>
+    private void PlacePondInLot(VillageLot lot)
+    {
+        if (_roadNetwork == null || lot == null)
+        {
+            return;
+        }
+
+        // Calculate pond center (center of the lot)
+        Vector2I pondCenter = new (
+            lot.Position.X + (lot.Size.X / 2),
+            lot.Position.Y + (lot.Size.Y / 2));
+
+        // Pond radius is half the lot size minus 1 for a margin
+        // This ensures the pond fits within the lot bounds
+        int pondRadiusX = (lot.Size.X / 2) - 1;
+        int pondRadiusY = (lot.Size.Y / 2) - 1;
+
+        int waterTilesCount = 0;
+
+        // Place water tiles in an oval pattern
+        for (int x = -pondRadiusX; x <= pondRadiusX; x++)
+        {
+            for (int y = -pondRadiusY; y <= pondRadiusY; y++)
+            {
+                // Create an oval pond using ellipse equation
+                float normalizedX = (float)(x * x) / (pondRadiusX * pondRadiusX);
+                float normalizedY = (float)(y * y) / (pondRadiusY * pondRadiusY);
+
+                if (normalizedX + normalizedY <= 1.0f)
+                {
+                    Vector2I pos = new (pondCenter.X + x, pondCenter.Y + y);
+                    if (IsPositionInWorldBounds(pos))
+                    {
+                        _gridArea.SetGroundCell(pos, Area.WaterTile);
+                        waterTilesCount++;
+                    }
+                }
+            }
+        }
+
+        // Mark the lot as occupied (no building, but used for the pond)
+        lot.State = LotState.Occupied;
+
+        Log.Print($"Placed pond in lot {lot.Id} at center {pondCenter}, created {waterTilesCount} water tiles");
+    }
+
+    /// <summary>
     /// Spawns appropriate entities for a building based on its type.
     /// </summary>
     private void SpawnEntitiesForBuilding(Building building, string buildingType)
@@ -382,7 +502,7 @@ public class VillageGenerator
     /// Spawns a building near another building with directional preference.
     /// </summary>
     /// <returns></returns>
-    public bool SpawnBuildingNearBuilding(Vector2I baseBuilingPos, Vector2I baseBuildingSize,
+    public bool SpawnBuildingNearBuilding(Vector2I baseBuildingPos, Vector2I baseBuildingSize,
         string newBuildingType, string newBuildingDirection = "right", int wiggleRoom = 2)
     {
         if (_buildingManager == null)
@@ -402,13 +522,13 @@ public class VillageGenerator
         Vector2I newBuildingSize = template.Size;
 
         // Find valid position for the new building
-        Vector2I newBuildingPos = FindPositionForBuildingNear(baseBuilingPos, baseBuildingSize,
+        Vector2I newBuildingPos = FindPositionForBuildingNear(baseBuildingPos, baseBuildingSize,
             newBuildingSize, newBuildingDirection, wiggleRoom);
 
         // If no valid position was found, return false
-        if (newBuildingPos == baseBuilingPos)
+        if (newBuildingPos == baseBuildingPos)
         {
-            Log.Error($"Could not find valid position to spawn {newBuildingType} near building at {baseBuilingPos}");
+            Log.Error($"Could not find valid position to spawn {newBuildingType} near building at {baseBuildingPos}");
             return false;
         }
 
@@ -420,7 +540,7 @@ public class VillageGenerator
             // Register building with village
             _currentVillage?.AddBuilding(typedBuilding);
 
-            Log.Print($"Placed {newBuildingType} at {newBuildingPos} near building at {baseBuilingPos}");
+            Log.Print($"Placed {newBuildingType} at {newBuildingPos} near building at {baseBuildingPos}");
             return true;
         }
         else
@@ -888,7 +1008,7 @@ public class VillageGenerator
     /// </summary>
     public void CreateVillagePaths(Vector2I villageCenter)
     {
-        List<(Vector2I position, Vector2I entrance, string type)> buildings = new ();
+        List<(Vector2I position, Vector2I entrance, string type)> buildings = [];
 
         // Collect all buildings and their entrance positions
         foreach (var entity in _entitiesContainer.GetChildren())
@@ -937,7 +1057,7 @@ public class VillageGenerator
     /// </summary>
     private List<Vector2I> FindPath(Vector2I start, Vector2I end)
     {
-        List<Vector2I> path = new ();
+        List<Vector2I> path = [];
 
         // This is a simplified approach - not true A*
         // For a more realistic path, implement A* pathfinding or use a navigation mesh
@@ -978,12 +1098,6 @@ public class VillageGenerator
             // If both direct moves are blocked, try a diagonal approach
             if (dx != 0 && dy != 0)
             {
-                // Try to go around obstacles
-                _ = new // Try to go around obstacles
-                Vector2I(current.X + dx, current.Y);
-
-                _ = new Vector2I(current.X, current.Y + dy);
-
                 // Check a few tiles in each direction to find a path around obstacles
                 bool foundPath = false;
                 for (int i = 1; i <= 3 && !foundPath; i++)

@@ -238,6 +238,29 @@ public class StorageConfig
     /// If false (default), entities can access storage from anywhere adjacent to the building.
     /// </summary>
     public bool RequireAdjacentToFacility { get; set; }
+
+    /// <summary>
+    /// Gets or sets the item ID to regenerate (e.g., "water").
+    /// If null or empty, no regeneration occurs.
+    /// </summary>
+    public string? RegenerationItem { get; set; }
+
+    /// <summary>
+    /// Gets or sets the rate at which the regeneration item is added per decay tick.
+    /// Accumulates until >= 1.0, then adds an item unit.
+    /// </summary>
+    public float RegenerationRate { get; set; }
+
+    /// <summary>
+    /// Gets or sets the maximum quantity of the regeneration item.
+    /// Regeneration stops when this limit is reached.
+    /// </summary>
+    public int RegenerationMaxQuantity { get; set; } = 100;
+
+    /// <summary>
+    /// Gets or sets the initial quantity of the regeneration item to add when the building is created.
+    /// </summary>
+    public int RegenerationInitialQuantity { get; set; }
 }
 
 /// <summary>

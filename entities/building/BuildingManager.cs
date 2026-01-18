@@ -139,15 +139,20 @@ public partial class BuildingManager : Node
         {
             Vector2I absolutePos = gridPosition + tileData.Position;
 
-            // Skip check for walkable tiles
+            // Skip check for walkable tiles in the template
+            // These are tiles like floors inside buildings that don't block placement
             if (tileData.IsWalkable)
             {
                 continue;
             }
 
-            // Check if the cell is occupied
+            // Check if the cell is available for building
+            // A cell is available if:
+            // 1. No entity occupies it
+            // 2. The ground tile is walkable (grass, dirt, path - not water or void)
             if (!area.IsCellWalkable(absolutePos))
             {
+                Log.Warn($"CanPlaceBuildingAt: {template.Name} blocked at {absolutePos} (building pos {gridPosition}, tile offset {tileData.Position})");
                 return false;
             }
         }

@@ -1,0 +1,12 @@
+{
+    "Id": "water",
+    "Name": "Water",
+    "Description": "Fresh water for drinking and cooking.",
+    "Category": "RawMaterial",
+    "VolumeM3": 0.001,
+    "WeightKg": 1.0,
+    "BaseDecayRatePerTick": 0,
+    "EdibleNutrition": 0,
+    "StackLimit": 100,
+    "Tags": ["water", "liquid", "drink"]
+}

@@ -89,7 +89,7 @@ Individual tile within a building structure.
 - `DetectionDifficulties` - Per-sense-type blocking values
 
 **TileType Enum:**
-Wall, Crop, Floor, Door, Window, Stairs, Roof, Column, Fence, Gate, Foundation, Furniture, Decoration
+Wall, Crop, Floor, Door, Window, Stairs, Roof, Column, Fence, Gate, Foundation, Furniture, Decoration, Well
 
 ### RoofSystem.cs
 Handles roof visibility and fading based on player position.
@@ -189,6 +189,7 @@ Tiles affect perception based on type:
 - Walls: Block sight (1.0), reduce hearing (0.5)
 - Doors: Nearly block sight (0.9), reduce smell (0.5)
 - Windows: Minor sight block (0.2), reduce hearing (0.6)
+- Wells: Nearly block sight (0.9), reduce hearing (0.4), reduce smell (0.6)
 - Floors: No blocking
 
 Materials modify these values (stone blocks more sound, metal less smell).

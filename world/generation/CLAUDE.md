@@ -16,8 +16,8 @@ Main world generation orchestrator. Godot node that coordinates all generation p
   - `SkeletonScene`, `ZombieScene`, `TownsfolkScene`: Entity scene references
   - `NumberOfTrees`: Tree count target (default: 20)
 - **Generation Phases**:
-  1. `GenerateTerrain()`: Fills world with grass, adds dirt patches, creates water pond
-  2. `VillageGenerator.GenerateVillage()`: Places buildings and spawns villagers
+  1. `GenerateTerrain()`: Fills world with grass, adds dirt patches
+  2. `VillageGenerator.GenerateVillage()`: Places buildings, pond, and spawns villagers
   3. `GenerateTrees()`: Places trees in unoccupied walkable cells
   4. `GenerateDecorations()`: (Currently commented out) Placeholder for decorative elements
 
@@ -41,6 +41,7 @@ Handles village layout generation using a lot-based system with road networks.
 - **Key Features**:
   - Lot-based building placement via `RoadNetwork`
   - Priority-based building placement (required buildings first, then houses)
+  - Pond placement in a lot (oval water feature)
   - Character spawning near buildings with entrance prioritization
   - Job assignment: farmers work at farms, bakers work at home
   - Debug villager selection (first villager or targeted job)
@@ -138,7 +139,8 @@ The village uses a cross pattern road network extending from a central square:
 
 ### Building Placement Priority
 1. **Required Buildings**: Multiple farms (formula: availableLots / 5, minimum 2), Graveyard (placed first in random lots)
-2. **Houses**: Fill remaining lots with Simple Houses
+2. **Pond**: One oval water feature placed in a random available lot
+3. **Houses**: Fill remaining lots with Simple Houses
 
 ### Farm Layout
 - **Simple Farm**: Has two entrance gates (north and south) for multi-directional access
@@ -167,6 +169,7 @@ World._Ready()
             -> PlaceRoads()
             -> PlaceBuildingsInLots()
                 -> PlaceBuildingInAvailableLot() [for required buildings]
+                -> PlacePondInAvailableLot() [pond in random lot]
                 -> PlaceBuildingInLot() [fill remaining with houses]
             -> LogDebugVillagerSelection()
         -> GenerateTrees()
@@ -220,7 +223,6 @@ Debug mode is enabled for one villager during generation:
 
 ### Known Quirks
 - `GenerateDecorations()` method exists but is commented out
-- Water pond position uses magic numbers for bounds (15, 25)
 - `CardinalDirection` enum defined in `VillageLot.cs` (not a separate file)
 
 ## Dependencies

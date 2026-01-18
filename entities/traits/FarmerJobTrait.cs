@@ -1,7 +1,9 @@
+using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Activities;
+using VeilOfAges.Entities.Items;
 using VeilOfAges.Entities.Sensory;
 
 namespace VeilOfAges.Entities.Traits;
@@ -10,10 +12,23 @@ namespace VeilOfAges.Entities.Traits;
 /// Job trait for farmers. Farmers work at their assigned farm during daytime (Dawn/Day).
 /// At night, FarmerJobTrait returns null and VillagerTrait handles sleep behavior.
 /// </summary>
-public class FarmerJobTrait : BeingTrait
+public class FarmerJobTrait : BeingTrait, IDesiredResources
 {
     private readonly Building _assignedFarm;
     private const uint WORKDURATION = 1500; // ~3.1 real minutes, ~1.75 game hours per shift (2 shifts/day)
+
+    // Desired resource stockpile for farmer's home
+    // Farmers want to keep wheat harvested at home
+    private static readonly Dictionary<string, int> _desiredResources = new ()
+    {
+        { "wheat", 10 } // Keep harvested wheat in stock
+    };
+
+    /// <summary>
+    /// Gets the desired resource levels for the farmer's home storage.
+    /// Farmers want to stockpile wheat from their harvest.
+    /// </summary>
+    public IReadOnlyDictionary<string, int> DesiredResources => _desiredResources;
 
     public FarmerJobTrait(Building farm)
     {

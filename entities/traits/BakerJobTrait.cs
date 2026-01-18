@@ -4,6 +4,8 @@ using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Activities;
+using VeilOfAges.Entities.Items;
+using VeilOfAges.Entities.Memory;
 using VeilOfAges.Entities.Reactions;
 using VeilOfAges.Entities.Sensory;
 
@@ -12,11 +14,27 @@ namespace VeilOfAges.Entities.Traits;
 /// <summary>
 /// Job trait for bakers. Bakers work at their assigned workplace during daytime (Dawn/Day).
 /// They find reactions with "baking" or "milling" tags and process them.
+/// When missing water for baking, they will fetch water from the village well.
 /// At night, BakerJobTrait returns null and VillagerTrait handles sleep behavior.
 /// </summary>
-public class BakerJobTrait : BeingTrait
+public class BakerJobTrait : BeingTrait, IDesiredResources
 {
     private readonly Building _workplace;
+
+    // Desired resource stockpile for baker's home
+    // Bakers want flour for baking, water for dough, and bread as finished product
+    private static readonly Dictionary<string, int> _desiredResources = new ()
+    {
+        { "flour", 5 },   // Need flour for baking bread
+        { "water", 10 },  // Need water for dough
+        { "bread", 5 } // Keep some bread in stock
+    };
+
+    /// <summary>
+    /// Gets the desired resource levels for the baker's home storage.
+    /// Bakers want to stockpile flour, water, and bread.
+    /// </summary>
+    public IReadOnlyDictionary<string, int> DesiredResources => _desiredResources;
 
     // Reaction tags this baker can handle, in priority order (first = highest priority)
     private static readonly string[] _reactionTags = ["baking", "milling"];
@@ -24,6 +42,10 @@ public class BakerJobTrait : BeingTrait
     // Cooldown to prevent constant storage checking when no inputs are available
     private uint _lastStorageCheckTick;
     private const uint STORAGECHECKCOOLDOWN = 500; // ~1 minute game time at 8 ticks/sec
+
+    // Water management - how much water to maintain at the workplace for baking
+    private const int DESIREDWATERATWORKPLACE = 10;
+    private const int WATERFETCHAMOUNT = 5;
 
     public BakerJobTrait(Building workplace)
     {
@@ -53,6 +75,13 @@ public class BakerJobTrait : BeingTrait
         if (_owner.GetCurrentActivity() is CheckHomeStorageActivity)
         {
             DebugLog("BAKER", "Already checking storage, waiting for observation to complete");
+            return null;
+        }
+
+        // If already fetching resources, let the activity handle things
+        if (_owner.GetCurrentActivity() is FetchResourceActivity)
+        {
+            DebugLog("BAKER", "Already fetching resources, waiting for fetch to complete");
             return null;
         }
 
@@ -122,6 +151,14 @@ public class BakerJobTrait : BeingTrait
             DebugLog("BAKER", $"Starting reaction: {selectedReaction.Id}");
             var processActivity = new ProcessReactionActivity(selectedReaction, _workplace, storage, priority: 0);
             return new StartActivityAction(_owner, this, processActivity, priority: 0);
+        }
+
+        // No reaction available - check if water is needed and we can fetch it
+        // This takes priority over just waiting because it's proactive resource gathering
+        var waterFetchAction = TryFetchWaterIfNeeded(missingInputItemIds);
+        if (waterFetchAction != null)
+        {
+            return waterFetchAction;
         }
 
         // No reaction available - check if we should go observe the workplace storage
@@ -194,6 +231,72 @@ public class BakerJobTrait : BeingTrait
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Check if water is needed at the workplace and fetch it from the well if available.
+    /// Returns a StartActivityAction if water fetching should start, null otherwise.
+    /// </summary>
+    /// <param name="missingInputs">List of missing input item IDs from reaction checks.</param>
+    private EntityAction? TryFetchWaterIfNeeded(List<string> missingInputs)
+    {
+        if (_owner == null)
+        {
+            return null;
+        }
+
+        // Check if water is one of the missing inputs
+        if (!missingInputs.Contains("water"))
+        {
+            return null;
+        }
+
+        // Check current water level at workplace (from memory)
+        int currentWater = _owner.GetStorageItemCount(_workplace, "water");
+        if (currentWater >= DESIREDWATERATWORKPLACE)
+        {
+            // We have enough water
+            return null;
+        }
+
+        // We need water - try to find a well via SharedKnowledge
+        if (!_owner.TryFindBuildingOfType("Well", out BuildingReference? wellRef) || wellRef?.Building == null)
+        {
+            DebugLog("BAKER", "Need water but no well found via SharedKnowledge");
+            return null;
+        }
+
+        var well = wellRef.Building;
+
+        // Check if well has water available (from memory or go check it)
+        int wellWater = _owner.GetStorageItemCount(well, "water");
+        if (wellWater <= 0)
+        {
+            // We don't remember seeing water at the well, but the well regenerates water
+            // Let's go check it anyway - if we have no memory or stale memory, assume there might be water
+            var wellMemory = _owner.Memory?.RecallStorageContents(well);
+            if (wellMemory == null)
+            {
+                // No memory of well - let's go check it
+                DebugLog("BAKER", "Need water, no memory of well storage, going to check well", 0);
+                var checkWellActivity = new CheckHomeStorageActivity(well, priority: 0);
+                return new StartActivityAction(_owner, this, checkWellActivity, priority: 0);
+            }
+
+            // We have memory of the well being empty - wait for water to regenerate
+            DebugLog("BAKER", "Need water but remember well being empty, waiting for regeneration");
+            return null;
+        }
+
+        // Calculate how much water to fetch
+        int amountToFetch = System.Math.Min(WATERFETCHAMOUNT, DESIREDWATERATWORKPLACE - currentWater);
+        amountToFetch = System.Math.Max(1, amountToFetch); // At least try to get 1
+
+        DebugLog("BAKER", $"Workplace water low ({currentWater}/{DESIREDWATERATWORKPLACE}), fetching {amountToFetch} from well", 0);
+
+        // Start fetch activity
+        var fetchActivity = new FetchResourceActivity(well, _workplace, "water", amountToFetch, priority: 0);
+        return new StartActivityAction(_owner, this, fetchActivity, priority: 0);
     }
 
     public override string InitialDialogue(Being speaker)

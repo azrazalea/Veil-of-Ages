@@ -70,6 +70,7 @@ public class Item
     /// <param name="decayRateModifier">Modifier from storage container (1.0 = normal, 0.5 = half rate, etc.).</param>
     public void ApplyDecay(float decayRateModifier = 1.0f)
     {
+        // No decay if rate is zero or already spoiled
         if (Definition.BaseDecayRatePerTick <= 0 || IsSpoiled)
         {
             return;

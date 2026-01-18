@@ -1,8 +1,75 @@
-# Current Work: Resource Economy & Village Simulation
+# Current Work: Woodcutter & Village Infrastructure
 
-## Status: Memory System Complete, Ready for Next Feature
+## Status: Resource Economy Foundation Complete, Adding Resource Distribution & Firewood System
 
 ## Recently Completed (January 2026)
+
+### Well Building & Water Resource System - COMPLETE
+
+Implemented a well building and water resource system to support bread production and future building operations.
+
+#### Well Building
+- **Building Template**: 3x4 well structure placed in center of village square
+- **Water Storage**: StorageTrait that regenerates water automatically
+- **Regeneration**: Water items regenerate as a defined resource with tick-based replenishment
+
+#### Water Item Definition
+- Well-specific item definition with automatic regeneration
+- Configurable regeneration rate (ticks per item)
+- Supports per-item regeneration strategies
+
+#### Integration with Bread Production
+- Bread recipe now requires both flour AND water (in addition to flour)
+- Bakers fetch water from well when workplace storage is low
+- Multi-resource crafting chain: flour + water → bread
+
+#### FetchResourceActivity
+- New activity for entities to fetch resources between buildings
+- Intelligent fetching: checks workplace storage first, goes to source if needed
+- Works with entity memory system to find resource locations
+- Thread-safe item transfer between storages
+
+#### Baker Integration with FetchResourceActivity
+- BakerJobTrait now uses FetchResourceActivity for both flour and water
+- Workplace (baker's hall) maintains sufficient resources for baking
+- Fallback: check home storage if workplace is low
+
+#### Key Files
+- `/entities/building/buildings/well.json` - Well building template
+- `/resources/items/water.json` - Water item definition with regeneration
+- `/entities/activities/FetchResourceActivity.cs` - Resource fetching activity
+- `/entities/traits/BakerJobTrait.cs` - Updated to use FetchResourceActivity
+- `/world/generation/VillageGenerator.cs` - Well placement in village center
+
+### Village Generation Improvements - COMPLETE
+
+Major improvements to procedural village generation for better organization and gameplay.
+
+#### Road-Based Lot System
+- Center point with cross-pattern road layout
+- Lots positioned relative to roads for organized village layout
+- Dynamic lot sizing based on building templates
+
+#### Well Placement
+- Well placed in center of village square (main intersection)
+- Accessible location for villagers and bakers
+
+#### Pond Placement
+- Pond placed in a designated lot (not random placement)
+- Integrated into village infrastructure rather than haphazard
+
+#### Building Features
+- Trees avoid building entrances for better accessibility
+- Round-robin farmer assignment for multiple farms
+- Corner lot skipping to prevent building overlap
+
+#### Entity Spawning
+- Player spawns at nearest walkable tile from village center
+- Ensures player starts in accessible location
+
+#### Key Files
+- `/world/generation/VillageGenerator.cs` - Complete rewrite of generation logic
+- `/world/generation/GridArea.cs` - Supports new lot-based system
 
 ### Memory System Implementation (January 2026) - COMPLETE
 
@@ -194,6 +261,22 @@ switch (result)
 
 ## Next Steps: Planned Features
 
+### Woodcutter Job & Firewood System (Priority: High)
+- **Woodcutter's Hut**: New building for woodcutter to live/work
+- **Woodcutter Job**: Brings firewood to villager houses
+- **Firewood Item**: Houses decay firewood relatively quickly (math TBD)
+- **Firewood Need**: Houses need firewood supply maintained
+
+### Graphics & Building Assets Needed
+- **Chest**: Storage container graphic
+- **Oven**: Baking facility graphic
+- **Quern**: Grain milling facility graphic
+
+### Central Village Granary (Priority: High)
+- Shared storage for excess wheat and bread
+- Important for feeding non-farming workers (like woodcutter)
+- Community food distribution system
+
 ### Memory System Enhancements (Priority: Low)
 - **Timestamp-based propagation**: News spreads through social interactions rather than instant sharing
 - **Entity memory improvements**: Remember where specific entities were last seen
@@ -221,6 +304,12 @@ switch (result)
 - [x] Beings use memory to find food sources
 - [x] CheckHomeStorageActivity refreshes memory when needed
 - [x] Storage API wrappers auto-update memory
+- [x] Well building with water regeneration
+- [x] Bakers fetch water from well
+- [x] IDesiredResources interface for stockpile targets
+- [x] Village generation: road-based lots, well in center, pond in lot
+- [x] Trees avoid building entrances
+- [x] Player spawns at nearest walkable tile
 - [ ] Zombie eats corpse from graveyard
 - [ ] Production chain sustains village over extended time
 - [ ] Memory decay works correctly over time

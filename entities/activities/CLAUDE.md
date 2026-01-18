@@ -152,6 +152,7 @@ new GoToBuildingActivity(homeBuilding, priority: 0, targetStorage: true)
 **Behavior:**
 - Creates PathFinder with building goal or facility goal (when targetStorage=true)
 - When `targetStorage` is true and building has `RequireAdjacentToFacility` storage, uses `SetFacilityGoal("storage")` to navigate to a position adjacent to the storage facility
+- When `targetStorage` is true but `RequireAdjacentToFacility` is false (e.g., wells), uses `SetBuildingGoal` with `requireInterior: false` to navigate to building perimeter
 - Validates building still exists each tick
 - Completes when at goal position
 - Fails if building destroyed or stuck for MAX_STUCK_TICKS (50 ticks)
@@ -295,6 +296,36 @@ new ProcessReactionActivity(
 - Warns if storage is full and outputs are lost
 - Works with any ReactionDefinition that specifies inputs, outputs, and duration
 
+### FetchResourceActivity.cs
+Fetches resources from one building (source) and brings them to another (destination).
+
+**Usage:**
+```csharp
+new FetchResourceActivity(
+    sourceBuilding: well,        // Building to take items from
+    destinationBuilding: bakery, // Building to deposit items to
+    itemId: "water",             // Item ID to fetch
+    desiredQuantity: 5,          // How many items to fetch
+    priority: 0
+)
+```
+
+**Phases:**
+1. **GoingToSource** - Navigate to source building using GoToBuildingActivity with targetStorage: true
+2. **TakingResource** - Take items from source storage into inventory
+3. **GoingToDestination** - Navigate to destination building using GoToBuildingActivity with targetStorage: true
+4. **DepositingResource** - Transfer items from inventory to destination storage
+
+**Behavior:**
+- Validates both buildings exist throughout the activity
+- Takes up to desiredQuantity, or all available if less
+- Uses Being wrapper methods for storage access (auto-observes contents)
+- Completes even if destination storage is full (keeps items in inventory)
+- Fails if source has no items or inventory is full when taking
+
+**Used By:**
+- BakerJobTrait - Fetches water from Well to Bakery for baking bread
+
 ## Key Classes
 
 | Class | Description |
@@ -307,6 +338,7 @@ new ProcessReactionActivity(
 | `WorkFieldActivity` | Work at building, produce/transport wheat |
 | `ConsumeItemActivity` | Eat food from inventory/home storage |
 | `ProcessReactionActivity` | Craft items via reaction system |
+| `FetchResourceActivity` | Fetch items from one building to another |
 
 ## Integration with Being
 

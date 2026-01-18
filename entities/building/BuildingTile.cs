@@ -87,6 +87,12 @@ public class BuildingTile
                 DetectionDifficulties[SenseType.Smell] = 0.7f;
                 break;
 
+            case TileType.Well:
+                DetectionDifficulties[SenseType.Sight] = 0.9f;
+                DetectionDifficulties[SenseType.Hearing] = 0.4f;
+                DetectionDifficulties[SenseType.Smell] = 0.6f;
+                break;
+
             default:
                 DetectionDifficulties[SenseType.Sight] = 0.0f;
                 DetectionDifficulties[SenseType.Hearing] = 0.0f;
@@ -207,5 +213,6 @@ public enum TileType
     Gate,
     Foundation,
     Furniture, // Generic furniture (specific furniture types could be subclasses or have additional properties)
-    Decoration // Decorative elements
+    Decoration, // Decorative elements
+    Well // Water well structure
 }

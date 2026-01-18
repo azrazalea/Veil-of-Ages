@@ -124,36 +124,7 @@ public partial class GridGenerator : Node
             }
         }
 
-        // Add a water feature (small pond or stream)
-        Vector2I waterStart = new (
-            _rng.RandiRange(15, _activeGridArea.GridSize.X - 25),
-            _rng.RandiRange(15, _activeGridArea.GridSize.Y - 25));
-
-        // Simple pond
-        int pondSize = _rng.RandiRange(3, 6);
-        int waterTilesCount = 0;
-
-        // Place water tiles and mark them as occupied in one pass
-        for (int x = -pondSize; x <= pondSize; x++)
-        {
-            for (int y = -pondSize; y <= pondSize; y++)
-            {
-                // Create an oval pond
-                if (((x * x) / (float)(pondSize * pondSize)) + ((y * y) / (float)(pondSize * pondSize)) <= 1.0f)
-                {
-                    Vector2I pos = new (waterStart.X + x, waterStart.Y + y);
-                    if (pos.X >= 0 && pos.X < _activeGridArea.GridSize.X &&
-                        pos.Y >= 0 && pos.Y < _activeGridArea.GridSize.Y)
-                    {
-                        // Set the water tile visually
-                        _activeGridArea.SetGroundCell(pos, Area.WaterTile);
-                        waterTilesCount++;
-                    }
-                }
-            }
-        }
-
-        Log.Print($"Added water pond at {waterStart} with size {pondSize}, created {waterTilesCount} water tiles");
+        // Note: Pond/water feature is now placed by VillageGenerator in a lot
     }
 
     private void GenerateTrees()
@@ -162,6 +133,9 @@ public partial class GridGenerator : Node
         {
             return;
         }
+
+        // Collect all building entrance positions to avoid blocking them
+        var entrancePositions = GetAllBuildingEntrancePositions();
 
         // Try to place the requested number of trees
         int treesPlaced = 0;
@@ -210,6 +184,12 @@ public partial class GridGenerator : Node
                 continue; // Skip to next attempt if area isn't free
             }
 
+            // Check if tree placement would be too close to any building entrance
+            if (IsTooCloseToEntrance(gridPos, treeSize, entrancePositions, 2))
+            {
+                continue; // Skip to next attempt if too close to entrance
+            }
+
             // Place tree at grid position by instancing the scene
             Node2D tree = TreeScene.Instantiate<Node2D>();
             _entitiesContainer.AddChild(tree);
@@ -231,6 +211,71 @@ public partial class GridGenerator : Node
         }
 
         Log.Print($"Placed {treesPlaced} trees after {attempts} attempts");
+    }
+
+    /// <summary>
+    /// Collects all building entrance positions from entities in the container.
+    /// </summary>
+    /// <returns>A list of absolute grid positions representing building entrances.</returns>
+    private List<Vector2I> GetAllBuildingEntrancePositions()
+    {
+        var entrances = new List<Vector2I>();
+
+        if (_entitiesContainer == null)
+        {
+            return entrances;
+        }
+
+        // Iterate through all children in the entities container
+        foreach (Node child in _entitiesContainer.GetChildren())
+        {
+            if (child is Building building)
+            {
+                // Get all entrance positions from this building
+                var buildingEntrances = building.GetEntrancePositions();
+                entrances.AddRange(buildingEntrances);
+            }
+        }
+
+        return entrances;
+    }
+
+    /// <summary>
+    /// Checks if a tree placement would be too close to any building entrance.
+    /// Returns true if any part of the tree is within minDistance tiles of an entrance.
+    /// </summary>
+    /// <param name="treeGridPos">The top-left grid position of the tree.</param>
+    /// <param name="treeSize">The size of the tree in grid tiles.</param>
+    /// <param name="entrancePositions">List of absolute entrance positions.</param>
+    /// <param name="minDistance">Minimum distance to maintain from entrances (default 2 tiles).</param>
+    /// <returns>True if too close to an entrance, false if safe to place.</returns>
+    private static bool IsTooCloseToEntrance(Vector2I treeGridPos, Vector2I treeSize, List<Vector2I> entrancePositions, int minDistance)
+    {
+        // Check each tile of the tree against each entrance
+        for (int tx = 0; tx < treeSize.X; tx++)
+        {
+            for (int ty = 0; ty < treeSize.Y; ty++)
+            {
+                Vector2I treePos = new (treeGridPos.X + tx, treeGridPos.Y + ty);
+
+                // Check distance to each entrance
+                foreach (Vector2I entrance in entrancePositions)
+                {
+                    // Calculate Manhattan distance (simple distance check)
+                    int distanceX = System.Math.Abs(treePos.X - entrance.X);
+                    int distanceY = System.Math.Abs(treePos.Y - entrance.Y);
+                    int distance = distanceX + distanceY;
+
+                    // If any part of the tree is too close to an entrance, reject this placement
+                    if (distance <= minDistance)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     private void GenerateDecorations()

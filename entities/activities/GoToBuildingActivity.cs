@@ -53,6 +53,12 @@ public class GoToBuildingActivity : Activity
                 _pathFinder.SetBuildingGoal(owner, _targetBuilding);
             }
         }
+        else if (_targetStorage)
+        {
+            // Storage doesn't require facility adjacency - just need to reach building perimeter
+            // This is used for buildings like wells where entities access storage from outside
+            _pathFinder.SetBuildingGoal(owner, _targetBuilding, requireInterior: false);
+        }
         else
         {
             _pathFinder.SetBuildingGoal(owner, _targetBuilding);
