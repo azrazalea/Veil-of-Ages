@@ -3,6 +3,7 @@ using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Items;
+using VeilOfAges.Entities.Memory;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.Entities.Traits;
 
@@ -694,9 +695,21 @@ public partial class Building : Node2D, IEntity<Trait>
     }
 
     /// <summary>
+    /// Gets standing orders from this building's GranaryTrait, if it has one.
+    /// Used by distributors to determine what to deliver where.
+    /// </summary>
+    /// <returns>The StandingOrders if this is a granary, null otherwise.</returns>
+    public StandingOrders? GetStandingOrders()
+    {
+        var granaryTrait = Traits.OfType<GranaryTrait>().FirstOrDefault();
+        return granaryTrait?.Orders;
+    }
+
+    /// <summary>
     /// Produces an item into this building's own storage.
     /// This is the building adding to itself - NOT remote storage access.
-    /// Used when a worker triggers production (e.g., farmer working a field).
+    /// THREAD SAFETY: Only call from main thread (ProcessRegeneration, Initialize, Action.Execute).
+    /// For entity-initiated production, use ProduceToStorageAction instead.
     /// </summary>
     /// <param name="itemDefId">The item definition ID to produce (e.g., "wheat").</param>
     /// <param name="quantity">How many to produce.</param>

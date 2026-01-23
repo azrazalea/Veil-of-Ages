@@ -35,6 +35,116 @@ Pathfinding-based movement action using lazy path calculation.
 - Used for complex multi-tile navigation
 - Supports position goals, entity proximity goals, and area goals
 
+### TakeFromStorageAction.cs
+Action to take items from a building's storage into the entity's inventory.
+- Requires entity to be adjacent to the building (checked via `TakeFromStorage`)
+- Takes items using `Entity.TakeFromStorage()` which handles adjacency and memory
+- Adds taken items to entity's `InventoryTrait`
+- Returns item to storage if inventory is full or missing
+- Exposes `TakenItem` and `ActualQuantity` for post-execution inspection
+
+**Constructor:**
+```csharp
+new TakeFromStorageAction(entity, source, building, itemDefId, quantity, priority: 0)
+```
+
+### DepositToStorageAction.cs
+Action to deposit items from entity's inventory to a building's storage.
+- Requires entity to be adjacent to the building (checked via `CanAccessBuildingStorage`)
+- Uses safe `TransferTo()` method - items never disappear
+- Updates entity's memory about storage contents after transfer
+- Exposes `ActualDeposited` for post-execution inspection
+
+**Constructor:**
+```csharp
+new DepositToStorageAction(entity, source, building, itemDefId, quantity, priority: 0)
+```
+
+### TransferBetweenStoragesAction.cs
+Action to transfer items between two storage containers.
+- Source or destination must be the entity's inventory
+- For building storages, entity must be adjacent to the building
+- Uses safe `TransferTo()` method - items never disappear
+- Updates entity's memory for all buildings involved
+- Exposes `ActualTransferred` for post-execution inspection
+
+**Static Factory Methods:**
+```csharp
+// From building storage to entity inventory
+TransferBetweenStoragesAction.FromBuilding(entity, source, building, itemDefId, quantity, priority: 0)
+
+// From entity inventory to building storage
+TransferBetweenStoragesAction.ToBuilding(entity, source, building, itemDefId, quantity, priority: 0)
+```
+
+### ConsumeFromStorageAction.cs
+Action to consume (remove) items from a building's storage for in-place processing.
+Unlike TakeFromStorageAction, items are consumed directly at the workstation rather than being transferred to inventory. Used for crafting reactions.
+- Requires entity to be adjacent to the building (checked via `CanAccessBuildingStorage`)
+- Verifies items are available before consuming
+- Removes items from storage (items are consumed, not transferred to inventory)
+- Updates entity's memory about storage contents
+- Exposes `ConsumedItem` and `ActualQuantity` for post-execution inspection
+
+**Constructor:**
+```csharp
+new ConsumeFromStorageAction(entity, source, building, itemDefId, quantity, priority: 0)
+```
+
+**Used By:**
+- `ProcessReactionActivity` - Consumes reaction input items from workplace storage
+
+### ProduceToStorageAction.cs
+Action to produce (create and add) items to a building's storage from in-place processing.
+Unlike DepositToStorageAction, items are created from an item definition rather than being transferred from inventory. Used for crafting reactions.
+- Requires entity to be adjacent to the building (checked via `CanAccessBuildingStorage`)
+- Creates new items from item definition
+- Adds items to storage (logs warning if storage is full)
+- Updates entity's memory about storage contents
+- Exposes `ActualProduced` for post-execution inspection
+
+**Constructor:**
+```csharp
+new ProduceToStorageAction(entity, source, building, itemDefId, quantity, priority: 0)
+```
+
+**Used By:**
+- `ProcessReactionActivity` - Produces reaction output items to workplace storage
+
+### ConsumeFromInventoryAction.cs
+Action to consume (remove) items from the entity's own inventory for direct consumption.
+Unlike ConsumeFromStorageAction, this works with the entity's inventory rather than building storage, and does not require adjacency to any building. Used for eating food from inventory.
+- Works with entity's `InventoryTrait` directly
+- No adjacency requirement (consuming from own inventory)
+- Verifies items are available before consuming
+- Removes items from inventory (items are consumed/eaten)
+- Exposes `ConsumedItem` and `ActualQuantity` for post-execution inspection
+
+**Constructor:**
+```csharp
+new ConsumeFromInventoryAction(entity, source, itemDefId, quantity, priority: 0)
+```
+
+**Used By:**
+- `ConsumeItemActivity` - Consumes food from inventory for eating
+
+### ConsumeFromStorageByTagAction.cs
+Action to consume (remove) items from a building's storage by tag for direct consumption.
+Searches for items matching the specified tag and consumes them. Unlike TakeFromStorageAction, the items are consumed directly rather than being transferred to inventory. Used for eating food from home storage.
+- Requires entity to be adjacent to the building
+- Searches for items by tag (e.g., "food", "zombie_food")
+- Uses `Entity.TakeFromStorageByTag()` which handles adjacency check and memory observation
+- Items are consumed (eaten), not transferred to inventory
+- Exposes `ConsumedItem` and `ActualQuantity` for post-execution inspection
+
+**Constructor:**
+```csharp
+new ConsumeFromStorageByTagAction(entity, source, building, itemTag, quantity, priority: 0)
+```
+
+**Used By:**
+- `ConsumeItemActivity` - Consumes food from home storage for eating
+
 ## Key Classes/Interfaces
 
 | Class | Description |
@@ -43,6 +153,13 @@ Pathfinding-based movement action using lazy path calculation.
 | `InteractAction` | Interaction with world objects (WIP) |
 | `MoveAction` | Single-tile movement to adjacent position |
 | `MoveAlongPathAction` | Multi-tile pathfinding movement |
+| `TakeFromStorageAction` | Take items from building to inventory |
+| `DepositToStorageAction` | Deposit items from inventory to building |
+| `TransferBetweenStoragesAction` | Transfer items between storages |
+| `ConsumeFromStorageAction` | Consume items from building storage (for crafting) |
+| `ProduceToStorageAction` | Produce items to building storage (for crafting) |
+| `ConsumeFromInventoryAction` | Consume items from own inventory (for eating) |
+| `ConsumeFromStorageByTagAction` | Consume items from building storage by tag (for eating) |
 
 ## Important Notes
 
@@ -140,6 +257,52 @@ return new IdleAction(_owner!, this, priority: 1);
 ```csharp
 return new MoveAction(_owner!, this, adjacentGridPos, priority: 1);
 ```
+
+**Take from building storage** (entity must be adjacent):
+```csharp
+return new TakeFromStorageAction(_owner!, this, building, "wheat", 5, priority: 0);
+```
+
+**Deposit to building storage** (entity must be adjacent):
+```csharp
+return new DepositToStorageAction(_owner!, this, building, "bread", 3, priority: 0);
+```
+
+**Transfer using factory methods**:
+```csharp
+// From building to inventory
+return TransferBetweenStoragesAction.FromBuilding(_owner!, this, building, "flour", 10, priority: 0);
+
+// From inventory to building
+return TransferBetweenStoragesAction.ToBuilding(_owner!, this, building, "wheat", 5, priority: 0);
+```
+
+**Consume from storage for crafting** (entity must be adjacent):
+```csharp
+return new ConsumeFromStorageAction(_owner!, this, building, "flour", 5, priority: 0);
+```
+
+**Produce to storage for crafting** (entity must be adjacent):
+```csharp
+return new ProduceToStorageAction(_owner!, this, building, "bread", 3, priority: 0);
+```
+
+**Consume from inventory for eating** (no adjacency required):
+```csharp
+return new ConsumeFromInventoryAction(_owner!, this, "bread", 1, priority: 0);
+```
+
+**Consume from building storage by tag for eating** (entity must be adjacent):
+```csharp
+return new ConsumeFromStorageByTagAction(_owner!, this, homeBuilding, "food", 1, priority: 0);
+```
+
+### Storage Action Safety
+All storage transfer actions use the `IStorageContainer.TransferTo()` method which:
+- Checks destination capacity before removing from source
+- Only transfers what will fit (partial transfers are allowed)
+- Never loses items - if destination can't accept, items stay in source
+- Returns actual quantity transferred for verification
 
 ## Dependencies
 

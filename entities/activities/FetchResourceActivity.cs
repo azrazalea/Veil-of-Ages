@@ -37,6 +37,8 @@ public class FetchResourceActivity : Activity
     private GoToBuildingActivity? _goToDestinationPhase;
     private FetchPhase _currentPhase = FetchPhase.GoingToSource;
     private int _actualQuantityTaken;
+    private TakeFromStorageAction? _takeAction;
+    private DepositToStorageAction? _depositAction;
 
     public override string DisplayName => _currentPhase switch
     {
@@ -152,15 +154,30 @@ public class FetchResourceActivity : Activity
             return null;
         }
 
-        var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
-        if (inventory == null)
+        // If we already have a take action in progress, check if it completed
+        if (_takeAction != null)
         {
-            Log.Warn($"{_owner.Name}: No inventory to carry {_itemId}");
-            Fail();
-            return null;
+            // Action was executed - check result via the callback-set value
+            if (_actualQuantityTaken > 0)
+            {
+                // Success - move to next phase
+                Log.Print($"{_owner.Name}: Took {_actualQuantityTaken}x {_itemId} from {_sourceBuilding.BuildingName}");
+                DebugLog("FETCH", $"Took {_actualQuantityTaken}x {_itemId}, transitioning to GoingToDestination", 0);
+                _takeAction = null;
+                _currentPhase = FetchPhase.GoingToDestination;
+                return new IdleAction(_owner, this, Priority);
+            }
+            else
+            {
+                // Action failed
+                DebugLog("FETCH", $"Failed to take {_itemId} from storage", 0);
+                _takeAction = null;
+                Fail();
+                return null;
+            }
         }
 
-        // Check how much is available using wrapper (auto-observes)
+        // Check how much is available using memory (auto-observes)
         int available = _owner.GetStorageItemCount(_sourceBuilding, _itemId);
         if (available == 0)
         {
@@ -172,36 +189,23 @@ public class FetchResourceActivity : Activity
         // Take up to desired quantity, or all available if less
         int actualAmount = System.Math.Min(_desiredQuantity, available);
 
-        // Use wrapper method - auto-observes storage contents after taking
-        var item = _owner.TakeFromStorage(_sourceBuilding, _itemId, actualAmount);
-        if (item != null)
+        // Create TakeFromStorageAction with callback to track result
+        _takeAction = new TakeFromStorageAction(
+            _owner,
+            this,
+            _sourceBuilding,
+            _itemId,
+            actualAmount,
+            Priority)
         {
-            // Record how much was actually taken from source
-            _actualQuantityTaken = item.Quantity;
-
-            if (inventory.AddItem(item))
+            OnSuccessful = (action) =>
             {
-                Log.Print($"{_owner.Name}: Took {_actualQuantityTaken}x {_itemId} from {_sourceBuilding.BuildingName}");
-                DebugLog("FETCH", $"Took {_actualQuantityTaken}x {_itemId}, transitioning to GoingToDestination", 0);
+                var takeAction = (TakeFromStorageAction)action;
+                _actualQuantityTaken = takeAction.ActualQuantity;
             }
-            else
-            {
-                // Inventory full, put it back using wrapper
-                _owner.PutInStorage(_sourceBuilding, item);
-                Log.Warn($"{_owner.Name}: Inventory full, leaving {_itemId} at {_sourceBuilding.BuildingName}");
-                Fail();
-                return null;
-            }
-        }
-        else
-        {
-            DebugLog("FETCH", $"Failed to take {_itemId} from storage", 0);
-            Fail();
-            return null;
-        }
+        };
 
-        _currentPhase = FetchPhase.GoingToDestination;
-        return new IdleAction(_owner, this, Priority);
+        return _takeAction;
     }
 
     private EntityAction? ProcessGoingToDestination(Vector2I position, Perception perception)
@@ -249,6 +253,27 @@ public class FetchResourceActivity : Activity
             return null;
         }
 
+        // If we already have a deposit action in progress, check if it completed
+        if (_depositAction != null)
+        {
+            // Action was executed - check result
+            int deposited = _depositAction.ActualDeposited;
+            if (deposited > 0)
+            {
+                Log.Print($"{_owner.Name}: Stored {deposited}x {_itemId} at {_destinationBuilding.BuildingName}");
+                DebugLog("FETCH", $"Deposited {deposited}x {_itemId}, activity complete", 0);
+            }
+            else
+            {
+                // Deposit failed - items stay in inventory
+                Log.Warn($"{_owner.Name}: {_destinationBuilding.BuildingName} storage full, keeping {_itemId} in inventory");
+            }
+
+            _depositAction = null;
+            Complete();
+            return null;
+        }
+
         var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
         if (inventory == null)
         {
@@ -256,9 +281,7 @@ public class FetchResourceActivity : Activity
             return null;
         }
 
-        // Transfer the actual amount we took from source to destination storage
-        // Use _actualQuantityTaken instead of what's currently in inventory
-        // in case some was consumed or dropped elsewhere
+        // Check how much we have in inventory
         int itemCount = inventory.GetItemCount(_itemId);
         if (itemCount == 0)
         {
@@ -267,25 +290,18 @@ public class FetchResourceActivity : Activity
             return null;
         }
 
-        // Remove from inventory (take up to what we actually took from source)
-        var item = inventory.RemoveItem(_itemId, System.Math.Min(itemCount, _actualQuantityTaken));
-        if (item != null)
-        {
-            // Use wrapper method - auto-observes storage contents
-            if (_owner.PutInStorage(_destinationBuilding, item))
-            {
-                Log.Print($"{_owner.Name}: Stored {item.Quantity}x {_itemId} at {_destinationBuilding.BuildingName}");
-                DebugLog("FETCH", $"Deposited {item.Quantity}x {_itemId}, activity complete", 0);
-            }
-            else
-            {
-                // Destination storage full, keep in inventory
-                inventory.AddItem(item);
-                Log.Warn($"{_owner.Name}: {_destinationBuilding.BuildingName} storage full, keeping {_itemId} in inventory");
-            }
-        }
+        // Create DepositToStorageAction to transfer items
+        // Take up to what we actually took from source
+        int amountToDeposit = System.Math.Min(itemCount, _actualQuantityTaken);
 
-        Complete();
-        return null;
+        _depositAction = new DepositToStorageAction(
+            _owner,
+            this,
+            _destinationBuilding,
+            _itemId,
+            amountToDeposit,
+            Priority);
+
+        return _depositAction;
     }
 }

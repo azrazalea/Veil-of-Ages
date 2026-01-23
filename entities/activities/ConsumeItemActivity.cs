@@ -11,6 +11,8 @@ namespace VeilOfAges.Entities.Activities;
 /// <summary>
 /// Activity for consuming food items from inventory or home storage.
 /// Checks inventory first, then travels to home if needed.
+/// Uses ConsumeFromInventoryAction for inventory food and
+/// ConsumeFromStorageByTagAction for home storage food.
 /// </summary>
 public class ConsumeItemActivity : Activity
 {
@@ -23,8 +25,10 @@ public class ConsumeItemActivity : Activity
     private GoToBuildingActivity? _goToPhase;
     private uint _consumptionTimer;
     private bool _isConsuming;
+    private bool _consumeActionIssued;
     private bool _itemConsumed;
-    private IStorageContainer? _sourceStorage;
+    private bool _isFromInventory;
+    private string? _foodItemId; // Item ID for inventory consumption (found during validation)
 
     public override string DisplayName => _isConsuming
         ? "Eating"
@@ -73,7 +77,8 @@ public class ConsumeItemActivity : Activity
                 var foodItem = inventory.FindItemByTag(_foodTag);
                 if (foodItem != null)
                 {
-                    _sourceStorage = inventory;
+                    _isFromInventory = true;
+                    _foodItemId = foodItem.Definition.Id;
                     _isConsuming = true;
                 }
             }
@@ -114,10 +119,8 @@ public class ConsumeItemActivity : Activity
             // We've arrived - check home storage for food using wrapper (auto-observes)
             if (_owner.StorageHasItemByTag(_home, _foodTag))
             {
+                _isFromInventory = false;
                 _isConsuming = true;
-
-                // Note: _sourceStorage stays null for home storage case
-                // We'll use the wrapper method TakeFromStorageByTag when consuming
             }
             else
             {
@@ -139,38 +142,45 @@ public class ConsumeItemActivity : Activity
         // Phase 2: Consume the item
         if (_isConsuming)
         {
-            // On first consumption tick, remove the item
-            if (!_itemConsumed)
+            // On first tick of consuming, issue the consume action
+            if (!_consumeActionIssued)
             {
-                Item? consumed = null;
+                _consumeActionIssued = true;
 
-                // Check if food is from inventory (_sourceStorage set) or home storage
-                if (_sourceStorage != null)
+                if (_isFromInventory && _foodItemId != null)
                 {
-                    // Consuming from inventory (already validated)
-                    var foodItem = _sourceStorage.FindItemByTag(_foodTag);
-                    if (foodItem?.Definition.Id != null)
-                    {
-                        consumed = _sourceStorage.RemoveItem(foodItem.Definition.Id, 1);
-                    }
+                    // Consuming from inventory - use ConsumeFromInventoryAction
+                    return new ConsumeFromInventoryAction(
+                        _owner,
+                        this,
+                        _foodItemId,
+                        1,
+                        Priority);
                 }
                 else if (_home != null)
                 {
-                    // Consuming from home storage - use wrapper method (auto-observes)
-                    consumed = _owner.TakeFromStorageByTag(_home, _foodTag, 1);
-                }
-
-                if (consumed != null)
-                {
-                    _itemConsumed = true;
+                    // Consuming from home storage - use ConsumeFromStorageByTagAction
+                    return new ConsumeFromStorageByTagAction(
+                        _owner,
+                        this,
+                        _home,
+                        _foodTag,
+                        1,
+                        Priority);
                 }
                 else
                 {
-                    // Food disappeared - if from home, memory is now updated
-                    Log.Warn($"{_owner.Name}: Food disappeared before consumption");
+                    // No valid source - should not happen but handle gracefully
+                    Log.Warn($"{_owner.Name}: No valid food source for consumption");
                     Fail();
                     return null;
                 }
+            }
+
+            // After action has been issued and presumably executed, mark item as consumed
+            if (!_itemConsumed)
+            {
+                _itemConsumed = true;
             }
 
             _consumptionTimer++;

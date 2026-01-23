@@ -783,7 +783,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     /// </summary>
     /// <param name="building">The building to check storage access for.</param>
     /// <returns>True if the entity can access the building's storage.</returns>
-    private bool CanAccessBuildingStorage(Building building)
+    public bool CanAccessBuildingStorage(Building building)
     {
         // First check basic building adjacency
         if (!IsAdjacentToBuilding(building))

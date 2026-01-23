@@ -131,4 +131,86 @@ public interface IStorageContainer
 
         return sb.Length > 0 ? sb.ToString() : "empty";
     }
+
+    /// <summary>
+    /// Calculate how many of an item can be added based on remaining capacity.
+    /// This checks both volume and weight limits to determine the maximum quantity
+    /// that can fit in the container.
+    /// </summary>
+    /// <param name="itemDefId">The item definition ID to check.</param>
+    /// <param name="desiredQuantity">The desired quantity to add.</param>
+    /// <returns>The maximum quantity that can be added (0 to desiredQuantity).</returns>
+    int GetAddableQuantity(string itemDefId, int desiredQuantity)
+    {
+        if (desiredQuantity <= 0)
+        {
+            return 0;
+        }
+
+        var itemDef = ItemResourceManager.Instance.GetDefinition(itemDefId);
+        if (itemDef == null)
+        {
+            return 0;
+        }
+
+        int maxByVolume = itemDef.VolumeM3 > 0
+            ? (int)(RemainingVolume / itemDef.VolumeM3)
+            : int.MaxValue;
+
+        int maxByWeight = WeightCapacity < 0
+            ? int.MaxValue
+            : (itemDef.WeightKg > 0 ? (int)(RemainingWeight / itemDef.WeightKg) : int.MaxValue);
+
+        return System.Math.Min(desiredQuantity, System.Math.Min(maxByVolume, maxByWeight));
+    }
+
+    /// <summary>
+    /// Transfer items from this container to another.
+    /// Returns the actual quantity transferred (may be less than requested).
+    /// Items NEVER disappear - they stay in source if destination cannot accept them.
+    /// This is the safe transfer method that handles partial transfers automatically.
+    /// </summary>
+    /// <param name="destination">The destination container to transfer items to.</param>
+    /// <param name="itemDefId">The item definition ID to transfer.</param>
+    /// <param name="quantity">The desired quantity to transfer.</param>
+    /// <returns>The actual quantity that was transferred (0 to quantity).</returns>
+    int TransferTo(IStorageContainer destination, string itemDefId, int quantity)
+    {
+        if (quantity <= 0 || destination == null)
+        {
+            return 0;
+        }
+
+        // Check how many we have
+        int available = GetItemCount(itemDefId);
+        if (available <= 0)
+        {
+            return 0;
+        }
+
+        // Check how many destination can accept
+        int toTransfer = System.Math.Min(quantity, available);
+        int canAccept = destination.GetAddableQuantity(itemDefId, toTransfer);
+        if (canAccept <= 0)
+        {
+            return 0;
+        }
+
+        // Remove only what will fit
+        var item = RemoveItem(itemDefId, canAccept);
+        if (item == null)
+        {
+            return 0;
+        }
+
+        // Add to destination - should always succeed since we checked capacity
+        if (!destination.AddItem(item))
+        {
+            // Safety fallback: put back if somehow failed
+            AddItem(item);
+            return 0;
+        }
+
+        return item.Quantity;
+    }
 }

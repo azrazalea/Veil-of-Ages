@@ -214,6 +214,7 @@ compounding effects. Decay multipliers are reserved for passive effects.
 
 ### ConsumeItemActivity.cs
 Consumes food items from inventory or home storage to restore a need.
+Uses `ConsumeFromInventoryAction` for inventory food and `ConsumeFromStorageByTagAction` for home storage food.
 
 **Usage:**
 ```csharp
@@ -230,13 +231,15 @@ new ConsumeItemActivity(
 **Phases:**
 1. **Check Inventory** - If entity has food in inventory, start consuming immediately
 2. **Go to Home** - If no food in inventory, travel to home using GoToBuildingActivity
-3. **Check Home Storage** - Look for food in home storage
-4. **Consume** - Remove 1 unit of food, idle for consumption duration, then restore need
+3. **Check Home Storage** - Look for food in home storage (uses memory check)
+4. **Issue Consume Action** - Return `ConsumeFromInventoryAction` or `ConsumeFromStorageByTagAction`
+5. **Consumption Timer** - Idle for consumption duration, then restore need
 
 **Behavior:**
 - Checks inventory first (no travel needed if food found)
 - Validates home building still exists during travel
-- Removes food item on first consumption tick (item is "claimed")
+- Uses `ConsumeFromInventoryAction` for inventory consumption (by item ID)
+- Uses `ConsumeFromStorageByTagAction` for home storage consumption (by tag)
 - Applies need restoration only after consumption duration completes
 - Fails if no food found in inventory and no home, or home has no food
 
@@ -270,6 +273,7 @@ When an entity is hungry but has no memory of food locations:
 
 ### ProcessReactionActivity.cs
 Processes a crafting reaction (input items -> output items) at a workplace.
+Uses `ConsumeFromStorageAction` and `ProduceToStorageAction` for storage operations.
 
 **Usage:**
 ```csharp
@@ -283,18 +287,21 @@ new ProcessReactionActivity(
 
 **Phases:**
 1. **Go to Workplace** - Navigate to workplace if specified (skipped if null)
-2. **Verify Inputs** - Check all required inputs are available in storage
-3. **Consume Inputs** - Remove input items from storage
-4. **Process** - Wait for reaction duration (idle)
-5. **Produce Outputs** - Create output items and add to storage
+2. **Go to Facility** - Navigate to specific facility if reaction requires one
+3. **Verify Inputs** - Check all required inputs are available in storage
+4. **Consume Inputs** - Remove input items from storage using `ConsumeFromStorageAction` (one action per input type)
+5. **Process** - Wait for reaction duration (idle), spend energy based on EnergyCostMultiplier
+6. **Produce Outputs** - Create output items and add to storage using `ProduceToStorageAction` (one action per output type)
 
 **Behavior:**
 - Validates workplace exists during travel
 - Verifies all inputs available before consuming any
-- Consumes all inputs atomically on first processing tick
-- Creates output items using ItemResourceManager definitions
+- Consumes inputs one at a time using `ConsumeFromStorageAction`
+- Creates output items one at a time using `ProduceToStorageAction`
+- Updates entity's memory about storage contents via actions
 - Warns if storage is full and outputs are lost
 - Works with any ReactionDefinition that specifies inputs, outputs, and duration
+- Falls back to direct storage manipulation if workplace is null (legacy behavior)
 
 ### FetchResourceActivity.cs
 Fetches resources from one building (source) and brings them to another (destination).

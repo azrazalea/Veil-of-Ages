@@ -1,7 +1,6 @@
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
-using VeilOfAges.Entities.Items;
 using VeilOfAges.Entities.Needs;
 using VeilOfAges.Entities.Reactions;
 using VeilOfAges.Entities.Sensory;
@@ -14,6 +13,7 @@ namespace VeilOfAges.Entities.Activities;
 /// Goes to workplace (if specified), navigates to required facility,
 /// checks inputs, waits for duration, consumes inputs, and produces outputs.
 /// Consumes energy while processing based on reaction's EnergyCostMultiplier.
+/// Uses ConsumeFromStorageAction and ProduceToStorageAction for storage operations.
 /// </summary>
 public class ProcessReactionActivity : Activity
 {
@@ -28,11 +28,20 @@ public class ProcessReactionActivity : Activity
     private GoToBuildingActivity? _goToBuildingPhase;
     private GoToFacilityActivity? _goToFacilityPhase;
     private uint _processTimer;
+    private uint _variedDuration;
     private bool _isAtBuilding;
     private bool _isAtFacility;
     private bool _isProcessing;
-    private bool _inputsConsumed;
     private Need? _energyNeed;
+
+    // Input consumption tracking
+    private int _currentInputIndex;
+    private bool _inputsVerified;
+    private bool _inputsConsumed;
+
+    // Output production tracking
+    private int _currentOutputIndex;
+    private bool _outputsProduced;
 
     public override string DisplayName => _isProcessing
         ? $"Processing {_reaction.Name}"
@@ -66,6 +75,9 @@ public class ProcessReactionActivity : Activity
 
         // Get energy need for direct energy cost while processing
         _energyNeed = owner.NeedsSystem?.GetNeed("energy");
+
+        // Apply variance to reaction duration (+-15%)
+        _variedDuration = ActivityTiming.GetVariedDuration(_reaction.Duration, 0.15f);
     }
 
     public override EntityAction? GetNextAction(Vector2I position, Perception perception)
@@ -167,53 +179,76 @@ public class ProcessReactionActivity : Activity
         // Phase 4: Check inputs and process
         if (_isProcessing)
         {
-            // On first processing tick, verify and consume inputs
-            if (!_inputsConsumed)
+            // Phase 4a: Verify all inputs are available before consuming
+            if (!_inputsVerified)
             {
-                if (!VerifyAndConsumeInputs())
+                if (!VerifyInputsAvailable())
                 {
                     Log.Warn($"{_owner.Name}: Missing inputs for {_reaction.Name}");
                     Fail();
                     return null;
                 }
 
+                _inputsVerified = true;
+            }
+
+            // Phase 4b: Consume inputs one at a time using ConsumeFromStorageAction
+            if (!_inputsConsumed)
+            {
+                var consumeAction = GetNextConsumeInputAction();
+                if (consumeAction != null)
+                {
+                    return consumeAction;
+                }
+
+                // All inputs consumed
                 _inputsConsumed = true;
                 Log.Print($"{_owner.Name}: Started processing {_reaction.Name}");
             }
 
+            // Phase 4c: Wait for processing duration
             _processTimer++;
 
             // Spend energy while processing (base cost * reaction multiplier)
             float energyCost = BASEENERGYCOSTPERTICK * _reaction.EnergyCostMultiplier;
             _energyNeed?.Restore(-energyCost);
 
-            if (_processTimer >= _reaction.Duration)
+            if (_processTimer < _variedDuration)
             {
-                // Processing complete - produce outputs
-                ProduceOutputs();
+                // Still processing, idle
+                return new IdleAction(_owner, this, Priority);
+            }
+
+            // Phase 4d: Produce outputs one at a time using ProduceToStorageAction
+            if (!_outputsProduced)
+            {
+                var produceAction = GetNextProduceOutputAction();
+                if (produceAction != null)
+                {
+                    return produceAction;
+                }
+
+                // All outputs produced
+                _outputsProduced = true;
                 Log.Print($"{_owner.Name}: Completed {_reaction.Name} (Storage: {_storage.GetContentsSummary()})");
                 Complete();
                 return null;
             }
-
-            // Still processing, idle
-            return new IdleAction(_owner, this, Priority);
         }
 
         return null;
     }
 
     /// <summary>
-    /// Verify inputs are available and consume them.
+    /// Verify all inputs are available before we start consuming them.
     /// </summary>
-    private bool VerifyAndConsumeInputs()
+    private bool VerifyInputsAvailable()
     {
         if (_reaction.Inputs == null || _reaction.Inputs.Count == 0)
         {
             return true;
         }
 
-        // First verify all inputs are available
         foreach (var input in _reaction.Inputs)
         {
             if (!_storage.HasItem(input.ItemId, input.Quantity))
@@ -222,45 +257,98 @@ public class ProcessReactionActivity : Activity
             }
         }
 
-        // Then consume them
-        foreach (var input in _reaction.Inputs)
-        {
-            var removed = _storage.RemoveItem(input.ItemId, input.Quantity);
-            if (removed == null)
-            {
-                // This shouldn't happen since we just verified, but handle it
-                Log.Error($"ProcessReactionActivity: Failed to consume {input.Quantity}x {input.ItemId}");
-                return false;
-            }
-        }
-
         return true;
     }
 
     /// <summary>
-    /// Produce output items and add to storage.
+    /// Get the next ConsumeFromStorageAction for consuming inputs.
+    /// Returns null when all inputs have been consumed.
     /// </summary>
-    private void ProduceOutputs()
+    private EntityAction? GetNextConsumeInputAction()
+    {
+        if (_reaction.Inputs == null || _reaction.Inputs.Count == 0)
+        {
+            return null;
+        }
+
+        if (_currentInputIndex >= _reaction.Inputs.Count)
+        {
+            return null;
+        }
+
+        var input = _reaction.Inputs[_currentInputIndex];
+        _currentInputIndex++;
+
+        if (_workplace == null)
+        {
+            // No workplace - should not happen since we verify inputs are available,
+            // but if there's no building, we can't use the action-based approach.
+            // Fall back to direct storage manipulation (legacy behavior).
+            var removed = _storage.RemoveItem(input.ItemId, input.Quantity);
+            if (removed == null)
+            {
+                Log.Error($"ProcessReactionActivity: Failed to consume {input.Quantity}x {input.ItemId} (no workplace)");
+            }
+
+            // Return an idle action to advance to next input
+            return new IdleAction(_owner!, this, Priority);
+        }
+
+        return new ConsumeFromStorageAction(
+            _owner!,
+            this,
+            _workplace,
+            input.ItemId,
+            input.Quantity,
+            Priority);
+    }
+
+    /// <summary>
+    /// Get the next ProduceToStorageAction for producing outputs.
+    /// Returns null when all outputs have been produced.
+    /// </summary>
+    private EntityAction? GetNextProduceOutputAction()
     {
         if (_reaction.Outputs == null || _reaction.Outputs.Count == 0)
         {
-            return;
+            return null;
         }
 
-        foreach (var output in _reaction.Outputs)
+        if (_currentOutputIndex >= _reaction.Outputs.Count)
         {
-            var itemDef = ItemResourceManager.Instance.GetDefinition(output.ItemId);
+            return null;
+        }
+
+        var output = _reaction.Outputs[_currentOutputIndex];
+        _currentOutputIndex++;
+
+        if (_workplace == null)
+        {
+            // No workplace - fall back to direct storage manipulation (legacy behavior).
+            var itemDef = Items.ItemResourceManager.Instance.GetDefinition(output.ItemId);
             if (itemDef == null)
             {
-                Log.Error($"ProcessReactionActivity: Output item '{output.ItemId}' not found");
-                continue;
+                Log.Error($"ProcessReactionActivity: Output item '{output.ItemId}' not found (no workplace)");
+            }
+            else
+            {
+                var item = new Items.Item(itemDef, output.Quantity);
+                if (!_storage.AddItem(item))
+                {
+                    Log.Warn($"{_owner?.Name}: Storage full, {output.Quantity}x {output.ItemId} lost!");
+                }
             }
 
-            var item = new Item(itemDef, output.Quantity);
-            if (!_storage.AddItem(item))
-            {
-                Log.Warn($"{_owner?.Name}: Storage full, {output.Quantity}x {output.ItemId} lost!");
-            }
+            // Return an idle action to advance to next output
+            return new IdleAction(_owner!, this, Priority);
         }
+
+        return new ProduceToStorageAction(
+            _owner!,
+            this,
+            _workplace,
+            output.ItemId,
+            output.Quantity,
+            Priority);
     }
 }
