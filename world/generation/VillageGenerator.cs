@@ -33,6 +33,9 @@ public class VillageGenerator
     // Track placed houses for assigning villagers
     private readonly List<Building> _placedHouses = [];
 
+    // Track placed granary for distributor assignment
+    private Building? _placedGranary;
+
     // Track spawned villagers for debug selection
     private readonly List<Being> _spawnedVillagers = [];
 
@@ -119,7 +122,7 @@ public class VillageGenerator
             villageSquareRadius: 3,  // 7x7 central square
             roadWidth: 2,
             lotSize: optimalLotSize,
-            lotsPerSide: 3);           // 24 total lots
+            lotsPerSide: 4);           // More lots for bigger village
         _roadNetwork.GenerateLayout();
 
         // Place village square and roads as dirt tiles
@@ -279,12 +282,20 @@ public class VillageGenerator
         int availableLots = _roadNetwork.GetAvailableLots().Count;
 
         // Place 1 farm for every 4 houses, with a minimum of 2 farms
-        // Formula: for every 4 houses we need 1 farm = 5 lots total
-        // So: farmCount = availableLots / 5 (integer division)
-        // This leaves: availableLots - 1 (graveyard) - 1 (pond) - farmCount (farms) = houses
         int farmCount = Math.Max(2, availableLots / 5);
 
-        Log.Print($"VillageGenerator: Placing {farmCount} farms in {availableLots} total lots");
+        Log.Print($"VillageGenerator: Placing granary + {farmCount} farms in {availableLots} total lots");
+
+        // Priority 0: Granary in corner lot (near center)
+        var cornerLot = GetCornerLot();
+        if (cornerLot != null)
+        {
+            PlaceBuildingInLot("Granary", cornerLot);
+        }
+        else
+        {
+            PlaceBuildingInAvailableLot("Granary"); // fallback
+        }
 
         // Priority 1: Required buildings and features (farms, graveyard, pond)
         for (int i = 0; i < farmCount; i++)
@@ -292,7 +303,16 @@ public class VillageGenerator
             PlaceBuildingInAvailableLot("Simple Farm");
         }
 
-        PlaceBuildingInAvailableLot("Graveyard");
+        // Graveyard in edge lot (far from center)
+        var edgeLot = GetEdgeLot();
+        if (edgeLot != null)
+        {
+            PlaceBuildingInLot("Graveyard", edgeLot);
+        }
+        else
+        {
+            PlaceBuildingInAvailableLot("Graveyard"); // fallback
+        }
 
         // Place pond in an available lot
         PlacePondInAvailableLot();
@@ -308,6 +328,9 @@ public class VillageGenerator
 
             PlaceBuildingInLot("Simple House", lot);
         }
+
+        // Initialize granary standing orders after all houses are placed
+        InitializeGranaryOrders();
     }
 
     /// <summary>
@@ -338,6 +361,38 @@ public class VillageGenerator
         }
 
         PlaceBuildingInLot(buildingType, lot);
+    }
+
+    /// <summary>
+    /// Gets an available corner lot (where AdjacentRoad is null).
+    /// Corner lots are added last to AllLots and don't belong to a road segment.
+    /// </summary>
+    private VillageLot? GetCornerLot()
+    {
+        return _roadNetwork?.AllLots
+            .Where(l => l.State == LotState.Available && l.AdjacentRoad == null)
+            .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Gets an available edge lot (furthest from village center).
+    /// Edge lots are road lots (AdjacentRoad != null) sorted by distance from center.
+    /// </summary>
+    private VillageLot? GetEdgeLot()
+    {
+        var edgeLots = _roadNetwork?.AllLots
+            .Where(l => l.State == LotState.Available && l.AdjacentRoad != null)
+            .ToList();
+
+        if (edgeLots == null || edgeLots.Count == 0)
+        {
+            return null;
+        }
+
+        // Pick the one furthest from village center
+        return edgeLots.OrderByDescending(l =>
+            (l.Position - _roadNetwork!.VillageCenter).LengthSquared())
+            .FirstOrDefault();
     }
 
     /// <summary>
@@ -495,7 +550,96 @@ public class VillageGenerator
                 SpawnUndeadNearBuilding(buildingPos, buildingSize, _skeletonScene, building);
                 SpawnUndeadNearBuilding(buildingPos, buildingSize, _zombieScene, building);
                 break;
+
+            case "Granary":
+                // Track granary for order initialization
+                _placedGranary = building;
+
+                // Add GranaryTrait to the building
+                var granaryTrait = new GranaryTrait();
+                building.Traits.Add(granaryTrait);
+
+                // Stock granary with initial supplies
+                StockGranaryWithFood(building);
+
+                // Distributor is spawned later in InitializeGranaryOrders() after houses are placed
+                break;
         }
+    }
+
+    /// <summary>
+    /// Initialize granary standing orders based on placed households.
+    /// Called after all buildings are placed so we know which houses have bakers.
+    /// Also spawns the distributor now that houses are available.
+    /// </summary>
+    private void InitializeGranaryOrders()
+    {
+        if (_placedGranary == null || _currentVillage == null)
+        {
+            return;
+        }
+
+        // Get granary trait and initialize orders from village
+        var granaryTrait = _placedGranary.Traits.OfType<GranaryTrait>().FirstOrDefault();
+        if (granaryTrait == null)
+        {
+            Log.Warn("VillageGenerator: Granary has no GranaryTrait");
+            return;
+        }
+
+        granaryTrait.InitializeOrdersFromVillage(_currentVillage);
+        Log.Print($"VillageGenerator: Initialized granary orders: {granaryTrait.GetOrdersSummary()}");
+
+        // Spawn distributor now that houses are available
+        Vector2I granaryPos = _placedGranary.GetCurrentGridPosition();
+        Vector2I granarySize = _placedGranary.GridSize;
+        SpawnDistributorNearGranary(granaryPos, granarySize);
+    }
+
+    /// <summary>
+    /// Spawns a distributor near the granary and assigns them to a house.
+    /// The distributor will be assigned to the first house with space.
+    /// </summary>
+    private void SpawnDistributorNearGranary(Vector2I granaryPos, Vector2I granarySize)
+    {
+        if (_placedGranary == null)
+        {
+            return;
+        }
+
+        // Find a house for the distributor to live in
+        Building? distributorHome = null;
+        foreach (var house in _placedHouses)
+        {
+            // Each house has capacity 2, check if there's room
+            var residents = house.GetResidents();
+            if (residents.Count < 2)
+            {
+                distributorHome = house;
+                break;
+            }
+        }
+
+        // If no house has space, use the first house (distributor will share)
+        if (distributorHome == null && _placedHouses.Count > 0)
+        {
+            distributorHome = _placedHouses[0];
+        }
+
+        if (distributorHome == null)
+        {
+            Log.Warn("VillageGenerator: No house available for distributor");
+            return;
+        }
+
+        // Spawn the distributor near the granary
+        SpawnVillagerNearBuilding(
+            granaryPos,
+            granarySize,
+            _townsfolkScene,
+            home: distributorHome,
+            job: "distributor",
+            workplace: _placedGranary);
     }
 
     /// <summary>
@@ -619,6 +763,15 @@ public class VillageGenerator
                             Log.Print($"Spawned baker at {beingPos}, working at {workplace.BuildingName}");
                             break;
 
+                        case "distributor":
+                            var distributorTrait = new DistributorJobTrait(workplace);
+                            typedBeing.SelfAsEntity().AddTraitToQueue(distributorTrait, priority: -1);
+
+                            // Enable debug logging for distributor to verify behavior
+                            typedBeing.DebugEnabled = true;
+                            Log.Print($"Spawned distributor at {beingPos}, working at {workplace.BuildingName}, living at {home?.BuildingName ?? "unknown"} (DEBUG ENABLED)");
+                            break;
+
                         default:
                             Log.Warn($"Unknown job type: {job}");
                             break;
@@ -677,6 +830,39 @@ public class VillageGenerator
         if (storage.AddItem(bread))
         {
             Log.Print($"Stocked {house.BuildingName} with {breadCount} bread");
+        }
+    }
+
+    /// <summary>
+    /// Stock a granary with initial food supplies for distribution.
+    /// </summary>
+    private void StockGranaryWithFood(Building granary)
+    {
+        var storage = granary.GetStorage();
+        if (storage == null)
+        {
+            Log.Warn($"Granary {granary.BuildingName} has no storage for initial food");
+            return;
+        }
+
+        // Add bread for non-baker households
+        var breadDef = ItemResourceManager.Instance.GetDefinition("bread");
+        if (breadDef != null)
+        {
+            int breadCount = _rng.RandiRange(20, 30);
+            var bread = new Item(breadDef, breadCount);
+            storage.AddItem(bread);
+            Log.Print($"Stocked {granary.BuildingName} with {breadCount} bread");
+        }
+
+        // Add wheat for baker households
+        var wheatDef = ItemResourceManager.Instance.GetDefinition("wheat");
+        if (wheatDef != null)
+        {
+            int wheatCount = _rng.RandiRange(30, 50);
+            var wheat = new Item(wheatDef, wheatCount);
+            storage.AddItem(wheat);
+            Log.Print($"Stocked {granary.BuildingName} with {wheatCount} wheat");
         }
     }
 

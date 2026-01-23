@@ -98,7 +98,7 @@ public class RoadNetwork
     /// <summary>
     /// Generate the complete road network with lots.
     /// Creates 4 roads extending from center (N, S, E, W) with lots on both sides.
-    /// Corner lots (closest to center) are skipped to prevent overlap where roads meet.
+    /// Corner lots are placed manually via CreateCornerLots() to avoid overlap where roads meet.
     /// </summary>
     public void GenerateLayout()
     {
@@ -136,12 +136,56 @@ public class RoadNetwork
         CreateLotsAlongRoad(westRoad, CardinalDirection.East); // Lots face east toward road
         Roads.Add(westRoad);
 
-        // Collect all lots
+        // Collect all lots from roads
         AllLots.Clear();
         foreach (var road in Roads)
         {
             AllLots.AddRange(road.AllLots);
         }
+
+        // Create corner lots that don't belong to any specific road
+        // (added after road lots so they don't get cleared)
+        CreateCornerLots();
+    }
+
+    /// <summary>
+    /// Create 4 corner lots around the village square in positions that don't overlap
+    /// with roads or each other. These fill the gaps left by skipping corner lots
+    /// in CreateLotsAlongRoad().
+    /// </summary>
+    private void CreateCornerLots()
+    {
+        // Corner lots are placed diagonally from the square corners, right next to it.
+        // Just 1 tile gap from the square edge to avoid road overlap.
+        int gap = 1;
+
+        // Northeast corner: just past the square's NE corner
+        var neLotPos = new Vector2I(
+            VillageCenter.X + VillageSquareRadius + gap,
+            VillageCenter.Y - VillageSquareRadius - LotSize);
+        var neLot = new VillageLot(neLotPos, new Vector2I(LotSize, LotSize), null, CardinalDirection.South);
+        AllLots.Add(neLot);
+
+        // Northwest corner: just past the square's NW corner
+        var nwLotPos = new Vector2I(
+            VillageCenter.X - VillageSquareRadius - LotSize,
+            VillageCenter.Y - VillageSquareRadius - LotSize);
+        var nwLot = new VillageLot(nwLotPos, new Vector2I(LotSize, LotSize), null, CardinalDirection.South);
+        AllLots.Add(nwLot);
+
+        // Southeast corner: just past the square's SE corner
+        var seLotPos = new Vector2I(
+            VillageCenter.X + VillageSquareRadius + gap,
+            VillageCenter.Y + VillageSquareRadius + gap);
+        var seLot = new VillageLot(seLotPos, new Vector2I(LotSize, LotSize), null, CardinalDirection.North);
+        AllLots.Add(seLot);
+
+        // Southwest corner: just past the square's SW corner
+        var swLotPos = new Vector2I(
+            VillageCenter.X - VillageSquareRadius - LotSize,
+            VillageCenter.Y + VillageSquareRadius + gap);
+        var swLot = new VillageLot(swLotPos, new Vector2I(LotSize, LotSize), null, CardinalDirection.North);
+        AllLots.Add(swLot);
     }
 
     private void CreateLotsAlongRoad(RoadSegment road, CardinalDirection roadFacing)

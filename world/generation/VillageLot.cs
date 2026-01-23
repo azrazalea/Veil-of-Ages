@@ -27,8 +27,8 @@ public class VillageLot
 
     public LotState State { get; set; } = LotState.Available;
 
-    /// <summary>Gets the road segment this lot is adjacent to.</summary>
-    public RoadSegment AdjacentRoad { get; }
+    /// <summary>Gets the road segment this lot is adjacent to (null for corner lots).</summary>
+    public RoadSegment? AdjacentRoad { get; }
 
     /// <summary>Gets which side of the lot faces the road.</summary>
     public CardinalDirection RoadSide { get; }
@@ -39,7 +39,7 @@ public class VillageLot
     /// <summary>Gets setback from road edge in tiles.</summary>
     public int Setback { get; }
 
-    public VillageLot(Vector2I position, Vector2I size, RoadSegment adjacentRoad, CardinalDirection roadSide, int setback = 1)
+    public VillageLot(Vector2I position, Vector2I size, RoadSegment? adjacentRoad, CardinalDirection roadSide, int setback = 1)
     {
         Id = _nextId++;
         Position = position;

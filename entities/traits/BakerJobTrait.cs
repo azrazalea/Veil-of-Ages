@@ -45,6 +45,7 @@ public class BakerJobTrait : BeingTrait, IDesiredResources
 
     // Water management - how much water to maintain at the workplace for baking
     private const int DESIREDWATERATWORKPLACE = 10;
+    private const int WATERFETCHTHRESHOLD = 4; // Only fetch when below this amount
     private const int WATERFETCHAMOUNT = 5;
 
     public BakerJobTrait(Building workplace)
@@ -253,9 +254,9 @@ public class BakerJobTrait : BeingTrait, IDesiredResources
 
         // Check current water level at workplace (from memory)
         int currentWater = _owner.GetStorageItemCount(_workplace, "water");
-        if (currentWater >= DESIREDWATERATWORKPLACE)
+        if (currentWater >= WATERFETCHTHRESHOLD)
         {
-            // We have enough water
+            // We have enough water, don't fetch yet
             return null;
         }
 
