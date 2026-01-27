@@ -463,12 +463,20 @@ public class PathFinder
         Vector2I startPos = entity.GetCurrentGridPosition();
         _recalculationAttempts++;
 
+        // Reset current path before calculating new one
+        CurrentPath = [];
+        var astar = gridArea.AStarGrid;
+
+        // Godot 4.6 behavior change: get_id_path returns empty if start position is solid.
+        // Entities mark their own position as solid, so we must temporarily unmark it.
+        bool startWasSolid = astar.IsPointSolid(startPos);
+        if (startWasSolid)
+        {
+            astar.SetPointSolid(startPos, false);
+        }
+
         try
         {
-            // Reset current path before calculating new one
-            CurrentPath = [];
-            var astar = gridArea.AStarGrid;
-
             // Calculate path based on goal type
             switch (_goalType)
             {
@@ -756,6 +764,14 @@ public class PathFinder
         {
             Log.Error($"Exception in path calculation: {e.Message}\n{e.StackTrace}");
             return false;
+        }
+        finally
+        {
+            // Always restore start position solid state if we changed it
+            if (startWasSolid)
+            {
+                astar.SetPointSolid(startPos, true);
+            }
         }
     }
 
