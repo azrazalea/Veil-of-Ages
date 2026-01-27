@@ -160,6 +160,29 @@ Trait for non-sapient entities.
 - Provides generic dialogue responses
 - "Blank stare" initial dialogue
 - Silent obedience responses
+- Overrides blocking response to push instead of communicate
+- Ignores MoveRequest events (doesn't understand communication)
+
+**Blocking Response:**
+Mindless beings push entities that block their path instead of asking politely:
+```csharp
+public override EntityAction? GetBlockingResponse(Being blockingEntity, Vector2I targetPosition)
+{
+    var pushDirection = (targetPosition - myPos).Sign();
+    return new PushAction(_owner, this, blockingEntity, pushDirection, priority: 0);
+}
+```
+
+**Event Handling:**
+Mindless beings ignore MoveRequest events (they don't understand communication):
+```csharp
+public override bool HandleReceivedEvent(EntityEvent evt)
+{
+    if (evt.Type == EntityEventType.MoveRequest)
+        return true; // Handled (by ignoring)
+    return false; // Let default handling take over
+}
+```
 
 **Command Filtering:**
 ```csharp
@@ -541,6 +564,45 @@ if (_myActivity != null)
     }
 }
 ```
+
+### Blocking Response Pattern
+When an entity's movement is blocked by another entity, traits can define custom response behavior by overriding `GetBlockingResponse()`:
+
+```csharp
+public override EntityAction? GetBlockingResponse(Being blockingEntity, Vector2I targetPosition)
+{
+    // Return an action to respond to being blocked, or null for default behavior
+    // Default behavior is RequestMoveAction (polite communication)
+    return new PushAction(_owner, this, blockingEntity, pushDirection, priority: 0);
+}
+```
+
+The blocking response system:
+1. Movement fails and stores the blocking entity
+2. Next tick, `Being.Think()` iterates through traits calling `GetBlockingResponse()`
+3. First non-null response is used; otherwise default behavior (RequestMoveAction)
+4. This ensures blocking interactions cost a turn
+
+### Event Handling Pattern
+Traits can intercept events received from other entities by overriding `HandleReceivedEvent()`:
+
+```csharp
+public override bool HandleReceivedEvent(EntityEvent evt)
+{
+    if (evt.Type == EntityEventType.MoveRequest)
+    {
+        // Handle the event (or ignore it)
+        return true; // Return true = handled, skip default behavior
+    }
+    return false; // Return false = let other traits or default behavior handle it
+}
+```
+
+The event handling system:
+1. Entity receives an event (MoveRequest, EntityPushed, etc.)
+2. `Being.HandleEvent()` iterates through traits calling `HandleReceivedEvent()`
+3. If any trait returns true, default handling is skipped
+4. Otherwise, default behavior runs (step aside, stumble, etc.)
 
 ### Audio Integration Pattern
 Traits trigger audio via deferred calls:

@@ -48,4 +48,40 @@ public class Perception
 
         return result;
     }
+
+    /// <summary>
+    /// Get all detected sensables with their positions.
+    /// Used for creating perception-aware pathfinding grids.
+    /// </summary>
+    public IEnumerable<(ISensable sensable, Vector2I position)> GetAllDetected()
+    {
+        foreach (var pair in _detectedSensables)
+        {
+            foreach (var sensable in pair.Value)
+            {
+                yield return (sensable, pair.Key);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Check if any sensable is detected at a specific position.
+    /// </summary>
+    public bool HasSensableAt(Vector2I position)
+    {
+        return _detectedSensables.TryGetValue(position, out var list) && list.Count > 0;
+    }
+
+    /// <summary>
+    /// Get sensables at a specific position.
+    /// </summary>
+    public IReadOnlyList<ISensable> GetSensablesAt(Vector2I position)
+    {
+        if (_detectedSensables.TryGetValue(position, out var list))
+        {
+            return list;
+        }
+
+        return [];
+    }
 }

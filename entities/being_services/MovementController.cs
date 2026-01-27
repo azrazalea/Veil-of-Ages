@@ -1,6 +1,7 @@
 using System;
 using Godot;
 using VeilOfAges.Core.Lib;
+using VeilOfAges.Entities.Traits;
 using VeilOfAges.Grid;
 
 namespace VeilOfAges.Entities.BeingServices;
@@ -24,7 +25,25 @@ public class MovementController
     private bool _isMoving;
     private float _currentMoveCost; // Total cost of current move
 
+    // Blocking state - set when movement fails due to another entity
+    // Cleared when consumed by Think() to generate appropriate action
+    private Being? _lastBlockingEntity;
+    private Vector2I _lastBlockedTargetPosition;
+
     public PathFinder MyPathfinder { get; set; } = new PathFinder();
+
+    /// <summary>
+    /// Get and clear the last entity that blocked our movement.
+    /// Returns null if not blocked by an entity.
+    /// </summary>
+    public (Being? blocker, Vector2I targetPosition) ConsumeBlockingEntity()
+    {
+        var blocker = _lastBlockingEntity;
+        var target = _lastBlockedTargetPosition;
+        _lastBlockingEntity = null;
+        _lastBlockedTargetPosition = Vector2I.Zero;
+        return (blocker, target);
+    }
 
     public MovementController(Being owner, float movementPointsPerTick = 0.3f)
     {
@@ -97,10 +116,28 @@ public class MovementController
             return false; // We are trying to move too far in one step
         }
 
-        // Get grid area and check if target cell is walkable
+        // Get grid area
         var gridArea = _owner.GridArea;
-        if (gridArea == null || !gridArea.IsCellWalkable(targetGridPos))
+        if (gridArea == null)
         {
+            return false;
+        }
+
+        // Check if target cell is walkable
+        if (!gridArea.IsCellWalkable(targetGridPos))
+        {
+            // Check if blocked by an entity (Being) we could interact with
+            var blockingEntity = gridArea.EntitiesGridSystem.GetCell(targetGridPos);
+            if (blockingEntity is Being blockingBeing && blockingBeing != _owner)
+            {
+                // Store the blocking entity so Think() can decide how to respond
+                // (communication action for sapient, push action for mindless)
+                // This costs a turn - the entity must take an action to interact
+                _lastBlockingEntity = blockingBeing;
+                _lastBlockedTargetPosition = targetGridPos;
+            }
+
+            // Blocked by terrain, building, or entity - fail the move
             return false;
         }
 

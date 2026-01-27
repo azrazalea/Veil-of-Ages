@@ -1,3 +1,5 @@
+using Godot;
+using VeilOfAges.Entities.Actions;
 using VeilOfAges.UI;
 
 namespace VeilOfAges.Entities.Traits;
@@ -8,6 +10,40 @@ public class MindlessTrait : BeingTrait
     {
         Idle,
         Wandering
+    }
+
+    /// <summary>
+    /// Mindless beings push other entities instead of communicating.
+    /// </summary>
+    public override EntityAction? GetBlockingResponse(Being blockingEntity, Vector2I targetPosition)
+    {
+        if (_owner == null)
+        {
+            return null;
+        }
+
+        // Calculate push direction from our position toward the target
+        var myPos = _owner.GetCurrentGridPosition();
+        var pushDirection = (targetPosition - myPos).Sign();
+
+        return new PushAction(_owner, this, blockingEntity, pushDirection, priority: 0);
+    }
+
+    /// <summary>
+    /// Mindless beings don't understand communication.
+    /// They ignore MoveRequest events - the requester must push them instead.
+    /// </summary>
+    public override bool HandleReceivedEvent(EntityEvent evt)
+    {
+        switch (evt.Type)
+        {
+            case EntityEventType.MoveRequest:
+                // Ignore - mindless beings don't understand communication
+                return true; // Handled (by ignoring)
+
+            default:
+                return false; // Let default handling take over
+        }
     }
 
     public override bool IsOptionAvailable(DialogueOption option)

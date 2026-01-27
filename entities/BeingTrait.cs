@@ -383,6 +383,32 @@ public abstract class BeingTrait : Trait
         return null;
     }
 
+    /// <summary>
+    /// Called when the entity's movement was blocked by another entity.
+    /// Traits can override this to provide custom blocking response behavior.
+    /// Return null to let other traits or the default behavior handle it.
+    /// </summary>
+    /// <param name="blockingEntity">The entity that blocked our movement.</param>
+    /// <param name="targetPosition">The position we were trying to move to.</param>
+    /// <returns>An action to respond to the blocking, or null to use default behavior.</returns>
+    public virtual EntityAction? GetBlockingResponse(Being blockingEntity, Vector2I targetPosition)
+    {
+        return null;
+    }
+
+    /// <summary>
+    /// Called when the entity receives an event from another entity.
+    /// Traits can override this to intercept and handle events.
+    /// Return true if the event was handled (skip default behavior).
+    /// Return false to let other traits or the default behavior handle it.
+    /// </summary>
+    /// <param name="evt">The event received.</param>
+    /// <returns>True if handled, false to continue to default handling.</returns>
+    public virtual bool HandleReceivedEvent(EntityEvent evt)
+    {
+        return false;
+    }
+
     // Dialogue-related methods with default implementations
     public virtual bool RefusesCommand(EntityCommand command)
     {

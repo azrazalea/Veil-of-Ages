@@ -25,7 +25,32 @@ Simple single-tile movement action.
 - Moves entity to an adjacent grid position
 - Delegates to `Entity.TryMoveToGridPosition()`
 - Returns success/failure based on whether move was possible
+- If blocked by another entity, stores blocker for Think() to handle next tick
 - Used for wandering and simple movements
+
+### RequestMoveAction.cs
+Communication action for sapient beings to request another entity to move.
+- Costs a turn (proper action, not free)
+- Queues a `MoveRequest` event on the target entity
+- Target may step aside, ask us to queue, or report they're stuck
+- Used when a sapient being is blocked by another entity
+
+**Constructor:**
+```csharp
+new RequestMoveAction(entity, source, targetEntity, targetPosition, priority: 0)
+```
+
+### PushAction.cs
+Physical push action for mindless beings.
+- Costs a turn (essentially an attack action)
+- Queues an `EntityPushed` event on the target entity
+- Target will stumble in the push direction if possible
+- Used when a mindless being is blocked by another entity
+
+**Constructor:**
+```csharp
+new PushAction(entity, source, targetEntity, pushDirection, priority: 0)
+```
 
 ### MoveAlongPathAction.cs
 Pathfinding-based movement action using lazy path calculation.
@@ -153,6 +178,8 @@ new ConsumeFromStorageByTagAction(entity, source, building, itemTag, quantity, p
 | `InteractAction` | Interaction with world objects (WIP) |
 | `MoveAction` | Single-tile movement to adjacent position |
 | `MoveAlongPathAction` | Multi-tile pathfinding movement |
+| `RequestMoveAction` | Sapient communication to request another entity move |
+| `PushAction` | Mindless physical push of another entity |
 | `TakeFromStorageAction` | Take items from building to inventory |
 | `DepositToStorageAction` | Deposit items from inventory to building |
 | `TransferBetweenStoragesAction` | Transfer items between storages |
@@ -180,6 +207,25 @@ new ConsumeFromStorageByTagAction(entity, source, building, itemTag, quantity, p
 - Priority 0 is used for important actions (like consumption behavior)
 - Negative priorities indicate urgent actions (defending, emergencies)
 - The priority is passed through the constructor
+
+### Entity Blocking and Communication Pattern
+When an entity's movement is blocked by another entity:
+1. `MoveAction` fails and stores the blocking entity in `MovementController`
+2. Next tick, `Being.Think()` consumes the blocking info via `ConsumeBlockingEntity()`
+3. Think() iterates through traits calling `GetBlockingResponse(blockingEntity, targetPosition)`
+4. First non-null response is used; otherwise defaults to `RequestMoveAction`
+5. The action executes on the main thread and queues an event on the target
+6. Target processes the event in their next Think() cycle
+
+This ensures all entity interactions cost a turn and go through the action system.
+
+**Trait-defined behavior:**
+- Traits override `GetBlockingResponse()` in `BeingTrait` to customize blocking response
+- `MindlessTrait` returns `PushAction` (physical push)
+- Default behavior (no trait override) returns `RequestMoveAction` (polite communication)
+
+**Important**: Only self-notification events can be queued directly (no action cost).
+All entity-to-entity communication must go through actions.
 
 ### Constructor Patterns
 All action constructors follow a consistent pattern:

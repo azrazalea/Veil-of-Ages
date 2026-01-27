@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -27,6 +28,58 @@ public record BeingAttributes(
     float willpower,
     float wisdom,
     float charisma);
+
+/// <summary>
+/// Types of events that can be queued for entity processing.
+/// Events are processed at the start of each Think() cycle.
+/// </summary>
+public enum EntityEventType
+{
+    // Movement completion events
+    MovementCompleted,
+
+    // Damage and health events
+    DamageTaken,
+
+    // Need-related events
+    NeedCritical,
+
+    // AI/perception events
+    TargetLost,
+    ActionCompleted,
+
+    // Blocking/queue communication events
+    MoveRequest,        // "I need to get past you"
+    QueueRequest,       // Response: "Please queue behind me"
+    StuckNotification,  // Response: "I can't move"
+    EntityPushed,       // For mindless beings: physical push
+}
+
+/// <summary>
+/// An event queued for entity processing.
+/// </summary>
+/// <param name="Type">The type of event.</param>
+/// <param name="Sender">The entity that sent the event (if any).</param>
+/// <param name="Data">Additional event data (type depends on event type).</param>
+public record EntityEvent(EntityEventType Type, Being? Sender, object? Data = null);
+
+/// <summary>
+/// Data for MoveRequest event - "I need to pass through your position"
+/// </summary>
+/// <param name="TargetPosition">The position the sender is trying to reach.</param>
+public record MoveRequestData(Vector2I TargetPosition);
+
+/// <summary>
+/// Data for QueueRequest event - "Please queue behind me"
+/// </summary>
+/// <param name="Destination">The building/facility being queued for (if any).</param>
+public record QueueResponseData(Building? Destination);
+
+/// <summary>
+/// Data for EntityPushed event - physical push in a direction
+/// </summary>
+/// <param name="Direction">The direction of the push.</param>
+public record PushData(Vector2I Direction);
 
 public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
 {
@@ -117,6 +170,261 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     /// Gets read-only access to shared knowledge sources.
     /// </summary>
     public IReadOnlyList<SharedKnowledge> SharedKnowledge => _sharedKnowledge;
+
+    // ============================================================================
+    // EVENT QUEUE SYSTEM
+    // ============================================================================
+    // Events are queued from main thread (during action execution) and processed
+    // at the start of each Think() cycle. This allows for thread-safe communication
+    // between entities without immediate callback complexity.
+    // ============================================================================
+
+    /// <summary>
+    /// Thread-safe queue of pending events to process.
+    /// Written on main thread during action execution, read during Think().
+    /// </summary>
+    private readonly ConcurrentQueue<EntityEvent> _pendingEvents = new ();
+
+    /// <summary>
+    /// Queue an event for processing at the start of the next Think() cycle.
+    /// Thread-safe - can be called from any thread.
+    /// </summary>
+    /// <param name="type">The type of event.</param>
+    /// <param name="sender">The entity that sent the event (if any).</param>
+    /// <param name="data">Additional event data (type depends on event type).</param>
+    public void QueueEvent(EntityEventType type, Being? sender, object? data = null)
+    {
+        _pendingEvents.Enqueue(new EntityEvent(type, sender, data));
+    }
+
+    /// <summary>
+    /// Consume all pending events from the queue.
+    /// Called at the start of Think() to process events.
+    /// </summary>
+    /// <returns>List of all pending events (queue is emptied).</returns>
+    public List<EntityEvent> ConsumePendingEvents()
+    {
+        var events = new List<EntityEvent>();
+        while (_pendingEvents.TryDequeue(out var evt))
+        {
+            events.Add(evt);
+        }
+
+        return events;
+    }
+
+    // ============================================================================
+    // QUEUE STATE SYSTEM
+    // ============================================================================
+    // Entities can form queues when blocked by other entities using facilities.
+    // The queue state tracks who they're behind and what they're waiting for.
+    // ============================================================================
+
+    /// <summary>
+    /// State for an entity waiting in a queue.
+    /// </summary>
+    public class QueueState
+    {
+        /// <summary>Gets or sets who I'm queuing behind.</summary>
+        public Being? InFrontOf { get; set; }
+
+        /// <summary>Gets or sets what facility/building I'm queuing for (if any).</summary>
+        public Building? Destination { get; set; }
+
+        /// <summary>Gets or sets when I started waiting (game tick).</summary>
+        public uint StartTick { get; set; }
+
+        /// <summary>Gets or sets ticks before giving up on the queue.</summary>
+        public int Patience { get; set; } = 200;
+    }
+
+    private QueueState? _queueState;
+
+    /// <summary>Gets a value indicating whether whether this entity is currently in a queue.</summary>
+    public bool IsInQueue => _queueState != null;
+
+    /// <summary>Target position to step aside to (set by HandleMoveRequest).</summary>
+    private Vector2I? _sideStepTarget;
+
+    /// <summary>Whether we're blocked by an entity that reported it can't move.</summary>
+    private bool _blockedByStuckEntity;
+
+    /// <summary>
+    /// Enter a queue behind another entity.
+    /// </summary>
+    /// <param name="inFrontOf">The entity in front of us.</param>
+    /// <param name="destination">The facility/building being queued for.</param>
+    public void EnterQueue(Being inFrontOf, Building? destination)
+    {
+        _queueState = new QueueState
+        {
+            InFrontOf = inFrontOf,
+            Destination = destination,
+            StartTick = GameController.CurrentTick
+        };
+    }
+
+    /// <summary>
+    /// Leave the current queue.
+    /// </summary>
+    public void LeaveQueue()
+    {
+        _queueState = null;
+    }
+
+    /// <summary>
+    /// Handle a received event. Called at start of Think().
+    /// First checks if any trait wants to handle the event, then falls back to default behavior.
+    /// </summary>
+    protected virtual void HandleEvent(EntityEvent evt)
+    {
+        // Let traits intercept events first
+        foreach (var trait in Traits)
+        {
+            if (trait.HandleReceivedEvent(evt))
+            {
+                return; // Trait handled it, skip default behavior
+            }
+        }
+
+        // Default event handling
+        switch (evt.Type)
+        {
+            case EntityEventType.MoveRequest:
+                HandleMoveRequest(evt);
+                break;
+
+            case EntityEventType.QueueRequest:
+                HandleQueueRequest(evt);
+                break;
+
+            case EntityEventType.StuckNotification:
+                HandleStuckNotification(evt);
+                break;
+
+            case EntityEventType.EntityPushed:
+                HandlePushed(evt);
+                break;
+
+                // Other event types can be added here as needed
+        }
+    }
+
+    /// <summary>
+    /// Handle a move request from another entity trying to pass through our position.
+    /// Default behavior: step aside (if idle) or tell the requester to queue.
+    /// Traits can override HandleReceivedEvent() to intercept this.
+    /// </summary>
+    protected virtual void HandleMoveRequest(EntityEvent evt)
+    {
+        if (evt.Sender == null)
+        {
+            return;
+        }
+
+        // Am I using something (busy activity) or already in a queue?
+        if (_currentActivity != null || _queueState != null)
+        {
+            // Tell them to queue behind me
+            var destination = _queueState?.Destination ?? GetCurrentFacilityBuilding();
+            evt.Sender.QueueEvent(EntityEventType.QueueRequest, this, new QueueResponseData(destination));
+        }
+        else
+        {
+            // Try to step aside
+            var moved = TryStepAside(evt.Sender.GetCurrentGridPosition());
+            if (!moved)
+            {
+                // Can't move, let them know
+                evt.Sender.QueueEvent(EntityEventType.StuckNotification, this, null);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Handle a queue request - enter the queue behind the sender.
+    /// </summary>
+    protected virtual void HandleQueueRequest(EntityEvent evt)
+    {
+        if (evt.Sender == null)
+        {
+            return;
+        }
+
+        var data = evt.Data as QueueResponseData;
+        EnterQueue(evt.Sender, data?.Destination);
+    }
+
+    /// <summary>
+    /// Handle notification that the entity ahead is stuck and can't move.
+    /// </summary>
+    protected virtual void HandleStuckNotification(EntityEvent evt)
+    {
+        // The entity ahead can't move - we might need to find an alternative path
+        _blockedByStuckEntity = true;
+    }
+
+    /// <summary>
+    /// Handle being pushed by another entity (typically mindless beings).
+    /// Default implementation sets a side-step target.
+    /// </summary>
+    protected virtual void HandlePushed(EntityEvent evt)
+    {
+        if (evt.Data is PushData pushData)
+        {
+            // Stumble in the push direction
+            var myPos = GetCurrentGridPosition();
+            _sideStepTarget = myPos + pushData.Direction;
+        }
+    }
+
+    /// <summary>
+    /// Try to step aside for another entity.
+    /// Finds a walkable adjacent cell that moves away from or perpendicular to the requester.
+    /// </summary>
+    /// <param name="requesterPos">Position of the entity asking us to move.</param>
+    /// <returns>True if we can step aside, false if no valid position found.</returns>
+    private bool TryStepAside(Vector2I requesterPos)
+    {
+        var myPos = GetCurrentGridPosition();
+        var awayDirection = (myPos - requesterPos).Sign();
+
+        // Try moving perpendicular or away from requester
+        var candidates = new List<Vector2I>
+        {
+            myPos + new Vector2I(awayDirection.Y, awayDirection.X),   // Perpendicular option 1
+            myPos + new Vector2I(-awayDirection.Y, -awayDirection.X), // Perpendicular option 2
+            myPos + awayDirection,                                      // Directly away
+        };
+
+        foreach (var pos in candidates)
+        {
+            if (GridArea?.IsCellWalkable(pos) == true)
+            {
+                _sideStepTarget = pos;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Get the building/facility we're currently using (if any).
+    /// Used to tell other entities what we're queuing for.
+    /// </summary>
+    private Building? GetCurrentFacilityBuilding()
+    {
+        // Check if current activity is at a building
+        // This is a simplified check - activities could expose their target building
+        if (_currentActivity != null)
+        {
+            // Try to get the building from activity via reflection or interface
+            // For now, return null - can be enhanced as activities expose target buildings
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// Add a shared knowledge source to this entity.
@@ -418,6 +726,85 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             return new IdleAction(this, this);
         }
 
+        // Process pending events at start of think cycle
+        // Events become "new beliefs" that may affect behavior
+        var pendingEvents = ConsumePendingEvents();
+        foreach (var evt in pendingEvents)
+        {
+            HandleEvent(evt);
+        }
+
+        // Handle side-step target (set by HandleMoveRequest or HandlePushed)
+        if (_sideStepTarget.HasValue)
+        {
+            var target = _sideStepTarget.Value;
+            _sideStepTarget = null; // Clear after use
+
+            // Try to move to the side-step target
+            if (GridArea?.IsCellWalkable(target) == true)
+            {
+                return new MoveAction(this, this, target, priority: 0);
+            }
+
+            // If target is no longer walkable, just continue with normal behavior
+        }
+
+        // Process queue state
+        if (_queueState != null)
+        {
+            var myPos = GetCurrentGridPosition();
+            var frontPos = _queueState.InFrontOf?.GetCurrentGridPosition();
+
+            // Check if person in front is gone or invalid
+            if (_queueState.InFrontOf == null ||
+                !GodotObject.IsInstanceValid(_queueState.InFrontOf))
+            {
+                // They're gone, leave queue and try to advance
+                LeaveQueue();
+            }
+
+            // Check if person in front moved away (more than 2 tiles away = not adjacent)
+            else if (frontPos.HasValue && myPos.DistanceSquaredTo(frontPos.Value) > 2)
+            {
+                // They moved away, leave queue - will bump into next person if needed
+                LeaveQueue();
+            }
+
+            // Check for timeout
+            else if (GameController.CurrentTick - _queueState.StartTick > (uint)_queueState.Patience)
+            {
+                // Tired of waiting, leave queue
+                LeaveQueue();
+            }
+            else
+            {
+                // Still in queue, just idle and wait
+                return new IdleAction(this, this, priority: 1);
+            }
+        }
+
+        // Clear blocked by stuck entity flag after a tick (will be re-set if still blocked)
+        _blockedByStuckEntity = false;
+
+        // Check if we were blocked by an entity last tick and need to respond
+        // This costs a turn - we take a communication or push action instead of moving
+        var (blockingEntity, blockedTarget) = ConsumeBlockingEntity();
+        if (blockingEntity != null && GodotObject.IsInstanceValid(blockingEntity))
+        {
+            // Let traits define how to respond to blocking
+            foreach (var trait in Traits)
+            {
+                var response = trait.GetBlockingResponse(blockingEntity, blockedTarget);
+                if (response != null)
+                {
+                    return response;
+                }
+            }
+
+            // Default behavior: politely request them to move
+            return new Actions.RequestMoveAction(this, this, blockingEntity, blockedTarget, priority: 0);
+        }
+
         PriorityQueue<EntityAction, int> possibleActions = new ();
 
         var currentPerception = PerceptionSystem.ProcessPerception(observationData);
@@ -711,6 +1098,16 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         }
 
         return Movement.GetPathfinder();
+    }
+
+    /// <summary>
+    /// Get and clear the last entity that blocked our movement.
+    /// Called during Think() to decide how to respond to blocking.
+    /// Returns (null, Zero) if not blocked by an entity.
+    /// </summary>
+    public (Being? blocker, Vector2I targetPosition) ConsumeBlockingEntity()
+    {
+        return Movement?.ConsumeBlockingEntity() ?? (null, Vector2I.Zero);
     }
 
     // Get the grid area (for traits that need it)
