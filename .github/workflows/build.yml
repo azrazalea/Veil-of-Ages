@@ -85,6 +85,11 @@ jobs:
         run: |
           godot --headless --export-release "${{ matrix.platform }}" build/${{ matrix.export_name }}/"${EXPORT_NAME}${{ matrix.extension }}"
 
+      - name: Copy resources for modding
+        run: |
+          mkdir -p build/${{ matrix.export_name }}/resources
+          find resources -name "*.json" -exec cp --parents {} build/${{ matrix.export_name }}/ \;
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
