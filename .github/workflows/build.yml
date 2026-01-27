@@ -63,6 +63,11 @@ jobs:
           export GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/github/home/.ssh/known_hosts"
           git submodule update --init assets/minifantasy
 
+      - name: Setup export templates
+        run: |
+          mkdir -p /github/home/.local/share/godot/export_templates
+          ln -s /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable.mono /github/home/.local/share/godot/export_templates/${GODOT_VERSION}.stable.mono
+
       - name: Import project
         run: |
           godot --headless --import
