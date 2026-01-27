@@ -18,6 +18,9 @@ public class PathFinder
     public int PathIndex { get; private set; }
     public int MAXPATHLENGTH = 100;
 
+    // Cached pathfinding grid for non-village residents
+    private AStarGrid2D? _cachedPathfindingGrid;
+
     // Path state tracking
     private PathGoalType _goalType = PathGoalType.None;
     private Being? _targetEntity;
@@ -362,7 +365,7 @@ public class PathFinder
     }
 
     // Method to follow the current path
-    public bool TryFollowPath(Being entity, bool secondTry = false)
+    public bool TryFollowPath(Being entity)
     {
         if (entity == null)
         {
@@ -435,16 +438,9 @@ public class PathFinder
         else
         {
             // Path is blocked, mark for recalculation
+            // Let blocking/queue system handle it next tick
             _pathNeedsCalculation = true;
-            if (secondTry)
-            {
-                Log.Error($"Move failed for {entity.Name} to {nextPos}");
-                return false;
-            }
-            else
-            {
-                return TryFollowPath(entity, true);
-            }
+            return false;
         }
 
         return moveSuccessful;
@@ -465,7 +461,15 @@ public class PathFinder
 
         // Reset current path before calculating new one
         CurrentPath = [];
-        var astar = gridArea.AStarGrid;
+
+        // Use perception-aware pathfinding grid
+        // Village residents use the base grid, non-residents get perception-limited view
+        var astar = CreatePathfindingGrid(entity);
+        if (astar == null)
+        {
+            Log.Error("CalculatePathForCurrentGoal: Failed to create pathfinding grid");
+            return false;
+        }
 
         // Godot 4.6 behavior change: get_id_path returns empty if start position is solid.
         // Entities mark their own position as solid, so we must temporarily unmark it.
@@ -847,5 +851,98 @@ public class PathFinder
         }
 
         return positions;
+    }
+
+    /// <summary>
+    /// Creates a perception-aware pathfinding grid for an entity.
+    /// - Village residents use the base terrain grid as-is (they know the village layout)
+    /// - Non-residents (undead, wanderers) can only pathfind within their perception range
+    ///   by marking the border of their perception as solid walls (fog-of-war effect).
+    /// </summary>
+    /// <param name="entity">The entity doing the pathfinding.</param>
+    /// <returns>A cloned AStarGrid2D with perception-based modifications, or the base grid for village residents.</returns>
+    private AStarGrid2D? CreatePathfindingGrid(Being entity)
+    {
+        var gridArea = entity.GetGridArea();
+        if (gridArea?.AStarGrid == null)
+        {
+            return null;
+        }
+
+        var baseGrid = gridArea.AStarGrid;
+
+        // Village residents use the terrain grid directly - they know the village layout
+        if (entity.IsVillageResident)
+        {
+            return baseGrid;
+        }
+
+        // Non-residents need a perception-limited grid
+        // Clone the base grid and mark perception border as solid
+        _cachedPathfindingGrid = CloneAStarGrid(baseGrid);
+
+        // Mark the border of perception range as solid (fog-of-war wall)
+        var entityPos = entity.GetCurrentGridPosition();
+        int range = (int)entity.MaxSenseRange;
+
+        // Iterate through the perception border ring (square boundary)
+        for (int x = entityPos.X - range; x <= entityPos.X + range; x++)
+        {
+            for (int y = entityPos.Y - range; y <= entityPos.Y + range; y++)
+            {
+                // Check if this cell is ON the border (not inside)
+                int dx = Math.Abs(x - entityPos.X);
+                int dy = Math.Abs(y - entityPos.Y);
+                if (dx == range || dy == range)
+                {
+                    var pos = new Vector2I(x, y);
+
+                    // Don't mark the entity's own position as solid
+                    if (pos == entityPos)
+                    {
+                        continue;
+                    }
+
+                    // Check bounds and mark as solid
+                    if (_cachedPathfindingGrid.IsInBoundsv(pos))
+                    {
+                        _cachedPathfindingGrid.SetPointSolid(pos, true);
+                    }
+                }
+            }
+        }
+
+        return _cachedPathfindingGrid;
+    }
+
+    /// <summary>
+    /// Creates a deep clone of an AStarGrid2D, copying all configuration and solid/weight states.
+    /// </summary>
+    /// <param name="source">The source grid to clone.</param>
+    /// <returns>A new AStarGrid2D with the same configuration and state as the source.</returns>
+    private static AStarGrid2D CloneAStarGrid(AStarGrid2D source)
+    {
+        var clone = new AStarGrid2D
+        {
+            Region = source.Region,
+            CellSize = source.CellSize,
+            DiagonalMode = source.DiagonalMode,
+            DefaultComputeHeuristic = source.DefaultComputeHeuristic,
+            DefaultEstimateHeuristic = source.DefaultEstimateHeuristic
+        };
+        clone.Update();
+
+        // Copy solid states and weights
+        for (int x = 0; x < source.Region.Size.X; x++)
+        {
+            for (int y = 0; y < source.Region.Size.Y; y++)
+            {
+                var pos = new Vector2I(x + source.Region.Position.X, y + source.Region.Position.Y);
+                clone.SetPointSolid(pos, source.IsPointSolid(pos));
+                clone.SetPointWeightScale(pos, source.GetPointWeightScale(pos));
+            }
+        }
+
+        return clone;
     }
 }

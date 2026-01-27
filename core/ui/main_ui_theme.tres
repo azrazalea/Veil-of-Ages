@@ -1,4 +1,4 @@
-[gd_resource type="Theme" load_steps=10 format=3 uid="uid://cd64idurw2veb"]
+[gd_resource type="Theme" format=3 uid="uid://cd64idurw2veb"]
 
 [ext_resource type="FontFile" uid="uid://cm65kg1osflue" path="res://assets/fonts/slimes_pixel_font_pack/Corvid Conspirator v1.1.ttf" id="1_7kyy1"]
 [ext_resource type="FontFile" uid="uid://chyfqv5twkt27" path="res://assets/fonts/slimes_pixel_font_pack/Sol Schori.ttf" id="2_7kyy1"]

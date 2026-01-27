@@ -33,6 +33,7 @@ public class ConsumeItemActivity : Activity
     public override string DisplayName => _isConsuming
         ? "Eating"
         : _home != null ? $"Going home to eat" : "Looking for food";
+    public override Building? TargetBuilding => _home;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ConsumeItemActivity"/> class.

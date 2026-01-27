@@ -82,6 +82,7 @@ public class WorkFieldActivity : Activity
         WorkPhase.DepositingWheat => "Storing harvest",
         _ => "Working"
     };
+    public override Building? TargetBuilding => _currentPhase == WorkPhase.GoingHome ? _home : _workplace;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="WorkFieldActivity"/> class.

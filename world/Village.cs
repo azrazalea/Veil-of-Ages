@@ -69,7 +69,10 @@ public partial class Village : Node
     }
 
     /// <summary>
-    /// Add a resident to this village. Gives them access to village knowledge.
+    /// Add a resident to this village.
+    /// Sets their village membership AND gives them access to village shared knowledge.
+    /// These are managed separately because beings can have shared knowledge from
+    /// multiple sources (village, faction, region, etc.).
     /// </summary>
     public void AddResident(Being being)
     {
@@ -79,15 +82,18 @@ public partial class Village : Node
         }
 
         _residents.Add(being);
+        being.SetVillage(this);
         being.AddSharedKnowledge(Knowledge);
     }
 
     /// <summary>
-    /// Remove a resident from this village. Removes their access to village knowledge.
+    /// Remove a resident from this village.
+    /// Clears their village membership AND removes access to village shared knowledge.
     /// </summary>
     public void RemoveResident(Being being)
     {
         _residents.Remove(being);
+        being.SetVillage(null);
         being.RemoveSharedKnowledge(Knowledge);
     }
 

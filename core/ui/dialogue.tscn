@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3 uid="uid://cgnn5ytban4uo"]
+[gd_scene format=3 uid="uid://cgnn5ytban4uo"]
 
 [ext_resource type="FontFile" uid="uid://cm65kg1osflue" path="res://assets/fonts/slimes_pixel_font_pack/Corvid Conspirator v1.1.ttf" id="1_w7syl"]
 
@@ -29,9 +29,9 @@ corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
-[node name="Dialogue" type="CanvasLayer"]
+[node name="Dialogue" type="CanvasLayer" unique_id=62828557]
 
-[node name="Dialogue Panel" type="PanelContainer" parent="."]
+[node name="Dialogue Panel" type="PanelContainer" parent="." unique_id=838021345]
 anchors_preset = 7
 anchor_left = 0.5
 anchor_top = 1.0
@@ -44,29 +44,29 @@ grow_horizontal = 2
 grow_vertical = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_w7syl")
 
-[node name="Dialogue Box" type="VBoxContainer" parent="Dialogue Panel"]
+[node name="Dialogue Box" type="VBoxContainer" parent="Dialogue Panel" unique_id=634147197]
 layout_mode = 2
 
-[node name="Dialogue Text Label" type="RichTextLabel" parent="Dialogue Panel/Dialogue Box"]
+[node name="Dialogue Text Label" type="RichTextLabel" parent="Dialogue Panel/Dialogue Box" unique_id=1995079376]
 layout_mode = 2
 text = "Dialogue text here"
 fit_content = true
 
-[node name="Dialogue Choices" type="GridContainer" parent="Dialogue Panel/Dialogue Box"]
+[node name="Dialogue Choices" type="GridContainer" parent="Dialogue Panel/Dialogue Box" unique_id=675952827]
 layout_mode = 2
 mouse_filter = 0
 theme_override_constants/h_separation = 10
 theme_override_constants/v_separation = 10
 columns = 6
 
-[node name="Name Container" type="PanelContainer" parent="."]
+[node name="Name Container" type="PanelContainer" parent="." unique_id=518573004]
 offset_left = 171.0
 offset_top = 461.0
 offset_right = 340.0
 offset_bottom = 513.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_s5pgg")
 
-[node name="Name Label" type="RichTextLabel" parent="Name Container"]
+[node name="Name Label" type="RichTextLabel" parent="Name Container" unique_id=2056335408]
 clip_contents = false
 layout_mode = 2
 theme_override_colors/font_outline_color = Color(1, 1, 1, 1)

@@ -127,7 +127,10 @@ public partial class Area(Vector2I worldSize): Node2D
     {
         _groundGridSystem.SetCell(groundPos, tile);
 
-        AStarGrid?.SetPointSolid(groundPos, !tile.IsWalkable || EntitiesGridSystem.GetCell(groundPos) != null);
+        // Only mark solid if terrain is unwalkable OR a Building is here (not Beings - they're dynamic)
+        var entityAtPos = EntitiesGridSystem.GetCell(groundPos);
+        bool hasBlockingEntity = entityAtPos is Building;
+        AStarGrid?.SetPointSolid(groundPos, !tile.IsWalkable || hasBlockingEntity);
         AStarGrid?.SetPointWeightScale(groundPos, tile.WalkDifficulty);
 
         if (_groundLayer?.Enabled == true)
@@ -145,6 +148,10 @@ public partial class Area(Vector2I worldSize): Node2D
 
         Entities.Add(entity);
 
+        // Only mark Buildings as solid in the pathfinding grid.
+        // Beings are dynamic and can move/queue, so they shouldn't block pathing.
+        bool shouldMarkSolid = entity is Building;
+
         if (entitySize is Vector2I size)
         {
             for (int x = 0; x < size.X; x++)
@@ -153,13 +160,20 @@ public partial class Area(Vector2I worldSize): Node2D
                 {
                     var pos = new Vector2I(entityPos.X + x, entityPos.Y + y);
                     EntitiesGridSystem.SetCell(pos, entity);
-                    AStarGrid?.SetPointSolid(pos, true);
+                    if (shouldMarkSolid)
+                    {
+                        AStarGrid?.SetPointSolid(pos, true);
+                    }
                 }
             }
         }
         else
         {
-            AStarGrid?.SetPointSolid(entityPos, true);
+            if (shouldMarkSolid)
+            {
+                AStarGrid?.SetPointSolid(entityPos, true);
+            }
+
             EntitiesGridSystem.SetCell(entityPos, entity);
         }
     }
@@ -180,6 +194,9 @@ public partial class Area(Vector2I worldSize): Node2D
 
         Entities.Remove(foundEntity);
 
+        // Only Buildings were marked solid, so only unmark them
+        bool shouldUnmarkSolid = foundEntity is Building;
+
         if (entitySize is Vector2I size)
         {
             for (int x = 0; x < size.X; x++)
@@ -188,13 +205,20 @@ public partial class Area(Vector2I worldSize): Node2D
                 {
                     var pos = new Vector2I(entityPos.X + x, entityPos.Y + y);
                     EntitiesGridSystem.RemoveCell(new Vector2I(entityPos.X + x, entityPos.Y + y));
-                    AStarGrid?.SetPointSolid(pos, false);
+                    if (shouldUnmarkSolid)
+                    {
+                        AStarGrid?.SetPointSolid(pos, false);
+                    }
                 }
             }
         }
         else
         {
-            AStarGrid?.SetPointSolid(entityPos, false);
+            if (shouldUnmarkSolid)
+            {
+                AStarGrid?.SetPointSolid(entityPos, false);
+            }
+
             EntitiesGridSystem.RemoveCell(entityPos);
         }
     }

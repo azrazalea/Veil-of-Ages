@@ -108,6 +108,13 @@ public class DistributorRoundActivity : Activity
         _ => "Distributing"
     };
 
+    public override Building? TargetBuilding => _currentPhase switch
+    {
+        DistributionPhase.GoingToHousehold or DistributionPhase.CheckingHousehold or DistributionPhase.ExchangingItems
+            => _currentHouseholdIndex < _householdsToVisit.Count ? _householdsToVisit[_currentHouseholdIndex] : _granary,
+        _ => _granary
+    };
+
     public DistributorRoundActivity(Building granary, int priority = 0)
     {
         _granary = granary;

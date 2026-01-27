@@ -53,6 +53,13 @@ public abstract class Activity
     public int Priority { get; protected set; }
 
     /// <summary>
+    /// Gets the building this activity is using, if any.
+    /// Used for queue communication - when another entity asks us to move,
+    /// we tell them what building we're using so they can queue.
+    /// </summary>
+    public virtual Building? TargetBuilding => null;
+
+    /// <summary>
     /// Gets or sets maps need IDs to decay rate multipliers for this activity.
     /// Needs not in this dictionary use the default multiplier of 1.0.
     /// Example: Sleep sets hunger to 0.25 (1/4 decay rate).

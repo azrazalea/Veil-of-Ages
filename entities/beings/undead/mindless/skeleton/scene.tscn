@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3 uid="uid://o7vxruni6hv"]
+[gd_scene format=3 uid="uid://o7vxruni6hv"]
 
 [ext_resource type="Script" uid="uid://cyde37wgefh3u" path="res://entities/beings/undead/mindless/skeleton/MindlessSkeleton.cs" id="1_016mr"]
 [ext_resource type="Texture2D" uid="uid://cjywylhsutv6i" path="res://assets/minifantasy/entities/undead/skeleton-warrior/Idle_Activation_Deactivation.png" id="1_ipl4n"]
@@ -102,13 +102,13 @@ animations = [{
 "speed": 5.0
 }]
 
-[node name="MindlessSkeleton" type="CharacterBody2D"]
+[node name="MindlessSkeleton" type="CharacterBody2D" unique_id=824383237]
 script = ExtResource("1_016mr")
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1481434514]
 sprite_frames = SubResource("SpriteFrames_0h554")
 animation = &"idle"
 
-[node name="AudioStreamPlayer2D" type="AudioStreamPlayer2D" parent="."]
+[node name="AudioStreamPlayer2D" type="AudioStreamPlayer2D" parent="." unique_id=55732643]
 stream = ExtResource("4_qq57i")
 volume_db = 0.229

@@ -1,4 +1,4 @@
-[gd_scene load_steps=30 format=3 uid="uid://ba8h7co1n3v3u"]
+[gd_scene format=3 uid="uid://ba8h7co1n3v3u"]
 
 [ext_resource type="Script" uid="uid://bw48w31c0qjor" path="res://world/World.cs" id="1_qt6d3"]
 [ext_resource type="PackedScene" uid="uid://cljvkvv6tomyu" path="res://entities/player/scene.tscn" id="2_2fjkk"]
@@ -14,13 +14,13 @@
 [ext_resource type="Script" uid="uid://barxyo8p3oyvt" path="res://entities/EntityThinkingSystem.cs" id="11_bad00"]
 [ext_resource type="PackedScene" uid="uid://dnseqlvnfuids" path="res://core/GameController.tscn" id="13_liapn"]
 [ext_resource type="PackedScene" uid="uid://cmmglr0mto4me" path="res://core/hud.tscn" id="14_liapn"]
-[ext_resource type="Script" path="res://core/DayNightCycle.cs" id="20_cycle"]
 [ext_resource type="Texture2D" uid="uid://cwumnqftoow08" path="res://assets/minifantasy/buildings/farm/Minifantasy_FarmTileset.png" id="14_lle4j"]
 [ext_resource type="Texture2D" uid="uid://wcpf14ai1fds" path="res://assets/minifantasy/buildings/graveyard/Tileset.png" id="14_pmgec"]
 [ext_resource type="Texture2D" uid="uid://bxljdy4mwptcb" path="res://assets/minifantasy/buildings/farm/Minifantasy_FarmSeedsAndCrops.png" id="15_4c652"]
 [ext_resource type="Texture2D" uid="uid://baumav2yi6ygf" path="res://assets/minifantasy/buildings/farm/Minifantasy_FarmProps.png" id="16_pmgec"]
 [ext_resource type="Texture2D" uid="uid://co255w1nufnr" path="res://assets/minifantasy/buildings/graveyard/Props.png" id="18_5fwnn"]
 [ext_resource type="Texture2D" uid="uid://dsq5ik0o0g6eu" path="res://assets/minifantasy/buildings/house/Minifantasy_TownsIIStuccoBuildingIndoorTileset.png" id="19_5fwnn"]
+[ext_resource type="Script" uid="uid://cukk0kycgs03l" path="res://core/DayNightCycle.cs" id="20_cycle"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_jsbcd"]
 resource_name = "Dark Forest"
@@ -1535,10 +1535,10 @@ sources/2 = SubResource("TileSetAtlasSource_4d0kd")
 sources/6 = SubResource("TileSetAtlasSource_e20vv")
 sources/7 = SubResource("TileSetAtlasSource_rplrq")
 
-[node name="World" type="Node2D" groups=["World"]]
+[node name="World" type="Node2D" unique_id=636624730 groups=["World"]]
 script = ExtResource("1_qt6d3")
 
-[node name="GridGenerator" type="Node" parent="."]
+[node name="GridGenerator" type="Node" parent="." unique_id=1543928062]
 script = ExtResource("2_ob0ca")
 TreeScene = ExtResource("6_7s53g")
 BuildingScene = ExtResource("7_ivx4l")
@@ -1546,37 +1546,37 @@ SkeletonScene = ExtResource("9_bkv64")
 ZombieScene = ExtResource("10_6lw76")
 TownsfolkScene = ExtResource("7_ob0ca")
 
-[node name="EntityThinkingSystem" type="Node" parent="."]
+[node name="EntityThinkingSystem" type="Node" parent="." unique_id=1769350613]
 script = ExtResource("11_bad00")
 
-[node name="GameController" parent="." instance=ExtResource("13_liapn")]
+[node name="GameController" parent="." unique_id=20434365 instance=ExtResource("13_liapn")]
 
-[node name="DayNightCycle" type="CanvasModulate" parent="."]
+[node name="DayNightCycle" type="CanvasModulate" parent="." unique_id=1730271822]
 script = ExtResource("20_cycle")
 
-[node name="BuildingManager" type="Node" parent="."]
+[node name="BuildingManager" type="Node" parent="." unique_id=1363605233]
 script = ExtResource("10_liapn")
 
-[node name="Entities" type="Node" parent="."]
+[node name="Entities" type="Node" parent="." unique_id=755754076]
 
-[node name="Player" parent="Entities" instance=ExtResource("2_2fjkk")]
+[node name="Player" parent="Entities" unique_id=1649604692 instance=ExtResource("2_2fjkk")]
 z_index = 8
 z_as_relative = false
 position = Vector2(562, 311)
 
-[node name="Camera2D" type="Camera2D" parent="Entities/Player"]
+[node name="Camera2D" type="Camera2D" parent="Entities/Player" unique_id=403418453]
 position = Vector2(9, 9)
 zoom = Vector2(3, 3)
 
-[node name="AudioListener2D" type="AudioListener2D" parent="Entities/Player"]
+[node name="AudioListener2D" type="AudioListener2D" parent="Entities/Player" unique_id=544685988]
 current = true
 
-[node name="GridAreas" type="Node" parent="."]
+[node name="GridAreas" type="Node" parent="." unique_id=32406597]
 
-[node name="PlayerArea" type="Node" parent="GridAreas"]
+[node name="PlayerArea" type="Node" parent="GridAreas" unique_id=572144715]
 
-[node name="GroundLayer" type="TileMapLayer" parent="."]
+[node name="GroundLayer" type="TileMapLayer" parent="." unique_id=611775524]
 tile_set = SubResource("TileSet_7s53g")
 collision_enabled = false
 
-[node name="HUD" parent="." instance=ExtResource("14_liapn")]
+[node name="HUD" parent="." unique_id=2115769002 instance=ExtResource("14_liapn")]

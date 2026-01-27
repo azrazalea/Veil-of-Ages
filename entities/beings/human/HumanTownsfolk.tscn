@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://byov4a2whfiqj"]
+[gd_scene format=3 uid="uid://byov4a2whfiqj"]
 
 [ext_resource type="Script" uid="uid://cxddb4yge1j50" path="res://entities/beings/human/HumanTownsfolk.cs" id="1_0p0wy"]
 [ext_resource type="Texture2D" uid="uid://cyi2cauxh316s" path="res://assets/minifantasy/entities/human/HumanTownsfolkIdle.png" id="1_ycppt"]
@@ -101,10 +101,10 @@ animations = [{
 "speed": 5.0
 }]
 
-[node name="Townsfolk" type="CharacterBody2D"]
+[node name="Townsfolk" type="CharacterBody2D" unique_id=1354302883]
 script = ExtResource("1_0p0wy")
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=658449187]
 sprite_frames = SubResource("SpriteFrames_qdbwm")
 animation = &"walk"
 frame = 3

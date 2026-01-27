@@ -48,6 +48,7 @@ public class FetchResourceActivity : Activity
         FetchPhase.DepositingResource => $"Storing {_itemId}",
         _ => $"Fetching {_itemId}"
     };
+    public override Building? TargetBuilding => _currentPhase <= FetchPhase.TakingResource ? _sourceBuilding : _destinationBuilding;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FetchResourceActivity"/> class.

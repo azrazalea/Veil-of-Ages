@@ -48,7 +48,15 @@ A* pathfinding system that wraps Godot's `AStarGrid2D`.
   - Maximum 3 recalculation attempts before failure
   - Path length limit (100 tiles)
   - Handles moving targets by recalculating when target entity moves
+  - **Perception-based pathfinding**: Non-village residents can only pathfind within their perception range
 - **Thread Safety Warning**: `CreateNewAStarGrid()` and `UpdateAStarGrid()` must NOT be called from Tasks/threads - they print errors and return early if `Task.CurrentId != null`.
+- **Perception-Based Pathfinding**:
+  - `CreatePathfindingGrid(entity)`: Creates a perception-aware grid for path calculation
+  - Village residents (`entity.IsVillageResident == true`) use the full terrain grid
+  - Non-residents (undead, wanderers) get a cloned grid with perception border marked as solid
+  - The border of perception range acts as a "fog of war" wall, preventing paths beyond what they can see
+  - Uses `entity.MaxSenseRange` to determine perception radius
+  - `CloneAStarGrid(source)`: Helper that deep-clones an AStarGrid2D with all solid/weight states
 
 ### ReorderableQueue.cs
 A generic queue implementation backed by `LinkedList<T>` that supports dynamic reordering.
@@ -108,6 +116,8 @@ Logging utility that prefixes messages with the current game tick. Supports both
 - `DiagonalMode.OnlyIfNoObstacles` prevents cutting corners through walls
 - `Heuristic.Octile` is used for both compute and estimate heuristics
 - Terrain difficulty weights are applied via `SetPointWeightScale()`
+- For non-village residents, a cloned grid is created each path calculation (perception-limited)
+- The grid clone copies all cells' solid and weight states, which has O(n) complexity where n = grid size
 
 ### Thread Safety
 - **CRITICAL**: AStarGrid2D modification cannot happen in background tasks

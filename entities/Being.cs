@@ -171,6 +171,31 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     /// </summary>
     public IReadOnlyList<SharedKnowledge> SharedKnowledge => _sharedKnowledge;
 
+    /// <summary>
+    /// Gets the village this entity belongs to, if any.
+    /// Village residents have access to shared village knowledge for pathfinding.
+    /// Wanderers and undead typically have no village (null).
+    /// </summary>
+    public Village? Village { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether this entity is a village resident.
+    /// </summary>
+    public bool IsVillageResident => Village != null;
+
+    /// <summary>
+    /// Set this entity's village membership.
+    /// Note: This only sets the Village property. Use Village.AddResident() / RemoveResident()
+    /// to properly manage both village membership AND shared knowledge.
+    /// SharedKnowledge is managed separately because beings can have knowledge from
+    /// multiple sources (village, faction, region, etc.).
+    /// </summary>
+    /// <param name="village">The village to assign, or null to remove village membership.</param>
+    public void SetVillage(Village? village)
+    {
+        Village = village;
+    }
+
     // ============================================================================
     // EVENT QUEUE SYSTEM
     // ============================================================================
@@ -312,7 +337,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
 
     /// <summary>
     /// Handle a move request from another entity trying to pass through our position.
-    /// Default behavior: step aside (if idle) or tell the requester to queue.
+    /// Default behavior: step aside (if navigating) or tell the requester to queue (if at a facility).
     /// Traits can override HandleReceivedEvent() to intercept this.
     /// </summary>
     protected virtual void HandleMoveRequest(EntityEvent evt)
@@ -322,16 +347,19 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             return;
         }
 
-        // Am I using something (busy activity) or already in a queue?
-        if (_currentActivity != null || _queueState != null)
+        // Should we tell them to queue?
+        // Only if: we're already in a queue, OR we're actually AT a facility (not just navigating toward one)
+        var targetBuilding = GetCurrentFacilityBuilding();
+        var actuallyAtFacility = targetBuilding != null && IsAdjacentToBuilding(targetBuilding);
+        if (_queueState != null || actuallyAtFacility)
         {
             // Tell them to queue behind me
-            var destination = _queueState?.Destination ?? GetCurrentFacilityBuilding();
+            var destination = _queueState?.Destination ?? targetBuilding;
             evt.Sender.QueueEvent(EntityEventType.QueueRequest, this, new QueueResponseData(destination));
         }
         else
         {
-            // Try to step aside
+            // We're navigating or idle - try to step aside
             var moved = TryStepAside(evt.Sender.GetCurrentGridPosition());
             if (!moved)
             {
@@ -380,7 +408,11 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
 
     /// <summary>
     /// Try to step aside for another entity.
-    /// Finds a walkable adjacent cell that moves away from or perpendicular to the requester.
+    /// Finds a walkable adjacent cell, trying all 8 directions in priority order:
+    /// 1. Perpendicular directions (gets out of the way without blocking)
+    /// 2. Diagonal directions (compromise between perpendicular and away)
+    /// 3. Directly away (still clears the path)
+    /// 4. Backward/toward requester (last resort).
     /// </summary>
     /// <param name="requesterPos">Position of the entity asking us to move.</param>
     /// <returns>True if we can step aside, false if no valid position found.</returns>
@@ -389,13 +421,45 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         var myPos = GetCurrentGridPosition();
         var awayDirection = (myPos - requesterPos).Sign();
 
-        // Try moving perpendicular or away from requester
+        // Build priority-ordered list of all 8 adjacent cells
         var candidates = new List<Vector2I>
         {
+            // Priority 1: Perpendicular directions (best for getting out of the way)
             myPos + new Vector2I(awayDirection.Y, awayDirection.X),   // Perpendicular option 1
-            myPos + new Vector2I(-awayDirection.Y, -awayDirection.X), // Perpendicular option 2
-            myPos + awayDirection,                                      // Directly away
+            myPos + new Vector2I(-awayDirection.Y, -awayDirection.X) // Perpendicular option 2
         };
+
+        // Priority 2: Diagonal directions (perpendicular + away)
+        if (awayDirection.X != 0 && awayDirection.Y != 0)
+        {
+            // Already moving diagonally away, try pure perpendiculars
+            candidates.Add(myPos + new Vector2I(awayDirection.X, 0));
+            candidates.Add(myPos + new Vector2I(0, awayDirection.Y));
+        }
+        else
+        {
+            // Moving cardinally, try diagonal away options
+            candidates.Add(myPos + new Vector2I(awayDirection.X + awayDirection.Y, awayDirection.Y + awayDirection.X));
+            candidates.Add(myPos + new Vector2I(awayDirection.X - awayDirection.Y, awayDirection.Y - awayDirection.X));
+        }
+
+        // Priority 3: Directly away from requester
+        candidates.Add(myPos + awayDirection);
+
+        // Priority 4: Diagonal toward (last resort - still clears the cell)
+        if (awayDirection.X != 0 && awayDirection.Y != 0)
+        {
+            candidates.Add(myPos + new Vector2I(-awayDirection.X, 0));
+            candidates.Add(myPos + new Vector2I(0, -awayDirection.Y));
+        }
+        else
+        {
+            candidates.Add(myPos + new Vector2I(-awayDirection.X - awayDirection.Y, -awayDirection.Y - awayDirection.X));
+            candidates.Add(myPos + new Vector2I(-awayDirection.X + awayDirection.Y, -awayDirection.Y + awayDirection.X));
+        }
+
+        // Priority 5: Directly toward requester (absolute last resort - vacates cell)
+        candidates.Add(myPos - awayDirection);
 
         foreach (var pos in candidates)
         {
@@ -415,15 +479,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     /// </summary>
     private Building? GetCurrentFacilityBuilding()
     {
-        // Check if current activity is at a building
-        // This is a simplified check - activities could expose their target building
-        if (_currentActivity != null)
-        {
-            // Try to get the building from activity via reflection or interface
-            // For now, return null - can be enhanced as activities expose target buildings
-        }
-
-        return null;
+        return _currentActivity?.TargetBuilding;
     }
 
     /// <summary>
@@ -783,14 +839,42 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             }
         }
 
-        // Clear blocked by stuck entity flag after a tick (will be re-set if still blocked)
-        _blockedByStuckEntity = false;
-
         // Check if we were blocked by an entity last tick and need to respond
         // This costs a turn - we take a communication or push action instead of moving
         var (blockingEntity, blockedTarget) = ConsumeBlockingEntity();
+
         if (blockingEntity != null && GodotObject.IsInstanceValid(blockingEntity))
         {
+            // If the blocking entity reported they're stuck (can't move), we need alternative behavior
+            if (_blockedByStuckEntity)
+            {
+                _blockedByStuckEntity = false; // Clear after handling
+
+                // Let traits handle stuck blocking (might try alternative path, push, etc.)
+                foreach (var trait in Traits)
+                {
+                    var response = trait.GetStuckBlockingResponse(blockingEntity, blockedTarget);
+                    if (response != null)
+                    {
+                        return response;
+                    }
+                }
+
+                // Default: try stepping aside ourselves to go around
+                if (TryStepAside(blockingEntity.GetCurrentGridPosition()))
+                {
+                    var target = _sideStepTarget!.Value;
+                    _sideStepTarget = null;
+                    return new MoveAction(this, this, target, priority: 0);
+                }
+
+                // If we can't step aside either, just wait a tick (avoid constant re-requests)
+                return new IdleAction(this, this, priority: 1);
+            }
+
+            // Clear the stuck flag if it was set but we have a different blocking entity
+            _blockedByStuckEntity = false;
+
             // Let traits define how to respond to blocking
             foreach (var trait in Traits)
             {
@@ -804,6 +888,9 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             // Default behavior: politely request them to move
             return new Actions.RequestMoveAction(this, this, blockingEntity, blockedTarget, priority: 0);
         }
+
+        // Clear stuck flag if no blocking entity
+        _blockedByStuckEntity = false;
 
         PriorityQueue<EntityAction, int> possibleActions = new ();
 

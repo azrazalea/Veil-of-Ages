@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3 uid="uid://dnseqlvnfuids"]
+[gd_scene format=3 uid="uid://dnseqlvnfuids"]
 
 [ext_resource type="Script" uid="uid://bil3earyow30s" path="res://core/GameController.cs" id="1_pqymo"]
 
-[node name="GameController" type="Node"]
+[node name="GameController" type="Node" unique_id=1138356177]
 script = ExtResource("1_pqymo")

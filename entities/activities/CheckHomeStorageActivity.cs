@@ -23,6 +23,7 @@ public class CheckHomeStorageActivity : Activity
     public override string DisplayName => _hasObserved
         ? $"Checked {_targetBuilding.BuildingName}"
         : $"Going to check {_targetBuilding.BuildingName}";
+    public override Building? TargetBuilding => _targetBuilding;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CheckHomeStorageActivity"/> class.

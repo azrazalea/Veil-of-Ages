@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://cljvkvv6tomyu"]
+[gd_scene format=3 uid="uid://cljvkvv6tomyu"]
 
 [ext_resource type="Script" uid="uid://b1d2etawohilo" path="res://entities/player/Player.cs" id="1_yttx2"]
 [ext_resource type="Texture2D" uid="uid://ce8xwnc3o6cjt" path="res://assets/minifantasy/entities/necromancer/Necromancer_Idle.png" id="2_b2xe3"]
@@ -101,9 +101,9 @@ animations = [{
 "speed": 5.0
 }]
 
-[node name="Player" type="CharacterBody2D"]
+[node name="Player" type="CharacterBody2D" unique_id=321471786]
 script = ExtResource("1_yttx2")
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1570870287]
 sprite_frames = SubResource("SpriteFrames_ncaad")
 animation = &"walk"

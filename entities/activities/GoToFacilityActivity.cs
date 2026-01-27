@@ -19,6 +19,7 @@ public class GoToFacilityActivity : Activity
     private const int MAXSTUCKTICKS = 50;
 
     public override string DisplayName => $"Going to {_facilityId}";
+    public override Building? TargetBuilding => _building;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GoToFacilityActivity"/> class.

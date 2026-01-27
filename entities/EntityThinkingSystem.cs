@@ -137,7 +137,12 @@ public partial class EntityThinkingSystem : Node
         // Apply each action
         foreach (var action in pendingActions)
         {
-            action.Execute();
+            bool success = action.Execute();
+            if (success)
+            {
+                action.OnSuccessful?.Invoke(action);
+            }
+
             action.Entity.ProcessMovementTick();
         }
 

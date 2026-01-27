@@ -23,6 +23,7 @@ public class GoToBuildingActivity : Activity
     private const int MAXSTUCKTICKS = 50;
 
     public override string DisplayName => $"Going to {_targetBuilding.BuildingType}";
+    public override Building? TargetBuilding => _targetBuilding;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GoToBuildingActivity"/> class.

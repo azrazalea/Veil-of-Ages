@@ -28,6 +28,7 @@ public class EatActivity : Activity
     public override string DisplayName => _isConsuming
         ? $"Eating at {_target.BuildingType}"
         : $"Going to {_target.BuildingType} to eat";
+    public override Building? TargetBuilding => _target;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EatActivity"/> class.

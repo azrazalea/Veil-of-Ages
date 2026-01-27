@@ -46,6 +46,7 @@ public class ProcessReactionActivity : Activity
     public override string DisplayName => _isProcessing
         ? $"Processing {_reaction.Name}"
         : $"Going to process {_reaction.Name}";
+    public override Building? TargetBuilding => _workplace;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ProcessReactionActivity"/> class.

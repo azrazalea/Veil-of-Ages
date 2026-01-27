@@ -397,6 +397,22 @@ public abstract class BeingTrait : Trait
     }
 
     /// <summary>
+    /// Called when the entity's movement was blocked by another entity that reported
+    /// it cannot move (received StuckNotification). This indicates the blocking entity
+    /// tried to step aside but failed - we need alternative behavior.
+    /// Traits can override this to provide custom stuck handling (e.g., try alternative path,
+    /// push the entity, wait longer, etc.).
+    /// Return null to let other traits or the default behavior handle it.
+    /// </summary>
+    /// <param name="blockingEntity">The entity that blocked our movement and cannot move.</param>
+    /// <param name="targetPosition">The position we were trying to move to.</param>
+    /// <returns>An action to respond to the stuck blocking, or null to use default behavior.</returns>
+    public virtual EntityAction? GetStuckBlockingResponse(Being blockingEntity, Vector2I targetPosition)
+    {
+        return null;
+    }
+
+    /// <summary>
     /// Called when the entity receives an event from another entity.
     /// Traits can override this to intercept and handle events.
     /// Return true if the event was handled (skip default behavior).
