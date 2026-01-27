@@ -31,7 +31,7 @@ jobs:
             extension: .zip
 
     container:
-      image: barichello/godot-ci:4.6-mono
+      image: barichello/godot-ci:mono-4.6
 
     steps:
       - name: Checkout
