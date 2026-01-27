@@ -51,15 +51,17 @@ jobs:
 
       - name: Add GitHub to known hosts
         run: |
-          mkdir -p ~/.ssh
-          cp .github/ssh/known_hosts ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
+          mkdir -p /github/home/.ssh
+          cp .github/ssh/known_hosts /github/home/.ssh/known_hosts
+          chmod 644 /github/home/.ssh/known_hosts
 
       - name: Configure git safe directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Checkout assets submodule
-        run: git submodule update --init assets/minifantasy
+        run: |
+          export GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/github/home/.ssh/known_hosts"
+          git submodule update --init assets/minifantasy
 
       - name: Import project
         run: |
