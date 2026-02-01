@@ -40,6 +40,9 @@ public partial class GameController : Node
 
     public override void _Ready()
     {
+        // Reset tick counter on scene load (important for /restart)
+        CurrentTick = 0;
+
         // Initialize resource managers (centralized initialization)
         TileResourceManager.Instance.Initialize();
         ItemResourceManager.Instance.Initialize();

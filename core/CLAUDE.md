@@ -73,6 +73,7 @@ Handles all player input including mouse clicks, keyboard shortcuts, and context
 
 ## Subdirectories
 
+- `debug/` - HTTP debug server for AI-assisted debugging (DEBUG builds only)
 - `lib/` - Library utilities (GameTime, PathFinder, ReorderableQueue)
 - `main/` - Empty (reserved for future main scene logic)
 - `ui/` - UI systems and dialogue

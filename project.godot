@@ -21,6 +21,10 @@ window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 
+[autoload]
+
+DebugServer="*res://core/debug/DebugServer.cs"
+
 [dotnet]
 
 project/assembly_name="Veil of Ages"

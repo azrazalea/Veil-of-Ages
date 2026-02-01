@@ -7,7 +7,8 @@ namespace VeilOfAges.Core.Lib;
 
 /// <summary>
 /// Logging utility that prefixes messages with the current game tick.
-/// Supports both console output and file-based entity debug logging.
+/// Supports both console output and file-based logging.
+/// All log messages go to both the Godot console AND a log file.
 /// </summary>
 public static class Log
 {
@@ -16,37 +17,123 @@ public static class Log
     private static string? _logDirectory;
     private static bool _debugInitialized;
 
+    // Main game log file
+    private static StreamWriter? _mainLogWriter;
+    private static string? _mainLogPath;
+    private static readonly object _mainLogLock = new ();
+
+    /// <summary>
+    /// Gets the path to the main log file.
+    /// </summary>
+    public static string? MainLogPath => _mainLogPath;
+
     /// <summary>
     /// Print a message prefixed with the current tick.
+    /// Outputs to both Godot console and log file.
     /// </summary>
     public static void Print(string message)
     {
-        GD.Print($"[{GameController.CurrentTick}] {message}");
+        var formatted = $"[{GameController.CurrentTick}] {message}";
+        GD.Print(formatted);
+        WriteToMainLog("INFO", formatted);
     }
 
     /// <summary>
     /// Print an error message prefixed with the current tick.
+    /// Outputs to both Godot console and log file.
     /// </summary>
     public static void Error(string message)
     {
-        GD.PushError($"[{GameController.CurrentTick}] {message}");
+        var formatted = $"[{GameController.CurrentTick}] {message}";
+        GD.PushError(formatted);
+        WriteToMainLog("ERROR", formatted);
     }
 
     /// <summary>
     /// Print a warning message prefixed with the current tick.
+    /// Outputs to both Godot console and log file.
     /// </summary>
     public static void Warn(string message)
     {
-        GD.PushWarning($"[{GameController.CurrentTick}] {message}");
+        var formatted = $"[{GameController.CurrentTick}] {message}";
+        GD.PushWarning(formatted);
+        WriteToMainLog("WARN", formatted);
     }
 
     /// <summary>
     /// Print a rich text message prefixed with the current tick.
-    /// Supports BBCode formatting.
+    /// Supports BBCode formatting. Outputs to both Godot console and log file.
     /// </summary>
     public static void PrintRich(string message)
     {
-        GD.PrintRich($"[{GameController.CurrentTick}] {message}");
+        var formatted = $"[{GameController.CurrentTick}] {message}";
+        GD.PrintRich(formatted);
+
+        // Strip BBCode for file output
+        WriteToMainLog("INFO", formatted);
+    }
+
+    private static void WriteToMainLog(string level, string message)
+    {
+        InitializeMainLog();
+
+        if (_mainLogWriter == null)
+        {
+            return;
+        }
+
+        lock (_mainLogLock)
+        {
+            try
+            {
+                var timestamp = DateTime.Now.ToString("HH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture);
+                _mainLogWriter.WriteLine($"[{timestamp}] [{level}] {message}");
+                _mainLogWriter.Flush();
+            }
+            catch
+            {
+                // Ignore write errors to prevent infinite loops
+            }
+        }
+    }
+
+    private static void InitializeMainLog()
+    {
+        if (_mainLogWriter != null)
+        {
+            return;
+        }
+
+        lock (_mainLogLock)
+        {
+            if (_mainLogWriter != null)
+            {
+                return;
+            }
+
+            try
+            {
+                var logDir = ProjectSettings.GlobalizePath("user://logs");
+                if (!Directory.Exists(logDir))
+                {
+                    Directory.CreateDirectory(logDir);
+                }
+
+                _mainLogPath = Path.Combine(logDir, "game.log");
+
+                // Truncate log file on startup
+                _mainLogWriter = new StreamWriter(_mainLogPath, append: false);
+                _mainLogWriter.WriteLine($"=== Veil of Ages Log ===");
+                _mainLogWriter.WriteLine($"Started: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                _mainLogWriter.WriteLine(new string('=', 50));
+                _mainLogWriter.WriteLine();
+                _mainLogWriter.Flush();
+            }
+            catch (Exception e)
+            {
+                GD.PushError($"Failed to initialize main log file: {e.Message}");
+            }
+        }
     }
 
     /// <summary>
@@ -181,26 +268,42 @@ public static class Log
     }
 
     /// <summary>
-    /// Close all debug log files. Call on game exit.
+    /// Close all log files. Call on game exit.
     /// </summary>
     public static void Shutdown()
     {
+        lock (_mainLogLock)
+        {
+            CloseWriter(_mainLogWriter);
+            _mainLogWriter = null;
+        }
+
         foreach (var writer in _debugWriters.Values)
         {
-            try
-            {
-                writer.WriteLine();
-                writer.WriteLine($"=== Log ended: {DateTime.Now:yyyy-MM-dd HH:mm:ss} ===");
-                writer.Close();
-            }
-            catch
-            {
-                // Ignore errors during shutdown
-            }
+            CloseWriter(writer);
         }
 
         _debugWriters.Clear();
         _lastLogTicks.Clear();
         _debugInitialized = false;
+    }
+
+    private static void CloseWriter(StreamWriter? writer)
+    {
+        if (writer == null)
+        {
+            return;
+        }
+
+        try
+        {
+            writer.WriteLine();
+            writer.WriteLine($"=== Log ended: {DateTime.Now:yyyy-MM-dd HH:mm:ss} ===");
+            writer.Close();
+        }
+        catch
+        {
+            // Ignore errors during shutdown
+        }
     }
 }
