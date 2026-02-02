@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
@@ -47,6 +48,20 @@ public class ProcessReactionActivity : Activity
         ? $"Processing {_reaction.Name}"
         : $"Going to process {_reaction.Name}";
     public override Building? TargetBuilding => _workplace;
+    public override string? TargetFacilityId => _isAtFacility && _reaction.RequiredFacilities.Count > 0
+        ? _reaction.RequiredFacilities[0]
+        : null;
+
+    public override List<Vector2I> GetAlternativeGoalPositions(Being entity)
+    {
+        // When at the facility, delegate to the facility navigation sub-activity
+        if (_isAtFacility && _goToFacilityPhase != null)
+        {
+            return _goToFacilityPhase.GetAlternativeGoalPositions(entity);
+        }
+
+        return new List<Vector2I>();
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ProcessReactionActivity"/> class.

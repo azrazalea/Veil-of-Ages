@@ -364,6 +364,141 @@ public class PathFinder
         return result;
     }
 
+    /// <summary>
+    /// Check if entity is close to (within 3 tiles of) the goal.
+    /// Used to be more persistent with pathfinding when almost there.
+    /// </summary>
+    private bool IsCloseToGoal(Being entity)
+    {
+        if (entity == null)
+        {
+            return false;
+        }
+
+        Vector2I entityPos = entity.GetCurrentGridPosition();
+        const int closeDistance = 3;
+
+        switch (_goalType)
+        {
+            case PathGoalType.None:
+                return true;
+            case PathGoalType.Position:
+                return entityPos.DistanceSquaredTo(_targetPosition) <= closeDistance * closeDistance;
+            case PathGoalType.EntityProximity:
+                if (_targetEntity != null)
+                {
+                    Vector2I targetPos = _targetEntity.GetCurrentGridPosition();
+                    return entityPos.DistanceSquaredTo(targetPos) <= (closeDistance + _proximityRange) * (closeDistance + _proximityRange);
+                }
+
+                return false;
+            case PathGoalType.Area:
+                return entityPos.DistanceSquaredTo(_targetPosition) <= (closeDistance + _proximityRange) * (closeDistance + _proximityRange);
+            case PathGoalType.Building:
+                if (_targetBuilding != null)
+                {
+                    // Use IsAdjacentToBuilding-style check with larger tolerance
+                    Vector2I buildingPos = _targetBuilding.GetCurrentGridPosition();
+                    Vector2I buildingSize = _targetBuilding.GridSize;
+                    int minX = buildingPos.X - closeDistance;
+                    int maxX = buildingPos.X + buildingSize.X + closeDistance - 1;
+                    int minY = buildingPos.Y - closeDistance;
+                    int maxY = buildingPos.Y + buildingSize.Y + closeDistance - 1;
+                    return entityPos.X >= minX && entityPos.X <= maxX &&
+                           entityPos.Y >= minY && entityPos.Y <= maxY;
+                }
+
+                return false;
+            case PathGoalType.Facility:
+                if (_targetFacilityPosition.HasValue)
+                {
+                    return entityPos.DistanceSquaredTo(_targetFacilityPosition.Value) <= closeDistance * closeDistance;
+                }
+
+                return false;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// Get alternative positions within the goal area, excluding the current position.
+    /// Used for stepping aside while staying within work range.
+    /// </summary>
+    /// <param name="entity">The entity looking for step-aside positions.</param>
+    /// <returns>List of valid positions within the goal area, sorted by distance from current position.</returns>
+    public List<Vector2I> GetAlternativeGoalPositions(Being entity)
+    {
+        var result = new List<Vector2I>();
+        if (entity == null)
+        {
+            return result;
+        }
+
+        var entityPos = entity.GetCurrentGridPosition();
+        var gridArea = entity.GetGridArea();
+
+        switch (_goalType)
+        {
+            case PathGoalType.Facility:
+                if (_targetFacilityPosition.HasValue)
+                {
+                    // Cardinal-adjacent positions to the facility
+                    var directions = new[] { Vector2I.Up, Vector2I.Down, Vector2I.Left, Vector2I.Right };
+                    foreach (var dir in directions)
+                    {
+                        var pos = _targetFacilityPosition.Value + dir;
+                        if (pos != entityPos && gridArea != null && gridArea.IsCellWalkable(pos))
+                        {
+                            result.Add(pos);
+                        }
+                    }
+                }
+
+                break;
+
+            case PathGoalType.Building:
+                if (_targetBuilding != null)
+                {
+                    var walkableInterior = _targetBuilding.GetWalkableInteriorPositions();
+                    var buildingPos = _targetBuilding.GetCurrentGridPosition();
+                    foreach (var relPos in walkableInterior)
+                    {
+                        var absPos = buildingPos + relPos;
+                        if (absPos != entityPos && gridArea != null && gridArea.IsCellWalkable(absPos))
+                        {
+                            result.Add(absPos);
+                        }
+                    }
+                }
+
+                break;
+
+            case PathGoalType.Area:
+                // Positions within the area radius
+                for (int dx = -_proximityRange; dx <= _proximityRange; dx++)
+                {
+                    for (int dy = -_proximityRange; dy <= _proximityRange; dy++)
+                    {
+                        if ((dx * dx) + (dy * dy) <= _proximityRange * _proximityRange)
+                        {
+                            var pos = _targetPosition + new Vector2I(dx, dy);
+                            if (pos != entityPos && gridArea != null && gridArea.IsCellWalkable(pos))
+                            {
+                                result.Add(pos);
+                            }
+                        }
+                    }
+                }
+
+                break;
+        }
+
+        // Sort by distance from current position (prefer nearby)
+        result.Sort((a, b) => entityPos.DistanceSquaredTo(a).CompareTo(entityPos.DistanceSquaredTo(b)));
+        return result;
+    }
+
     // Method to follow the current path
     public bool TryFollowPath(Being entity)
     {
@@ -377,6 +512,12 @@ public class PathFinder
         if (IsGoalReached(entity) || entity.IsMoving())
         {
             return true;
+        }
+
+        // Reset recalculation attempts when close to goal - be more persistent when almost there
+        if (IsCloseToGoal(entity) && _recalculationAttempts > 0)
+        {
+            _recalculationAttempts = 0;
         }
 
         // Calculate path if needed and not on cooldown
@@ -437,9 +578,14 @@ public class PathFinder
         }
         else
         {
-            // Path is blocked, mark for recalculation
-            // Let blocking/queue system handle it next tick
-            _pathNeedsCalculation = true;
+            // Path is blocked
+            // If entity is in queue, path is still valid - don't mark for recalculation
+            // (the entity is intentionally waiting, not truly blocked)
+            if (!entity.IsInQueue)
+            {
+                _pathNeedsCalculation = true;
+            }
+
             return false;
         }
 

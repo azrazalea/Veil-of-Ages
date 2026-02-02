@@ -60,6 +60,85 @@ public abstract class Activity
     public virtual Building? TargetBuilding => null;
 
     /// <summary>
+    /// Gets the facility ID this activity is using within the building, if any.
+    /// Used for queue comparison - only queue if same building AND same facility.
+    /// </summary>
+    public virtual string? TargetFacilityId => null;
+
+    /// <summary>
+    /// Gets alternative goal positions within this activity's work area.
+    /// Used for step-aside behavior when another entity needs to pass through.
+    /// Default returns empty list. Override in activities with defined work areas.
+    /// </summary>
+    /// <param name="entity">The entity that needs alternative positions.</param>
+    /// <returns>List of valid positions sorted by distance from entity.</returns>
+    public virtual List<Vector2I> GetAlternativeGoalPositions(Being entity) => new ();
+
+    /// <summary>
+    /// Gets a value indicating whether whether this activity can be interrupted by stepping aside.
+    /// If false, the entity will never step aside and others must queue or go around.
+    /// </summary>
+    public virtual bool IsInterruptible => true;
+
+    /// <summary>
+    /// Handle a move request from another entity trying to pass through our position.
+    /// Default behavior: if same building+facility, they queue. Otherwise try to step aside.
+    /// </summary>
+    /// <param name="requester">The entity requesting us to move.</param>
+    /// <param name="requesterBuilding">The building the requester is heading to.</param>
+    /// <param name="requesterFacility">The facility the requester wants to use.</param>
+    /// <returns>True if handled, false if Being should use default step-aside.</returns>
+    public virtual bool HandleMoveRequest(Being requester, Building? requesterBuilding, string? requesterFacility)
+    {
+        if (_owner == null)
+        {
+            return false;
+        }
+
+        // If not interruptible, always tell them to queue
+        if (!IsInterruptible)
+        {
+            if (TargetBuilding != null)
+            {
+                requester.QueueEvent(EntityEventType.QueueRequest, _owner, new QueueResponseData(TargetBuilding));
+            }
+            else
+            {
+                requester.QueueEvent(EntityEventType.StuckNotification, _owner, null);
+            }
+
+            return true;
+        }
+
+        // If requester wants the same building AND facility, they must queue
+        if (TargetBuilding != null && requesterBuilding == TargetBuilding && requesterFacility == TargetFacilityId)
+        {
+            requester.QueueEvent(EntityEventType.QueueRequest, _owner, new QueueResponseData(TargetBuilding));
+            return true;
+        }
+
+        // Try to step aside within our work area
+        var alternatives = GetAlternativeGoalPositions(_owner);
+        if (alternatives.Count > 0)
+        {
+            // Move to nearest alternative position
+            _owner.TryMoveToGridPosition(alternatives[0]);
+            return true;
+        }
+
+        // Can't step aside - only tell them to queue if they want the same building AND facility
+        // (Don't queue random passers-by who are going somewhere else)
+        if (TargetBuilding != null && requesterBuilding == TargetBuilding && requesterFacility == TargetFacilityId)
+        {
+            requester.QueueEvent(EntityEventType.QueueRequest, _owner, new QueueResponseData(TargetBuilding));
+            return true;
+        }
+
+        // Either no building, or requester wants different destination - let Being handle step-aside
+        return false;
+    }
+
+    /// <summary>
     /// Gets or sets maps need IDs to decay rate multipliers for this activity.
     /// Needs not in this dictionary use the default multiplier of 1.0.
     /// Example: Sleep sets hunger to 0.25 (1/4 decay rate).

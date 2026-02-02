@@ -67,7 +67,9 @@ public record EntityEvent(EntityEventType Type, Being? Sender, object? Data = nu
 /// Data for MoveRequest event - "I need to pass through your position"
 /// </summary>
 /// <param name="TargetPosition">The position the sender is trying to reach.</param>
-public record MoveRequestData(Vector2I TargetPosition);
+/// <param name="TargetBuilding">The building the sender is heading to, if any.</param>
+/// <param name="TargetFacilityId">The facility the sender wants to use, if any.</param>
+public record MoveRequestData(Vector2I TargetPosition, Building? TargetBuilding = null, string? TargetFacilityId = null);
 
 /// <summary>
 /// Data for QueueRequest event - "Please queue behind me"
@@ -347,30 +349,37 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             return;
         }
 
-        // Should we tell them to queue?
-        // Only if: we're already in a queue, OR we're actually AT a facility (not just navigating toward one)
-        var targetBuilding = GetCurrentFacilityBuilding();
-        var actuallyAtFacility = targetBuilding != null && IsAdjacentToBuilding(targetBuilding);
-        if (_queueState != null || actuallyAtFacility)
+        // If already in a queue, tell requester to queue behind me
+        if (_queueState != null)
         {
-            // Tell them to queue behind me
-            var destination = _queueState?.Destination ?? targetBuilding;
+            var destination = _queueState.Destination;
             evt.Sender.QueueEvent(EntityEventType.QueueRequest, this, new QueueResponseData(destination));
+            return;
         }
-        else
+
+        // Let the activity decide how to respond
+        if (_currentActivity != null)
         {
-            // We're navigating or idle - try to step aside
-            var moved = TryStepAside(evt.Sender.GetCurrentGridPosition());
-            if (!moved)
+            var moveData = evt.Data as MoveRequestData;
+            if (_currentActivity.HandleMoveRequest(evt.Sender, moveData?.TargetBuilding, moveData?.TargetFacilityId))
             {
-                // Can't move, let them know
-                evt.Sender.QueueEvent(EntityEventType.StuckNotification, this, null);
+                // Activity handled it
+                return;
             }
+        }
+
+        // Default: try to step aside
+        var moved = TryStepAside(evt.Sender.GetCurrentGridPosition());
+        if (!moved)
+        {
+            // Can't move, let them know
+            evt.Sender.QueueEvent(EntityEventType.StuckNotification, this, null);
         }
     }
 
     /// <summary>
     /// Handle a queue request - enter the queue behind the sender.
+    /// Includes deadlock prevention for circular queues.
     /// </summary>
     protected virtual void HandleQueueRequest(EntityEvent evt)
     {
@@ -379,7 +388,33 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             return;
         }
 
+        // DEADLOCK PREVENTION: Don't enter a circular queue
+        // If I'm already in a queue behind the sender, we have a circular dependency
+        if (_queueState?.InFrontOf == evt.Sender)
+        {
+            // We're both trying to queue behind each other - deadlock!
+            // Break the cycle: one of us needs to give up
+            // Use instance ID as tiebreaker - lower ID keeps queue, higher ID steps aside
+            if (GetInstanceId() > evt.Sender.GetInstanceId())
+            {
+                LeaveQueue();
+                TryStepAside(evt.Sender.GetCurrentGridPosition());
+            }
+
+            // Either way, don't enter their queue
+            return;
+        }
+
         var data = evt.Data as QueueResponseData;
+
+        // DISTANCE CHECK: Only enter queue if we're actually close to the destination
+        // Don't queue from far away - keep trying to navigate closer first
+        if (data?.Destination != null && !IsAdjacentToBuilding(data.Destination, tolerance: 2))
+        {
+            DebugLog("QUEUE", $"Ignoring queue request - too far from {data.Destination.BuildingName}");
+            return;
+        }
+
         EnterQueue(evt.Sender, data?.Destination);
     }
 
@@ -1241,18 +1276,19 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     /// Required for all storage access operations.
     /// </summary>
     /// <param name="building">The building to check proximity to.</param>
-    /// <returns>True if the entity is inside the building bounds or within 1 tile of any part of the building.</returns>
-    private bool IsAdjacentToBuilding(Building building)
+    /// <param name="tolerance">How many tiles away still counts as "adjacent" (default 1).</param>
+    /// <returns>True if the entity is inside the building bounds or within tolerance tiles of any part of the building.</returns>
+    private bool IsAdjacentToBuilding(Building building, int tolerance = 1)
     {
         var entityPos = GetCurrentGridPosition();
         var buildingPos = building.GetCurrentGridPosition();
         var buildingSize = building.GridSize;
 
-        // Calculate the building's bounding box (expanded by 1 tile for adjacency)
-        int minX = buildingPos.X - 1;
-        int maxX = buildingPos.X + buildingSize.X; // buildingSize.X tiles + 1 for adjacency
-        int minY = buildingPos.Y - 1;
-        int maxY = buildingPos.Y + buildingSize.Y; // buildingSize.Y tiles + 1 for adjacency
+        // Calculate the building's bounding box (expanded by tolerance for adjacency)
+        int minX = buildingPos.X - tolerance;
+        int maxX = buildingPos.X + buildingSize.X + tolerance - 1;
+        int minY = buildingPos.Y - tolerance;
+        int maxY = buildingPos.Y + buildingSize.Y + tolerance - 1;
 
         // Check if entity is within the expanded bounding box (inside or adjacent)
         return entityPos.X >= minX && entityPos.X <= maxX &&
@@ -1261,7 +1297,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
 
     /// <summary>
     /// Check if this entity can access a building's storage based on proximity rules.
-    /// If the building's storage has RequireAdjacentToFacility set, the entity must
+    /// If the building's storage facility has RequireAdjacent set, the entity must
     /// be adjacent to the actual storage facility position. Otherwise, being adjacent
     /// to any part of the building is sufficient.
     /// </summary>
@@ -1275,15 +1311,16 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             return false;
         }
 
-        // Check if storage requires facility adjacency
+        // Check if storage exists
         var storage = building.GetStorage();
         if (storage == null)
         {
             return false;
         }
 
-        // If storage requires adjacent to facility, check that too
-        if (storage.RequireAdjacentToFacility)
+        // Check if storage facility requires adjacent positioning
+        var storageFacilities = building.GetFacilities("storage");
+        if (storageFacilities.Count > 0 && storageFacilities[0].RequireAdjacent)
         {
             return building.IsAdjacentToStorageFacility(GetCurrentGridPosition());
         }
@@ -1297,7 +1334,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     /// Use this instead of building.GetStorage() to ensure the entity
     /// remembers what they saw in the storage.
     /// REQUIRES PHYSICAL PROXIMITY - returns null if not adjacent to building.
-    /// If the building's storage has RequireAdjacentToFacility set, entity must
+    /// If the building's storage facility has RequireAdjacent set, entity must
     /// be adjacent to the storage facility position (not just anywhere in the building).
     /// </summary>
     /// <param name="building">The building to access storage from.</param>

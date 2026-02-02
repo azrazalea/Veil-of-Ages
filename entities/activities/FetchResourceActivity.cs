@@ -1,7 +1,9 @@
+using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Items;
+using VeilOfAges.Entities.Needs;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.Entities.Traits;
 
@@ -13,15 +15,17 @@ namespace VeilOfAges.Entities.Activities;
 ///
 /// Phases:
 /// 1. Navigate to source building
-/// 2. Take items from source storage into inventory
-/// 3. Navigate to destination building
-/// 4. Deposit items from inventory to destination storage.
+/// 2. Work at source (if FetchDuration > 0, e.g., drawing water from a well)
+/// 3. Take items from source storage into inventory
+/// 4. Navigate to destination building
+/// 5. Deposit items from inventory to destination storage.
 /// </summary>
 public class FetchResourceActivity : Activity
 {
     private enum FetchPhase
     {
         GoingToSource,
+        WorkingAtSource,
         TakingResource,
         GoingToDestination,
         DepositingResource,
@@ -40,15 +44,35 @@ public class FetchResourceActivity : Activity
     private TakeFromStorageAction? _takeAction;
     private DepositToStorageAction? _depositAction;
 
+    // Work phase tracking
+    private uint _workTimer;
+    private uint _fetchDuration;
+    private Need? _energyNeed;
+
+    // Energy cost per tick while working (same as DrawWaterActivity)
+    private const float ENERGYCOSTPERTICK = 0.02f;
+
     public override string DisplayName => _currentPhase switch
     {
         FetchPhase.GoingToSource => $"Going to get {_itemId}",
+        FetchPhase.WorkingAtSource => $"Fetching {_itemId}",
         FetchPhase.TakingResource => $"Taking {_itemId}",
         FetchPhase.GoingToDestination => $"Bringing {_itemId}",
         FetchPhase.DepositingResource => $"Storing {_itemId}",
         _ => $"Fetching {_itemId}"
     };
     public override Building? TargetBuilding => _currentPhase <= FetchPhase.TakingResource ? _sourceBuilding : _destinationBuilding;
+
+    public override List<Vector2I> GetAlternativeGoalPositions(Being entity)
+    {
+        // When working at source, delegate to the navigation sub-activity for goal positions
+        if (_currentPhase == FetchPhase.WorkingAtSource && _goToSourcePhase != null)
+        {
+            return _goToSourcePhase.GetAlternativeGoalPositions(entity);
+        }
+
+        return new List<Vector2I>();
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FetchResourceActivity"/> class.
@@ -76,7 +100,14 @@ public class FetchResourceActivity : Activity
     public override void Initialize(Being owner)
     {
         base.Initialize(owner);
-        DebugLog("FETCH", $"Started FetchResourceActivity: {_desiredQuantity}x {_itemId} from {_sourceBuilding.BuildingName} to {_destinationBuilding.BuildingName}", 0);
+
+        // Get fetch duration from source building's storage configuration
+        _fetchDuration = _sourceBuilding.GetStorageFetchDuration();
+
+        // Get energy need for direct energy cost while working
+        _energyNeed = owner.NeedsSystem?.GetNeed("energy");
+
+        DebugLog("FETCH", $"Started FetchResourceActivity: {_desiredQuantity}x {_itemId} from {_sourceBuilding.BuildingName} to {_destinationBuilding.BuildingName}, fetch duration: {_fetchDuration} ticks", 0);
     }
 
     public override EntityAction? GetNextAction(Vector2I position, Perception perception)
@@ -105,6 +136,7 @@ public class FetchResourceActivity : Activity
         return _currentPhase switch
         {
             FetchPhase.GoingToSource => ProcessGoingToSource(position, perception),
+            FetchPhase.WorkingAtSource => ProcessWorkingAtSource(),
             FetchPhase.TakingResource => ProcessTakingResource(),
             FetchPhase.GoingToDestination => ProcessGoingToDestination(position, perception),
             FetchPhase.DepositingResource => ProcessDepositingResource(),
@@ -144,6 +176,43 @@ public class FetchResourceActivity : Activity
 
         // We've arrived at source
         DebugLog("FETCH", $"Arrived at source: {_sourceBuilding.BuildingName}", 0);
+
+        // If fetch duration > 0, go to working phase; otherwise skip straight to taking
+        if (_fetchDuration > 0)
+        {
+            DebugLog("FETCH", $"Starting work phase (duration: {_fetchDuration} ticks)", 0);
+            _currentPhase = FetchPhase.WorkingAtSource;
+            _workTimer = 0;
+        }
+        else
+        {
+            _currentPhase = FetchPhase.TakingResource;
+        }
+
+        return new IdleAction(_owner, this, Priority);
+    }
+
+    private EntityAction? ProcessWorkingAtSource()
+    {
+        if (_owner == null)
+        {
+            return null;
+        }
+
+        _workTimer++;
+
+        // Spend energy while working (physical labor)
+        _energyNeed?.Restore(-ENERGYCOSTPERTICK);
+
+        if (_workTimer < _fetchDuration)
+        {
+            // Still working, idle
+            DebugLog("FETCH", $"Working... {_workTimer}/{_fetchDuration} ticks");
+            return new IdleAction(_owner, this, Priority);
+        }
+
+        // Done working - now take the resource
+        DebugLog("FETCH", "Finished working, taking resource", 0);
         _currentPhase = FetchPhase.TakingResource;
         return new IdleAction(_owner, this, Priority);
     }

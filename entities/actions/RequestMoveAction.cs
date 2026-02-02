@@ -35,10 +35,12 @@ public class RequestMoveAction : EntityAction
 
         // Queue a move request event on the target entity
         // They will process this at the start of their next Think() cycle
+        // Include our destination info so they can decide whether to queue us or step aside
+        var activity = Entity.GetCurrentActivity();
         _targetEntity.QueueEvent(
             EntityEventType.MoveRequest,
             Entity,
-            new MoveRequestData(_targetPosition));
+            new MoveRequestData(_targetPosition, activity?.TargetBuilding, activity?.TargetFacilityId));
 
         return true;
     }

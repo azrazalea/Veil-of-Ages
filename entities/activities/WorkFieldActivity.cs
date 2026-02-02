@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
@@ -83,6 +84,18 @@ public class WorkFieldActivity : Activity
         _ => "Working"
     };
     public override Building? TargetBuilding => _currentPhase == WorkPhase.GoingHome ? _home : _workplace;
+    public override string? TargetFacilityId => _currentPhase is WorkPhase.Working or WorkPhase.TakingBreak ? "crop" : null;
+
+    public override List<Vector2I> GetAlternativeGoalPositions(Being entity)
+    {
+        // Delegate to the crop navigation sub-activity if we're in a working phase
+        if (_currentPhase is WorkPhase.Working or WorkPhase.TakingBreak && _goToCropPhase != null)
+        {
+            return _goToCropPhase.GetAlternativeGoalPositions(entity);
+        }
+
+        return new List<Vector2I>();
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="WorkFieldActivity"/> class.

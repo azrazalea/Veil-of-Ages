@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
@@ -20,6 +21,12 @@ public class GoToFacilityActivity : Activity
 
     public override string DisplayName => $"Going to {_facilityId}";
     public override Building? TargetBuilding => _building;
+    public override string? TargetFacilityId => _facilityId;
+
+    public override List<Vector2I> GetAlternativeGoalPositions(Being entity)
+    {
+        return _pathFinder?.GetAlternativeGoalPositions(entity) ?? new List<Vector2I>();
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GoToFacilityActivity"/> class.

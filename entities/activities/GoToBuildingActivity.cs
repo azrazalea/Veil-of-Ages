@@ -10,7 +10,7 @@ namespace VeilOfAges.Entities.Activities;
 /// Completes when the entity reaches a position adjacent to the building.
 /// Fails if the building no longer exists or no path can be found.
 ///
-/// When targetStorage is true and the building has RequireAdjacentToFacility storage,
+/// When targetStorage is true and the building's storage facility has RequireAdjacent set,
 /// the activity will navigate to a position adjacent to the storage facility
 /// rather than just the building entrance.
 /// </summary>
@@ -31,7 +31,7 @@ public class GoToBuildingActivity : Activity
     /// </summary>
     /// <param name="targetBuilding">The building to navigate to.</param>
     /// <param name="priority">Action priority.</param>
-    /// <param name="targetStorage">If true, navigate to storage access position (handles RequireAdjacentToFacility automatically).</param>
+    /// <param name="targetStorage">If true, navigate to storage access position (handles facility's RequireAdjacent automatically).</param>
     public GoToBuildingActivity(Building targetBuilding, int priority = 0, bool targetStorage = false)
     {
         _targetBuilding = targetBuilding;
@@ -88,9 +88,9 @@ public class GoToBuildingActivity : Activity
             return null;
         }
 
-        // Check if we're stuck
+        // Check if we're stuck (but not if we're in a queue - that's intentional waiting)
         bool hasValidPath = _pathFinder.HasValidPath();
-        if (!hasValidPath)
+        if (!hasValidPath && !_owner.IsInQueue)
         {
             _stuckTicks++;
             if (_stuckTicks > MAXSTUCKTICKS)
@@ -99,6 +99,11 @@ public class GoToBuildingActivity : Activity
                 Fail();
                 return null;
             }
+        }
+        else if (_owner.IsInQueue)
+        {
+            // Reset stuck counter while in queue - we're waiting, not stuck
+            _stuckTicks = 0;
         }
 
         // Return movement action
