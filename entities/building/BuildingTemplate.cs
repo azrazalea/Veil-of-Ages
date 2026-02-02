@@ -200,11 +200,25 @@ public class RoomData
 
 /// <summary>
 /// Data structure for a facility location in a building template.
+/// A facility can optionally have its own storage (e.g., a well, pantry, water barrel).
+/// Crafting facilities (oven, mill, etc.) are also FacilityData entries without storage.
 /// </summary>
 public class FacilityData
 {
     public string Id { get; set; } = string.Empty;
     public Vector2I Position { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether entities must be adjacent to this facility's position
+    /// to use it. If false (default), entities can use it from anywhere adjacent to the building.
+    /// </summary>
+    public bool RequireAdjacent { get; set; }
+
+    /// <summary>
+    /// Gets or sets the storage configuration for this facility.
+    /// If set, this facility acts as a storage container with its own capacity and items.
+    /// </summary>
+    public StorageConfig? Storage { get; set; }
 }
 
 /// <summary>
@@ -228,18 +242,6 @@ public class StorageConfig
     public float DecayRateModifier { get; set; } = 1.0f;
 
     /// <summary>
-    /// Gets or sets list of facility types available (e.g., "hearth", "cold_storage").
-    /// </summary>
-    public List<string> Facilities { get; set; } = [];
-
-    /// <summary>
-    /// Gets or sets a value indicating whether gets or sets whether entities must be adjacent to the storage facility position
-    /// (defined in the building's Facilities array with Id "storage") to access storage.
-    /// If false (default), entities can access storage from anywhere adjacent to the building.
-    /// </summary>
-    public bool RequireAdjacentToFacility { get; set; }
-
-    /// <summary>
     /// Gets or sets the item ID to regenerate (e.g., "water").
     /// If null or empty, no regeneration occurs.
     /// </summary>
@@ -261,6 +263,12 @@ public class StorageConfig
     /// Gets or sets the initial quantity of the regeneration item to add when the building is created.
     /// </summary>
     public int RegenerationInitialQuantity { get; set; }
+
+    /// <summary>
+    /// Gets or sets the duration in ticks required to fetch items from this storage.
+    /// 0 means instant (default). Example: A well might have 8 ticks to simulate drawing water.
+    /// </summary>
+    public uint FetchDuration { get; set; }
 }
 
 /// <summary>

@@ -100,7 +100,7 @@ public class BakerJobTrait : BeingTrait, IDesiredResources
             return null;
         }
 
-        var facilities = _workplace.GetFacilities();
+        var facilities = _workplace.GetFacilityIds();
 
         // Find a reaction we can perform (check in priority order)
         ReactionDefinition? selectedReaction = null;
@@ -113,7 +113,7 @@ public class BakerJobTrait : BeingTrait, IDesiredResources
             foreach (var reaction in taggedReactions)
             {
                 // Check if we have the required facilities
-                bool hasFacilities = reaction.CanPerformWith(facilities);
+                bool hasFacilities = reaction.CanPerformWith((IEnumerable<string>?)facilities);
                 bool hasInputs = HasRequiredInputs(reaction);
 
                 if (!hasFacilities)
@@ -295,7 +295,7 @@ public class BakerJobTrait : BeingTrait, IDesiredResources
 
         DebugLog("BAKER", $"Workplace water low ({currentWater}/{DESIREDWATERATWORKPLACE}), fetching {amountToFetch} from well", 0);
 
-        // Start fetch activity
+        // Start fetch water activity (takes time based on well's fetch duration)
         var fetchActivity = new FetchResourceActivity(well, _workplace, "water", amountToFetch, priority: 0);
         return new StartActivityAction(_owner, this, fetchActivity, priority: 0);
     }

@@ -44,8 +44,11 @@ public partial class Building : Node2D, IEntity<Trait>
     // Residents tracking
     private readonly List<Being> _residents = [];
 
-    // Facility positions (keyed by facility ID, with list of positions for each)
-    private readonly Dictionary<string, List<Vector2I>> _facilityPositions = new ();
+    // Facilities (keyed by facility ID, with list of Facility instances for each)
+    private readonly Dictionary<string, List<Facility>> _facilities = new ();
+
+    // Reference to the storage facility (if any) for regeneration
+    private Facility? _regenerationFacility;
 
     // Regeneration configuration (for buildings like wells that produce resources)
     private string? _regenerationItem;
@@ -83,49 +86,59 @@ public partial class Building : Node2D, IEntity<Trait>
             _capacity = template.Capacity;
             _entrancePositions = template.EntrancePositions;
 
-            // Initialize storage trait if template specifies storage
-            if (template.Storage != null)
+            // Populate facilities from template
+            foreach (var facilityData in template.Facilities)
             {
-                var storageTrait = new StorageTrait(
-                    template.Storage.VolumeCapacity,
-                    template.Storage.WeightCapacity,
-                    template.Storage.DecayRateModifier,
-                    template.Storage.Facilities,
-                    template.Storage.RequireAdjacentToFacility);
-                Traits.Add(storageTrait);
+                // Create Facility instance from template data
+                var facility = new Facility(
+                    facilityData.Id,
+                    facilityData.Position,
+                    facilityData.RequireAdjacent,
+                    this);
 
-                // Store regeneration configuration
-                _regenerationItem = template.Storage.RegenerationItem;
-                _regenerationRate = template.Storage.RegenerationRate;
-                _regenerationMaxQuantity = template.Storage.RegenerationMaxQuantity;
-
-                // Add initial items if configured
-                if (!string.IsNullOrEmpty(template.Storage.RegenerationItem) &&
-                    template.Storage.RegenerationInitialQuantity > 0)
+                // If facility has storage configuration, create StorageTrait for it
+                if (facilityData.Storage != null)
                 {
-                    var itemDef = ItemResourceManager.Instance.GetDefinition(template.Storage.RegenerationItem);
-                    if (itemDef != null)
+                    var storageTrait = new StorageTrait(
+                        facilityData.Storage.VolumeCapacity,
+                        facilityData.Storage.WeightCapacity,
+                        facilityData.Storage.DecayRateModifier,
+                        fetchDuration: facilityData.Storage.FetchDuration);
+                    facility.AddTrait(storageTrait);
+
+                    // Handle regeneration configuration
+                    if (!string.IsNullOrEmpty(facilityData.Storage.RegenerationItem))
                     {
-                        var initialItem = new Item(itemDef, template.Storage.RegenerationInitialQuantity);
-                        storageTrait.AddItem(initialItem);
-                    }
-                    else
-                    {
-                        Log.Warn($"Building {template.Name}: Regeneration item '{template.Storage.RegenerationItem}' not found");
+                        _regenerationItem = facilityData.Storage.RegenerationItem;
+                        _regenerationRate = facilityData.Storage.RegenerationRate;
+                        _regenerationMaxQuantity = facilityData.Storage.RegenerationMaxQuantity;
+                        _regenerationFacility = facility;
+
+                        // Add initial items if configured
+                        if (facilityData.Storage.RegenerationInitialQuantity > 0)
+                        {
+                            var itemDef = ItemResourceManager.Instance.GetDefinition(facilityData.Storage.RegenerationItem);
+                            if (itemDef != null)
+                            {
+                                var initialItem = new Item(itemDef, facilityData.Storage.RegenerationInitialQuantity);
+                                storageTrait.AddItem(initialItem);
+                            }
+                            else
+                            {
+                                Log.Warn($"Building {template.Name}: Regeneration item '{facilityData.Storage.RegenerationItem}' not found");
+                            }
+                        }
                     }
                 }
-            }
 
-            // Populate facility positions from template
-            foreach (var facility in template.Facilities)
-            {
-                if (!_facilityPositions.TryGetValue(facility.Id, out var positions))
+                // Add facility to dictionary
+                if (!_facilities.TryGetValue(facility.Id, out var facilityList))
                 {
-                    positions = new List<Vector2I>();
-                    _facilityPositions[facility.Id] = positions;
+                    facilityList = new List<Facility>();
+                    _facilities[facility.Id] = facilityList;
                 }
 
-                positions.Add(facility.Position);
+                facilityList.Add(facility);
             }
 
             // Initialize and setup TileMap
@@ -689,9 +702,38 @@ public partial class Building : Node2D, IEntity<Trait>
     public bool HasResident(Being being) => _residents.Contains(being);
 
     // Storage helper methods
+
+    /// <summary>
+    /// Gets the primary storage for this building.
+    /// First looks for a facility with id "storage", then any facility with StorageTrait.
+    /// </summary>
+    /// <returns>The StorageTrait if found, null otherwise.</returns>
     public StorageTrait? GetStorage()
     {
-        return Traits.OfType<StorageTrait>().FirstOrDefault();
+        // First try facility with id "storage"
+        if (_facilities.TryGetValue("storage", out var storageFacilities) && storageFacilities.Count > 0)
+        {
+            var storage = storageFacilities[0].GetTrait<StorageTrait>();
+            if (storage != null)
+            {
+                return storage;
+            }
+        }
+
+        // Then try any facility that has StorageTrait
+        foreach (var facilityList in _facilities.Values)
+        {
+            foreach (var facility in facilityList)
+            {
+                var storage = facility.GetTrait<StorageTrait>();
+                if (storage != null)
+                {
+                    return storage;
+                }
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -733,9 +775,50 @@ public partial class Building : Node2D, IEntity<Trait>
         return storage.AddItem(item);
     }
 
-    public IEnumerable<string> GetFacilities()
+    public IEnumerable<string> GetFacilityIds()
     {
-        return _facilityPositions.Keys;
+        return _facilities.Keys;
+    }
+
+    /// <summary>
+    /// Get the first facility with the specified ID.
+    /// </summary>
+    /// <param name="facilityId">The facility ID to look up.</param>
+    /// <returns>The first Facility with the given ID, or null if not found.</returns>
+    public Facility? GetFacility(string facilityId)
+    {
+        if (_facilities.TryGetValue(facilityId, out var facilityList) && facilityList.Count > 0)
+        {
+            return facilityList[0];
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Get all facilities with the specified ID.
+    /// </summary>
+    /// <param name="facilityId">The facility ID to look up.</param>
+    /// <returns>List of Facility instances, or empty list if not found.</returns>
+    public List<Facility> GetFacilities(string facilityId)
+    {
+        if (_facilities.TryGetValue(facilityId, out var facilityList))
+        {
+            return new List<Facility>(facilityList);
+        }
+
+        return new List<Facility>();
+    }
+
+    /// <summary>
+    /// Get the storage from a specific facility.
+    /// </summary>
+    /// <param name="facilityId">The facility ID to look up.</param>
+    /// <returns>The StorageTrait from the first matching facility, or null if not found.</returns>
+    public StorageTrait? GetFacilityStorage(string facilityId)
+    {
+        var facility = GetFacility(facilityId);
+        return facility?.GetTrait<StorageTrait>();
     }
 
     /// <summary>
@@ -745,9 +828,9 @@ public partial class Building : Node2D, IEntity<Trait>
     /// <returns>List of relative positions for the facility, or empty list if not found.</returns>
     public List<Vector2I> GetFacilityPositions(string facilityId)
     {
-        if (_facilityPositions.TryGetValue(facilityId, out var positions))
+        if (_facilities.TryGetValue(facilityId, out var facilityList))
         {
-            return new List<Vector2I>(positions);
+            return facilityList.Select(f => f.Position).ToList();
         }
 
         return new List<Vector2I>();
@@ -760,39 +843,44 @@ public partial class Building : Node2D, IEntity<Trait>
     /// <returns>True if the building has at least one instance of the facility.</returns>
     public bool HasFacility(string facilityId)
     {
-        return _facilityPositions.ContainsKey(facilityId) && _facilityPositions[facilityId].Count > 0;
+        return _facilities.ContainsKey(facilityId) && _facilities[facilityId].Count > 0;
+    }
+
+    /// <summary>
+    /// Get the fetch duration for retrieving items from this building's storage.
+    /// Returns the FetchDuration from the storage's StorageTrait, or 0 for instant access.
+    /// </summary>
+    /// <returns>Fetch duration in ticks, or 0 for instant access.</returns>
+    public uint GetStorageFetchDuration()
+    {
+        return GetStorage()?.FetchDuration ?? 0;
     }
 
     /// <summary>
     /// Gets the position an entity should navigate to for storage access.
-    /// If RequireAdjacentToFacility is true, returns a walkable position adjacent to the storage facility.
+    /// If the storage facility has RequireAdjacent set, returns a walkable position adjacent to the storage facility.
     /// Otherwise returns the building entrance position.
     /// </summary>
     /// <returns>The absolute grid position to navigate to, or null if no valid position exists.</returns>
     public Vector2I? GetStorageAccessPosition()
     {
-        var storage = GetStorage();
-
-        // If storage requires facility adjacency, find the facility position
-        if (storage?.RequireAdjacentToFacility == true)
+        // Check if storage facility requires adjacent positioning
+        var storageFacilities = GetFacilities("storage");
+        if (storageFacilities.Count > 0 && storageFacilities[0].RequireAdjacent)
         {
-            var storagePositions = GetFacilityPositions("storage");
-            if (storagePositions.Count > 0)
+            // Find a storage facility position that has an adjacent walkable tile
+            foreach (var facility in storageFacilities)
             {
-                // Find a storage facility position that has an adjacent walkable tile
-                foreach (var relativePos in storagePositions)
+                Vector2I? adjacentPos = GetAdjacentWalkablePosition(facility.Position);
+                if (adjacentPos.HasValue)
                 {
-                    Vector2I? adjacentPos = GetAdjacentWalkablePosition(relativePos);
-                    if (adjacentPos.HasValue)
-                    {
-                        // Return absolute position
-                        return _gridPosition + adjacentPos.Value;
-                    }
+                    // Return absolute position
+                    return _gridPosition + adjacentPos.Value;
                 }
-
-                // No walkable position adjacent to storage facility
-                return null;
             }
+
+            // No walkable position adjacent to storage facility
+            return null;
         }
 
         // Default: return first entrance position
@@ -813,19 +901,19 @@ public partial class Building : Node2D, IEntity<Trait>
     /// <returns>True if navigation should target the storage facility position.</returns>
     public bool RequiresStorageFacilityNavigation()
     {
-        var storage = GetStorage();
-        if (storage?.RequireAdjacentToFacility != true)
+        // Check if storage facility requires adjacent positioning
+        var storageFacilities = GetFacilities("storage");
+        if (storageFacilities.Count == 0 || !storageFacilities[0].RequireAdjacent)
         {
             return false;
         }
 
-        // Check if storage facility is defined
-        return GetFacilityPositions("storage").Count > 0;
+        return true;
     }
 
     /// <summary>
     /// Check if an entity position is adjacent to the storage facility.
-    /// Used when RequireAdjacentToFacility is true for this building's storage.
+    /// Used when the storage facility has RequireAdjacent set to true.
     /// </summary>
     /// <param name="entityPosition">The absolute grid position of the entity.</param>
     /// <returns>True if the entity is adjacent to any storage facility, false if no storage facility exists or entity is not adjacent.</returns>
@@ -916,12 +1004,12 @@ public partial class Building : Node2D, IEntity<Trait>
     public void ProcessRegeneration(int tickMultiplier)
     {
         // Skip if no regeneration configured
-        if (string.IsNullOrEmpty(_regenerationItem) || _regenerationRate <= 0)
+        if (string.IsNullOrEmpty(_regenerationItem) || _regenerationRate <= 0 || _regenerationFacility == null)
         {
             return;
         }
 
-        var storage = GetStorage();
+        var storage = _regenerationFacility.GetTrait<StorageTrait>();
         if (storage == null)
         {
             return;

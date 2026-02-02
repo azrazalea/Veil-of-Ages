@@ -6,12 +6,6 @@
   "Culture": "Human",
   "Style": "Rural",
   "Capacity": 2,
-  "Storage": {
-    "VolumeCapacity": 1.0,
-    "WeightCapacity": -1,
-    "DecayRateModifier": 1.0,
-    "Facilities": []
-  },
   "Facilities": [
     {
       "Id": "oven",
@@ -23,7 +17,12 @@
     },
     {
       "Id": "storage",
-      "Position": [5, 4]
+      "Position": [5, 4],
+      "Storage": {
+        "VolumeCapacity": 1.0,
+        "WeightCapacity": -1,
+        "DecayRateModifier": 1.0
+      }
     }
   ],
   "EntrancePositions": [

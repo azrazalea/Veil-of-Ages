@@ -9,16 +9,14 @@
     "Facilities": [
         {
             "Id": "storage",
-            "Position": [4, 4]
+            "Position": [4, 4],
+            "Storage": {
+                "VolumeCapacity": 10.0,
+                "WeightCapacity": -1,
+                "DecayRateModifier": 0.5
+            }
         }
     ],
-    "Storage": {
-        "VolumeCapacity": 10.0,
-        "WeightCapacity": -1,
-        "DecayRateModifier": 0.5,
-        "Facilities": [],
-        "RequireAdjacentToFacility": false
-    },
     "EntrancePositions": [
         [3, 7],
         [4, 7]

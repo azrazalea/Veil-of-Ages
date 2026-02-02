@@ -6,18 +6,22 @@
   "Culture": "Human",
   "Style": "Rural",
   "Capacity": 0,
-  "Storage": {
-    "VolumeCapacity": 50.0,
-    "WeightCapacity": -1,
-    "DecayRateModifier": 0.5,
-    "Facilities": [],
-    "RegenerationItem": "water",
-    "RegenerationRate": 0.5,
-    "RegenerationMaxQuantity": 50,
-    "RegenerationInitialQuantity": 50,
-    "RequireAdjacentToFacility": false
-  },
-  "Facilities": [],
+  "Facilities": [
+    {
+      "Id": "storage",
+      "Position": [1, 1],
+      "Storage": {
+        "VolumeCapacity": 50.0,
+        "WeightCapacity": -1,
+        "DecayRateModifier": 0.5,
+        "RegenerationItem": "water",
+        "RegenerationRate": 0.5,
+        "RegenerationMaxQuantity": 50,
+        "RegenerationInitialQuantity": 50,
+        "FetchDuration": 8
+      }
+    }
+  ],
   "EntrancePositions": [],
   "Metadata": {
     "ConstructionTime": "1d",

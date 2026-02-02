@@ -23,23 +23,20 @@ public class StorageTrait : Trait, IStorageContainer
 
     /// <summary>
     /// Initializes a new instance of the <see cref="StorageTrait"/> class.
-    /// Initializes a new instance of the StorageTrait with specified capacity and facilities.
+    /// Initializes a new instance of the StorageTrait with specified capacity.
     /// </summary>
     /// <param name="volumeCapacity">Maximum volume in cubic meters.</param>
     /// <param name="weightCapacity">Maximum weight in kg, -1 for unlimited.</param>
     /// <param name="decayRateModifier">Decay rate modifier (0.5 = half decay, 2.0 = double).</param>
-    /// <param name="facilities">List of available facilities.</param>
-    /// <param name="requireAdjacentToFacility">If true, entities must be adjacent to the storage facility position to access storage.</param>
-    public StorageTrait(float volumeCapacity, float weightCapacity = -1, float decayRateModifier = 1.0f, List<string>? facilities = null, bool requireAdjacentToFacility = false)
+    /// <param name="fetchDuration">Duration in ticks to fetch items from this storage.</param>
+    /// <param name="facilityId">The facility ID this storage belongs to.</param>
+    public StorageTrait(float volumeCapacity, float weightCapacity = -1, float decayRateModifier = 1.0f, uint fetchDuration = 0, string facilityId = "storage")
     {
         VolumeCapacity = volumeCapacity;
         WeightCapacity = weightCapacity;
         DecayRateModifier = decayRateModifier;
-        RequireAdjacentToFacility = requireAdjacentToFacility;
-        if (facilities != null)
-        {
-            Facilities = facilities;
-        }
+        FetchDuration = fetchDuration;
+        FacilityId = facilityId;
     }
 
     /// <summary>
@@ -59,17 +56,16 @@ public class StorageTrait : Trait, IStorageContainer
     public float DecayRateModifier { get; set; } = 1.0f;
 
     /// <summary>
-    /// Gets or sets the facilities available at this storage location.
-    /// Used for crafting requirements (e.g., "oven", "workbench", "forge").
+    /// Gets or sets the facility ID this storage belongs to (e.g., "pantry", "water_barrel").
+    /// Used to identify this storage when a building has multiple storage facilities.
     /// </summary>
-    public List<string> Facilities { get; set; } = [];
+    public string FacilityId { get; set; } = "storage";
 
     /// <summary>
-    /// Gets or sets a value indicating whether gets or sets whether entities must be adjacent to the storage facility position
-    /// (defined in the building's Facilities array with Id "storage") to access storage.
-    /// If false (default), entities can access storage from anywhere adjacent to the building.
+    /// Gets or sets the duration in ticks required to fetch items from this storage.
+    /// 0 means instant (default). Example: A well might have 8 ticks to simulate drawing water.
     /// </summary>
-    public bool RequireAdjacentToFacility { get; set; }
+    public uint FetchDuration { get; set; }
 
     /// <summary>
     /// Gets the currently used volume in cubic meters.
@@ -286,16 +282,6 @@ public class StorageTrait : Trait, IStorageContainer
             Log.Print($"StorageTrait: Item {item.Definition.Id} has spoiled and been removed");
             _items.Remove(item);
         }
-    }
-
-    /// <summary>
-    /// Check if this storage has a specific facility.
-    /// </summary>
-    /// <param name="facility">The facility name to check for.</param>
-    /// <returns>True if the facility is available.</returns>
-    public bool HasFacility(string facility)
-    {
-        return Facilities.Contains(facility, System.StringComparer.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc/>

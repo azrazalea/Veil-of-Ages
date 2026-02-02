@@ -41,14 +41,17 @@
         {
             "Id": "crop",
             "Position": [5, 3]
+        },
+        {
+            "Id": "storage",
+            "Position": [6, 2],
+            "Storage": {
+                "VolumeCapacity": 10.0,
+                "WeightCapacity": -1,
+                "DecayRateModifier": 1.0
+            }
         }
     ],
-    "Storage": {
-        "VolumeCapacity": 10.0,
-        "WeightCapacity": -1,
-        "DecayRateModifier": 1.0,
-        "Facilities": []
-    },
     "EntrancePositions": [
         [
             4,
