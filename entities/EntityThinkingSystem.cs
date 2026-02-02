@@ -2,7 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Godot;
 using VeilOfAges.Core.Lib;
@@ -13,25 +12,20 @@ namespace VeilOfAges.Core;
 
 public partial class EntityThinkingSystem : Node
 {
+    /// <summary>
+    /// Gets or sets timeout for entity thinking in milliseconds. If exceeded, task is killed and stack trace logged.
+    /// </summary>
     [Export]
-    public int MaxThreads { get; set; } = Math.Max(1, System.Environment.ProcessorCount - 1);
+    public int ThinkingTimeoutMs { get; set; } = 200;
 
     private readonly List<Being> _entities = new ();
-    private readonly ConcurrentDictionary<Being, byte> _entitiesProcessed = [];
-    private readonly ConcurrentQueue<EntityAction> _pendingActions = [];
-
-    private readonly SemaphoreSlim _thinkingSemaphore;
+    private readonly ConcurrentQueue<EntityAction> _pendingActions = new ();
+    private readonly TaskTracker _taskTracker = new ();
 
     private bool _isProcessingTick;
 
-    public EntityThinkingSystem()
-    {
-        _thinkingSemaphore = new SemaphoreSlim(MaxThreads, MaxThreads);
-    }
-
     public override void _Ready()
     {
-        // Automatically find and register all beings in the scene
         RegisterExistingEntities();
     }
 
@@ -73,10 +67,8 @@ public partial class EntityThinkingSystem : Node
         }
 
         _isProcessingTick = true;
-        _entitiesProcessed.Clear();
         _pendingActions.Clear();
-
-        var tasks = new List<Task>();
+        _taskTracker.TimeoutMs = ThinkingTimeoutMs;
 
         var world = GetTree().GetFirstNodeInGroup("World") as World;
         world?.PrepareForTick();
@@ -86,11 +78,21 @@ public partial class EntityThinkingSystem : Node
         {
             var entityPosition = entity.Position;
             var currentObservation = world?.GetSensorySystem()?.GetObservationFor(entity);
-            tasks.Add(Task.Run(() => ProcessEntityThinking(entity, entityPosition, currentObservation)));
+            var gridPos = entity.GetCurrentGridPosition();
+
+            // Fire-and-forget, tracked by _taskTracker
+            _ = _taskTracker.Run(
+                $"{entity.Name} at ({gridPos.X},{gridPos.Y})",
+                () => ProcessEntityThinking(entity, entityPosition, currentObservation));
         }
 
-        // Wait for all entities to complete their thinking
-        await Task.WhenAll(tasks);
+        // Wait for all tasks, checking for stuck ones periodically
+        var allTasks = Task.WhenAll(_taskTracker.GetAllTasks());
+        while (!allTasks.IsCompleted)
+        {
+            await Task.WhenAny(allTasks, Task.Delay(50));
+            _taskTracker.CheckAndKillStuck(GameController.CurrentTick);
+        }
 
         // Apply all actions on the main thread
         ApplyAllPendingActions();
@@ -98,43 +100,26 @@ public partial class EntityThinkingSystem : Node
         _isProcessingTick = false;
     }
 
-    private async Task ProcessEntityThinking(Being entity, Vector2 currentPosition, ObservationData? currentObservation)
+    private void ProcessEntityThinking(Being entity, Vector2 currentPosition, ObservationData? currentObservation)
     {
         if (currentObservation == null)
         {
             return;
         }
 
-        // Use semaphore to limit concurrent processing
-        await _thinkingSemaphore.WaitAsync();
+        var action = entity.Think(currentPosition, currentObservation);
 
-        try
+        if (action != null)
         {
-            // Get the entity's decision
-            var action = entity.Think(currentPosition, currentObservation);
-
-            // Store the action for later execution
-            if (action != null)
-            {
-                _pendingActions.Enqueue(action);
-            }
-
-            _entitiesProcessed.TryAdd(entity, 0);
-        }
-        finally
-        {
-            // Always release the semaphore
-            _thinkingSemaphore.Release();
+            _pendingActions.Enqueue(action);
         }
     }
 
     private void ApplyAllPendingActions()
     {
-        // Sort actions by priority (lower values = higher priority, execute first)
         var pendingActions = _pendingActions.ToList();
         pendingActions.Sort((a, b) => a.Priority.CompareTo(b.Priority));
 
-        // Apply each action
         foreach (var action in pendingActions)
         {
             bool success = action.Execute();
@@ -147,10 +132,5 @@ public partial class EntityThinkingSystem : Node
         }
 
         _pendingActions.Clear();
-    }
-
-    public override void _ExitTree()
-    {
-        _thinkingSemaphore.Dispose();
     }
 }

@@ -192,9 +192,8 @@ public partial class DebugServer : Node
             Height = _world.WorldSizeInTiles.Y
         };
 
-        // Capture buildings
-        var entitiesContainer = _world.GetNode<Node>("Entities");
-        foreach (Node child in entitiesContainer.GetChildren())
+        // Capture buildings (they're children of the GridArea, not Entities)
+        foreach (Node child in gridArea.GetChildren())
         {
             if (child is Building building)
             {
