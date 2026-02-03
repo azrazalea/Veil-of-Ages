@@ -81,6 +81,15 @@ public abstract class Activity
     public virtual bool IsInterruptible => true;
 
     /// <summary>
+    /// Try to find an alternate path around a blocking entity.
+    /// Called by Being when movement was blocked to see if we can path around.
+    /// Default implementation returns false - override in activities with pathfinders.
+    /// </summary>
+    /// <param name="perception">Current perception data (blocker should be visible).</param>
+    /// <returns>True if an alternate path was found, false if no path exists.</returns>
+    public virtual bool TryFindAlternatePath(Perception perception) => false;
+
+    /// <summary>
     /// Check if a requester wants to access the same building and facility as this activity.
     /// Used to determine if they should queue behind us or find another path.
     /// </summary>

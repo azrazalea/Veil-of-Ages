@@ -533,6 +533,49 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     }
 
     /// <summary>
+    /// Try to find an alternate path around a blocking entity.
+    /// This is called when movement was blocked - we try to recalculate the path
+    /// using perception-aware pathfinding which will treat the blocker as blocked.
+    /// </summary>
+    /// <param name="currentPerception">Current perception data (blocker should be visible).</param>
+    /// <returns>True if an alternate path was found, false if no path exists.</returns>
+    private bool TryPathAroundBlocker(Perception currentPerception)
+    {
+        // Try activity first (activities have their own pathfinders)
+        if (_currentActivity != null)
+        {
+            if (_currentActivity.TryFindAlternatePath(currentPerception))
+            {
+                DebugLog("PATHFIND", "Activity found alternate path around blocker", 0);
+                return true;
+            }
+        }
+
+        // Try command's pathfinder
+        if (_currentCommand != null)
+        {
+            var pathfinder = _currentCommand.MyPathfinder;
+
+            // Force path recalculation by clearing the current path
+            // CalculatePathIfNeeded will use perception-aware pathfinding,
+            // treating entities in perception as blocked positions
+            pathfinder.ClearPath();
+
+            // Try to calculate a new path - perception will mark the blocker as blocked
+            bool foundPath = pathfinder.CalculatePathIfNeeded(this, currentPerception);
+
+            if (foundPath && pathfinder.HasValidPath())
+            {
+                DebugLog("PATHFIND", "Command found alternate path around blocker", 0);
+                return true;
+            }
+        }
+
+        DebugLog("PATHFIND", "No alternate path around blocker - will interact", 0);
+        return false;
+    }
+
+    /// <summary>
     /// Get the building/facility we're currently using (if any).
     /// Used to tell other entities what we're queuing for.
     /// </summary>
@@ -898,62 +941,79 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             }
         }
 
+        // Process perception early - we need it for blocking entity handling and activity/command decisions
+        var currentPerception = PerceptionSystem.ProcessPerception(observationData);
+
         // Check if we were blocked by an entity last tick and need to respond
-        // This costs a turn - we take a communication or push action instead of moving
         var (blockingEntity, blockedTarget) = ConsumeBlockingEntity();
 
         if (blockingEntity != null && GodotObject.IsInstanceValid(blockingEntity))
         {
-            // If the blocking entity reported they're stuck (can't move), we need alternative behavior
-            if (_blockedByStuckEntity)
-            {
-                _blockedByStuckEntity = false; // Clear after handling
+            // FIRST: Try to path AROUND the blocking entity before asking them to move
+            // The perception-aware pathfinding will treat the blocker as blocked, finding alternate routes
+            // This makes "ask to move" a last resort, not the first response
+            bool foundAlternatePath = TryPathAroundBlocker(currentPerception);
 
-                // Let traits handle stuck blocking (might try alternative path, push, etc.)
+            if (foundAlternatePath)
+            {
+                // Successfully found an alternate path - continue normally without asking blocker to move
+                // The pathfinder now has a new path that avoids the blocker
+                // Fall through to normal activity/command processing below
+                _blockedByStuckEntity = false;
+            }
+            else
+            {
+                // No alternate path exists - we must interact with the blocker
+
+                // If the blocking entity reported they're stuck (can't move), we need alternative behavior
+                if (_blockedByStuckEntity)
+                {
+                    _blockedByStuckEntity = false; // Clear after handling
+
+                    // Let traits handle stuck blocking (might try alternative path, push, etc.)
+                    foreach (var trait in Traits)
+                    {
+                        var response = trait.GetStuckBlockingResponse(blockingEntity, blockedTarget);
+                        if (response != null)
+                        {
+                            return response;
+                        }
+                    }
+
+                    // Default: try stepping aside ourselves to go around
+                    if (TryStepAside(blockingEntity.GetCurrentGridPosition()))
+                    {
+                        var target = _sideStepTarget!.Value;
+                        _sideStepTarget = null;
+                        return new MoveAction(this, this, target, priority: 0);
+                    }
+
+                    // If we can't step aside either, just wait a tick (avoid constant re-requests)
+                    return new IdleAction(this, this, priority: 1);
+                }
+
+                // Clear the stuck flag if it was set but we have a different blocking entity
+                _blockedByStuckEntity = false;
+
+                // Let traits define how to respond to blocking
                 foreach (var trait in Traits)
                 {
-                    var response = trait.GetStuckBlockingResponse(blockingEntity, blockedTarget);
+                    var response = trait.GetBlockingResponse(blockingEntity, blockedTarget);
                     if (response != null)
                     {
                         return response;
                     }
                 }
 
-                // Default: try stepping aside ourselves to go around
-                if (TryStepAside(blockingEntity.GetCurrentGridPosition()))
-                {
-                    var target = _sideStepTarget!.Value;
-                    _sideStepTarget = null;
-                    return new MoveAction(this, this, target, priority: 0);
-                }
-
-                // If we can't step aside either, just wait a tick (avoid constant re-requests)
-                return new IdleAction(this, this, priority: 1);
+                // Default behavior: politely request them to move
+                return new Actions.RequestMoveAction(this, this, blockingEntity, blockedTarget, priority: 0);
             }
-
-            // Clear the stuck flag if it was set but we have a different blocking entity
-            _blockedByStuckEntity = false;
-
-            // Let traits define how to respond to blocking
-            foreach (var trait in Traits)
-            {
-                var response = trait.GetBlockingResponse(blockingEntity, blockedTarget);
-                if (response != null)
-                {
-                    return response;
-                }
-            }
-
-            // Default behavior: politely request them to move
-            return new Actions.RequestMoveAction(this, this, blockingEntity, blockedTarget, priority: 0);
         }
 
         // Clear stuck flag if no blocking entity
         _blockedByStuckEntity = false;
 
         PriorityQueue<EntityAction, int> possibleActions = new ();
-
-        var currentPerception = PerceptionSystem.ProcessPerception(observationData);
 
         if (_currentCommand != null)
         {

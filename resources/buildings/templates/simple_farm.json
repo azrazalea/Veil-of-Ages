@@ -20,10 +20,6 @@
         },
         {
             "Id": "crop",
-            "Position": [4, 1]
-        },
-        {
-            "Id": "crop",
             "Position": [5, 1]
         },
         {
@@ -33,10 +29,6 @@
         {
             "Id": "crop",
             "Position": [3, 3]
-        },
-        {
-            "Id": "crop",
-            "Position": [4, 3]
         },
         {
             "Id": "crop",
@@ -226,12 +218,6 @@
         },
         {
             "Position": [4, 1],
-            "Material": "Plant",
-            "Type": "Crop",
-            "Variant": "Rice"
-        },
-        {
-            "Position": [4, 1],
             "Material": "Dirt",
             "Type": "Floor",
             "Variant": "Farm"
@@ -367,12 +353,6 @@
             "Material": "Dirt",
             "Type": "Floor",
             "Variant": "Farm"
-        },
-        {
-            "Position": [4, 3],
-            "Material": "Plant",
-            "Type": "Crop",
-            "Variant": "Rice"
         },
         {
             "Position": [4, 3],

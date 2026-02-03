@@ -33,6 +33,32 @@ public class GoToLocationActivity : Activity
         _pathFinder.SetPositionGoal(owner, _targetPosition);
     }
 
+    /// <summary>
+    /// Try to find an alternate path around a blocking entity.
+    /// Clears the current path and recalculates with perception-aware pathfinding.
+    /// </summary>
+    public override bool TryFindAlternatePath(Perception perception)
+    {
+        if (_owner == null || _pathFinder == null)
+        {
+            return false;
+        }
+
+        // Force path recalculation
+        _pathFinder.ClearPath();
+
+        // Try to calculate a new path - perception will mark the blocker as blocked
+        bool foundPath = _pathFinder.CalculatePathIfNeeded(_owner, perception);
+
+        if (foundPath && _pathFinder.HasValidPath())
+        {
+            _stuckTicks = 0; // Reset stuck counter on finding alternate path
+            return true;
+        }
+
+        return false;
+    }
+
     public override EntityAction? GetNextAction(Vector2I position, Perception perception)
     {
         if (_owner == null || _pathFinder == null)

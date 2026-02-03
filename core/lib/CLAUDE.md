@@ -75,6 +75,7 @@ return _pathFinder.FollowPath(entity);  // No A* here, just follows
   - Handles moving targets by recalculating when target entity moves
   - **Perception-aware pathfinding**: Entities path around other entities they can currently see (via `additionalBlocked` parameter)
   - **Perception-limited pathfinding**: Non-village residents can only pathfind within their perception range (fog-of-war wall at border)
+  - **Periodic perception refresh**: Every 5 successful steps, triggers path recalculation with fresh perception data. Handles "new entity appeared in my way" scenarios without constant recalculation.
 - **Thread Safety Warning**: `CreateNewAStarGrid()` and `UpdateAStarGrid()` must NOT be called from Tasks/threads - they print errors and return early if `Task.CurrentId != null`.
 - **Perception-Based Pathfinding**:
   - `CreatePathfindingGrid(entity)`: Creates a perception-aware grid for path calculation

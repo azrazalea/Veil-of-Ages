@@ -38,6 +38,11 @@ public class PathFinder
     private const uint RECALCULATIONCOOLDOWN = 5;
     private bool _firstGoalCalculation;
 
+    // Periodic perception-based recalculation
+    // Every N successful steps, re-evaluate path with fresh perception to handle newly-seen entities
+    private int _stepsSinceLastRecalculation;
+    private const int STEPSBEFOREPERIODICRECALC = 5;
+
     // Facility goal tracking - stores the facility position to check adjacency in IsGoalReached
     private Vector2I? _targetFacilityPosition;
     private Building? _targetFacilityBuilding;
@@ -124,6 +129,7 @@ public class PathFinder
         CurrentPath = [];
         PathIndex = 0;
         _pathNeedsCalculation = true;
+        _stepsSinceLastRecalculation = 0;
     }
 
     public void Reset()
@@ -593,6 +599,15 @@ public class PathFinder
         {
             PathIndex++;
             _recalculationAttempts = 0; // Reset throttle counter when making progress
+            _stepsSinceLastRecalculation++;
+
+            // Periodic perception-based recalculation: every N steps, re-evaluate path
+            // This handles "new entity appeared in my way, path around it" scenarios
+            if (_stepsSinceLastRecalculation >= STEPSBEFOREPERIODICRECALC)
+            {
+                _pathNeedsCalculation = true;
+                _stepsSinceLastRecalculation = 0;
+            }
 
             // Check if we've completed the path
             if (PathIndex >= CurrentPath.Count)
@@ -670,6 +685,7 @@ public class PathFinder
                         CurrentPath = [startPos];
                         PathIndex = 0;
                         _pathNeedsCalculation = false;
+                        _stepsSinceLastRecalculation = 0;
                         return true;
                     }
 
@@ -717,6 +733,7 @@ public class PathFinder
                         CurrentPath = [startPos];
                         PathIndex = 0;
                         _pathNeedsCalculation = false;
+                        _stepsSinceLastRecalculation = 0;
                         return true;
                     }
 
@@ -744,6 +761,7 @@ public class PathFinder
                         CurrentPath = [startPos];
                         PathIndex = 0;
                         _pathNeedsCalculation = false;
+                        _stepsSinceLastRecalculation = 0;
                         return true;
                     }
 
@@ -840,6 +858,7 @@ public class PathFinder
 
             PathIndex = 0;
             _pathNeedsCalculation = false;
+            _stepsSinceLastRecalculation = 0; // Reset step counter on fresh path
             return CurrentPath.Count > 0;
         }
         catch (Exception e)
