@@ -122,13 +122,20 @@ public partial class EntityThinkingSystem : Node
 
         foreach (var action in pendingActions)
         {
-            bool success = action.Execute();
-            if (success)
+            try
             {
-                action.OnSuccessful?.Invoke(action);
-            }
+                bool success = action.Execute();
+                if (success)
+                {
+                    action.OnSuccessful?.Invoke(action);
+                }
 
-            action.Entity.ProcessMovementTick();
+                action.Entity.ProcessMovementTick();
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Action execution failed for {action.Entity.Name} ({action.GetType().Name}): {ex}");
+            }
         }
 
         _pendingActions.Clear();

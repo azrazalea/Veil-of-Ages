@@ -74,27 +74,37 @@ public partial class GameController : Node
     {
         _processingTick = true;
 
-        // Process decay for all storage containers (buildings and beings)
-        // Only runs every DECAY_TICK_INTERVAL ticks for performance
-        if (CurrentTick % DECAYTICKINTERVAL == 0)
+        try
         {
-            _world?.ProcessDecay(DECAYTICKINTERVAL);
+            // Process decay for all storage containers (buildings and beings)
+            // Only runs every DECAY_TICK_INTERVAL ticks for performance
+            if (CurrentTick % DECAYTICKINTERVAL == 0)
+            {
+                _world?.ProcessDecay(DECAYTICKINTERVAL);
 
-            // Clean up expired memories and invalid references
-            _world?.ProcessMemoryCleanup();
+                // Clean up expired memories and invalid references
+                _world?.ProcessMemoryCleanup();
+            }
+
+            // Process the tick with all entities (including player)
+            if (_thinkingSystem != null)
+            {
+                await _thinkingSystem.ProcessGameTick();
+            }
+
+            // Update world state, UI, and advance time
+            // _world.UpdateWorldState();
+            // _world.UpdateUI();
+            // _world.AdvanceTime();
         }
-
-        // Process the tick with all entities (including player)
-        if (_thinkingSystem != null)
+        catch (Exception ex)
         {
-            await _thinkingSystem.ProcessGameTick();
+            Log.Error($"ProcessNextTick exception at tick {CurrentTick}: {ex}");
         }
-
-        // Update world state, UI, and advance time
-        // _world.UpdateWorldState();
-        // _world.UpdateUI();
-        // _world.AdvanceTime();
-        _processingTick = false;
+        finally
+        {
+            _processingTick = false;
+        }
     }
 
     // Simulation control
