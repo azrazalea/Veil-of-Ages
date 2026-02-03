@@ -178,15 +178,18 @@ This respects no-god-knowledge - only reacts to entities encountered.
 - [x] Fix facility path calculation - remove `IsCellWalkable` occupancy check
 - [ ] Audit all pathfinding code for `IsCellWalkable`/entity occupancy checks
 
-### Phase 3: Verify Threading (IMPORTANT) - CONFIRMED BUG
+### Phase 3: Verify Threading (IMPORTANT) - FIXED
 - [x] Trace where `CalculatePathForCurrentGoal` is called from
 - [x] Verify if it runs on think thread or main thread - CONFIRMED MAIN THREAD
-- [ ] Restructure flow as described in Bug 6
+- [x] Restructure flow as described in Bug 6
+- [x] Added custom ThreadSafeAStar.cs - no locks needed, uses own scoring state
+- [x] Removed Godot's GetIdPath calls entirely (it modifies internal Point state)
 
-### Phase 4: Perception-Aware Pathfinding
-- [ ] Pass perception data to PathFinder
-- [ ] Modify `CreatePathfindingGrid` to mark perceived entities as solid
-- [ ] Ensure recalculations use fresh perception data
+### Phase 4: Perception-Aware Pathfinding - IN PROGRESS
+ThreadSafeAStar.GetPath already has `additionalBlocked` parameter ready to use.
+- [ ] Collect perceived entity positions in CalculatePathForCurrentGoal
+- [ ] Pass HashSet<Vector2I> of perceived positions to ThreadSafeAStar.GetPath
+- [ ] Entity will path around entities it can SEE
 
 ### Phase 5: Proactive Periodic Recalculation (Before "Done")
 - [ ] Every N steps or ticks, recalculate path using current perception
