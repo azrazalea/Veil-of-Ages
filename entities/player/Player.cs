@@ -57,7 +57,8 @@ public partial class Player : GenericBeing
 
     public override void Initialize(Area gridArea, Vector2I startGridPos, GameController? gameController = null, BeingAttributes? attributes = null, bool debugEnabled = false)
     {
-        base.Initialize(gridArea, startGridPos, gameController, attributes, debugEnabled);
+        // Player always has debug enabled for detailed logging
+        base.Initialize(gridArea, startGridPos, gameController, attributes, debugEnabled: true);
         Name = "Lilith Galonadel";
     }
 

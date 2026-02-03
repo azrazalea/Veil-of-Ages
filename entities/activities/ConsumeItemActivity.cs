@@ -81,6 +81,7 @@ public class ConsumeItemActivity : Activity
                     _isFromInventory = true;
                     _foodItemId = foodItem.Definition.Id;
                     _isConsuming = true;
+                    DebugLog("EATING", $"Found food in inventory ({foodItem.Definition.Name}), starting to eat", 0);
                 }
             }
         }
@@ -117,16 +118,17 @@ public class ConsumeItemActivity : Activity
                     break;
             }
 
-            // We've arrived - check home storage for food using wrapper (auto-observes)
+            // We've arrived - check storage for food using wrapper (auto-observes)
             if (_owner.StorageHasItemByTag(_home, _foodTag))
             {
                 _isFromInventory = false;
                 _isConsuming = true;
+                DebugLog("EATING", $"Found food at {_home.BuildingName}, starting to eat", 0);
             }
             else
             {
                 // Memory was wrong or food was taken - memory is now updated
-                Log.Warn($"{_owner.Name}: No food at home (memory updated)");
+                Log.Warn($"{_owner.Name}: No food at {_home.BuildingName} (memory updated)");
                 Fail();
                 return null;
             }
@@ -190,6 +192,8 @@ public class ConsumeItemActivity : Activity
             {
                 // Apply restoration
                 _need.Restore(_restoreAmount);
+                var source = _isFromInventory ? "inventory" : _home?.BuildingName ?? "unknown";
+                DebugLog("EATING", $"Finished eating from {source} (hunger restored by {_restoreAmount})", 0);
                 Complete();
                 return null;
             }

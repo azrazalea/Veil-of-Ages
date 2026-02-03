@@ -141,38 +141,50 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
             // Determine priority - use same logic as eating
             int checkPriority = _need.IsCritical() ? -2 : -1;
 
-            // First try: check home storage
+            // Build list of potential food sources to check (home first, then known food buildings)
+            var buildingsToCheck = new List<Building>();
+
+            // Add home if exists
             var home = GetHome();
             if (home != null && GodotObject.IsInstanceValid(home))
             {
-                DebugLog("EATING", $"No food memory, going to check home storage (priority {checkPriority})", 0);
-                var checkActivity = new CheckHomeStorageActivity(home, priority: checkPriority);
-                return new StartActivityAction(_owner, this, checkActivity, priority: checkPriority);
+                buildingsToCheck.Add(home);
             }
 
-            // Second try: use SharedKnowledge to find buildings that store food
+            // Add buildings that SharedKnowledge says store food
             var foodBuildings = _owner.SharedKnowledge
                 .SelectMany(k => k.GetBuildingsByTag(_foodTag))
-                .Where(b => b.IsValid)
+                .Where(b => b.IsValid && b.Building != null)
+                .Select(b => b.Building!)
                 .ToList();
 
-            if (foodBuildings.Count > 0)
+            foreach (var building in foodBuildings)
             {
-                // Go to nearest building that stores food and check its storage
-                var currentPos = _owner.GetCurrentGridPosition();
-                var nearest = foodBuildings
-                    .OrderBy(b => b.Position.DistanceSquaredTo(currentPos))
-                    .First();
-
-                if (nearest.Building != null)
+                if (!buildingsToCheck.Contains(building))
                 {
-                    DebugLog("EATING", $"No home, but found {nearest.BuildingName} that stores '{_foodTag}', going to check (priority {checkPriority})", 0);
-                    var checkActivity = new CheckHomeStorageActivity(nearest.Building, priority: checkPriority);
-                    return new StartActivityAction(_owner, this, checkActivity, priority: checkPriority);
+                    buildingsToCheck.Add(building);
                 }
             }
 
-            // No home and no known food storage buildings - log debug info about why food wasn't found
+            // Find a building we haven't recently checked (no observation or observation expired)
+            // This prevents infinite loops when home is empty - we'll try granary next
+            foreach (var building in buildingsToCheck)
+            {
+                var observation = _owner.Memory?.RecallStorageContents(building);
+                if (observation == null)
+                {
+                    // Never checked this building or observation expired - go check it
+                    DebugLog("EATING", $"No food memory, going to check {building.BuildingName} (priority {checkPriority})", 0);
+                    var checkActivity = new CheckHomeStorageActivity(building, priority: checkPriority);
+                    return new StartActivityAction(_owner, this, checkActivity, priority: checkPriority);
+                }
+
+                // If observation exists, we already checked it and found no food (or we'd have food memory)
+                // Skip to next building
+            }
+
+            // All known food sources were recently checked and found no food
+            // Wait for standing orders to deliver food, or for memory to expire so we check again
             DebugLogFoodSearch();
             return null;
         }
@@ -182,17 +194,43 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
         // Low hunger: priority -1 (interrupts work but not sleep)
         int actionPriority = _need.IsCritical() ? -2 : -1;
 
+        // Find the building that actually has food (may not be home!)
+        // First check if food is in inventory (targetBuilding can be null)
+        Building? targetBuilding = null;
+        var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
+        if (inventory?.FindItemByTag(_foodTag) == null)
+        {
+            // Not in inventory - find which building has the remembered food
+            var buildingsWithFood = _owner.Memory?.RecallStorageWithItem(_foodTag) ?? [];
+            if (buildingsWithFood.Count > 0)
+            {
+                // Use the first building with food (could optimize to pick nearest)
+                targetBuilding = buildingsWithFood[0].building;
+                DebugLog("EATING", $"Found remembered food at {targetBuilding.BuildingName}");
+            }
+            else
+            {
+                // No remembered food - this shouldn't happen since HasFoodAvailable() returned true
+                // Fall back to home as last resort
+                targetBuilding = GetHome();
+                DebugLog("EATING", $"No remembered food location, falling back to home: {targetBuilding?.BuildingName ?? "null"}");
+            }
+        }
+        else
+        {
+            DebugLog("EATING", "Food is in inventory, no travel needed");
+        }
+
         // Start consume activity
-        var homeBuilding = GetHome();
         var consumeActivity = new ConsumeItemActivity(
             _foodTag,
             _need,
-            homeBuilding,
+            targetBuilding,
             _restoreAmount,
             _consumptionDuration,
             priority: actionPriority);
 
-        DebugLog("EATING", $"Starting ConsumeItemActivity (priority {actionPriority}), home: {homeBuilding?.BuildingName ?? "null"}", 0);
+        DebugLog("EATING", $"Starting ConsumeItemActivity (priority {actionPriority}), target: {targetBuilding?.BuildingName ?? "inventory"}", 0);
         return new StartActivityAction(_owner, this, consumeActivity, priority: actionPriority);
     }
 
