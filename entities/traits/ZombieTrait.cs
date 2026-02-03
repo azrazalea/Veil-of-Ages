@@ -39,6 +39,30 @@ public class ZombieTrait : UndeadBehaviorTrait
         Log.Print($"{_owner?.Name}: Home graveyard set to {graveyard.BuildingName}");
     }
 
+    /// <summary>
+    /// Validates that the trait has all required configuration.
+    /// Expected parameters:
+    /// - "homeGraveyard" or "home" (Building): The graveyard building this zombie is associated with (optional).
+    /// </summary>
+    /// <remarks>
+    /// If no home graveyard is provided, the zombie will still function but won't have access
+    /// to graveyard storage for feeding. This is acceptable for zombies spawned in the wild.
+    /// </remarks>
+    public override bool ValidateConfiguration(TraitConfiguration config)
+    {
+        // Home graveyard is optional - zombies can function without it
+        return true;
+    }
+
+    public override void Configure(TraitConfiguration config)
+    {
+        var graveyard = config.GetBuilding("homeGraveyard") ?? config.GetBuilding("home");
+        if (graveyard != null)
+        {
+            SetHomeGraveyard(graveyard);
+        }
+    }
+
     public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue)
     {
         base.Initialize(owner, health, initQueue);
@@ -174,7 +198,7 @@ public class ZombieTrait : UndeadBehaviorTrait
 
     private void PlayZombieGroan()
     {
-        // Access the AudioStreamPlayer2D component
-        (_owner as MindlessZombie)?.CallDeferred("PlayZombieGroan");
+        // Play the ambient sound (zombie groan) via GenericBeing's audio system
+        (_owner as GenericBeing)?.CallDeferred("PlaySound", "ambient");
     }
 }

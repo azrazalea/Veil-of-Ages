@@ -14,16 +14,55 @@ namespace VeilOfAges.Entities.Traits;
 /// </summary>
 public class DistributorJobTrait : BeingTrait
 {
-    private readonly Building _workplace; // The granary
+    private Building? _workplace; // The granary
+
+    public DistributorJobTrait()
+    {
+    }
 
     public DistributorJobTrait(Building workplace)
     {
         _workplace = workplace;
     }
 
+    /// <summary>
+    /// Validates that the trait has all required configuration.
+    /// Expected parameters:
+    /// - "workplace" (Building): The granary building to work at (recommended but optional).
+    /// </summary>
+    /// <remarks>
+    /// If no workplace is provided, the trait will be non-functional but won't crash.
+    /// The distributor will simply not suggest any work actions until a workplace is assigned.
+    /// </remarks>
+    public override bool ValidateConfiguration(TraitConfiguration config)
+    {
+        if (_workplace != null)
+        {
+            return true;
+        }
+
+        // workplace is recommended but we handle null gracefully in SuggestAction()
+        if (config.GetBuilding("workplace") == null)
+        {
+            Log.Warn("DistributorJobTrait: 'workplace' parameter recommended for proper function");
+        }
+
+        return true; // Don't fail - we handle missing workplace gracefully
+    }
+
+    public override void Configure(TraitConfiguration config)
+    {
+        if (_workplace != null)
+        {
+            return;
+        }
+
+        _workplace = config.GetBuilding("workplace");
+    }
+
     public override EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
     {
-        if (_owner == null || !GodotObject.IsInstanceValid(_workplace))
+        if (_owner == null || _workplace == null || !GodotObject.IsInstanceValid(_workplace))
         {
             return null;
         }

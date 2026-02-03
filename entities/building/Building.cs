@@ -180,9 +180,6 @@ public partial class Building : Node2D, IEntity<Trait>
             _groundTileMap.ZAsRelative = true;
         }
 
-        // Initialize the TileResourceManager if not already initialized
-        TileResourceManager.Instance.Initialize();
-
         // Setup the TileSet with all required atlas sources
         TileResourceManager.Instance.SetupTileSet(_tileMap);
         TileResourceManager.Instance.SetupTileSet(_groundTileMap);

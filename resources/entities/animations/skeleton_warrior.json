@@ -1,0 +1,27 @@
+{
+  "Id": "skeleton_warrior",
+  "Name": "Skeleton Warrior Animations",
+  "SpriteSize": [32, 32],
+  "Animations": {
+    "idle": {
+      "TexturePath": "res://assets/minifantasy/entities/undead/skeleton-warrior/Idle_Activation_Deactivation.png",
+      "FrameWidth": 32,
+      "FrameHeight": 32,
+      "FrameCount": 3,
+      "FrameRow": 1,
+      "StartColumn": 2,
+      "Speed": 3.0,
+      "Loop": true
+    },
+    "walk": {
+      "TexturePath": "res://assets/minifantasy/entities/undead/skeleton-warrior/Walk.png",
+      "FrameWidth": 32,
+      "FrameHeight": 32,
+      "FrameCount": 3,
+      "FrameRow": 0,
+      "StartColumn": 0,
+      "Speed": 5.0,
+      "Loop": true
+    }
+  }
+}

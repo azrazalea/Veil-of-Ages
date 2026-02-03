@@ -7,9 +7,7 @@
 [ext_resource type="Texture2D" uid="uid://j2448x7luda5" path="res://assets/minifantasy/terrain/water/Shallow_Water_Tileset.png" id="3_ivx4l"]
 [ext_resource type="PackedScene" uid="uid://b7m4w78tk21cj" path="res://entities/terrain/tree/scene.tscn" id="6_7s53g"]
 [ext_resource type="PackedScene" uid="uid://cyq2ntvw2iake" path="res://entities/building/scene.tscn" id="7_ivx4l"]
-[ext_resource type="PackedScene" uid="uid://byov4a2whfiqj" path="res://entities/beings/human/HumanTownsfolk.tscn" id="7_ob0ca"]
-[ext_resource type="PackedScene" uid="uid://o7vxruni6hv" path="res://entities/beings/undead/mindless/skeleton/scene.tscn" id="9_bkv64"]
-[ext_resource type="PackedScene" uid="uid://bjat8y5cn1xb6" path="res://entities/beings/undead/mindless/zombie/scene.tscn" id="10_6lw76"]
+[ext_resource type="PackedScene" uid="uid://dgenericbeing1" path="res://entities/beings/generic_being.tscn" id="7_generic"]
 [ext_resource type="Script" uid="uid://cmcja60hfpcen" path="res://entities/building/BuildingManager.cs" id="10_liapn"]
 [ext_resource type="Script" uid="uid://barxyo8p3oyvt" path="res://entities/EntityThinkingSystem.cs" id="11_bad00"]
 [ext_resource type="PackedScene" uid="uid://dnseqlvnfuids" path="res://core/GameController.tscn" id="13_liapn"]
@@ -1542,9 +1540,7 @@ script = ExtResource("1_qt6d3")
 script = ExtResource("2_ob0ca")
 TreeScene = ExtResource("6_7s53g")
 BuildingScene = ExtResource("7_ivx4l")
-SkeletonScene = ExtResource("9_bkv64")
-ZombieScene = ExtResource("10_6lw76")
-TownsfolkScene = ExtResource("7_ob0ca")
+GenericBeingScene = ExtResource("7_generic")
 
 [node name="EntityThinkingSystem" type="Node" parent="." unique_id=1769350613]
 script = ExtResource("11_bad00")

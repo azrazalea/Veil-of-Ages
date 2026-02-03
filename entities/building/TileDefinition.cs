@@ -191,104 +191,13 @@ public class TileDefinition
 
     /// <summary>
     /// Merge a variant definition with this base definition.
+    /// Uses generic DefinitionMerger for automatic field handling.
     /// </summary>
     /// <param name="variantDef">The variant definition to merge.</param>
     /// <returns>A new TileDefinition with merged properties.</returns>
     public TileDefinition MergeWithVariant(TileDefinition variantDef)
     {
-        var merged = new TileDefinition
-        {
-            // Base properties (preserved from base)
-            Id = Id,
-            Name = Name,
-            Description = Description,
-            Type = Type,
-            DefaultMaterial = DefaultMaterial,
-            IsWalkable = IsWalkable,
-
-            // Override with variant values if they exist
-            Category = variantDef.Category ?? Category,
-            BaseDurability = variantDef.BaseDurability != 0 ? variantDef.BaseDurability : BaseDurability,
-            AtlasSource = !string.IsNullOrEmpty(variantDef.AtlasSource) ? variantDef.AtlasSource : AtlasSource,
-            AtlasCoords = variantDef.AtlasCoords != Vector2I.Zero ? variantDef.AtlasCoords : AtlasCoords,
-
-            // Merge dictionaries
-            DefaultSensoryDifficulties = new Dictionary<string, float>(DefaultSensoryDifficulties),
-            Properties = new Dictionary<string, string>(Properties),
-            Categories = new Dictionary<string, TileCategory>()
-        };
-
-        // Override/add variant-specific sensory difficulties
-        if (variantDef.DefaultSensoryDifficulties != null)
-        {
-            foreach (var kvp in variantDef.DefaultSensoryDifficulties)
-            {
-                merged.DefaultSensoryDifficulties[kvp.Key] = kvp.Value;
-            }
-        }
-
-        // Override/add variant-specific properties
-        if (variantDef.Properties != null)
-        {
-            foreach (var kvp in variantDef.Properties)
-            {
-                merged.Properties[kvp.Key] = kvp.Value;
-            }
-        }
-
-        // Copy base categories
-        if (Categories != null)
-        {
-            foreach (var categoryKvp in Categories)
-            {
-                merged.Categories[categoryKvp.Key] = new TileCategory
-                {
-                    Variants = new Dictionary<string, Dictionary<string, TileVariantDefinition>>()
-                };
-
-                // Copy variants within this category
-                foreach (var materialKvp in categoryKvp.Value.Variants)
-                {
-                    merged.Categories[categoryKvp.Key].Variants[materialKvp.Key] =
-                        new Dictionary<string, TileVariantDefinition>(materialKvp.Value);
-                }
-            }
-        }
-
-        // Add/merge variant-specific categories
-        if (variantDef.Categories != null)
-        {
-            foreach (var categoryKvp in variantDef.Categories)
-            {
-                string categoryName = categoryKvp.Key;
-
-                if (!merged.Categories.TryGetValue(categoryName, out var category))
-                {
-                    category = new TileCategory
-                    {
-                        Variants = new Dictionary<string, Dictionary<string, TileVariantDefinition>>()
-                    };
-                    merged.Categories[categoryName] = category;
-                }
-
-                // Merge variants within this category
-                foreach (var materialKvp in categoryKvp.Value.Variants)
-                {
-                    if (!category.Variants.TryGetValue(materialKvp.Key, out var variantDict))
-                    {
-                        variantDict = new Dictionary<string, TileVariantDefinition>();
-                        category.Variants[materialKvp.Key] = variantDict;
-                    }
-
-                    foreach (var variantKvp in materialKvp.Value)
-                    {
-                        variantDict[variantKvp.Key] = variantKvp.Value;
-                    }
-                }
-            }
-        }
-
-        return merged;
+        return Beings.DefinitionMerger.Merge(this, variantDef);
     }
 
     /// <summary>

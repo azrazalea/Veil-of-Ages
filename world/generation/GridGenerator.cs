@@ -21,11 +21,7 @@ public partial class GridGenerator : Node
     public int NumberOfTrees = 20;
 
     [Export]
-    public PackedScene? SkeletonScene;
-    [Export]
-    public PackedScene? ZombieScene;
-    [Export]
-    public PackedScene? TownsfolkScene;
+    public PackedScene? GenericBeingScene;
 
     private Node? _entitiesContainer;
     private Area? _activeGridArea;
@@ -47,8 +43,8 @@ public partial class GridGenerator : Node
         _entitiesContainer = world.GetNode<Node>("Entities");
 
         // Ensure we have all required nodes
-        if (_entitiesContainer == null || _activeGridArea == null || _entitiesContainer == null ||
-            BuildingScene == null || SkeletonScene == null || ZombieScene == null || TownsfolkScene == null)
+        if (_entitiesContainer == null || _activeGridArea == null ||
+            BuildingScene == null || GenericBeingScene == null)
         {
             Log.Error("WorldGenerator: Missing required nodes!");
             return;
@@ -61,9 +57,7 @@ public partial class GridGenerator : Node
             _activeGridArea,
             _entitiesContainer,
             BuildingScene,
-            SkeletonScene,
-            ZombieScene,
-            TownsfolkScene,
+            GenericBeingScene,
             _entityThinkingSystem);
 
         // Generate village at the center of the map
@@ -312,119 +306,5 @@ public partial class GridGenerator : Node
             // Place decoration
             // _objectsLayer.SetCell(gridPos, decorationSourceId, tileCoords);
         }
-    }
-
-    // Add this method to WorldGenerator class
-    private void SpawnBeingNearBuilding(Vector2I buildingPos, Vector2I buildingSize, PackedScene beingScene)
-    {
-        if (_activeGridArea == null || _entityThinkingSystem == null || _entitiesContainer == null)
-        {
-            return;
-        }
-
-        // Find a position in front of the graveyard
-        Vector2I beingPos = FindPositionInFrontOfBuilding(buildingPos, buildingSize);
-
-        // Ensure the position is valid and not occupied
-        if (beingPos != buildingPos && _activeGridArea.IsCellWalkable(beingPos))
-        {
-            Node2D being = beingScene.Instantiate<Node2D>();
-            Log.Print($"Spawning being of type {being.GetType().Name}");
-
-            // Initialize the skeleton if it has the correct type
-            if (being is Being typedBeing)
-            {
-                typedBeing.Initialize(_activeGridArea, beingPos, _gameController);
-                _entityThinkingSystem.RegisterEntity(typedBeing);
-                Log.Print($"Spawned being at {beingPos} near building at {buildingPos}");
-            }
-            else
-            {
-                // Fallback positioning if not the correct type
-                being.Position = Utils.GridToWorld(beingPos);
-            }
-
-            _activeGridArea.AddEntity(beingPos, being);
-            _entitiesContainer.AddChild(being);
-        }
-        else
-        {
-            Log.Error($"Could not find valid position to spawn being near graveyard at {buildingPos}");
-        }
-    }
-
-    // Add this helper method to WorldGenerator class
-    private Vector2I FindPositionInFrontOfBuilding(Vector2I buildingPos, Vector2I buildingSize)
-    {
-        // Try positions around the building perimeter (prioritize the front/entrance)
-        Vector2I[] possiblePositions =
-        [
-
-            // Bottom (front) - most likely entrance
-            new (buildingPos.X + (buildingSize.X / 2), buildingPos.Y + buildingSize.Y + 1),
-
-        // Right side
-        new (buildingPos.X + buildingSize.X + 1, buildingPos.Y + (buildingSize.Y / 2)),
-
-        // Top
-        new (buildingPos.X + (buildingSize.X / 2), buildingPos.Y - 1),
-
-        // Left side
-        new (buildingPos.X - 1, buildingPos.Y + (buildingSize.Y / 2))
-        ];
-
-        // Check each possible position
-        foreach (Vector2I pos in possiblePositions)
-        {
-            if (IsValidSpawnPosition(pos))
-            {
-                return pos;
-            }
-        }
-
-        // If no position directly adjacent works, try in a small radius
-        for (int radius = 2; radius <= 3; radius++)
-        {
-            // Try positions in a square around the building
-            for (int xOffset = -radius; xOffset <= buildingSize.X + radius; xOffset++)
-            {
-                for (int yOffset = -radius; yOffset <= buildingSize.Y + radius; yOffset++)
-                {
-                    // Only check perimeter positions (exclude positions inside the building or in the inner rings)
-                    if (xOffset == -radius || xOffset == buildingSize.X + radius ||
-                        yOffset == -radius || yOffset == buildingSize.Y + radius)
-                    {
-                        Vector2I pos = new (buildingPos.X + xOffset, buildingPos.Y + yOffset);
-
-                        if (IsValidSpawnPosition(pos))
-                        {
-                            return pos;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Could not find a valid position
-        return buildingPos; // Return original position as fallback
-    }
-
-    // Helper to check if a position is valid for spawning
-    private bool IsValidSpawnPosition(Vector2I pos)
-    {
-        if (_activeGridArea == null)
-        {
-            return false;
-        }
-
-        // Check bounds and occupancy
-        if (pos.X >= 0 && pos.X < _activeGridArea.GridSize.X &&
-            pos.Y >= 0 && pos.Y < _activeGridArea.GridSize.Y &&
-            _activeGridArea.IsCellWalkable(pos))
-        {
-            return true;
-        }
-
-        return false;
     }
 }

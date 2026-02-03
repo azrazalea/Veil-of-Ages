@@ -16,6 +16,43 @@ public class SkeletonTrait : UndeadBehaviorTrait
     public float DetectionRange { get; set; } = 8.0f;
     public uint IntimidationTime { get; set; } = 40;
 
+    /// <summary>
+    /// Validates that the trait has all required configuration.
+    /// Expected parameters (all optional):
+    /// - "TerritoryRange" (float): How far from spawn position the skeleton considers its territory (default: 12.0)
+    /// - "DetectionRange" (float): How far the skeleton can detect intruders (default: 8.0)
+    /// - "IntimidationTime" (int): Ticks the skeleton remains alert after detecting an intruder (default: 40).
+    /// </summary>
+    /// <remarks>
+    /// All parameters have sensible defaults, so no configuration is strictly required.
+    /// </remarks>
+    public override bool ValidateConfiguration(TraitConfiguration config)
+    {
+        // All parameters are optional with sensible defaults
+        return true;
+    }
+
+    public override void Configure(TraitConfiguration config)
+    {
+        var territory = config.GetFloat("TerritoryRange");
+        if (territory.HasValue)
+        {
+            TerritoryRange = territory.Value;
+        }
+
+        var detection = config.GetFloat("DetectionRange");
+        if (detection.HasValue)
+        {
+            DetectionRange = detection.Value;
+        }
+
+        var intimidation = config.GetInt("IntimidationTime");
+        if (intimidation.HasValue)
+        {
+            IntimidationTime = (uint)intimidation.Value;
+        }
+    }
+
     private enum SkeletonState
     {
         Idle,
@@ -285,7 +322,7 @@ public class SkeletonTrait : UndeadBehaviorTrait
 
     private void PlayBoneRattle()
     {
-        // Access the AudioStreamPlayer2D component
-        (_owner as MindlessSkeleton)?.CallDeferred("PlayBoneRattle");
+        // Play the ambient sound (bone rattle) via GenericBeing's audio system
+        (_owner as GenericBeing)?.CallDeferred("PlaySound", "ambient");
     }
 }

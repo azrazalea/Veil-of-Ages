@@ -11,18 +11,13 @@ namespace VeilOfAges.Entities;
 /// <summary>
 /// Manages tile-related resources including materials, tile definitions, and atlas sources.
 /// </summary>
-public class TileResourceManager
+public partial class TileResourceManager : Node
 {
     // Singleton instance
     private static TileResourceManager? _instance;
-    public static TileResourceManager Instance
-    {
-        get
-        {
-            _instance ??= new TileResourceManager();
-            return _instance;
-        }
-    }
+
+    public static TileResourceManager Instance => _instance
+        ?? throw new InvalidOperationException("TileResourceManager not initialized. Ensure it's registered as an autoload in project.godot");
 
     // Resource collections
     private Dictionary<string, TileMaterialDefinition> _materials = new ();
@@ -35,29 +30,14 @@ public class TileResourceManager
     // Loaded texture resources
     private readonly Dictionary<string, Texture2D> _loadedTextures = new ();
 
-    // Has this manager been initialized?
-    private bool _initialized;
-
-    // Private constructor to enforce singleton pattern
-    private TileResourceManager()
+    public override void _Ready()
     {
-    }
-
-    /// <summary>
-    /// Initialize the resource manager by loading all resources.
-    /// </summary>
-    public void Initialize()
-    {
-        if (_initialized)
-        {
-            return;
-        }
+        _instance = this;
 
         LoadAllMaterials();
         LoadAllAtlasSources();
         LoadAllTileDefinitions();
 
-        _initialized = true;
         Log.Print($"TileResourceManager initialized with {_materials.Count} materials, {_atlasSources.Count} atlas sources, and {_tileDefinitions.Count} tile definitions");
     }
 

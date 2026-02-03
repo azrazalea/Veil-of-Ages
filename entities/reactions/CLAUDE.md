@@ -37,16 +37,15 @@ JSON-serializable reaction template that defines a transformation of items.
 - `RequiresFacility(facilityId)` - Check if a specific facility is required (case-insensitive)
 
 ### ReactionResourceManager.cs
-Singleton manager for loading and accessing reaction definitions.
+Singleton manager for loading and accessing reaction definitions. Registered as a Godot autoload in `project.godot`.
 
 **Key Features:**
-- Singleton pattern with lazy initialization
-- Loads reaction definitions from `res://resources/reactions/*.json`
+- Godot Node autoload pattern (extends `Node`)
+- Loads reaction definitions from `res://resources/reactions/*.json` on `_Ready()`
 - Supports subdirectories for organization
 - Query methods for filtering by tag or facility requirements
 
 **Key Methods:**
-- `Initialize()` - Load all definitions from resources folder
 - `GetDefinition(id)` - Get definition by ID, returns null if not found
 - `GetAllDefinitions()` - Enumerate all loaded definitions
 - `GetReactionsByTag(tag)` - Filter definitions by tag

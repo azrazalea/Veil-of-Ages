@@ -622,10 +622,10 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         Health = new BodyHealth(this);
 
         // Initialize body structure if not already done
+        // Note: InitializeBodyStructure() now initializes both body parts AND systems from JSON
         if (!BodyStructureInitialized)
         {
             InitializeBodyStructure();
-            InitializeBodySystems();
         }
 
         Health.PrintSystemStatuses();
@@ -807,8 +807,8 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     }
 
     // Method to handle body structure initialization - can be overridden by subclasses
+    // Note: InitializeHumanoidBodyStructure() loads both body parts AND systems from JSON definition
     protected virtual void InitializeBodyStructure() => Health?.InitializeHumanoidBodyStructure();
-    protected virtual void InitializeBodySystems() => Health?.InitializeBodySystems();
 
     public virtual EntityAction Think(Vector2 currentPosition, ObservationData observationData)
     {

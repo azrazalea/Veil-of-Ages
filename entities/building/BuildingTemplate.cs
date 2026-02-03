@@ -135,7 +135,6 @@ public class BuildingTemplate
 
             // Verify that the entrance position has a door or is walkable
             string badEntrances = string.Empty;
-            TileResourceManager.Instance.Initialize();
             foreach (var tile in Tiles)
             {
                 if (tile.Type == null)

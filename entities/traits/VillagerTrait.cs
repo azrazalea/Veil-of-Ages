@@ -39,9 +39,56 @@ public class VillagerTrait : BeingTrait
     private Building? _home;
     public Building? Home => _home;
 
-    public VillagerTrait(Building? home = null)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="VillagerTrait"/> class.
+    /// Parameterless constructor for data-driven entity system.
+    /// Home must be configured via Configure() method.
+    /// </summary>
+    public VillagerTrait()
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="VillagerTrait"/> class.
+    /// Convenience constructor for direct instantiation with a home building.
+    /// </summary>
+    public VillagerTrait(Building home)
     {
         _home = home;
+    }
+
+    /// <summary>
+    /// Validates that the trait has all required configuration.
+    /// Expected parameters:
+    /// - "home" (Building): The home building for this villager (optional but recommended).
+    /// </summary>
+    /// <remarks>
+    /// If no home is provided, the villager will function but cannot return home to sleep
+    /// or access home storage for food. A warning is logged if home is not configured.
+    /// </remarks>
+    public override bool ValidateConfiguration(TraitConfiguration config)
+    {
+        // Home is optional but recommended - villager will have limited functionality without it
+        if (config.GetBuilding("home") == null && _home == null)
+        {
+            Log.Warn("VillagerTrait: 'home' parameter recommended for proper sleep and storage access");
+        }
+
+        return true; // Don't fail - we handle missing home gracefully
+    }
+
+    public override void Configure(TraitConfiguration config)
+    {
+        // Only apply config if not already set via constructor
+        if (_home == null)
+        {
+            var home = config.GetBuilding("home");
+            if (home != null)
+            {
+                SetHome(home);
+                Log.Print($"VillagerTrait configured with home: {home.BuildingName}");
+            }
+        }
     }
 
     public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue = null)

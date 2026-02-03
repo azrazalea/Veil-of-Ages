@@ -8,44 +8,23 @@ namespace VeilOfAges.Entities.Reactions;
 
 /// <summary>
 /// Singleton manager for loading and accessing reaction definitions.
+/// Registered as a Godot autoload for automatic initialization.
 /// </summary>
-public class ReactionResourceManager
+public partial class ReactionResourceManager : Node
 {
     // Singleton instance
     private static ReactionResourceManager? _instance;
-    public static ReactionResourceManager Instance
-    {
-        get
-        {
-            _instance ??= new ReactionResourceManager();
-            return _instance;
-        }
-    }
+
+    public static ReactionResourceManager Instance => _instance
+        ?? throw new InvalidOperationException("ReactionResourceManager not initialized. Ensure it's registered as an autoload in project.godot");
 
     // Reaction definition collection
     private readonly Dictionary<string, ReactionDefinition> _definitions = new ();
 
-    // Has this manager been initialized?
-    private bool _initialized;
-
-    // Private constructor to enforce singleton pattern
-    private ReactionResourceManager()
+    public override void _Ready()
     {
-    }
-
-    /// <summary>
-    /// Initialize the resource manager by loading all reaction definitions.
-    /// </summary>
-    public void Initialize()
-    {
-        if (_initialized)
-        {
-            return;
-        }
-
+        _instance = this;
         LoadAllDefinitions();
-
-        _initialized = true;
         Log.Print($"ReactionResourceManager initialized with {_definitions.Count} reaction definitions");
     }
 

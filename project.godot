@@ -24,6 +24,11 @@ window/stretch/mode="canvas_items"
 [autoload]
 
 DebugServer="*res://core/debug/DebugServer.cs"
+TileResourceManager="*res://entities/building/TileResourceManager.cs"
+ItemResourceManager="*res://entities/items/ItemResourceManager.cs"
+ReactionResourceManager="*res://entities/reactions/ReactionResourceManager.cs"
+BodyStructureResourceManager="*res://entities/beings/health/BodyStructureResourceManager.cs"
+BeingResourceManager="*res://entities/beings/BeingResourceManager.cs"
 
 [dotnet]
 

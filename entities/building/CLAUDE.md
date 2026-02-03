@@ -134,10 +134,11 @@ JSON-serializable material definition.
 - `SensoryModifiers` - Per-sense detection modifiers
 
 ### TileResourceManager.cs
-Singleton manager for all tile-related resources.
+Singleton manager for all tile-related resources. Registered as a Godot autoload in `project.godot`.
 
 **Key Features:**
-- Loads materials, atlases, and tile definitions from JSON
+- Godot Node autoload pattern (extends `Node`)
+- Loads materials, atlases, and tile definitions from JSON on `_Ready()`
 - Supports variant system with category/material/variant hierarchy
 - TileSet setup for TileMapLayer nodes
 - BuildingTile creation with full property merging

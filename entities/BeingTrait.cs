@@ -4,6 +4,7 @@ using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Sensory;
+using VeilOfAges.Entities.Traits;
 using VeilOfAges.Grid;
 using VeilOfAges.UI;
 
@@ -469,6 +470,28 @@ public abstract class BeingTrait : Trait
     public virtual string? GenerateDialogueDescription()
     {
         return null;
+    }
+
+    /// <summary>
+    /// Validate the configuration before applying it.
+    /// Override in derived traits to check for required parameters.
+    /// </summary>
+    /// <param name="config">The trait configuration to validate.</param>
+    /// <returns>True if valid, false otherwise.</returns>
+    public virtual bool ValidateConfiguration(TraitConfiguration config)
+    {
+        return true;
+    }
+
+    /// <summary>
+    /// Configure this trait with parameters from JSON definition and/or runtime.
+    /// Override in derived traits to receive configuration values.
+    /// Called after ValidateConfiguration returns true.
+    /// </summary>
+    /// <param name="config">The trait configuration with merged JSON and runtime parameters.</param>
+    public virtual void Configure(TraitConfiguration config)
+    {
+        // Base implementation does nothing - derived traits override to accept parameters
     }
 
     /// <summary>

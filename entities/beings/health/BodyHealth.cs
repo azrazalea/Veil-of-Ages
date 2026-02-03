@@ -12,9 +12,12 @@ public class BodyHealth(Being owner)
     public Dictionary<BodySystemType, BodySystem> BodySystems { get; private set; } = [];
 
     public bool BodyStructureInitialized;
-    public string[] SoftTissuesAndOrgans = [
-        "Stomach", "Heart", "Lungs", "Kidneys", "Liver", "Eyes", "Nose", "Gonads", "Genitals"
-    ];
+
+    /// <summary>
+    /// Gets body parts that are considered soft tissues and organs.
+    /// Parts with the "organ" flag in the JSON definition are automatically added to this list.
+    /// </summary>
+    public List<string> SoftTissuesAndOrgans { get; private set; } = [];
 
     private readonly Being _owner = owner;
 
@@ -225,172 +228,87 @@ public class BodyHealth(Being owner)
         }
     }
 
-    public void InitializeBodySystems()
+    /// <summary>
+    /// Initialize body structure and systems from a JSON definition.
+    /// </summary>
+    /// <param name="definition">The body structure definition loaded from JSON.</param>
+    public void InitializeFromDefinition(BodyStructureDefinition definition)
     {
-        // Define all body systems
-        var consciousness = new BodySystem(BodySystemType.Consciousness, "Consciousness", true);
-        consciousness.AddContributor("Brain", 1.0f);
+        // Clear any existing data
+        BodyPartGroups.Clear();
+        BodySystems.Clear();
+        SoftTissuesAndOrgans.Clear();
 
-        var sight = new BodySystem(BodySystemType.Sight, "Sight", false);
-        sight.AddContributor("Eyes", 1.0f);
+        // Create body part groups
+        if (definition.Groups != null)
+        {
+            foreach (var (groupName, groupDef) in definition.Groups)
+            {
+                var group = new BodyPartGroup(groupName);
 
-        var hearing = new BodySystem(BodySystemType.Hearing, "Hearing", false);
-        hearing.AddContributor("Ears", 1.0f);
+                if (groupDef.Parts != null)
+                {
+                    foreach (var partDef in groupDef.Parts)
+                    {
+                        if (partDef.Name == null)
+                        {
+                            throw new InvalidOperationException($"Body part in group '{groupName}' has null name");
+                        }
 
-        var smell = new BodySystem(BodySystemType.Smell, "Smell", false);
-        smell.AddContributor("Nose", 1.0f);
+                        var part = new BodyPart(
+                            partDef.Name,
+                            partDef.MaxHealth,
+                            partDef.Importance,
+                            partDef.PainSensitivity);
+                        group.AddPart(part);
 
-        var moving = new BodySystem(BodySystemType.Moving, "Moving", false);
-        moving.AddContributor("Legs", 0.7f);
-        moving.AddContributor("Feet", 0.3f);
+                        // Track organs for RemoveSoftTissuesAndOrgans
+                        if (partDef.HasFlag("organ") && !SoftTissuesAndOrgans.Contains(partDef.Name))
+                        {
+                            SoftTissuesAndOrgans.Add(partDef.Name);
+                        }
+                    }
+                }
 
-        var manipulation = new BodySystem(BodySystemType.Manipulation, "Manipulation", false);
-        manipulation.AddContributor("Arms", 0.4f);
-        manipulation.AddContributor("Hands", 0.6f);
+                BodyPartGroups[groupName] = group;
+            }
+        }
 
-        var talking = new BodySystem(BodySystemType.Talking, "Talking", false);
-        talking.AddContributor("Jaw", 0.7f);
-        talking.AddContributor("Neck", 0.3f);
+        // Create body systems
+        if (definition.Systems != null)
+        {
+            foreach (var (systemName, systemDef) in definition.Systems)
+            {
+                // Parse the system type from the name
+                if (!Enum.TryParse<BodySystemType>(systemName, out var systemType))
+                {
+                    throw new InvalidOperationException($"Unknown body system type: {systemName}");
+                }
 
-        var communication = new BodySystem(BodySystemType.Communication, "Communication", false);
-        communication.AddContributor("Jaw", 0.5f);
-        communication.AddContributor("Neck", 0.5f);
+                var system = new BodySystem(systemType, systemName, systemDef.Fatal);
 
-        var breathing = new BodySystem(BodySystemType.Breathing, "Breathing", true);
-        breathing.AddContributor("Lungs", 1.0f);
+                if (systemDef.Contributors != null)
+                {
+                    foreach (var (partName, weight) in systemDef.Contributors)
+                    {
+                        system.AddContributor(partName, weight);
+                    }
+                }
 
-        var bloodFiltration = new BodySystem(BodySystemType.BloodFiltration, "Blood Filtration", true);
-        bloodFiltration.AddContributor("Kidneys", 0.7f);
-        bloodFiltration.AddContributor("Liver", 0.3f);
+                BodySystems[systemType] = system;
+            }
+        }
 
-        var bloodPumping = new BodySystem(BodySystemType.BloodPumping, "Blood Pumping", true);
-        bloodPumping.AddContributor("Heart", 1.0f);
-
-        var digestion = new BodySystem(BodySystemType.Digestion, "Digestion", true);
-        digestion.AddContributor("Stomach", 1.0f);
-
-        var pain = new BodySystem(BodySystemType.Pain, "Pain", false);
-
-        // Pain is calculated differently - all parts contribute based on their pain sensitivity
-
-        // Add all systems to the dictionary
-        BodySystems[BodySystemType.Consciousness] = consciousness;
-        BodySystems[BodySystemType.Sight] = sight;
-        BodySystems[BodySystemType.Hearing] = hearing;
-        BodySystems[BodySystemType.Smell] = smell;
-        BodySystems[BodySystemType.Moving] = moving;
-        BodySystems[BodySystemType.Manipulation] = manipulation;
-        BodySystems[BodySystemType.Talking] = talking;
-        BodySystems[BodySystemType.Communication] = communication;
-        BodySystems[BodySystemType.Breathing] = breathing;
-        BodySystems[BodySystemType.BloodFiltration] = bloodFiltration;
-        BodySystems[BodySystemType.BloodPumping] = bloodPumping;
-        BodySystems[BodySystemType.Digestion] = digestion;
-        BodySystems[BodySystemType.Pain] = pain;
+        BodyStructureInitialized = true;
     }
 
+    /// <summary>
+    /// Initialize the humanoid body structure from JSON definition.
+    /// NO FALLBACK: If the definition cannot be loaded, the game will crash.
+    /// </summary>
     public void InitializeHumanoidBodyStructure()
     {
-        // Create torso group
-        var torso = new BodyPartGroup("Torso");
-        torso.AddParts([
-            new BodyPart("Clavicles", 30, 0.3f),
-            new BodyPart("Sternum", 30, 0.4f),
-            new BodyPart("Ribs", 50, 0.6f),
-            new BodyPart("Pelvis", 50, 0.7f),
-            new BodyPart("Spine", 60, 0.9f),
-            new BodyPart("Stomach", 40, 0.7f),
-            new BodyPart("Heart", 30, 1.0f),
-            new BodyPart("Lungs", 40, 0.8f),
-            new BodyPart("Kidneys", 30, 0.6f),
-            new BodyPart("Liver", 40, 0.7f),
-            new BodyPart("Neck", 30, 0.8f),
-            new BodyPart("Gonads", 20, 0.3f),
-            new BodyPart("Genitals", 20, 0.3f)
-        ]);
-
-        // Create UpperHead group
-        var upperHead = new BodyPartGroup("UpperHead");
-        upperHead.AddParts([
-            new BodyPart("Head", 40, 0.9f),
-            new BodyPart("Skull", 50, 0.8f),
-            new BodyPart("Brain", 30, 1.0f),
-            new BodyPart("Ears", 20, 0.4f)
-        ]);
-
-        // Create FullHead group
-        var fullHead = new BodyPartGroup("FullHead");
-        fullHead.AddParts([
-            new BodyPart("Head", 40, 0.9f),
-            new BodyPart("Skull", 50, 0.8f),
-            new BodyPart("Brain", 30, 1.0f),
-            new BodyPart("Eyes", 20, 0.7f),
-            new BodyPart("Ears", 20, 0.4f),
-            new BodyPart("Nose", 15, 0.3f),
-            new BodyPart("Jaw", 25, 0.5f)
-        ]);
-
-        // Create Shoulders group
-        var shoulders = new BodyPartGroup("Shoulders");
-        shoulders.AddPart(new BodyPart("Shoulders", 40, 0.5f));
-
-        // Create Arms group
-        var arms = new BodyPartGroup("Arms");
-        arms.AddParts([
-            new BodyPart("Arms", 40, 0.6f),
-            new BodyPart("Hands", 30, 0.5f),
-            new BodyPart("Humeri", 35, 0.5f),
-            new BodyPart("Radii", 30, 0.4f)
-        ]);
-
-        // Create Hands group
-        var hands = new BodyPartGroup("Hands");
-        hands.AddParts([
-            new BodyPart("Hands", 30, 0.5f),
-            new BodyPart("Fingers", 20, 0.4f)
-        ]);
-
-        // Create LeftHand group
-        var leftHand = new BodyPartGroup("LeftHand");
-        leftHand.AddParts([
-            new BodyPart("Left Hand", 30, 0.5f),
-            new BodyPart("Left Hand Fingers", 20, 0.4f)
-        ]);
-
-        // Create RightHand group
-        var rightHand = new BodyPartGroup("RightHand");
-        rightHand.AddParts([
-            new BodyPart("Right Hand", 30, 0.5f),
-            new BodyPart("Right Hand Fingers", 20, 0.4f)
-        ]);
-
-        // Create Legs group
-        var legs = new BodyPartGroup("Legs");
-        legs.AddParts([
-            new BodyPart("Legs", 50, 0.7f),
-            new BodyPart("Feet", 30, 0.5f),
-            new BodyPart("Femurs", 40, 0.6f),
-            new BodyPart("Tibiae", 35, 0.5f)
-        ]);
-
-        // Create Feet group
-        var feet = new BodyPartGroup("Feet");
-        feet.AddParts([
-            new BodyPart("Feet", 30, 0.5f),
-            new BodyPart("Toes", 15, 0.3f)
-        ]);
-
-        // Add all groups to the dictionary
-        BodyPartGroups["Torso"] = torso;
-        BodyPartGroups["UpperHead"] = upperHead;
-        BodyPartGroups["FullHead"] = fullHead;
-        BodyPartGroups["Shoulders"] = shoulders;
-        BodyPartGroups["Arms"] = arms;
-        BodyPartGroups["Hands"] = hands;
-        BodyPartGroups["LeftHand"] = leftHand;
-        BodyPartGroups["RightHand"] = rightHand;
-        BodyPartGroups["Legs"] = legs;
-        BodyPartGroups["Feet"] = feet;
-        BodyStructureInitialized = true;
+        var definition = BodyStructureResourceManager.Instance.GetDefinition("humanoid");
+        InitializeFromDefinition(definition);
     }
 }

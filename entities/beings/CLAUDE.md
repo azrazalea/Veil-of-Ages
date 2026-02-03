@@ -227,6 +227,117 @@ foreach (var part in candidates.Take(numDamaged))
     part.CurrentHealth = (int)(part.MaxHealth * _rng.RandfRange(0.3f, 0.7f));
 ```
 
+## Data-Driven Entity System
+
+The data-driven entity system allows entities to be defined in JSON rather than hardcoded C# classes.
+
+### Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                 BeingResourceManager (Singleton)                │
+├─────────────────────────────────────────────────────────────────┤
+│  Dictionary<string, BeingDefinition> _definitions               │
+│  Dictionary<string, SpriteAnimationDefinition> _animations      │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+         ┌────────────────────┴────────────────────┐
+         ▼                                         ▼
+┌─────────────────────┐               ┌─────────────────────────┐
+│ BeingDefinition     │               │ SpriteAnimationDefinition│
+│ - Id, Name, Category│               │ - Id, SpriteSize        │
+│ - Attributes (7)    │───references──│ - Animations{}          │
+│ - Movement speed    │               │   - idle: frames, speed │
+│ - Traits[]          │               │   - walk: frames, speed │
+│ - Body modifications│               └─────────────────────────┘
+│ - Audio config      │                         │
+└─────────────────────┘                         ▼
+         │                            ┌─────────────────────────┐
+         ▼                            │ SpriteFrames (Godot)    │
+┌─────────────────────┐               │ Created at runtime      │
+│ TraitFactory        │               └─────────────────────────┘
+│ - Create traits     │
+│ - Merge JSON +      │
+│   runtime params    │
+└─────────────────────┘
+```
+
+### New Files
+
+#### BeingDefinition.cs
+JSON-serializable definition class containing:
+- `Id`, `Name`, `Description`, `Category`
+- `AnimationId` - Reference to animation definition
+- `Attributes` - The 7 being attributes
+- `Movement` - Movement speed configuration
+- `Traits[]` - List of trait definitions with parameters
+- `Body` - Body structure and modifications
+- `Audio` - Sound configuration
+- `Tags[]` - Categorization tags
+
+#### SpriteAnimationDefinition.cs
+JSON-serializable animation definition:
+- `Id`, `Name`, `SpriteSize`
+- `Animations` dictionary with animation states (idle, walk)
+- `CreateSpriteFrames()` - Creates Godot SpriteFrames at runtime
+
+#### BeingResourceManager.cs
+Singleton manager for loading entity resources:
+- Loads from `res://resources/entities/definitions/` and `animations/`
+- `GetDefinition(id)` - Get entity definition
+- `GetAnimation(id)` - Get animation definition
+- `GetDefinitionsByTag(tag)` - Filter by tag
+- `GetDefinitionsByCategory(category)` - Filter by category
+
+#### GenericBeing.cs
+Data-driven Being implementation:
+- Factory method: `CreateFromDefinition(definitionId, runtimeParams)`
+- Loads traits, animations, body modifications from definition
+- Supports runtime parameters merged with JSON parameters
+- Used instead of specific Being subclasses
+
+#### generic_being.tscn
+Minimal Godot scene containing:
+- CharacterBody2D root (GenericBeing.cs script)
+- AnimatedSprite2D child (configured at runtime)
+- AudioStreamPlayer2D child (for sounds)
+
+### Creating Data-Driven Entities
+
+```csharp
+// Spawn from definition with optional runtime parameters
+var runtimeParams = new Dictionary<string, object?>
+{
+    { "home", homeBuilding }
+};
+var being = GenericBeing.CreateFromDefinition("human_townsfolk", runtimeParams);
+if (being != null)
+{
+    being.Initialize(gridArea, position, gameController);
+    container.AddChild(being);
+}
+```
+
+### Trait Configuration System
+
+Traits receive configuration from two sources:
+1. **JSON Parameters** - Static values defined in the trait definition
+2. **Runtime Parameters** - Dynamic values passed at spawn time
+
+Both are merged into a `TraitConfiguration` object and passed to the trait's `Configure()` method.
+
+```csharp
+// In trait class:
+public override void Configure(TraitConfiguration config)
+{
+    var home = config.GetBuilding("home");
+    if (home != null)
+    {
+        SetHome(home);
+    }
+}
+```
+
 ## Dependencies
 
 ### Depends On

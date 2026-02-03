@@ -19,7 +19,7 @@ namespace VeilOfAges.Entities.Traits;
 /// </summary>
 public class BakerJobTrait : BeingTrait, IDesiredResources
 {
-    private readonly Building _workplace;
+    private Building? _workplace;
 
     // Desired resource stockpile for baker's home
     // Bakers want flour for baking, water for dough, and bread as finished product
@@ -48,14 +48,65 @@ public class BakerJobTrait : BeingTrait, IDesiredResources
     private const int WATERFETCHTHRESHOLD = 4; // Only fetch when below this amount
     private const int WATERFETCHAMOUNT = 5;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BakerJobTrait"/> class.
+    /// Parameterless constructor for data-driven entity system.
+    /// </summary>
+    public BakerJobTrait()
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BakerJobTrait"/> class.
+    /// Constructor for direct instantiation with a workplace.
+    /// </summary>
     public BakerJobTrait(Building workplace)
     {
         _workplace = workplace;
     }
 
+    /// <summary>
+    /// Validates that the trait has all required configuration.
+    /// Expected parameters:
+    /// - "workplace" (Building): The bakery building to work at (recommended but optional).
+    /// </summary>
+    /// <remarks>
+    /// If no workplace is provided, the trait will be non-functional but won't crash.
+    /// The baker will simply not suggest any work actions until a workplace is assigned.
+    /// </remarks>
+    public override bool ValidateConfiguration(TraitConfiguration config)
+    {
+        // If workplace is already set (direct instantiation), configuration is valid
+        if (_workplace != null)
+        {
+            return true;
+        }
+
+        // workplace is recommended but we handle null gracefully in SuggestAction()
+        if (config.GetBuilding("workplace") == null)
+        {
+            Log.Warn("BakerJobTrait: 'workplace' parameter recommended for proper function");
+        }
+
+        return true; // Don't fail - we handle missing workplace gracefully
+    }
+
+    /// <inheritdoc/>
+    public override void Configure(TraitConfiguration config)
+    {
+        // If workplace is already set (direct instantiation), skip configuration
+        if (_workplace != null)
+        {
+            return;
+        }
+
+        // Get the workplace building from configuration
+        _workplace = config.GetBuilding("workplace");
+    }
+
     public override EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
     {
-        if (_owner == null || !GodotObject.IsInstanceValid(_workplace))
+        if (_owner == null || _workplace == null || !GodotObject.IsInstanceValid(_workplace))
         {
             return null;
         }
@@ -217,7 +268,7 @@ public class BakerJobTrait : BeingTrait, IDesiredResources
     /// </summary>
     private bool HasRequiredInputs(ReactionDefinition reaction)
     {
-        if (_owner == null || reaction.Inputs == null || reaction.Inputs.Count == 0)
+        if (_owner == null || _workplace == null || reaction.Inputs == null || reaction.Inputs.Count == 0)
         {
             return reaction.Inputs == null || reaction.Inputs.Count == 0;
         }
@@ -241,7 +292,7 @@ public class BakerJobTrait : BeingTrait, IDesiredResources
     /// <param name="missingInputs">List of missing input item IDs from reaction checks.</param>
     private EntityAction? TryFetchWaterIfNeeded(List<string> missingInputs)
     {
-        if (_owner == null)
+        if (_owner == null || _workplace == null)
         {
             return null;
         }

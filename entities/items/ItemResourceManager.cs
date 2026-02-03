@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using Godot;
@@ -6,45 +7,24 @@ using VeilOfAges.Core.Lib;
 namespace VeilOfAges.Entities.Items;
 
 /// <summary>
-/// Singleton manager for loading and creating items from JSON definitions.
+/// Autoload singleton manager for loading and creating items from JSON definitions.
+/// Register as an autoload in project.godot.
 /// </summary>
-public class ItemResourceManager
+public partial class ItemResourceManager : Node
 {
     // Singleton instance
     private static ItemResourceManager? _instance;
-    public static ItemResourceManager Instance
-    {
-        get
-        {
-            _instance ??= new ItemResourceManager();
-            return _instance;
-        }
-    }
+
+    public static ItemResourceManager Instance => _instance
+        ?? throw new InvalidOperationException("ItemResourceManager not initialized. Ensure it's registered as an autoload in project.godot");
 
     // Item definition collection
     private readonly Dictionary<string, ItemDefinition> _definitions = new ();
 
-    // Has this manager been initialized?
-    private bool _initialized;
-
-    // Private constructor to enforce singleton pattern
-    private ItemResourceManager()
+    public override void _Ready()
     {
-    }
-
-    /// <summary>
-    /// Initialize the resource manager by loading all item definitions.
-    /// </summary>
-    public void Initialize()
-    {
-        if (_initialized)
-        {
-            return;
-        }
-
+        _instance = this;
         LoadAllDefinitions();
-
-        _initialized = true;
         Log.Print($"ItemResourceManager initialized with {_definitions.Count} item definitions");
     }
 

@@ -4,6 +4,7 @@ using Godot;
 using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
+using VeilOfAges.Entities.Beings;
 using VeilOfAges.Entities.BeingServices;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.Entities.Traits;
@@ -12,21 +13,30 @@ using VeilOfAges.UI;
 
 namespace VeilOfAges.Entities;
 
-public partial class Player : Being
+/// <summary>
+/// The player-controlled necromancer entity.
+/// Extends GenericBeing to load configuration from player.json definition.
+/// Adds command queue functionality for player-specific input handling.
+/// </summary>
+public partial class Player : GenericBeing
 {
     public const uint MAXCOMMANDNUM = 7;
 
-    public override BeingAttributes DefaultAttributes { get; } = BaseAttributesSet;
     private readonly ReorderableQueue<EntityCommand> _commandQueue = new ();
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Player"/> class.
+    /// Constructor sets the definition ID so GenericBeing loads from player.json.
+    /// </summary>
+    public Player()
+    {
+        DefinitionId = "player";
+    }
 
     public override void Initialize(Area gridArea, Vector2I startGridPos, GameController? gameController = null, BeingAttributes? attributes = null, bool debugEnabled = false)
     {
-        BaseMovementPointsPerTick = 0.5f; // Fast entity (2 ticks per tile)
         base.Initialize(gridArea, startGridPos, gameController, attributes, debugEnabled);
         Name = "Lilith Galonadel";
-
-        // Example of the new AddTraitToQueue method - much cleaner than creating and adding separately
-        SelfAsEntity().AddTraitToQueue<LivingTrait>(0);
     }
 
     public override EntityAction Think(Vector2 currentPosition, ObservationData observationData)

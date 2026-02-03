@@ -1,0 +1,10 @@
+{
+  "Id": "village_farmer",
+  "ParentId": "human_townsfolk",
+  "Name": "Village Farmer",
+  "Description": "A villager who works the fields during the day",
+  "Traits": [
+    { "TraitType": "FarmerJobTrait", "Priority": -1, "Parameters": {} }
+  ],
+  "Tags": ["farmer", "worker"]
+}

@@ -1,0 +1,36 @@
+{
+  "Id": "mindless_skeleton",
+  "Name": "Mindless Skeleton",
+  "Description": "A skeletal undead with territorial behavior",
+  "Category": "Undead",
+  "AnimationId": "skeleton_warrior",
+  "Attributes": {
+    "Strength": 12.0,
+    "Dexterity": 12.0,
+    "Constitution": 16.0,
+    "Intelligence": 4.0,
+    "Willpower": 10.0,
+    "Wisdom": 4.0,
+    "Charisma": 1.0
+  },
+  "Movement": {
+    "BaseMovementPointsPerTick": 0.39
+  },
+  "Traits": [
+    { "TraitType": "MindlessTrait", "Priority": 1, "Parameters": {} },
+    { "TraitType": "SkeletonTrait", "Priority": 2, "Parameters": {} }
+  ],
+  "Body": {
+    "BaseStructure": "Humanoid",
+    "Modifications": [
+      { "Type": "RemoveSoftTissues", "Parameters": {} },
+      { "Type": "ScaleBoneHealth", "Parameters": { "Multiplier": 1.5 } }
+    ]
+  },
+  "Audio": {
+    "Sounds": {
+      "ambient": "res://assets/pixabay/rattling-bones-105394.mp3"
+    }
+  },
+  "Tags": ["undead", "mindless", "skeletal"]
+}

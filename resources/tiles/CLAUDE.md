@@ -16,7 +16,7 @@ tiles/
 
 ## Loading Order
 
-Resources are loaded by `TileResourceManager.Initialize()` in this order:
+Resources are loaded by `TileResourceManager._Ready()` (autoload initialization) in this order:
 1. **Materials** - Must be loaded first (tiles reference materials)
 2. **Atlas Sources** - Must be loaded before tiles (tiles reference atlases)
 3. **Tile Definitions** - Loaded last, includes variant merging from subdirectories

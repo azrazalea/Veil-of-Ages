@@ -1,0 +1,35 @@
+{
+  "Id": "mindless_zombie",
+  "Name": "Mindless Zombie",
+  "Description": "A shambling undead driven by hunger for brains",
+  "Category": "Undead",
+  "AnimationId": "zombie",
+  "Attributes": {
+    "Strength": 12.0,
+    "Dexterity": 6.0,
+    "Constitution": 14.0,
+    "Intelligence": 3.0,
+    "Willpower": 8.0,
+    "Wisdom": 4.0,
+    "Charisma": 2.0
+  },
+  "Movement": {
+    "BaseMovementPointsPerTick": 0.15
+  },
+  "Traits": [
+    { "TraitType": "MindlessTrait", "Priority": 1, "Parameters": {} },
+    { "TraitType": "ZombieTrait", "Priority": 2, "Parameters": {} }
+  ],
+  "Body": {
+    "BaseStructure": "Humanoid",
+    "Modifications": [
+      { "Type": "ApplyRandomDecay", "Parameters": { "MinParts": 2, "MaxParts": 5, "MinDamagePercent": 0.3, "MaxDamagePercent": 0.7 } }
+    ]
+  },
+  "Audio": {
+    "Sounds": {
+      "groan": "res://assets/pixabay/zombie-moans-29924.mp3"
+    }
+  },
+  "Tags": ["undead", "mindless", "zombie"]
+}

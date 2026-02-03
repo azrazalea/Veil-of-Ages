@@ -1,0 +1,31 @@
+{
+  "Id": "human_townsfolk",
+  "Abstract": true,
+  "Name": "Human Townsfolk",
+  "Description": "A typical villager who lives and works in the village",
+  "Category": "Human",
+  "AnimationId": "human_townsfolk",
+  "Attributes": {
+    "Strength": 10.0,
+    "Dexterity": 10.0,
+    "Constitution": 10.0,
+    "Intelligence": 10.0,
+    "Willpower": 10.0,
+    "Wisdom": 10.0,
+    "Charisma": 10.0
+  },
+  "Movement": {
+    "BaseMovementPointsPerTick": 0.33
+  },
+  "Traits": [
+    { "TraitType": "VillagerTrait", "Priority": 1, "Parameters": {} }
+  ],
+  "Body": {
+    "BaseStructure": "Humanoid",
+    "Modifications": []
+  },
+  "Audio": {
+    "Sounds": {}
+  },
+  "Tags": ["human", "living", "villager"]
+}

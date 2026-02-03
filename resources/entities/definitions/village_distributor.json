@@ -1,0 +1,10 @@
+{
+  "Id": "village_distributor",
+  "ParentId": "human_townsfolk",
+  "Name": "Village Distributor",
+  "Description": "A villager who delivers food from the granary to households",
+  "Traits": [
+    { "TraitType": "DistributorJobTrait", "Priority": -1, "Parameters": {} }
+  ],
+  "Tags": ["distributor", "worker"]
+}

@@ -1,0 +1,27 @@
+{
+  "Id": "human_townsfolk",
+  "Name": "Human Townsfolk Animations",
+  "SpriteSize": [32, 32],
+  "Animations": {
+    "idle": {
+      "TexturePath": "res://assets/minifantasy/entities/human/HumanTownsfolkIdle.png",
+      "FrameWidth": 32,
+      "FrameHeight": 32,
+      "FrameCount": 8,
+      "FrameRow": 0,
+      "StartColumn": 0,
+      "Speed": 5.0,
+      "Loop": true
+    },
+    "walk": {
+      "TexturePath": "res://assets/minifantasy/entities/human/HumanTownsfolkWalk.png",
+      "FrameWidth": 32,
+      "FrameHeight": 32,
+      "FrameCount": 4,
+      "FrameRow": 0,
+      "StartColumn": 0,
+      "Speed": 5.0,
+      "Loop": true
+    }
+  }
+}

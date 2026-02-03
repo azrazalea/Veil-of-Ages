@@ -1,0 +1,142 @@
+{
+  "Id": "humanoid",
+  "Name": "Humanoid Body Structure",
+  "Description": "Standard humanoid body with torso, limbs, and head groups",
+  "Groups": {
+    "Torso": {
+      "Parts": [
+        { "Name": "Clavicles", "MaxHealth": 30, "Importance": 0.3, "Flags": ["bone"] },
+        { "Name": "Sternum", "MaxHealth": 30, "Importance": 0.4, "Flags": ["bone"] },
+        { "Name": "Ribs", "MaxHealth": 50, "Importance": 0.6, "Flags": ["bone"] },
+        { "Name": "Pelvis", "MaxHealth": 50, "Importance": 0.7, "Flags": ["bone"] },
+        { "Name": "Spine", "MaxHealth": 60, "Importance": 0.9, "Flags": ["bone", "vital"] },
+        { "Name": "Stomach", "MaxHealth": 40, "Importance": 0.7, "Flags": ["organ"] },
+        { "Name": "Heart", "MaxHealth": 30, "Importance": 1.0, "Flags": ["organ", "vital"] },
+        { "Name": "Lungs", "MaxHealth": 40, "Importance": 0.8, "Flags": ["organ", "vital"] },
+        { "Name": "Kidneys", "MaxHealth": 30, "Importance": 0.6, "Flags": ["organ"] },
+        { "Name": "Liver", "MaxHealth": 40, "Importance": 0.7, "Flags": ["organ"] },
+        { "Name": "Neck", "MaxHealth": 30, "Importance": 0.8, "Flags": ["vital"] },
+        { "Name": "Gonads", "MaxHealth": 20, "Importance": 0.3, "Flags": ["organ"] },
+        { "Name": "Genitals", "MaxHealth": 20, "Importance": 0.3, "Flags": ["organ"] }
+      ]
+    },
+    "UpperHead": {
+      "Parts": [
+        { "Name": "Head", "MaxHealth": 40, "Importance": 0.9, "Flags": ["vital"] },
+        { "Name": "Skull", "MaxHealth": 50, "Importance": 0.8, "Flags": ["bone", "vital"] },
+        { "Name": "Brain", "MaxHealth": 30, "Importance": 1.0, "Flags": ["organ", "vital"] },
+        { "Name": "Ears", "MaxHealth": 20, "Importance": 0.4, "Flags": ["sensory"] }
+      ]
+    },
+    "FullHead": {
+      "Parts": [
+        { "Name": "Head", "MaxHealth": 40, "Importance": 0.9, "Flags": ["vital"] },
+        { "Name": "Skull", "MaxHealth": 50, "Importance": 0.8, "Flags": ["bone", "vital"] },
+        { "Name": "Brain", "MaxHealth": 30, "Importance": 1.0, "Flags": ["organ", "vital"] },
+        { "Name": "Eyes", "MaxHealth": 20, "Importance": 0.7, "Flags": ["organ", "sensory"] },
+        { "Name": "Ears", "MaxHealth": 20, "Importance": 0.4, "Flags": ["sensory"] },
+        { "Name": "Nose", "MaxHealth": 15, "Importance": 0.3, "Flags": ["organ", "sensory"] },
+        { "Name": "Jaw", "MaxHealth": 25, "Importance": 0.5, "Flags": ["bone"] }
+      ]
+    },
+    "Shoulders": {
+      "Parts": [
+        { "Name": "Shoulders", "MaxHealth": 40, "Importance": 0.5 }
+      ]
+    },
+    "Arms": {
+      "Parts": [
+        { "Name": "Arms", "MaxHealth": 40, "Importance": 0.6 },
+        { "Name": "Hands", "MaxHealth": 30, "Importance": 0.5 },
+        { "Name": "Humeri", "MaxHealth": 35, "Importance": 0.5, "Flags": ["bone"] },
+        { "Name": "Radii", "MaxHealth": 30, "Importance": 0.4, "Flags": ["bone"] }
+      ]
+    },
+    "Hands": {
+      "Parts": [
+        { "Name": "Hands", "MaxHealth": 30, "Importance": 0.5 },
+        { "Name": "Fingers", "MaxHealth": 20, "Importance": 0.4, "Flags": ["bone"] }
+      ]
+    },
+    "LeftHand": {
+      "Parts": [
+        { "Name": "Left Hand", "MaxHealth": 30, "Importance": 0.5 },
+        { "Name": "Left Hand Fingers", "MaxHealth": 20, "Importance": 0.4, "Flags": ["bone"] }
+      ]
+    },
+    "RightHand": {
+      "Parts": [
+        { "Name": "Right Hand", "MaxHealth": 30, "Importance": 0.5 },
+        { "Name": "Right Hand Fingers", "MaxHealth": 20, "Importance": 0.4, "Flags": ["bone"] }
+      ]
+    },
+    "Legs": {
+      "Parts": [
+        { "Name": "Legs", "MaxHealth": 50, "Importance": 0.7 },
+        { "Name": "Feet", "MaxHealth": 30, "Importance": 0.5 },
+        { "Name": "Femurs", "MaxHealth": 40, "Importance": 0.6, "Flags": ["bone"] },
+        { "Name": "Tibiae", "MaxHealth": 35, "Importance": 0.5, "Flags": ["bone"] }
+      ]
+    },
+    "Feet": {
+      "Parts": [
+        { "Name": "Feet", "MaxHealth": 30, "Importance": 0.5 },
+        { "Name": "Toes", "MaxHealth": 15, "Importance": 0.3, "Flags": ["bone"] }
+      ]
+    }
+  },
+  "Systems": {
+    "Consciousness": {
+      "Contributors": { "Brain": 1.0 },
+      "Fatal": true
+    },
+    "Sight": {
+      "Contributors": { "Eyes": 1.0 },
+      "Fatal": false
+    },
+    "Hearing": {
+      "Contributors": { "Ears": 1.0 },
+      "Fatal": false
+    },
+    "Smell": {
+      "Contributors": { "Nose": 1.0 },
+      "Fatal": false
+    },
+    "Moving": {
+      "Contributors": { "Legs": 0.7, "Feet": 0.3 },
+      "Fatal": false
+    },
+    "Manipulation": {
+      "Contributors": { "Arms": 0.4, "Hands": 0.6 },
+      "Fatal": false
+    },
+    "Talking": {
+      "Contributors": { "Jaw": 0.7, "Neck": 0.3 },
+      "Fatal": false
+    },
+    "Communication": {
+      "Contributors": { "Jaw": 0.5, "Neck": 0.5 },
+      "Fatal": false
+    },
+    "Breathing": {
+      "Contributors": { "Lungs": 1.0 },
+      "Fatal": true
+    },
+    "BloodFiltration": {
+      "Contributors": { "Kidneys": 0.7, "Liver": 0.3 },
+      "Fatal": true
+    },
+    "BloodPumping": {
+      "Contributors": { "Heart": 1.0 },
+      "Fatal": true
+    },
+    "Digestion": {
+      "Contributors": { "Stomach": 1.0 },
+      "Fatal": true
+    },
+    "Pain": {
+      "Contributors": {},
+      "Fatal": false
+    }
+  }
+}

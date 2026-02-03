@@ -1,0 +1,30 @@
+{
+  "Id": "player",
+  "Name": "Player",
+  "Description": "The player-controlled necromancer",
+  "Category": "Human",
+  "AnimationId": "necromancer",
+  "Attributes": {
+    "Strength": 10.0,
+    "Dexterity": 10.0,
+    "Constitution": 10.0,
+    "Intelligence": 10.0,
+    "Willpower": 10.0,
+    "Wisdom": 10.0,
+    "Charisma": 10.0
+  },
+  "Movement": {
+    "BaseMovementPointsPerTick": 0.5
+  },
+  "Traits": [
+    { "TraitType": "LivingTrait", "Priority": 0, "Parameters": {} }
+  ],
+  "Body": {
+    "BaseStructure": "Humanoid",
+    "Modifications": []
+  },
+  "Audio": {
+    "Sounds": {}
+  },
+  "Tags": ["human", "living", "player", "necromancer"]
+}

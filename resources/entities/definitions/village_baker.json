@@ -1,0 +1,10 @@
+{
+  "Id": "village_baker",
+  "ParentId": "human_townsfolk",
+  "Name": "Village Baker",
+  "Description": "A villager who bakes bread and mills flour at their home",
+  "Traits": [
+    { "TraitType": "BakerJobTrait", "Priority": -1, "Parameters": {} }
+  ],
+  "Tags": ["baker", "worker"]
+}

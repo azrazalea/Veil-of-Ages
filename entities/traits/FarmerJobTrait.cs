@@ -14,7 +14,7 @@ namespace VeilOfAges.Entities.Traits;
 /// </summary>
 public class FarmerJobTrait : BeingTrait, IDesiredResources
 {
-    private readonly Building _assignedFarm;
+    private Building? _assignedFarm;
     private const uint WORKDURATION = 1500; // ~3.1 real minutes, ~1.75 game hours per shift (2 shifts/day)
 
     // Desired resource stockpile for farmer's home
@@ -30,14 +30,68 @@ public class FarmerJobTrait : BeingTrait, IDesiredResources
     /// </summary>
     public IReadOnlyDictionary<string, int> DesiredResources => _desiredResources;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="FarmerJobTrait"/> class.
+    /// Parameterless constructor for data-driven entity system.
+    /// Farm must be configured via Configure() method.
+    /// </summary>
+    public FarmerJobTrait()
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="FarmerJobTrait"/> class.
+    /// Constructor for direct instantiation with a farm building.
+    /// </summary>
     public FarmerJobTrait(Building farm)
     {
         _assignedFarm = farm;
     }
 
+    /// <summary>
+    /// Validates that the trait has all required configuration.
+    /// Expected parameters:
+    /// - "farm" or "workplace" (Building): The farm building to work at (recommended but optional).
+    /// </summary>
+    /// <remarks>
+    /// If no farm/workplace is provided, the trait will be non-functional but won't crash.
+    /// The farmer will simply not suggest any work actions until a farm is assigned.
+    /// </remarks>
+    public override bool ValidateConfiguration(TraitConfiguration config)
+    {
+        // If already set via constructor, we're good
+        if (_assignedFarm != null)
+        {
+            return true;
+        }
+
+        // workplace is recommended but we handle null gracefully in SuggestAction()
+        if (config.GetBuilding("farm") == null && config.GetBuilding("workplace") == null)
+        {
+            Log.Warn("FarmerJobTrait: 'farm' or 'workplace' parameter recommended for proper function");
+        }
+
+        return true; // Don't fail - we handle missing workplace gracefully
+    }
+
+    /// <summary>
+    /// Configures the trait from a TraitConfiguration.
+    /// </summary>
+    public override void Configure(TraitConfiguration config)
+    {
+        // If already set via constructor, skip configuration
+        if (_assignedFarm != null)
+        {
+            return;
+        }
+
+        // Try "farm" first, then "workplace" as fallback
+        _assignedFarm = config.GetBuilding("farm") ?? config.GetBuilding("workplace");
+    }
+
     public override EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
     {
-        if (_owner == null || !GodotObject.IsInstanceValid(_assignedFarm))
+        if (_owner == null || _assignedFarm == null || !GodotObject.IsInstanceValid(_assignedFarm))
         {
             return null;
         }

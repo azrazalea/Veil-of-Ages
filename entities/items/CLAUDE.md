@@ -47,16 +47,15 @@ Runtime item instance representing a stack of items in the game world.
 - `DecayProgressInternal` - Setter for creating items with pre-existing decay
 
 ### ItemResourceManager.cs
-Singleton manager for loading and creating items.
+Singleton manager for loading and creating items. Registered as a Godot autoload in `project.godot`.
 
 **Key Features:**
-- Singleton pattern with lazy initialization
-- Loads item definitions from `res://resources/items/*.json`
+- Godot Node autoload pattern (extends `Node`)
+- Loads item definitions from `res://resources/items/*.json` on `_Ready()`
 - Supports subdirectories for organization
 - Creates item instances from definition IDs
 
 **Key Methods:**
-- `Initialize()` - Load all definitions
 - `GetDefinition(id)` - Get definition by ID
 - `CreateItem(definitionId, quantity)` - Create new item instance
 - `GetAllDefinitions()` - Enumerate all definitions
@@ -179,7 +178,7 @@ Current items defined in `resources/items/`:
 1. Create a JSON file in `resources/items/` (or a subdirectory)
 2. Define required fields: `Id`, `Name`, `Category`
 3. Add optional fields as needed
-4. The file will be automatically loaded by `ItemResourceManager.Initialize()`
+4. The file will be automatically loaded when `ItemResourceManager._Ready()` runs (on game start)
 
 ### JSON Schema
 

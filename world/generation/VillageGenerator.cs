@@ -15,11 +15,8 @@ namespace VeilOfAges.WorldGeneration;
 
 public class VillageGenerator
 {
-    // Buildings are instantiated via BuildingManager, scene kept for future direct use
-    // private readonly PackedScene _buildingScene;
-    private readonly PackedScene _skeletonScene;
-    private readonly PackedScene _zombieScene;
-    private readonly PackedScene _townsfolkScene;
+    // Buildings are instantiated via BuildingManager
+    // Entities are spawned via GenericBeing.CreateFromDefinition()
     private readonly Node _entitiesContainer;
     private readonly Area _gridArea;
     private readonly RandomNumberGenerator _rng = new ();
@@ -55,18 +52,17 @@ public class VillageGenerator
         Area gridArea,
         Node entitiesContainer,
         PackedScene buildingScene,
-        PackedScene skeletonScene,
-        PackedScene zombieScene,
-        PackedScene townsfolkScene,
+        PackedScene genericBeingScene,
         EntityThinkingSystem entityThinkingSystem,
         int? seed = null)
     {
-        _ = buildingScene; // Kept for API compatibility, buildings use BuildingManager
+        // Scene parameters kept for API compatibility but not used:
+        // - buildingScene: Buildings use BuildingManager
+        // - genericBeingScene: Entities use GenericBeing.CreateFromDefinition()
+        _ = buildingScene;
+        _ = genericBeingScene;
         _gridArea = gridArea;
         _entitiesContainer = entitiesContainer;
-        _skeletonScene = skeletonScene;
-        _zombieScene = zombieScene;
-        _townsfolkScene = townsfolkScene;
         _entityThinkingSystem = entityThinkingSystem;
         _buildingManager = BuildingManager.Instance; // Get the singleton instance
 
@@ -520,18 +516,18 @@ public class VillageGenerator
                 {
                     // Use house count to distribute farmers evenly across farms
                     int farmIndex = (_placedHouses.Count - 1) % _placedFarms.Count;
-                    SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene,
+                    SpawnVillagerNearBuilding(buildingPos, buildingSize,
                         home: building, job: "farmer", workplace: _placedFarms[farmIndex]);
                 }
                 else
                 {
                     // No farms available, spawn regular villager
-                    SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene,
+                    SpawnVillagerNearBuilding(buildingPos, buildingSize,
                         home: building);
                 }
 
                 // Second villager: baker (works at home)
-                SpawnVillagerNearBuilding(buildingPos, buildingSize, _townsfolkScene,
+                SpawnVillagerNearBuilding(buildingPos, buildingSize,
                     home: building, job: "baker", workplace: building);
                 break;
 
@@ -546,9 +542,9 @@ public class VillageGenerator
                 // Stock graveyard with initial corpses
                 StockGraveyardWithCorpses(building);
 
-                // Spawn undead near the Graveyard and set as their home
-                SpawnUndeadNearBuilding(buildingPos, buildingSize, _skeletonScene, building);
-                SpawnUndeadNearBuilding(buildingPos, buildingSize, _zombieScene, building);
+                // Spawn undead near the Graveyard using data-driven definitions
+                SpawnUndeadNearBuilding(buildingPos, buildingSize, "mindless_skeleton", building);
+                SpawnUndeadNearBuilding(buildingPos, buildingSize, "mindless_zombie", building);
                 break;
 
             case "Granary":
@@ -636,7 +632,6 @@ public class VillageGenerator
         SpawnVillagerNearBuilding(
             granaryPos,
             granarySize,
-            _townsfolkScene,
             home: distributorHome,
             job: "distributor",
             workplace: _placedGranary);
@@ -696,17 +691,16 @@ public class VillageGenerator
 
     /// <summary>
     /// Spawns a villager near a building with an optional job.
+    /// Uses the data-driven BeingResourceManager system for entity creation.
     /// </summary>
     /// <param name="buildingPos">Position of the building to spawn near.</param>
     /// <param name="buildingSize">Size of the building.</param>
-    /// <param name="beingScene">Scene to instantiate.</param>
     /// <param name="home">Home building for the villager.</param>
-    /// <param name="job">Job name: "farmer", "baker", or null for no job.</param>
+    /// <param name="job">Job name: "farmer", "baker", "distributor", or null for no job.</param>
     /// <param name="workplace">Workplace building for the job (farm for farmer, home for baker).</param>
     private void SpawnVillagerNearBuilding(
         Vector2I buildingPos,
         Vector2I buildingSize,
-        PackedScene beingScene,
         Building? home,
         string? job = null,
         Building? workplace = null)
@@ -715,89 +709,84 @@ public class VillageGenerator
 
         if (beingPos != buildingPos && _gridArea.IsCellWalkable(beingPos))
         {
-            Node2D being = beingScene.Instantiate<Node2D>();
-
-            if (being is Being typedBeing)
+            // Check if this villager should have debug enabled
+            // If targeting a specific job, only that job gets debug. Otherwise, first villager.
+            bool isDebugVillager = false;
+            if (!_debugVillagerSelected)
             {
-                // Check if this villager should have debug enabled
-                // If targeting a specific job, only that job gets debug. Otherwise, first villager.
-                bool isDebugVillager = false;
-                if (!_debugVillagerSelected)
+                if (_debugTargetJob == null)
                 {
-                    if (_debugTargetJob == null)
-                    {
-                        // No target job: debug the first villager
-                        isDebugVillager = true;
-                        _debugVillagerSelected = true;
-                    }
-                    else if (string.Equals(job, _debugTargetJob, StringComparison.OrdinalIgnoreCase))
-                    {
-                        // Target job matches: debug this villager
-                        isDebugVillager = true;
-                        _debugVillagerSelected = true;
-                    }
+                    // No target job: debug the first villager
+                    isDebugVillager = true;
+                    _debugVillagerSelected = true;
                 }
-
-                typedBeing.Initialize(_gridArea, beingPos, _gameController, debugEnabled: isDebugVillager);
-
-                // Set pending home before adding to scene tree (HumanTownsfolk._Ready will use it)
-                if (home != null && typedBeing is HumanTownsfolk townsfolk)
+                else if (string.Equals(job, _debugTargetJob, StringComparison.OrdinalIgnoreCase))
                 {
-                    townsfolk.PendingHome = home;
+                    // Target job matches: debug this villager
+                    isDebugVillager = true;
+                    _debugVillagerSelected = true;
                 }
+            }
 
-                // Assign job trait based on job name (before adding to scene, so it gets queued)
-                if (job != null && workplace != null)
+            // Determine definition ID based on job
+            string definitionId = job?.ToLowerInvariant() switch
+            {
+                "farmer" => "village_farmer",
+                "baker" => "village_baker",
+                "distributor" => "village_distributor",
+                _ => "human_townsfolk"
+            };
+
+            // Pass home and workplace as runtime parameters
+            // These are used by VillagerTrait.Configure() and job trait Configure() methods
+            var runtimeParams = new Dictionary<string, object?>
+            {
+                { "home", home },
+                { "workplace", workplace },
+                { "farm", workplace } // FarmerJobTrait looks for "farm" or "workplace"
+            };
+
+            // Create the GenericBeing from definition
+            var being = GenericBeing.CreateFromDefinition(definitionId, runtimeParams);
+            if (being == null)
+            {
+                Log.Error($"VillageGenerator: Failed to create {definitionId} at {beingPos}");
+                return;
+            }
+
+            // Initialize the being
+            being.Initialize(_gridArea, beingPos, _gameController, debugEnabled: isDebugVillager);
+
+            // Log the spawn
+            if (job != null && workplace != null)
+            {
+                if (string.Equals(job, "distributor", StringComparison.OrdinalIgnoreCase))
                 {
-                    switch (job.ToLowerInvariant())
-                    {
-                        case "farmer":
-                            var farmerTrait = new FarmerJobTrait(workplace);
-                            typedBeing.SelfAsEntity().AddTraitToQueue(farmerTrait, priority: -1);
-                            Log.Print($"Spawned farmer at {beingPos}, assigned to {workplace.BuildingName}");
-                            break;
-
-                        case "baker":
-                            var bakerTrait = new BakerJobTrait(workplace);
-                            typedBeing.SelfAsEntity().AddTraitToQueue(bakerTrait, priority: -1);
-                            Log.Print($"Spawned baker at {beingPos}, working at {workplace.BuildingName}");
-                            break;
-
-                        case "distributor":
-                            var distributorTrait = new DistributorJobTrait(workplace);
-                            typedBeing.SelfAsEntity().AddTraitToQueue(distributorTrait, priority: -1);
-
-                            // Enable debug logging for distributor to verify behavior
-                            typedBeing.DebugEnabled = true;
-                            Log.Print($"Spawned distributor at {beingPos}, working at {workplace.BuildingName}, living at {home?.BuildingName ?? "unknown"} (DEBUG ENABLED)");
-                            break;
-
-                        default:
-                            Log.Warn($"Unknown job type: {job}");
-                            break;
-                    }
+                    // Enable debug logging for distributor to verify behavior
+                    being.DebugEnabled = true;
+                    Log.Print($"Spawned {definitionId} at {beingPos}, working at {workplace.BuildingName}, living at {home?.BuildingName ?? "unknown"} (DEBUG ENABLED)");
                 }
-                else if (job == null)
+                else
                 {
-                    Log.Print($"Spawned villager at {beingPos} (no job)");
+                    Log.Print($"Spawned {definitionId} at {beingPos}, assigned to {workplace.BuildingName}");
                 }
-
-                // Track villager for debug selection
-                _spawnedVillagers.Add(typedBeing);
-
-                // Register as village resident (gives access to village knowledge)
-                _currentVillage?.AddResident(typedBeing);
-
-                _gridArea.AddEntity(beingPos, being);
-                _entitiesContainer.AddChild(being);
-                _entityThinkingSystem.RegisterEntity(typedBeing);
             }
             else
             {
-                being.Position = Utils.GridToWorld(beingPos);
-                _gridArea.AddEntity(beingPos, being);
-                _entitiesContainer.AddChild(being);
+                Log.Print($"Spawned {definitionId} at {beingPos} (no job)");
             }
+
+            // Register as village resident (gives access to village knowledge)
+            // This should be done BEFORE adding to scene tree so VillagerTrait can find it
+            _currentVillage?.AddResident(being);
+
+            // Add to scene tree (triggers _Ready which loads traits from definition)
+            _gridArea.AddEntity(beingPos, being);
+            _entitiesContainer.AddChild(being);
+            _entityThinkingSystem.RegisterEntity(being);
+
+            // Track villager for debug selection
+            _spawnedVillagers.Add(being);
         }
         else
         {
@@ -899,8 +888,13 @@ public class VillageGenerator
 
     /// <summary>
     /// Spawns an undead near a graveyard and sets it as their home.
+    /// Uses the data-driven BeingResourceManager system for entity creation.
     /// </summary>
-    private void SpawnUndeadNearBuilding(Vector2I buildingPos, Vector2I buildingSize, PackedScene beingScene, Building homeGraveyard)
+    /// <param name="buildingPos">Position of the graveyard.</param>
+    /// <param name="buildingSize">Size of the graveyard.</param>
+    /// <param name="definitionId">The being definition ID (e.g., "mindless_skeleton", "mindless_zombie").</param>
+    /// <param name="homeGraveyard">The graveyard building to set as home.</param>
+    private void SpawnUndeadNearBuilding(Vector2I buildingPos, Vector2I buildingSize, string definitionId, Building homeGraveyard)
     {
         // Find a position in front of the building
         Vector2I beingPos = FindPositionInFrontOfBuilding(buildingPos, buildingSize);
@@ -908,37 +902,50 @@ public class VillageGenerator
         // Ensure the position is valid and not occupied
         if (beingPos != buildingPos && _gridArea.IsCellWalkable(beingPos))
         {
-            Node2D being = beingScene.Instantiate<Node2D>();
-
-            // Initialize the being if it has the correct type
-            if (being is Being typedBeing)
+            // Pass home graveyard as runtime parameter for zombie traits
+            var runtimeParams = new Dictionary<string, object?>
             {
-                typedBeing.Initialize(_gridArea, beingPos, _gameController);
+                { "home", homeGraveyard }
+            };
 
-                // Set home graveyard for zombies
-                var zombieTrait = typedBeing.SelfAsEntity().GetTrait<ZombieTrait>();
-                zombieTrait?.SetHomeGraveyard(homeGraveyard);
-
-                Log.Print($"Spawned {typedBeing.GetType().Name} at {beingPos} (home: {homeGraveyard.BuildingName})");
-            }
-            else
+            var being = SpawnGenericBeing(definitionId, beingPos, runtimeParams);
+            if (being != null)
             {
-                // Fallback positioning if not the correct type
-                being.Position = Utils.GridToWorld(beingPos);
-            }
-
-            _gridArea.AddEntity(beingPos, being);
-            _entitiesContainer.AddChild(being);
-
-            if (being is Being typedBeingForRegister)
-            {
-                _entityThinkingSystem.RegisterEntity(typedBeingForRegister);
+                Log.Print($"Spawned {definitionId} at {beingPos} (home: {homeGraveyard.BuildingName})");
             }
         }
         else
         {
             Log.Error($"Could not find valid position to spawn undead near building at {buildingPos}");
         }
+    }
+
+    /// <summary>
+    /// Spawns a GenericBeing from a definition ID with optional runtime parameters.
+    /// </summary>
+    /// <param name="definitionId">The being definition ID (e.g., "mindless_skeleton", "mindless_zombie", "human_townsfolk").</param>
+    /// <param name="position">The grid position to spawn at.</param>
+    /// <param name="runtimeParams">Optional runtime parameters to pass to traits (e.g., home building).</param>
+    /// <returns>The spawned Being, or null if creation failed.</returns>
+    private Being? SpawnGenericBeing(string definitionId, Vector2I position, Dictionary<string, object?>? runtimeParams = null)
+    {
+        // Create from definition
+        var being = GenericBeing.CreateFromDefinition(definitionId, runtimeParams);
+        if (being == null)
+        {
+            Log.Error($"VillageGenerator: Failed to create being from definition '{definitionId}'");
+            return null;
+        }
+
+        // Initialize
+        being.Initialize(_gridArea, position, _gameController);
+
+        // Add to scene tree (triggers _Ready which loads traits from definition)
+        _gridArea.AddEntity(position, being);
+        _entitiesContainer.AddChild(being);
+        _entityThinkingSystem.RegisterEntity(being);
+
+        return being;
     }
 
     /// <summary>
