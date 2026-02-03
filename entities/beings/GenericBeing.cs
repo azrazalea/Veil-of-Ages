@@ -185,6 +185,13 @@ public partial class GenericBeing : Being
         var effectiveAttributes = attributes ?? definition.Attributes?.ToBeingAttributes();
 
         base.Initialize(gridArea, startGridPos, gameController, effectiveAttributes, debugEnabled);
+
+        // Set name from definition after base.Initialize()
+        // Subclasses can override this by setting Name after calling base.Initialize()
+        if (!string.IsNullOrEmpty(definition.Name))
+        {
+            Name = $"{definition.Name}-{Guid.NewGuid().ToString("N")[..8]}";
+        }
     }
 
     /// <summary>
