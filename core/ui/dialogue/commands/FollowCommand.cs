@@ -67,7 +67,7 @@ public class FollowCommand : EntityCommand
 
             // Set the goal and calculate path (on Think thread)
             MyPathfinder.SetEntityProximityGoal(_owner, _commander, 1);
-            if (!MyPathfinder.CalculatePathIfNeeded(_owner))
+            if (!MyPathfinder.CalculatePathIfNeeded(_owner, currentPerception))
             {
                 return new IdleAction(_owner, this, -1);
             }
@@ -106,7 +106,7 @@ public class FollowCommand : EntityCommand
                 {
                     // Move to last known position
                     MyPathfinder.SetPositionGoal(_owner, _lastKnownPosition.Value);
-                    if (!MyPathfinder.CalculatePathIfNeeded(_owner))
+                    if (!MyPathfinder.CalculatePathIfNeeded(_owner, currentPerception))
                     {
                         return new IdleAction(_owner, this, -1);
                     }
@@ -133,7 +133,7 @@ public class FollowCommand : EntityCommand
                     if (gridArea != null && gridArea.IsCellWalkable(searchPoint))
                     {
                         MyPathfinder.SetPositionGoal(_owner, searchPoint);
-                        if (!MyPathfinder.CalculatePathIfNeeded(_owner))
+                        if (!MyPathfinder.CalculatePathIfNeeded(_owner, currentPerception))
                         {
                             return new IdleAction(_owner, this, -1);
                         }

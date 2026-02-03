@@ -7,6 +7,7 @@ using Godot;
 using VeilOfAges.Core;
 using VeilOfAges.Entities;
 using VeilOfAges.Entities.Beings;
+using VeilOfAges.Entities.Sensory;
 using VeilOfAges.Grid;
 
 namespace VeilOfAges.Core.Lib;
@@ -20,6 +21,9 @@ public class PathFinder
 
     // Cached pathfinding grid for non-village residents
     private AStarGrid2D? _cachedPathfindingGrid;
+
+    // Pooled HashSet for perceived entity positions - reused to reduce GC pressure
+    private readonly HashSet<Vector2I> _perceivedBlockedPositions = [];
 
     // Path state tracking
     private PathGoalType _goalType = PathGoalType.None;
@@ -486,8 +490,10 @@ public class PathFinder
     /// This is where A* calculation happens - never during Execute().
     /// </summary>
     /// <param name="entity">The entity to calculate path for.</param>
+    /// <param name="perception">Perception data for perception-aware pathfinding. The entity will
+    /// path around other entities it can currently see.</param>
     /// <returns>True if a valid path exists (calculated or already cached), false if path calculation failed.</returns>
-    public bool CalculatePathIfNeeded(Being entity)
+    public bool CalculatePathIfNeeded(Being entity, Perception perception)
     {
         if (entity == null)
         {
@@ -514,7 +520,10 @@ public class PathFinder
               _recalculationAttempts < MAXRECALCULATIONATTEMPTS))
         {
             _firstGoalCalculation = false;
-            bool success = CalculatePathForCurrentGoal(entity);
+
+            // Update tick BEFORE calculation so failures also respect cooldown
+            _lastRecalculationTick = GameController.CurrentTick;
+            bool success = CalculatePathForCurrentGoal(entity, perception);
             if (!success)
             {
                 Log.Error($"Failed to calculate path for {entity.Name} with goal type {_goalType}");
@@ -614,7 +623,7 @@ public class PathFinder
     }
 
     // Calculate path based on current goal
-    private bool CalculatePathForCurrentGoal(Being entity)
+    private bool CalculatePathForCurrentGoal(Being entity, Perception perception)
     {
         var gridArea = entity.GetGridArea();
         if (gridArea == null || gridArea.AStarGrid == null)
@@ -638,6 +647,10 @@ public class PathFinder
             return false;
         }
 
+        // Collect positions of perceived entities to path around
+        // Entity will try to path around beings it can see
+        var perceivedEntityPositions = GetPerceivedEntityPositions(entity, perception);
+
         try
         {
             // Calculate path based on goal type
@@ -660,8 +673,15 @@ public class PathFinder
                         return true;
                     }
 
+                    // Early exit: Check if entity can leave current position
+                    if (!CanLeavePosition(astar, startPos, perceivedEntityPositions))
+                    {
+                        Log.Error($"Entity at {startPos} is surrounded - cannot leave position");
+                        return false;
+                    }
+
                     // Get path to specific position
-                    var positionPath = ThreadSafeAStar.GetPath(astar, startPos, _targetPosition, true);
+                    var positionPath = ThreadSafeAStar.GetPath(astar, startPos, _targetPosition, true, perceivedEntityPositions);
 
                     if (positionPath.Count > 0)
                     {
@@ -676,63 +696,45 @@ public class PathFinder
                     break;
 
                 case PathGoalType.EntityProximity:
-                    if (_targetEntity != null)
-                    {
-                        Vector2I targetPos = _targetEntity.GetCurrentGridPosition();
-
-                        if (_targetEntity.IsMoving())
-                        {
-                            _recalculationAttempts = 0;
-                            _pathNeedsCalculation = true;
-                            return true;
-                        }
-
-                        // If already within proximity, create single-element path
-                        if (Utils.WithinProximityRangeOf(startPos, targetPos, _proximityRange))
-                        {
-                            CurrentPath = [startPos];
-                            PathIndex = 0;
-                            _pathNeedsCalculation = false;
-                            return true;
-                        }
-
-                        var adjacentPositions = GetPositionsAroundEntity(targetPos, 1);
-                        var walkablePositions = adjacentPositions
-                            .Where(pos => astar.IsInBoundsv(pos) && !astar.IsPointSolid(pos))
-                            .ToList();
-
-                        // Try to find path to any walkable position around target
-                        bool foundPath = false;
-                        foreach (var pos in walkablePositions)
-                        {
-                            // We're only 1 tile away
-                            if (startPos.DistanceSquaredTo(pos) <= 2)
-                            {
-                                CurrentPath = [pos];
-                                foundPath = true;
-                                break;
-                            }
-
-                            var path = ThreadSafeAStar.GetPath(astar, startPos, pos, true);
-                            if (path.Count > 0)
-                            {
-                                CurrentPath = path.Cast<Vector2I>().ToList();
-                                foundPath = true;
-                                break;
-                            }
-                        }
-
-                        if (!foundPath)
-                        {
-                            Log.Error($"No path found to entity {_targetEntity.Name}");
-                            return false;
-                        }
-                    }
-                    else
+                    if (_targetEntity == null)
                     {
                         Log.Error("Target entity is null");
                         return false;
                     }
+
+                    Vector2I entityTargetPos = _targetEntity.GetCurrentGridPosition();
+
+                    if (_targetEntity.IsMoving())
+                    {
+                        _recalculationAttempts = 0;
+                        _pathNeedsCalculation = true;
+                        return true;
+                    }
+
+                    // If already within proximity, create single-element path
+                    if (Utils.WithinProximityRangeOf(startPos, entityTargetPos, _proximityRange))
+                    {
+                        CurrentPath = [startPos];
+                        PathIndex = 0;
+                        _pathNeedsCalculation = false;
+                        return true;
+                    }
+
+                    // Get walkable positions around target, filtering out perceived blocked
+                    var proximityPositions = GetPositionsAroundEntity(entityTargetPos, 1)
+                        .Where(pos => astar.IsInBoundsv(pos) &&
+                                      !astar.IsPointSolid(pos) &&
+                                      (perceivedEntityPositions == null || !perceivedEntityPositions.Contains(pos)))
+                        .ToList();
+
+                    var proximityResult = TryPathToCandidates(astar, startPos, proximityPositions, perceivedEntityPositions);
+                    if (!proximityResult.Found)
+                    {
+                        Log.Error($"No path found to entity {_targetEntity.Name}");
+                        return false;
+                    }
+
+                    CurrentPath = proximityResult.Path;
 
                     break;
                 case PathGoalType.Area:
@@ -747,278 +749,85 @@ public class PathFinder
 
                     // Get area positions and ensure they're not solid
                     var areaPositions = GetValidPositionsInArea(_targetPosition, _proximityRange, gridArea);
-
-                    if (areaPositions.Count > 0)
-                    {
-                        // Sort by distance to start position
-                        areaPositions.Sort((a, b) =>
-                            startPos.DistanceSquaredTo(a).CompareTo(startPos.DistanceSquaredTo(b)));
-
-                        // Try to find path to closest position
-                        bool foundAreaPath = false;
-                        foreach (var pos in areaPositions)
-                        {
-                            var areaPath = ThreadSafeAStar.GetPath(astar, startPos, pos, true);
-                            if (areaPath.Count > 0)
-                            {
-                                CurrentPath = areaPath.Cast<Vector2I>().ToList();
-                                foundAreaPath = true;
-                                break;
-                            }
-                        }
-
-                        if (!foundAreaPath)
-                        {
-                            Log.Error("No path found to any position in area");
-                            return false;
-                        }
-                    }
-                    else
+                    if (areaPositions.Count == 0)
                     {
                         Log.Error("No valid positions found in area");
                         return false;
                     }
 
+                    var areaResult = TryPathToCandidates(astar, startPos, areaPositions, perceivedEntityPositions);
+                    if (!areaResult.Found)
+                    {
+                        Log.Error("No path found to any position in area");
+                        return false;
+                    }
+
+                    CurrentPath = areaResult.Path;
+
                     break;
 
                 case PathGoalType.Building:
-                    if (_targetBuilding != null)
-                    {
-                        Vector2I buildingPos = _targetBuilding.GetCurrentGridPosition();
-                        Vector2I buildingSize = _targetBuilding.GridSize;
-                        bool foundPath = false;
-
-                        // Build list of candidate positions - interior first, then perimeter if allowed
-                        var candidatePositions = new List<Vector2I>();
-
-                        // Debug tracking
-                        var rejectedInterior = new List<(Vector2I pos, string reason)>();
-                        var rejectedPerimeter = new List<(Vector2I pos, string reason)>();
-
-                        // Add walkable interior positions
-                        var walkableInterior = _targetBuilding.GetWalkableInteriorPositions();
-                        foreach (var relativePos in walkableInterior)
-                        {
-                            Vector2I absolutePos = buildingPos + relativePos;
-                            if (!astar.IsInBoundsv(absolutePos))
-                            {
-                                rejectedInterior.Add((absolutePos, "out of bounds"));
-                            }
-                            else if (astar.IsPointSolid(absolutePos))
-                            {
-                                rejectedInterior.Add((absolutePos, "solid in A*"));
-                            }
-                            else
-                            {
-                                candidatePositions.Add(absolutePos);
-                            }
-                        }
-
-                        // Add perimeter positions if adjacency is acceptable
-                        if (!_requireInterior)
-                        {
-                            foreach (var pos in GetBuildingPerimeterPositions(buildingPos, buildingSize))
-                            {
-                                if (!astar.IsInBoundsv(pos))
-                                {
-                                    rejectedPerimeter.Add((pos, "out of bounds"));
-                                }
-                                else if (astar.IsPointSolid(pos))
-                                {
-                                    rejectedPerimeter.Add((pos, "solid in A*"));
-                                }
-                                else
-                                {
-                                    candidatePositions.Add(pos);
-                                }
-                            }
-                        }
-
-                        // Sort by distance and try to path to each
-                        candidatePositions.Sort((a, b) =>
-                            startPos.DistanceSquaredTo(a).CompareTo(startPos.DistanceSquaredTo(b)));
-
-                        // Track path failures
-                        var pathFailures = new List<Vector2I>();
-
-                        foreach (var pos in candidatePositions)
-                        {
-                            if (startPos == pos)
-                            {
-                                CurrentPath = [pos];
-                                foundPath = true;
-                                break;
-                            }
-
-                            var path = ThreadSafeAStar.GetPath(astar, startPos, pos, true);
-                            if (path.Count > 0)
-                            {
-                                CurrentPath = path.Cast<Vector2I>().ToList();
-                                foundPath = true;
-                                break;
-                            }
-                            else
-                            {
-                                pathFailures.Add(pos);
-                            }
-                        }
-
-                        if (!foundPath)
-                        {
-                            var culture = System.Globalization.CultureInfo.InvariantCulture;
-                            var sb = new System.Text.StringBuilder();
-                            sb.AppendLine(culture, $"No path found to building {_targetBuilding.BuildingType} at {buildingPos} (size {buildingSize})");
-                            sb.AppendLine(culture, $"  Entity at: {startPos}, requireInterior: {_requireInterior}");
-                            sb.AppendLine(culture, $"  Walkable interior count: {walkableInterior.Count}");
-                            sb.AppendLine(culture, $"  Candidates accepted: {candidatePositions.Count}");
-
-                            if (rejectedInterior.Count > 0)
-                            {
-                                sb.AppendLine(culture, $"  Rejected interior ({rejectedInterior.Count}):");
-                                foreach (var (pos, reason) in rejectedInterior.Take(5))
-                                {
-                                    sb.AppendLine(culture, $"    {pos}: {reason}");
-                                }
-
-                                if (rejectedInterior.Count > 5)
-                                {
-                                    sb.AppendLine(culture, $"    ... and {rejectedInterior.Count - 5} more");
-                                }
-                            }
-
-                            if (rejectedPerimeter.Count > 0)
-                            {
-                                sb.AppendLine(culture, $"  Rejected perimeter ({rejectedPerimeter.Count}):");
-                                foreach (var (pos, reason) in rejectedPerimeter.Take(10))
-                                {
-                                    sb.AppendLine(culture, $"    {pos}: {reason}");
-                                }
-
-                                if (rejectedPerimeter.Count > 10)
-                                {
-                                    sb.AppendLine(culture, $"    ... and {rejectedPerimeter.Count - 10} more");
-                                }
-                            }
-
-                            if (pathFailures.Count > 0)
-                            {
-                                sb.AppendLine(culture, $"  Path calculation failed for ({pathFailures.Count}):");
-                                foreach (var pos in pathFailures.Take(5))
-                                {
-                                    sb.AppendLine(culture, $"    {pos}: no path from {startPos}");
-                                }
-
-                                if (pathFailures.Count > 5)
-                                {
-                                    sb.AppendLine(culture, $"    ... and {pathFailures.Count - 5} more");
-                                }
-                            }
-
-                            Log.Error(sb.ToString());
-                            return false;
-                        }
-                    }
-                    else
+                    if (_targetBuilding == null)
                     {
                         Log.Error("Target building is null");
                         return false;
                     }
 
+                    Vector2I buildingPos = _targetBuilding.GetCurrentGridPosition();
+                    Vector2I buildingSize = _targetBuilding.GridSize;
+
+                    // Collect candidates - interior positions, plus perimeter if allowed
+                    var buildingCandidates = CollectBuildingCandidates(
+                        astar, buildingPos, _targetBuilding.GetWalkableInteriorPositions(),
+                        buildingSize, _requireInterior, perceivedEntityPositions);
+
+                    var buildingResult = TryPathToCandidates(astar, startPos, buildingCandidates, perceivedEntityPositions);
+                    if (!buildingResult.Found)
+                    {
+                        Log.Error($"No path to building {_targetBuilding.BuildingType} at {buildingPos}: {buildingResult.FailureReason} (tried {buildingResult.CandidatesTried}/{buildingCandidates.Count} candidates)");
+                        return false;
+                    }
+
+                    CurrentPath = buildingResult.Path;
+
                     break;
 
                 case PathGoalType.Facility:
-                    // Smart recalculation: try ALL adjacent positions to ALL facilities of this ID
-                    // Prefer facilities where adjacent positions are not occupied by other entities
-                    // Deprioritize entrance and entrance-adjacent positions to avoid blocking doorways
                     if (_targetFacilityBuilding == null || _targetFacilityId == null)
                     {
                         Log.Error("Facility goal missing building or facility ID");
                         return false;
                     }
 
-                    var facilityPositions = _targetFacilityBuilding.GetFacilityPositions(_targetFacilityId);
-                    Vector2I facilityBuildingPos = _targetFacilityBuilding.GetCurrentGridPosition();
+                    // Collect facility candidates with entrance-blocking info
+                    var (facilityCandidates, facilityPositionMap) = CollectFacilityCandidates(
+                        astar, _targetFacilityBuilding, _targetFacilityId, perceivedEntityPositions);
 
-                    // Get entrance positions to avoid blocking doorways
-                    var entrancePositions = new HashSet<Vector2I>(_targetFacilityBuilding.GetEntrancePositions());
-                    var entranceAdjacentPositions = _targetFacilityBuilding.GetEntranceAdjacentPositions();
+                    // Extract just the adjacent positions for pathfinding
+                    var facilityAdjacentPositions = facilityCandidates.Select(c => c.adjacentPos).ToList();
 
-                    // Collect all valid (facilityPos, adjacentPos, blocksEntrance) candidates
-                    // Note: We do NOT check entity occupancy here - that would be "god knowledge"
-                    // Entities will handle encountering others via the blocking response system
-                    var facilityCandidates = new List<(Vector2I facilityPos, Vector2I adjacentPos, bool blocksEntrance)>();
-
-                    foreach (var relativePos in facilityPositions)
+                    var facilityResult = TryPathToCandidates(astar, startPos, facilityAdjacentPositions, perceivedEntityPositions);
+                    if (!facilityResult.Found)
                     {
-                        Vector2I absoluteFacilityPos = facilityBuildingPos + relativePos;
-
-                        foreach (var adjacentPos in GetCardinalAdjacentPositions(absoluteFacilityPos))
-                        {
-                            // Check if position is in bounds
-                            if (!astar.IsInBoundsv(adjacentPos))
-                            {
-                                continue;
-                            }
-
-                            // Check if this position is solid terrain (walls, water, etc.)
-                            // This uses astar.IsPointSolid() which only knows about terrain/buildings, not entities
-                            if (astar.IsPointSolid(adjacentPos))
-                            {
-                                continue;
-                            }
-
-                            // Check if this position blocks an entrance
-                            bool blocksEntrance = entrancePositions.Contains(adjacentPos) ||
-                                                  entranceAdjacentPositions.Contains(adjacentPos);
-
-                            facilityCandidates.Add((absoluteFacilityPos, adjacentPos, blocksEntrance));
-                        }
-                    }
-
-                    // Sort: non-entrance-blocking positions first, then by distance
-                    facilityCandidates.Sort((a, b) =>
-                    {
-                        // Non-entrance-blocking positions first
-                        if (a.blocksEntrance != b.blocksEntrance)
-                        {
-                            return a.blocksEntrance ? 1 : -1;
-                        }
-
-                        // Then by distance
-                        return startPos.DistanceSquaredTo(a.adjacentPos)
-                            .CompareTo(startPos.DistanceSquaredTo(b.adjacentPos));
-                    });
-
-                    bool foundFacilityPath = false;
-
-                    foreach (var (facilityPos, adjacentPos, _) in facilityCandidates)
-                    {
-                        // If we're already at this position, we found it!
-                        if (startPos == adjacentPos)
-                        {
-                            _targetFacilityPosition = facilityPos;
-                            _targetPosition = adjacentPos;
-                            foundFacilityPath = true;
-                            break;
-                        }
-
-                        // Try to path to this position
-                        var facilityPath = ThreadSafeAStar.GetPath(astar, startPos, adjacentPos, true);
-                        if (facilityPath.Count > 0)
-                        {
-                            _targetFacilityPosition = facilityPos;
-                            _targetPosition = adjacentPos;
-                            CurrentPath = facilityPath.Cast<Vector2I>().ToList();
-                            foundFacilityPath = true;
-                            break;
-                        }
-                    }
-
-                    if (!foundFacilityPath)
-                    {
-                        Log.Error($"No path found to any '{_targetFacilityId}' facility in building {_targetFacilityBuilding.BuildingType}");
+                        Log.Error($"No path to '{_targetFacilityId}' facility: {facilityResult.FailureReason}");
                         return false;
                     }
+
+                    // Set the facility position based on which candidate succeeded
+                    if (facilityResult.SuccessIndex >= 0 && facilityResult.SuccessIndex < facilityCandidates.Count)
+                    {
+                        var (facilityPos, adjacentPos, _) = facilityCandidates[facilityResult.SuccessIndex];
+                        _targetFacilityPosition = facilityPos;
+                        _targetPosition = adjacentPos;
+                    }
+                    else if (facilityCandidates.Count > 0)
+                    {
+                        // Partial path - use first candidate's facility position
+                        _targetFacilityPosition = facilityCandidates[0].facilityPos;
+                        _targetPosition = facilityCandidates[0].adjacentPos;
+                    }
+
+                    CurrentPath = facilityResult.Path;
 
                     break;
             }
@@ -1031,7 +840,6 @@ public class PathFinder
 
             PathIndex = 0;
             _pathNeedsCalculation = false;
-            _lastRecalculationTick = GameController.CurrentTick;
             return CurrentPath.Count > 0;
         }
         catch (Exception e)
@@ -1065,6 +873,48 @@ public class PathFinder
         }
 
         return result;
+    }
+
+    // Check if entity can leave their current position (has at least one non-blocked neighbor)
+    // This is a quick early-exit check to avoid expensive A* when completely surrounded
+    private static bool CanLeavePosition(AStarGrid2D astar, Vector2I pos, HashSet<Vector2I>? blockedPositions)
+    {
+        // Check all 8 directions (diagonal movement is allowed)
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                if (dx == 0 && dy == 0)
+                {
+                    continue;
+                }
+
+                var neighbor = new Vector2I(pos.X + dx, pos.Y + dy);
+
+                // Must be in bounds
+                if (!astar.IsInBoundsv(neighbor))
+                {
+                    continue;
+                }
+
+                // Must not be solid terrain
+                if (astar.IsPointSolid(neighbor))
+                {
+                    continue;
+                }
+
+                // Must not be blocked by perceived entity
+                if (blockedPositions != null && blockedPositions.Contains(neighbor))
+                {
+                    continue;
+                }
+
+                // Found at least one valid exit
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Get cardinal adjacent positions (4 directions)
@@ -1113,6 +963,194 @@ public class PathFinder
         }
 
         return positions;
+    }
+
+    /// <summary>
+    /// Result of trying to find a path to candidate positions.
+    /// </summary>
+    private readonly struct PathSearchResult
+    {
+        public readonly bool Found;
+        public readonly List<Vector2I> Path;
+        public readonly int SuccessIndex; // Index of successful candidate, or -1 for partial
+        public readonly string FailureReason;
+        public readonly int CandidatesTried;
+
+        private PathSearchResult(bool found, List<Vector2I> path, int successIndex, string failureReason, int candidatesTried)
+        {
+            Found = found;
+            Path = path;
+            SuccessIndex = successIndex;
+            FailureReason = failureReason;
+            CandidatesTried = candidatesTried;
+        }
+
+        public static PathSearchResult Success(List<Vector2I> path, int index) =>
+            new (true, path, index, string.Empty, 0);
+
+        public static PathSearchResult PartialSuccess(List<Vector2I> path, int candidatesTried) =>
+            new (true, path, -1, string.Empty, candidatesTried);
+
+        public static PathSearchResult Fail(string reason, int candidatesTried) =>
+            new (false, [], -1, reason, candidatesTried);
+    }
+
+    /// <summary>
+    /// Try to find a path to any of the candidate positions.
+    /// First tries exact paths (fast fail), then partial path as fallback.
+    /// </summary>
+    private static PathSearchResult TryPathToCandidates(
+        AStarGrid2D astar,
+        Vector2I startPos,
+        List<Vector2I> candidates,
+        HashSet<Vector2I>? perceivedBlocked)
+    {
+        if (candidates.Count == 0)
+        {
+            return PathSearchResult.Fail("no candidates", 0);
+        }
+
+        // Check if already at any candidate
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            if (startPos == candidates[i])
+            {
+                return PathSearchResult.Success([startPos], i);
+            }
+        }
+
+        // Early exit if surrounded
+        if (!CanLeavePosition(astar, startPos, perceivedBlocked))
+        {
+            return PathSearchResult.Fail("surrounded", 0);
+        }
+
+        // Try exact paths first (fast fail if unreachable)
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            var path = ThreadSafeAStar.GetPath(astar, startPos, candidates[i], false, perceivedBlocked);
+            if (path.Count > 0)
+            {
+                return PathSearchResult.Success(path, i);
+            }
+        }
+
+        // All exact paths failed - try partial path to first candidate
+        var partialPath = ThreadSafeAStar.GetPath(astar, startPos, candidates[0], true, perceivedBlocked);
+        if (partialPath.Count > 1) // Must make progress
+        {
+            return PathSearchResult.PartialSuccess(partialPath, candidates.Count);
+        }
+
+        return PathSearchResult.Fail($"no path to any of {candidates.Count} candidates", candidates.Count);
+    }
+
+    /// <summary>
+    /// Collect valid candidate positions for a building goal.
+    /// </summary>
+    private static List<Vector2I> CollectBuildingCandidates(
+        AStarGrid2D astar,
+        Vector2I buildingPos,
+        List<Vector2I> walkableInterior,
+        Vector2I buildingSize,
+        bool requireInterior,
+        HashSet<Vector2I>? perceivedBlocked)
+    {
+        var candidates = new List<Vector2I>();
+
+        // Add walkable interior positions
+        foreach (var relativePos in walkableInterior)
+        {
+            Vector2I absolutePos = buildingPos + relativePos;
+            if (IsValidCandidate(astar, absolutePos, perceivedBlocked))
+            {
+                candidates.Add(absolutePos);
+            }
+        }
+
+        // Add perimeter positions if adjacency is acceptable
+        if (!requireInterior)
+        {
+            foreach (var pos in GetBuildingPerimeterPositions(buildingPos, buildingSize))
+            {
+                if (IsValidCandidate(astar, pos, perceivedBlocked))
+                {
+                    candidates.Add(pos);
+                }
+            }
+        }
+
+        return candidates;
+    }
+
+    /// <summary>
+    /// Check if a position is a valid pathfinding candidate.
+    /// </summary>
+    private static bool IsValidCandidate(AStarGrid2D astar, Vector2I pos, HashSet<Vector2I>? perceivedBlocked)
+    {
+        if (!astar.IsInBoundsv(pos))
+        {
+            return false;
+        }
+
+        if (astar.IsPointSolid(pos))
+        {
+            return false;
+        }
+
+        if (perceivedBlocked != null && perceivedBlocked.Contains(pos))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Collect valid candidate positions for a facility goal.
+    /// Returns candidates sorted by entrance-blocking priority (non-blocking first).
+    /// </summary>
+    private static (List<(Vector2I facilityPos, Vector2I adjacentPos, bool blocksEntrance)> candidates,
+                    Dictionary<Vector2I, Vector2I> positionMap)
+        CollectFacilityCandidates(
+            AStarGrid2D astar,
+            Building building,
+            string facilityId,
+            HashSet<Vector2I>? perceivedBlocked)
+    {
+        var candidates = new List<(Vector2I facilityPos, Vector2I adjacentPos, bool blocksEntrance)>();
+        var positionMap = new Dictionary<Vector2I, Vector2I>(); // adjacentPos -> facilityPos
+
+        var facilityPositions = building.GetFacilityPositions(facilityId);
+        Vector2I buildingPos = building.GetCurrentGridPosition();
+
+        // Get entrance positions to avoid blocking doorways
+        var entrancePositions = new HashSet<Vector2I>(building.GetEntrancePositions());
+        var entranceAdjacentPositions = building.GetEntranceAdjacentPositions();
+
+        foreach (var relativePos in facilityPositions)
+        {
+            Vector2I absoluteFacilityPos = buildingPos + relativePos;
+
+            foreach (var adjacentPos in GetCardinalAdjacentPositions(absoluteFacilityPos))
+            {
+                if (!IsValidCandidate(astar, adjacentPos, perceivedBlocked))
+                {
+                    continue;
+                }
+
+                bool blocksEntrance = entrancePositions.Contains(adjacentPos) ||
+                                      entranceAdjacentPositions.Contains(adjacentPos);
+
+                candidates.Add((absoluteFacilityPos, adjacentPos, blocksEntrance));
+                positionMap[adjacentPos] = absoluteFacilityPos;
+            }
+        }
+
+        // Sort: non-entrance-blocking positions first
+        candidates.Sort((a, b) => a.blocksEntrance.CompareTo(b.blocksEntrance));
+
+        return (candidates, positionMap);
     }
 
     /// <summary>
@@ -1175,6 +1213,31 @@ public class PathFinder
         }
 
         return _cachedPathfindingGrid;
+    }
+
+    /// <summary>
+    /// Extracts positions of perceived entities (excluding self) to treat as blocked during pathfinding.
+    /// Entity will try to path around beings it can see.
+    /// Uses pooled HashSet to reduce GC pressure.
+    /// </summary>
+    /// <param name="entity">The entity doing pathfinding (excluded from blocked positions).</param>
+    /// <param name="perception">Current perception data.</param>
+    /// <returns>HashSet of positions occupied by perceived beings, or null if none.</returns>
+    private HashSet<Vector2I>? GetPerceivedEntityPositions(Being entity, Perception perception)
+    {
+        _perceivedBlockedPositions.Clear();
+
+        foreach (var (sensable, position) in perception.GetAllDetected())
+        {
+            // Only block positions of other Beings (not buildings or other sensables)
+            if (sensable is Being otherBeing && otherBeing != entity)
+            {
+                _perceivedBlockedPositions.Add(position);
+            }
+        }
+
+        // Return null if no blocked positions (optimization for ThreadSafeAStar)
+        return _perceivedBlockedPositions.Count > 0 ? _perceivedBlockedPositions : null;
     }
 
     /// <summary>

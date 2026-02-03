@@ -15,6 +15,13 @@ namespace VeilOfAges.Core.Lib;
 public static class ThreadSafeAStar
 {
     /// <summary>
+    /// Maximum nodes to explore before giving up. Prevents excessive CPU usage
+    /// when no path exists. A typical path on a 100x100 grid is &lt;100 nodes,
+    /// so 2000 allows complex routing while bounding worst-case time.
+    /// </summary>
+    private const int MaxNodeExplorations = 2000;
+
+    /// <summary>
     /// Per-search state for a grid cell. Allocated per-search, not shared.
     /// </summary>
     private sealed class PointState
@@ -84,8 +91,16 @@ public static class ThreadSafeAStar
         pointStates[from] = startState;
         openSet.Enqueue(from, startState.FScore);
 
+        int nodesExplored = 0;
+
         while (openSet.Count > 0)
         {
+            // Bail out if we've explored too many nodes - no path likely exists
+            if (nodesExplored >= MaxNodeExplorations)
+            {
+                break;
+            }
+
             var currentPos = openSet.Dequeue();
             var current = pointStates[currentPos];
 
@@ -94,6 +109,8 @@ public static class ThreadSafeAStar
             {
                 continue;
             }
+
+            nodesExplored++;
 
             // Track closest point to goal for partial paths
             if (closestPoint == null ||

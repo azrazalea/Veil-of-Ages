@@ -185,11 +185,16 @@ This respects no-god-knowledge - only reacts to entities encountered.
 - [x] Added custom ThreadSafeAStar.cs - no locks needed, uses own scoring state
 - [x] Removed Godot's GetIdPath calls entirely (it modifies internal Point state)
 
-### Phase 4: Perception-Aware Pathfinding - IN PROGRESS
-ThreadSafeAStar.GetPath already has `additionalBlocked` parameter ready to use.
-- [ ] Collect perceived entity positions in CalculatePathForCurrentGoal
-- [ ] Pass HashSet<Vector2I> of perceived positions to ThreadSafeAStar.GetPath
-- [ ] Entity will path around entities it can SEE
+### Phase 4: Perception-Aware Pathfinding - COMPLETED
+- [x] Collect perceived entity positions in CalculatePathForCurrentGoal
+- [x] Added `GetPerceivedEntityPositions()` helper that extracts Being positions from Perception
+- [x] Pass HashSet<Vector2I> of perceived positions to ThreadSafeAStar.GetPath's `additionalBlocked` parameter
+- [x] Made `CalculatePathIfNeeded(entity, perception)` require perception parameter (compiler catches missed call sites)
+- [x] Updated all activities (GoToLocationActivity, GoToBuildingActivity, GoToFacilityActivity) to pass perception
+- [x] Updated BeingTrait helper methods (MoveToPosition, MoveNearEntity, MoveToArea, ReturnToSpawn, TryToWander) to require perception
+- [x] Updated all trait call sites (SkeletonTrait, ZombieTrait, UndeadBehaviorTrait) to pass perception
+- [x] Updated commands (MoveToCommand, FollowCommand) to pass perception
+- [x] Entity will now path around entities it can SEE
 
 ### Phase 5: Proactive Periodic Recalculation (Before "Done")
 - [ ] Every N steps or ticks, recalculate path using current perception

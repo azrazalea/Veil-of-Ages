@@ -102,9 +102,9 @@ public class SkeletonTrait : UndeadBehaviorTrait
         switch (_currentState)
         {
             case SkeletonState.Idle:
-                return ProcessIdleState();
+                return ProcessIdleState(currentPerception);
             case SkeletonState.Wandering:
-                return ProcessWanderingState();
+                return ProcessWanderingState(currentPerception);
             case SkeletonState.Defending:
                 return ProcessDefendingState(currentPerception);
             default:
@@ -154,7 +154,7 @@ public class SkeletonTrait : UndeadBehaviorTrait
         }
     }
 
-    private EntityAction? ProcessIdleState()
+    private EntityAction? ProcessIdleState(Perception perception)
     {
         if (_owner == null)
         {
@@ -168,7 +168,7 @@ public class SkeletonTrait : UndeadBehaviorTrait
             {
                 _currentState = SkeletonState.Wandering;
                 _stateTimer = (uint)_rng.RandiRange(60, 180);
-                return TryToWander();
+                return TryToWander(perception);
             }
             else
             {
@@ -180,7 +180,7 @@ public class SkeletonTrait : UndeadBehaviorTrait
         return new IdleAction(_owner, this);
     }
 
-    private EntityAction? ProcessWanderingState()
+    private EntityAction? ProcessWanderingState(Perception perception)
     {
         if (_owner == null)
         {
@@ -199,7 +199,7 @@ public class SkeletonTrait : UndeadBehaviorTrait
             else
             {
                 _stateTimer = (uint)_rng.RandiRange(60, 180);
-                return TryToWander();
+                return TryToWander(perception);
             }
         }
 

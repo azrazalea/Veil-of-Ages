@@ -226,6 +226,12 @@
         },
         {
             "Position": [4, 1],
+            "Material": "Plant",
+            "Type": "Crop",
+            "Variant": "Rice"
+        },
+        {
+            "Position": [4, 1],
             "Material": "Dirt",
             "Type": "Floor",
             "Variant": "Farm"

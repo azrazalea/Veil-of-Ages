@@ -111,15 +111,15 @@ public class ZombieTrait : UndeadBehaviorTrait
         switch (_currentState)
         {
             case ZombieState.Idle:
-                return ProcessIdleState();
+                return ProcessIdleState(currentPerception);
             case ZombieState.Wandering:
-                return ProcessWanderingState();
+                return ProcessWanderingState(currentPerception);
             default:
                 return new IdleAction(_owner, this);
         }
     }
 
-    private EntityAction? ProcessIdleState()
+    private EntityAction? ProcessIdleState(Perception perception)
     {
         if (_owner == null)
         {
@@ -142,7 +142,7 @@ public class ZombieTrait : UndeadBehaviorTrait
                     _hasGroaned = true;
                 }
 
-                return TryToWander();
+                return TryToWander(perception);
             }
             else
             {
@@ -154,7 +154,7 @@ public class ZombieTrait : UndeadBehaviorTrait
         return new IdleAction(_owner, this);
     }
 
-    private EntityAction? ProcessWanderingState()
+    private EntityAction? ProcessWanderingState(Perception perception)
     {
         if (_owner == null)
         {
@@ -181,7 +181,7 @@ public class ZombieTrait : UndeadBehaviorTrait
             else
             {
                 _stateTimer = (uint)_rng.RandiRange(60, 180);
-                return TryToWander();
+                return TryToWander(perception);
             }
         }
 

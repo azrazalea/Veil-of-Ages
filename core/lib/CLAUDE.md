@@ -43,16 +43,16 @@ A* pathfinding system that wraps Godot's `AStarGrid2D`.
 
 Path calculation runs on the **Think thread** (background), not the Execute thread (main). This is enforced by splitting the old `TryFollowPath()` into two methods:
 
-- **`CalculatePathIfNeeded(entity)`**: Call from Think thread. Does A* calculation if path is needed.
+- **`CalculatePathIfNeeded(entity, perception)`**: Call from Think thread. Does A* calculation if path is needed. **Requires perception parameter** - entity paths around entities it can see.
 - **`FollowPath(entity)`**: Call from Execute thread. Only follows pre-calculated path, no A*.
 
 The old `TryFollowPath()` has been removed - use the split methods.
 
 **Correct Usage Pattern**:
 ```csharp
-// In Activity.GetNextAction() or Trait.SuggestAction() - runs on Think thread
+// In Activity.GetNextAction(position, perception) - runs on Think thread
 _pathFinder.SetPositionGoal(owner, targetPos);
-if (!_pathFinder.CalculatePathIfNeeded(owner))
+if (!_pathFinder.CalculatePathIfNeeded(owner, perception))
 {
     return new IdleAction(owner, this, priority);  // Path failed
 }
@@ -64,7 +64,7 @@ return _pathFinder.FollowPath(entity);  // No A* here, just follows
 
 - **Key Methods**:
   - `SetBuildingGoal(entity, building, requireInterior = true)`: Sets building navigation goal with interior/adjacency control
-  - `CalculatePathIfNeeded(entity)`: **Call from Think thread**. Calculates path if needed.
+  - `CalculatePathIfNeeded(entity, perception)`: **Call from Think thread**. Calculates path if needed, avoiding perceived entities.
   - `FollowPath(entity)`: **Call from Execute thread**. Follows pre-calculated path only.
   - `IsGoalReached(entity)`: Checks if entity has reached goal, respects `requireInterior` flag for Building goals
   - `GetBuildingPerimeterPositions(buildingPos, buildingSize)`: Helper method that returns all positions one tile outside the building bounds
@@ -73,7 +73,8 @@ return _pathFinder.FollowPath(entity);  // No A* here, just follows
   - Maximum 3 recalculation attempts before failure
   - Path length limit (100 tiles)
   - Handles moving targets by recalculating when target entity moves
-  - **Perception-based pathfinding**: Non-village residents can only pathfind within their perception range
+  - **Perception-aware pathfinding**: Entities path around other entities they can currently see (via `additionalBlocked` parameter)
+  - **Perception-limited pathfinding**: Non-village residents can only pathfind within their perception range (fog-of-war wall at border)
 - **Thread Safety Warning**: `CreateNewAStarGrid()` and `UpdateAStarGrid()` must NOT be called from Tasks/threads - they print errors and return early if `Task.CurrentId != null`.
 - **Perception-Based Pathfinding**:
   - `CreatePathfindingGrid(entity)`: Creates a perception-aware grid for path calculation

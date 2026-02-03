@@ -123,7 +123,7 @@ public abstract class BeingTrait : Trait
     /// Path is calculated here (Think thread), then Execute only follows.
     /// </summary>
     /// <returns></returns>
-    protected EntityAction? MoveToPosition(Vector2I targetPos, int priority = 1)
+    protected EntityAction? MoveToPosition(Vector2I targetPos, Perception perception, int priority = 1)
     {
         if (_owner == null)
         {
@@ -134,7 +134,7 @@ public abstract class BeingTrait : Trait
         MyPathfinder.SetPositionGoal(_owner, targetPos);
 
         // Calculate path now (on Think thread)
-        if (!MyPathfinder.CalculatePathIfNeeded(_owner))
+        if (!MyPathfinder.CalculatePathIfNeeded(_owner, perception))
         {
             // Path calculation failed, return idle
             return new IdleAction(_owner, this, priority);
@@ -149,7 +149,7 @@ public abstract class BeingTrait : Trait
     /// Path is calculated here (Think thread), then Execute only follows.
     /// </summary>
     /// <returns></returns>
-    protected EntityAction? MoveNearEntity(Being targetEntity, int proximityRange = 1, int priority = 1)
+    protected EntityAction? MoveNearEntity(Being targetEntity, Perception perception, int proximityRange = 1, int priority = 1)
     {
         if (_owner == null)
         {
@@ -160,7 +160,7 @@ public abstract class BeingTrait : Trait
         MyPathfinder.SetEntityProximityGoal(_owner, targetEntity, proximityRange);
 
         // Calculate path now (on Think thread)
-        if (!MyPathfinder.CalculatePathIfNeeded(_owner))
+        if (!MyPathfinder.CalculatePathIfNeeded(_owner, perception))
         {
             // Path calculation failed, return idle
             return new IdleAction(_owner, this, priority);
@@ -175,7 +175,7 @@ public abstract class BeingTrait : Trait
     /// Path is calculated here (Think thread), then Execute only follows.
     /// </summary>
     /// <returns></returns>
-    protected EntityAction? MoveToArea(Vector2I centerPos, int radius, int priority = 1)
+    protected EntityAction? MoveToArea(Vector2I centerPos, int radius, Perception perception, int priority = 1)
     {
         if (_owner == null)
         {
@@ -186,7 +186,7 @@ public abstract class BeingTrait : Trait
         MyPathfinder.SetAreaGoal(_owner, centerPos, radius);
 
         // Calculate path now (on Think thread)
-        if (!MyPathfinder.CalculatePathIfNeeded(_owner))
+        if (!MyPathfinder.CalculatePathIfNeeded(_owner, perception))
         {
             // Path calculation failed, return idle
             return new IdleAction(_owner, this, priority);
@@ -200,7 +200,7 @@ public abstract class BeingTrait : Trait
     /// Helper for wandering behavior - uses direct move for simple adjacent motion.
     /// </summary>
     /// <returns></returns>
-    protected EntityAction? TryToWander(float wanderRange = 10.0f, int priority = 1)
+    protected EntityAction? TryToWander(Perception perception, float wanderRange = 10.0f, int priority = 1)
     {
         if (_owner == null)
         {
@@ -253,7 +253,7 @@ public abstract class BeingTrait : Trait
         // Check if the target position is within wander range
         if (IsOutsideRange(wanderRange, _spawnPosition))
         {
-            return MoveToPosition(_spawnPosition, priority);
+            return MoveToPosition(_spawnPosition, perception, priority);
         }
 
         if (_owner == null)
@@ -270,7 +270,7 @@ public abstract class BeingTrait : Trait
     /// Path is calculated here (Think thread), then Execute only follows.
     /// </summary>
     /// <returns></returns>
-    protected EntityAction? ReturnToSpawn(int priority = 1)
+    protected EntityAction? ReturnToSpawn(Perception perception, int priority = 1)
     {
         if (_owner == null)
         {
@@ -281,7 +281,7 @@ public abstract class BeingTrait : Trait
         MyPathfinder.SetPositionGoal(_owner, _spawnPosition);
 
         // Calculate path now (on Think thread)
-        if (!MyPathfinder.CalculatePathIfNeeded(_owner))
+        if (!MyPathfinder.CalculatePathIfNeeded(_owner, perception))
         {
             // Path calculation failed, return idle
             return new IdleAction(_owner, this, priority);

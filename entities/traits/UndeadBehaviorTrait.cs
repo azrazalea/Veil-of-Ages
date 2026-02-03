@@ -38,9 +38,9 @@ public abstract class UndeadBehaviorTrait : UndeadTrait
     }
 
     // Updated common method for wandering behavior used by all undead
-    protected EntityAction? TryToWander()
+    protected EntityAction? TryToWander(Perception perception)
     {
-        return TryToWander(WanderRange);
+        return TryToWander(perception, WanderRange);
     }
 
     // Check if entity is outside a specified range from spawn position

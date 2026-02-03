@@ -99,7 +99,7 @@ public class GoToBuildingActivity : Activity
         }
 
         // Calculate path if needed (A* runs here on Think thread, not in Execute)
-        if (!_pathFinder.CalculatePathIfNeeded(_owner))
+        if (!_pathFinder.CalculatePathIfNeeded(_owner, perception))
         {
             // Path calculation failed
             _stuckTicks++;

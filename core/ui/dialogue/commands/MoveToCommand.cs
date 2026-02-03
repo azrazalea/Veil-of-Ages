@@ -75,7 +75,7 @@ public class MoveToCommand(Being owner, Being commander, bool isComplex = false)
         }
 
         // Calculate path on Think thread
-        if (!MyPathfinder.CalculatePathIfNeeded(_owner))
+        if (!MyPathfinder.CalculatePathIfNeeded(_owner, currentPerception))
         {
             return new IdleAction(_owner, this, priority: -1);
         }
