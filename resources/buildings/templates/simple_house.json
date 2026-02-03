@@ -18,6 +18,7 @@
     {
       "Id": "storage",
       "Position": [5, 4],
+      "RequireAdjacent": true,
       "Storage": {
         "VolumeCapacity": 1.0,
         "WeightCapacity": -1,

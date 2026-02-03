@@ -897,6 +897,8 @@ public class PathFinder
 
                 case PathGoalType.Facility:
                     // Smart recalculation: try ALL adjacent positions to ALL facilities of this ID
+                    // Prefer facilities where adjacent positions are not occupied by other entities
+                    // Deprioritize entrance and entrance-adjacent positions to avoid blocking doorways
                     if (_targetFacilityBuilding == null || _targetFacilityId == null)
                     {
                         Log.Error("Facility goal missing building or facility ID");
@@ -906,14 +908,17 @@ public class PathFinder
                     var facilityPositions = _targetFacilityBuilding.GetFacilityPositions(_targetFacilityId);
                     Vector2I facilityBuildingPos = _targetFacilityBuilding.GetCurrentGridPosition();
 
-                    bool foundFacilityPath = false;
+                    // Get entrance positions to avoid blocking doorways
+                    var entrancePositions = new HashSet<Vector2I>(_targetFacilityBuilding.GetEntrancePositions());
+                    var entranceAdjacentPositions = _targetFacilityBuilding.GetEntranceAdjacentPositions();
 
-                    // Try all facilities and all their adjacent positions
+                    // Collect all valid (facilityPos, adjacentPos, isOccupied, blocksEntrance) candidates
+                    var facilityCandidates = new List<(Vector2I facilityPos, Vector2I adjacentPos, bool isOccupied, bool blocksEntrance)>();
+
                     foreach (var relativePos in facilityPositions)
                     {
                         Vector2I absoluteFacilityPos = facilityBuildingPos + relativePos;
 
-                        // Get adjacent positions (cardinal directions)
                         foreach (var adjacentPos in GetCardinalAdjacentPositions(absoluteFacilityPos))
                         {
                             // Check if position is in bounds
@@ -922,36 +927,64 @@ public class PathFinder
                                 continue;
                             }
 
-                            // Check if this position is actually walkable (accounts for entities)
-                            if (!gridArea.IsCellWalkable(adjacentPos))
+                            // Check if this position is solid terrain (walls, water, etc.)
+                            if (astar.IsPointSolid(adjacentPos))
                             {
                                 continue;
                             }
 
-                            // If we're already at this position, we found it!
-                            if (startPos == adjacentPos)
-                            {
-                                _targetFacilityPosition = absoluteFacilityPos;
-                                _targetPosition = adjacentPos;
-                                foundFacilityPath = true;
-                                break;
-                            }
+                            // Check if occupied by another entity (but still add as candidate)
+                            bool isOccupied = !gridArea.IsCellWalkable(adjacentPos);
 
-                            // Try to path to this position
-                            var facilityPath = astar.GetIdPath(startPos, adjacentPos, true);
-                            if (facilityPath.Count > 0)
-                            {
-                                // Found a valid path!
-                                _targetFacilityPosition = absoluteFacilityPos;
-                                _targetPosition = adjacentPos;
-                                CurrentPath = facilityPath.Cast<Vector2I>().ToList();
-                                foundFacilityPath = true;
-                                break;
-                            }
+                            // Check if this position blocks an entrance
+                            bool blocksEntrance = entrancePositions.Contains(adjacentPos) ||
+                                                  entranceAdjacentPositions.Contains(adjacentPos);
+
+                            facilityCandidates.Add((absoluteFacilityPos, adjacentPos, isOccupied, blocksEntrance));
+                        }
+                    }
+
+                    // Sort: non-blocking first, then unoccupied, then by distance
+                    facilityCandidates.Sort((a, b) =>
+                    {
+                        // Non-entrance-blocking positions first
+                        if (a.blocksEntrance != b.blocksEntrance)
+                        {
+                            return a.blocksEntrance ? 1 : -1;
                         }
 
-                        if (foundFacilityPath)
+                        // Unoccupied facilities second
+                        if (a.isOccupied != b.isOccupied)
                         {
+                            return a.isOccupied ? 1 : -1;
+                        }
+
+                        // Then by distance
+                        return startPos.DistanceSquaredTo(a.adjacentPos)
+                            .CompareTo(startPos.DistanceSquaredTo(b.adjacentPos));
+                    });
+
+                    bool foundFacilityPath = false;
+
+                    foreach (var (facilityPos, adjacentPos, _, _) in facilityCandidates)
+                    {
+                        // If we're already at this position, we found it!
+                        if (startPos == adjacentPos)
+                        {
+                            _targetFacilityPosition = facilityPos;
+                            _targetPosition = adjacentPos;
+                            foundFacilityPath = true;
+                            break;
+                        }
+
+                        // Try to path to this position
+                        var facilityPath = astar.GetIdPath(startPos, adjacentPos, true);
+                        if (facilityPath.Count > 0)
+                        {
+                            _targetFacilityPosition = facilityPos;
+                            _targetPosition = adjacentPos;
+                            CurrentPath = facilityPath.Cast<Vector2I>().ToList();
+                            foundFacilityPath = true;
                             break;
                         }
                     }

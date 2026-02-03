@@ -46,21 +46,10 @@ Always read the relevant directory's CLAUDE.md before modifying code in that are
 
 ## Development Commands
 
-**Important**: When you need to test, compile, or run any code, ask the user to do it for you rather than attempting to run commands directly.
-
-### Common Commands (for user reference)
 ```bash
 # Build the C# solution
 dotnet build
-
-# Build with specific configuration
-dotnet build -c Debug
-dotnet build -c ExportRelease
 ```
-
-### Running the Game
-- **From Godot Editor**: Open project.godot in Godot 4.4+, press F5
-- **Main scene**: Configured as `uid://ba8h7co1n3v3u`
 
 ### Export
 - Use Godot Editor: Project → Export → Windows Desktop
@@ -171,10 +160,9 @@ Official Godot Engine documentation for reference when implementing engine featu
 
 When making changes:
 1. Read the relevant directory CLAUDE.md for context
-2. Ask the user to test any code modifications
-3. Request compilation to verify syntax and type errors
-4. Ask for the game to be run to test functionality
-5. When in doubt about behavior, ask the user to verify in Godot Editor
+2. Build with `dotnet build` to verify compilation
+3. **Test changes yourself** using the debug server - read `/core/debug/CLAUDE.md` for full documentation on starting/stopping the game, reading logs, and using the HTTP API to inspect game state
+4. Check logs for errors after testing - do not ask the user to test for you
 
 ## Using Subagents for Implementation
 
