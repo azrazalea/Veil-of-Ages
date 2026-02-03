@@ -1,5 +1,6 @@
 {
   "Id": "mindless_skeleton",
+  "ParentId": "undead_base",
   "Name": "Mindless Skeleton",
   "Description": "A skeletal undead with territorial behavior",
   "Category": "Undead",
@@ -21,7 +22,7 @@
     { "TraitType": "SkeletonTrait", "Priority": 2, "Parameters": {} }
   ],
   "Body": {
-    "BaseStructure": "Humanoid",
+    "BaseStructure": "humanoid",
     "Modifications": [
       { "Type": "RemoveSoftTissues", "Parameters": {} },
       { "Type": "ScaleBoneHealth", "Parameters": { "Multiplier": 1.5 } }
@@ -32,5 +33,5 @@
       "ambient": "res://assets/pixabay/rattling-bones-105394.mp3"
     }
   },
-  "Tags": ["undead", "mindless", "skeletal"]
+  "Tags": ["mindless", "skeletal"]
 }

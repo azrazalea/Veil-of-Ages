@@ -236,6 +236,13 @@ public class StorageConfig
     public float WeightCapacity { get; set; } = -1;
 
     /// <summary>
+    /// Gets or sets the item tags that this storage is intended to hold.
+    /// Used by SharedKnowledge so entities know what types of items buildings store.
+    /// Example: ["food", "grain"] for a granary, ["zombie_food"] for a graveyard.
+    /// </summary>
+    public List<string> Tags { get; set; } = new ();
+
+    /// <summary>
     /// Gets or sets modifier for decay rate of stored items. Lower = slower decay.
     /// </summary>
     public float DecayRateModifier { get; set; } = 1.0f;

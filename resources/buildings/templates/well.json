@@ -18,7 +18,8 @@
         "RegenerationRate": 0.5,
         "RegenerationMaxQuantity": 50,
         "RegenerationInitialQuantity": 50,
-        "FetchDuration": 8
+        "FetchDuration": 8,
+        "Tags": ["water"]
       }
     }
   ],

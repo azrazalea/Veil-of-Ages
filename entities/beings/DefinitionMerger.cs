@@ -24,6 +24,15 @@ public static class DefinitionMerger
     };
 
     /// <summary>
+    /// Properties that require special smart merging instead of simple additive.
+    /// </summary>
+    private static readonly HashSet<string> _smartMergeProperties = new (StringComparer.OrdinalIgnoreCase)
+    {
+        "Needs",  // Merge by Id - child overrides parent's needs with same Id
+        "Traits" // Merge by TraitType - child overrides parent's traits with same TraitType
+    };
+
+    /// <summary>
     /// Merges a child definition with a parent definition.
     /// Creates a new instance with merged values.
     /// </summary>
@@ -101,9 +110,14 @@ public static class DefinitionMerger
             return childValue ?? parentValue;
         }
 
-        // List types: additive (parent + child)
+        // List types: check for smart merge or additive
         if (IsListType(type))
         {
+            if (_smartMergeProperties.Contains(propertyName))
+            {
+                return MergeListsSmart(type, parentValue, childValue, propertyName);
+            }
+
             return MergeLists(type, parentValue, childValue);
         }
 
@@ -189,6 +203,72 @@ public static class DefinitionMerger
         }
 
         // Add child items (no deduplication - additive)
+        foreach (var item in childList)
+        {
+            mergedList.Add(item);
+        }
+
+        return mergedList;
+    }
+
+    /// <summary>
+    /// Merges two lists with smart key-based deduplication.
+    /// Child items with the same key override parent items.
+    /// For Needs: key is "Id" property
+    /// For Traits: key is "TraitType" property.
+    /// </summary>
+    private static object MergeListsSmart(Type listType, object parentValue, object childValue, string propertyName)
+    {
+        var parentList = (IList)parentValue;
+        var childList = (IList)childValue;
+
+        // Determine the key property name based on list type
+        string keyPropertyName = propertyName switch
+        {
+            "Needs" => "Id",
+            "Traits" => "TraitType",
+            _ => "Id" // Default fallback
+        };
+
+        // Get element type
+        var elementType = listType.IsGenericType
+            ? listType.GetGenericArguments()[0]
+            : typeof(object);
+
+        // Get the key property
+        var keyProperty = elementType.GetProperty(keyPropertyName);
+        if (keyProperty == null)
+        {
+            // Fall back to additive merge if no key property found
+            Log.Warn($"DefinitionMerger: Could not find key property '{keyPropertyName}' for smart merge of '{propertyName}'");
+            return MergeLists(listType, parentValue, childValue);
+        }
+
+        // Build dictionary of child items by key for fast lookup
+        var childKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in childList)
+        {
+            var key = keyProperty.GetValue(item) as string;
+            if (!string.IsNullOrEmpty(key))
+            {
+                childKeys.Add(key);
+            }
+        }
+
+        // Create merged list
+        var mergedList = (IList)Activator.CreateInstance(listType) !;
+
+        // Add parent items that are NOT overridden by child
+        foreach (var item in parentList)
+        {
+            var key = keyProperty.GetValue(item) as string;
+            if (string.IsNullOrEmpty(key) || !childKeys.Contains(key))
+            {
+                mergedList.Add(item);
+            }
+        }
+
+        // Add all child items (they override or are new)
         foreach (var item in childList)
         {
             mergedList.Add(item);

@@ -13,7 +13,8 @@
             "Storage": {
                 "VolumeCapacity": 10.0,
                 "WeightCapacity": -1,
-                "DecayRateModifier": 0.5
+                "DecayRateModifier": 0.5,
+                "Tags": ["food", "grain"]
             }
         }
     ],

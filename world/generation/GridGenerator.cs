@@ -32,6 +32,12 @@ public partial class GridGenerator : Node
     private EntityThinkingSystem? _entityThinkingSystem;
     private GameController? _gameController;
 
+    /// <summary>
+    /// Gets the player's house building, placed near the graveyard during village generation.
+    /// Only valid after Generate() has been called.
+    /// </summary>
+    public Building? PlayerHouse { get; private set; }
+
     // Main generation method
     public void Generate(World world)
     {
@@ -41,6 +47,9 @@ public partial class GridGenerator : Node
 
         _activeGridArea = world.ActiveGridArea;
         _entitiesContainer = world.GetNode<Node>("Entities");
+
+        // Get the player from the entities container
+        var player = _entitiesContainer?.GetNodeOrNull<Player>("Player");
 
         // Ensure we have all required nodes
         if (_entitiesContainer == null || _activeGridArea == null ||
@@ -58,10 +67,15 @@ public partial class GridGenerator : Node
             _entitiesContainer,
             BuildingScene,
             GenericBeingScene,
-            _entityThinkingSystem);
+            _entityThinkingSystem,
+            player);
 
         // Generate village at the center of the map
+        // Player home is assigned during generation, before granary orders are initialized
         villageGenerator.GenerateVillage();
+
+        // Store the player's house reference (already assigned to player in VillageGenerator)
+        PlayerHouse = villageGenerator.PlayerHouse;
 
         // Then add trees in unoccupied spaces
         if (TreeScene != null)

@@ -679,9 +679,10 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         Movement = new MovementController(this, BaseMovementPointsPerTick);
         Movement.Initialize(startGridPos);
 
-        PerceptionSystem = new BeingPerceptionSystem(this);
-        NeedsSystem = new BeingNeedsSystem(this);
-        Memory = new PersonalMemory(this);
+        // Use ??= to preserve systems created in _Ready() (e.g., for Player which is in scene tree)
+        PerceptionSystem ??= new BeingPerceptionSystem(this);
+        NeedsSystem ??= new BeingNeedsSystem(this);
+        Memory ??= new PersonalMemory(this);
 
         // Set attributes if provided
         Attributes = attributes ?? DefaultAttributes with { };

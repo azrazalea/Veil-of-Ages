@@ -33,6 +33,17 @@ public class VillageGenerator
     // Track placed granary for distributor assignment
     private Building? _placedGranary;
 
+    // Track placed graveyard for player house placement
+    private Building? _placedGraveyard;
+
+    // Track player's house
+    private Building? _playerHouse;
+
+    /// <summary>
+    /// Gets the player's house building, placed near the graveyard during generation.
+    /// </summary>
+    public Building? PlayerHouse => _playerHouse;
+
     // Track spawned villagers for debug selection
     private readonly List<Being> _spawnedVillagers = [];
 
@@ -48,12 +59,16 @@ public class VillageGenerator
     // Road network for lot-based building placement
     private RoadNetwork? _roadNetwork;
 
+    // Reference to the player for home assignment
+    private readonly Player? _player;
+
     public VillageGenerator(
         Area gridArea,
         Node entitiesContainer,
         PackedScene buildingScene,
         PackedScene genericBeingScene,
         EntityThinkingSystem entityThinkingSystem,
+        Player? player = null,
         int? seed = null)
     {
         // Scene parameters kept for API compatibility but not used:
@@ -64,6 +79,7 @@ public class VillageGenerator
         _gridArea = gridArea;
         _entitiesContainer = entitiesContainer;
         _entityThinkingSystem = entityThinkingSystem;
+        _player = player;
         _buildingManager = BuildingManager.Instance; // Get the singleton instance
 
         // Look up GameController from the scene tree
@@ -310,6 +326,9 @@ public class VillageGenerator
             PlaceBuildingInAvailableLot("Graveyard"); // fallback
         }
 
+        // Place player's house near the graveyard (thematically appropriate for a necromancer)
+        PlacePlayerHouseNearGraveyard();
+
         // Place pond in an available lot
         PlacePondInAvailableLot();
 
@@ -360,6 +379,58 @@ public class VillageGenerator
     }
 
     /// <summary>
+    /// Places the player's house near the graveyard (thematically appropriate for a necromancer).
+    /// The player's house is a special house that will be assigned to the player.
+    /// </summary>
+    private void PlacePlayerHouseNearGraveyard()
+    {
+        if (_roadNetwork == null || _placedGraveyard == null)
+        {
+            Log.Warn("VillageGenerator: Cannot place player house - no road network or graveyard");
+            return;
+        }
+
+        // Get the graveyard position
+        var graveyardPos = _placedGraveyard.GetCurrentGridPosition();
+
+        // Find the nearest available lot to the graveyard
+        var availableLots = _roadNetwork.GetAvailableLots();
+        if (availableLots.Count == 0)
+        {
+            Log.Warn("VillageGenerator: No available lot for player house");
+            return;
+        }
+
+        // Sort by distance to graveyard and pick the closest
+        var nearestLot = availableLots
+            .OrderBy(l => (l.Position - graveyardPos).LengthSquared())
+            .First();
+
+        // Place the player's house (skip entity spawning - player lives alone)
+        PlaceBuildingInLot("Simple House", nearestLot, skipEntitySpawn: true);
+
+        // Get the player's house directly from the lot (not from _placedHouses since we skipped entity spawning)
+        _playerHouse = nearestLot.OccupyingBuilding;
+        if (_playerHouse != null)
+        {
+            Log.Print($"VillageGenerator: Player house placed at {_playerHouse.GetCurrentGridPosition()} near graveyard at {graveyardPos}");
+
+            // Assign the player their home and register as resident
+            // This must happen BEFORE InitializeGranaryOrders() so scholar priority works
+            if (_player != null)
+            {
+                _player.SetHome(_playerHouse);
+                _currentVillage?.AddResident(_player);
+                Log.Print($"VillageGenerator: Assigned player to their home and village");
+            }
+        }
+        else
+        {
+            Log.Warn("VillageGenerator: Failed to place player house");
+        }
+    }
+
+    /// <summary>
     /// Gets an available corner lot (where AdjacentRoad is null).
     /// Corner lots are added last to AllLots and don't belong to a road segment.
     /// </summary>
@@ -394,7 +465,10 @@ public class VillageGenerator
     /// <summary>
     /// Places a building in a specific lot.
     /// </summary>
-    private void PlaceBuildingInLot(string buildingType, VillageLot lot)
+    /// <param name="buildingType">The building type to place.</param>
+    /// <param name="lot">The lot to place the building in.</param>
+    /// <param name="skipEntitySpawn">If true, don't spawn entities for this building (e.g., player's house).</param>
+    private void PlaceBuildingInLot(string buildingType, VillageLot lot, bool skipEntitySpawn = false)
     {
         if (_roadNetwork == null || lot == null || _buildingManager == null)
         {
@@ -438,8 +512,14 @@ public class VillageGenerator
         RoadNetwork.MarkLotOccupied(lot, building);
         _currentVillage?.AddBuilding(building);
 
-        // Spawn entities based on building type
-        SpawnEntitiesForBuilding(building, buildingType);
+        // Register building storage tags from template (data-driven, not hardcoded)
+        RegisterBuildingStorageTagsFromTemplate(building, template);
+
+        // Spawn entities based on building type (unless skipped, e.g., for player's house)
+        if (!skipEntitySpawn)
+        {
+            SpawnEntitiesForBuilding(building, buildingType);
+        }
 
         Log.Print($"Placed {buildingType} in lot {lot.Id} at {position}");
     }
@@ -495,6 +575,38 @@ public class VillageGenerator
     }
 
     /// <summary>
+    /// Registers building storage tags from the template's facility definitions.
+    /// This reads StorageTags from all facilities with storage configurations.
+    /// </summary>
+    private void RegisterBuildingStorageTagsFromTemplate(Building building, BuildingTemplate template)
+    {
+        if (_currentVillage == null || template.Facilities == null)
+        {
+            return;
+        }
+
+        // Collect all tags from all facilities that have storage
+        var allTags = new HashSet<string>();
+        foreach (var facility in template.Facilities)
+        {
+            if (facility.Storage?.Tags != null)
+            {
+                foreach (var tag in facility.Storage.Tags)
+                {
+                    allTags.Add(tag);
+                }
+            }
+        }
+
+        // Register the collected tags
+        if (allTags.Count > 0)
+        {
+            _currentVillage.Knowledge.RegisterBuildingStorageTags(building, allTags);
+            Log.Print($"VillageGenerator: Registered {template.Name} with storage tags: [{string.Join(", ", allTags)}]");
+        }
+    }
+
+    /// <summary>
     /// Spawns appropriate entities for a building based on its type.
     /// </summary>
     private void SpawnEntitiesForBuilding(Building building, string buildingType)
@@ -535,10 +647,16 @@ public class VillageGenerator
                 // Track farm for assigning farmers later
                 _placedFarms.Add(building);
 
+                // Storage tags are registered from template by RegisterBuildingStorageTagsFromTemplate
                 // Farm gets farmer assigned but farmer lives in house
                 break;
 
             case "Graveyard":
+                // Track graveyard for player house placement
+                _placedGraveyard = building;
+
+                // Storage tags are registered from template by RegisterBuildingStorageTagsFromTemplate
+
                 // Stock graveyard with initial corpses
                 StockGraveyardWithCorpses(building);
 
@@ -550,6 +668,8 @@ public class VillageGenerator
             case "Granary":
                 // Track granary for order initialization
                 _placedGranary = building;
+
+                // Storage tags are registered from template by RegisterBuildingStorageTagsFromTemplate
 
                 // Add GranaryTrait to the building
                 var granaryTrait = new GranaryTrait();

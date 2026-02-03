@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This directory contains the player entity implementation. The player is the necromancer character controlled by the user, with special features like a command queue for managing multiple orders.
+This directory contains the player entity implementation. The player is the necromancer character (starting as a village scholar) controlled by the user, with Sims-like autonomous behavior when no commands are queued.
 
 ## Files
 
@@ -14,9 +14,16 @@ The player-controlled necromancer entity.
 - Movement: 0.5 points/tick (fastest entity, 2 ticks per tile)
 - Named "Lilith Galonadel" by default
 - Maximum command queue: 7 commands
+- Definition ID: "player" (loaded from `resources/entities/definitions/player.json`)
 
 **Trait Composition:**
-- `LivingTrait` (priority 0) - Living entity needs
+- `PlayerBehaviorTrait` (priority 0) - Autonomous behavior, composes LivingTrait + InventoryTrait + ItemConsumptionBehaviorTrait
+- `ScholarJobTrait` (priority -1) - Daytime study activity at home
+
+**Home System:**
+- `_home` - Reference to player's house building
+- `Home` property - Public getter for home building
+- `SetHome(Building)` - Sets home, registers as resident, notifies traits
 
 **Command Queue System:**
 - `ReorderableQueue<EntityCommand>` for pending commands
@@ -29,12 +36,51 @@ The player-controlled necromancer entity.
 - `QueueCommand(EntityCommand)` - Add command to queue
 - `HasAssignedCommand()` - Check if actively executing
 - `GetAssignedCommand()` - Get current command
+- `SetHome(Building)` - Assign home building and register as resident
 
 ## Key Classes
 
 | Class | Description |
 |-------|-------------|
 | `Player` | Player-controlled necromancer entity |
+
+## Autonomous Behavior System
+
+### Sims-Like Behavior
+When the player has no commands queued, they behave autonomously:
+
+1. **Hunger Satisfaction**: `ItemConsumptionBehaviorTrait` (via `PlayerBehaviorTrait`)
+   - Checks inventory and home storage for food
+   - Critical hunger (priority -2) interrupts commands
+   - Uses `ConsumeItemActivity` when food available
+   - Uses `CheckHomeStorageActivity` to observe storage when memory empty
+
+2. **Sleep at Night**: `PlayerBehaviorTrait`
+   - During Night phase, if energy is low, sleeps at home
+   - Uses `SleepActivity` to restore energy
+
+3. **Scholar Work**: `ScholarJobTrait`
+   - During Dawn/Day phases, studies at home
+   - Uses `StudyActivity` for scholarly work
+   - Spends energy while studying (mentally taxing)
+
+4. **Idle Fallback**: `PlayerBehaviorTrait`
+   - When nothing else to do, idles with low priority
+   - Commands always take precedence when queued
+
+### Priority System
+The existing action priority system handles interruption:
+- Commands return priority `-1` to `0`
+- `ItemConsumptionBehaviorTrait` returns priority `-2` when hunger is critical
+- Lower priority wins, so critical hunger interrupts commands automatically
+
+### Deference to Commands
+When the player has commands queued:
+```csharp
+// In PlayerBehaviorTrait.SuggestAction():
+if (player.HasAssignedCommand() || player.GetCommandQueue().Count > 0)
+    return null;  // Let command system handle it
+```
 
 ## Important Notes
 
@@ -72,24 +118,33 @@ public const uint MAX_COMMAND_NUM = 7;
 ```
 Attempting to queue beyond this returns false.
 
-### Trait Usage Example
-Uses the simplified `AddTraitToQueue` method:
-```csharp
-selfAsEntity().AddTraitToQueue<LivingTrait>(0);
-```
-This is cleaner than the separate create-add-initialize pattern.
+### Home Assignment
+The player's home is assigned during village generation:
+1. `VillageGenerator.PlacePlayerHouseNearGraveyard()` places house near graveyard
+2. Calls `Player.SetHome()` which:
+   - Sets `_home` reference
+   - Registers player as resident of the building
+   - Notifies `PlayerBehaviorTrait` and `ScholarJobTrait`
+3. This happens BEFORE `InitializeGranaryOrders()` so scholar food priority works
+
+### Scholar Food Priority
+Because the player has `ScholarJobTrait` (can't produce their own food):
+- Their household gets priority `-1` for bread delivery (higher than normal priority `0`)
+- This is detected in `GranaryTrait.InitializeOrdersFromVillage()` via `HasScholarResident()`
 
 ### Living Entity
 Despite being a necromancer, the player is a living entity:
-- Has hunger need (via LivingTrait)
+- Has hunger need (via LivingTrait in PlayerBehaviorTrait)
+- Has energy need for sleep (via LivingTrait)
 - Uses standard body systems
-- Will need food (but specific strategies not yet implemented)
 
 ## Dependencies
 
 ### Depends On
 - `VeilOfAges.Entities.Being` - Base class
-- `VeilOfAges.Entities.Traits.LivingTrait` - Living needs
+- `VeilOfAges.Entities.Traits.PlayerBehaviorTrait` - Autonomous behavior
+- `VeilOfAges.Entities.Traits.ScholarJobTrait` - Daytime work
+- `VeilOfAges.Entities.Building` - Home building type
 - `VeilOfAges.Core.Lib.ReorderableQueue` - Command queue
 - `VeilOfAges.UI.EntityCommand` - Command system
 
@@ -97,3 +152,4 @@ Despite being a necromancer, the player is a living entity:
 - Player controller input handling
 - UI systems (command queue display)
 - Dialogue system (player-initiated conversations)
+- `VillageGenerator` - Assigns player home during generation

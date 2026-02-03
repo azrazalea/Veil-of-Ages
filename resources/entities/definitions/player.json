@@ -1,7 +1,8 @@
 {
   "Id": "player",
+  "ParentId": "living_base",
   "Name": "Player",
-  "Description": "The player-controlled necromancer",
+  "Description": "The player-controlled necromancer, secretly the village scholar",
   "Category": "Human",
   "AnimationId": "necromancer",
   "Attributes": {
@@ -17,14 +18,14 @@
     "BaseMovementPointsPerTick": 0.5
   },
   "Traits": [
-    { "TraitType": "LivingTrait", "Priority": 0, "Parameters": {} }
+    { "TraitType": "InventoryTrait", "Priority": 3, "Parameters": {} },
+    { "TraitType": "HomeTrait", "Priority": 2, "Parameters": {} },
+    { "TraitType": "ItemConsumptionBehaviorTrait", "Priority": 1, "Parameters": { "foodTag": "food" } },
+    { "TraitType": "PlayerBehaviorTrait", "Priority": 0, "Parameters": {} },
+    { "TraitType": "ScholarJobTrait", "Priority": -1, "Parameters": {} }
   ],
-  "Body": {
-    "BaseStructure": "Humanoid",
-    "Modifications": []
-  },
   "Audio": {
     "Sounds": {}
   },
-  "Tags": ["human", "living", "player", "necromancer"]
+  "Tags": ["human", "player", "necromancer", "scholar"]
 }

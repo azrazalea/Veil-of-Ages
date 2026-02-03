@@ -1,0 +1,13 @@
+{
+  "Id": "undead_base",
+  "Abstract": true,
+  "Name": "Undead Being",
+  "Description": "Base definition for all undead entities",
+  "Category": "Undead",
+  "Body": {
+    "BaseStructure": "humanoid",
+    "Modifications": []
+  },
+  "Traits": [],
+  "Tags": ["undead"]
+}

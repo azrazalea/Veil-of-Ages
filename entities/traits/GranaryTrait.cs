@@ -33,6 +33,9 @@ public class GranaryTrait : Trait
             // Check if this house has a baker resident
             bool hasBaker = HasBakerResident(building);
 
+            // Check if this house has a scholar resident (can't produce own food)
+            bool hasScholar = HasScholarResident(building);
+
             if (hasBaker)
             {
                 // Baker houses get wheat for baking
@@ -40,8 +43,10 @@ public class GranaryTrait : Trait
             }
             else
             {
-                // Regular houses get bread
-                Orders.SetDeliveryTarget(building, "bread", 5, priority: 0);
+                // Scholar houses get higher priority for bread delivery
+                // (scholars can't produce their own food)
+                int priority = hasScholar ? -1 : 0;
+                Orders.SetDeliveryTarget(building, "bread", 5, priority: priority);
             }
         }
     }
@@ -60,6 +65,49 @@ public class GranaryTrait : Trait
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Check if a building has a scholar resident (who can't produce their own food).
+    /// Scholars include the player character and any other entities with ScholarJobTrait.
+    /// </summary>
+    private static bool HasScholarResident(Building building)
+    {
+        foreach (var resident in building.GetResidents())
+        {
+            if (resident.SelfAsEntity().HasTrait<ScholarJobTrait>())
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Update standing order for a specific household.
+    /// Call this when a new resident is added to a house after initial setup.
+    /// </summary>
+    /// <param name="building">The household to update.</param>
+    public void UpdateHouseholdOrder(Building building)
+    {
+        if (building.BuildingType != "House")
+        {
+            return;
+        }
+
+        bool hasBaker = HasBakerResident(building);
+        bool hasScholar = HasScholarResident(building);
+
+        if (hasBaker)
+        {
+            Orders.SetDeliveryTarget(building, "wheat", 10, priority: 1);
+        }
+        else
+        {
+            int priority = hasScholar ? -1 : 0;
+            Orders.SetDeliveryTarget(building, "bread", 5, priority: priority);
+        }
     }
 
     /// <summary>

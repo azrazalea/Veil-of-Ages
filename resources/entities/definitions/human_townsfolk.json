@@ -1,5 +1,6 @@
 {
   "Id": "human_townsfolk",
+  "ParentId": "living_base",
   "Abstract": true,
   "Name": "Human Townsfolk",
   "Description": "A typical villager who lives and works in the village",
@@ -18,14 +19,13 @@
     "BaseMovementPointsPerTick": 0.33
   },
   "Traits": [
-    { "TraitType": "VillagerTrait", "Priority": 1, "Parameters": {} }
+    { "TraitType": "InventoryTrait", "Priority": 3, "Parameters": {} },
+    { "TraitType": "HomeTrait", "Priority": 2, "Parameters": {} },
+    { "TraitType": "ItemConsumptionBehaviorTrait", "Priority": 1, "Parameters": { "foodTag": "food" } },
+    { "TraitType": "VillagerTrait", "Priority": 0, "Parameters": {} }
   ],
-  "Body": {
-    "BaseStructure": "Humanoid",
-    "Modifications": []
-  },
   "Audio": {
     "Sounds": {}
   },
-  "Tags": ["human", "living", "villager"]
+  "Tags": ["human", "villager"]
 }

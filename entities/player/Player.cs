@@ -17,6 +17,7 @@ namespace VeilOfAges.Entities;
 /// The player-controlled necromancer entity.
 /// Extends GenericBeing to load configuration from player.json definition.
 /// Adds command queue functionality for player-specific input handling.
+/// Features autonomous behavior via PlayerBehaviorTrait when no commands are queued.
 /// </summary>
 public partial class Player : GenericBeing
 {
@@ -25,12 +26,33 @@ public partial class Player : GenericBeing
     private readonly ReorderableQueue<EntityCommand> _commandQueue = new ();
 
     /// <summary>
+    /// Gets the player's home building from HomeTrait.
+    /// </summary>
+    public Building? Home => SelfAsEntity().GetTrait<HomeTrait>()?.Home;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="Player"/> class.
     /// Constructor sets the definition ID so GenericBeing loads from player.json.
     /// </summary>
     public Player()
     {
         DefinitionId = "player";
+    }
+
+    /// <summary>
+    /// Sets the player's home building via HomeTrait and notifies ScholarJobTrait.
+    /// Called by World after player initialization when assigning the player's house.
+    /// </summary>
+    /// <param name="home">The building to set as home.</param>
+    public void SetHome(Building home)
+    {
+        // Set home via HomeTrait (single source of truth)
+        var homeTrait = SelfAsEntity().GetTrait<HomeTrait>();
+        homeTrait?.SetHome(home);
+
+        // Notify ScholarJobTrait (needs to know workplace location)
+        var scholarJobTrait = SelfAsEntity().GetTrait<ScholarJobTrait>();
+        scholarJobTrait?.SetHome(home);
     }
 
     public override void Initialize(Area gridArea, Vector2I startGridPos, GameController? gameController = null, BeingAttributes? attributes = null, bool debugEnabled = false)

@@ -63,6 +63,12 @@ public class BeingDefinition
     public BeingMovementDefinition? Movement { get; set; }
 
     /// <summary>
+    /// Gets or sets the needs for this being (hunger, energy, etc.).
+    /// Needs are initialized in NeedsSystem before traits are created.
+    /// </summary>
+    public List<NeedDefinition> Needs { get; set; } = [];
+
+    /// <summary>
     /// Gets or sets list of traits to add to this being.
     /// </summary>
     public List<TraitDefinition> Traits { get; set; } = [];
@@ -284,4 +290,46 @@ public class AudioDefinition
     /// Gets or sets sound name to resource path mapping.
     /// </summary>
     public Dictionary<string, string> Sounds { get; set; } = [];
+}
+
+/// <summary>
+/// JSON-serializable need definition for being definitions.
+/// Defines a need that will be added to the being's NeedsSystem.
+/// </summary>
+public class NeedDefinition
+{
+    /// <summary>
+    /// Gets or sets unique identifier for this need (e.g., "hunger", "energy").
+    /// </summary>
+    public string? Id { get; set; }
+
+    /// <summary>
+    /// Gets or sets display name for this need (e.g., "Hunger", "Brain Hunger").
+    /// </summary>
+    public string? Name { get; set; }
+
+    /// <summary>
+    /// Gets or sets initial value for this need (0-100 scale, default 100).
+    /// </summary>
+    public float Initial { get; set; } = 100f;
+
+    /// <summary>
+    /// Gets or sets decay rate per tick (how fast need decreases).
+    /// </summary>
+    public float DecayRate { get; set; } = 0.01f;
+
+    /// <summary>
+    /// Gets or sets critical threshold below which urgent action is needed.
+    /// </summary>
+    public float Critical { get; set; } = 10f;
+
+    /// <summary>
+    /// Gets or sets low threshold below which the entity should address the need.
+    /// </summary>
+    public float Low { get; set; } = 30f;
+
+    /// <summary>
+    /// Gets or sets high threshold above which the need is well satisfied.
+    /// </summary>
+    public float High { get; set; } = 90f;
 }

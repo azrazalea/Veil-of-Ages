@@ -4,6 +4,8 @@ using System.Linq;
 using Godot;
 using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
+using VeilOfAges.Entities.Beings.Health;
+using VeilOfAges.Entities.Needs;
 using VeilOfAges.Entities.Traits;
 using VeilOfAges.Grid;
 
@@ -122,6 +124,13 @@ public partial class GenericBeing : Being
             }
         }
 
+        // Ensure NeedsSystem exists (may not if _Ready runs before Initialize, e.g., for Player)
+        NeedsSystem ??= new BeingNeedsSystem(this);
+
+        // Initialize needs from definition BEFORE creating traits
+        // This ensures needs exist when traits initialize
+        InitializeNeedsFromDefinition(definition);
+
         // Create and add traits from definition
         foreach (var traitDef in definition.Traits)
         {
@@ -157,7 +166,8 @@ public partial class GenericBeing : Being
 
         base._Ready();
 
-        Log.Print($"GenericBeing '{DefinitionId}' initialized with {definition.Traits.Count} traits");
+        var needsCount = definition.Needs?.Count ?? 0;
+        Log.Print($"GenericBeing '{DefinitionId}' initialized with {needsCount} needs and {definition.Traits.Count} traits");
     }
 
     public override void Initialize(Area gridArea, Vector2I startGridPos, GameController? gameController = null, BeingAttributes? attributes = null, bool debugEnabled = false)
@@ -284,5 +294,77 @@ public partial class GenericBeing : Being
             player.Position = Grid.Utils.GridToWorld(GetCurrentGridPosition());
             player.Play();
         }
+    }
+
+    /// <summary>
+    /// Initialize needs from the definition's Needs array.
+    /// Called BEFORE traits are created to ensure needs exist when traits initialize.
+    /// </summary>
+    /// <param name="definition">The being definition containing needs.</param>
+    private void InitializeNeedsFromDefinition(BeingDefinition definition)
+    {
+        if (NeedsSystem == null || definition.Needs == null || definition.Needs.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var needDef in definition.Needs)
+        {
+            if (string.IsNullOrEmpty(needDef.Id) || string.IsNullOrEmpty(needDef.Name))
+            {
+                Log.Warn($"GenericBeing: Skipping need with missing Id or Name in definition '{DefinitionId}'");
+                continue;
+            }
+
+            var need = new Need(
+                needDef.Id,
+                needDef.Name,
+                needDef.Initial,
+                needDef.DecayRate,
+                needDef.Critical,
+                needDef.Low,
+                needDef.High);
+            NeedsSystem.AddNeed(need);
+        }
+
+        if (definition.Needs.Count > 0)
+        {
+            var needNames = string.Join(", ", definition.Needs.Select(n => n.Name));
+            Log.Print($"{Name}: Initialized needs from definition: {needNames}");
+        }
+    }
+
+    /// <summary>
+    /// Override body structure initialization to use the definition's BaseStructure field.
+    /// </summary>
+    protected override void InitializeBodyStructure()
+    {
+        if (string.IsNullOrEmpty(DefinitionId))
+        {
+            // Fall back to default humanoid
+            base.InitializeBodyStructure();
+            return;
+        }
+
+        var definition = BeingResourceManager.Instance.GetDefinition(DefinitionId);
+        var baseStructure = definition?.Body?.BaseStructure;
+
+        if (string.IsNullOrEmpty(baseStructure))
+        {
+            // Default to humanoid if no BaseStructure specified
+            base.InitializeBodyStructure();
+            return;
+        }
+
+        // Load the specified body structure from the resource manager
+        if (!BodyStructureResourceManager.Instance.HasDefinition(baseStructure))
+        {
+            Log.Warn($"GenericBeing '{DefinitionId}': Body structure '{baseStructure}' not found, falling back to humanoid");
+            base.InitializeBodyStructure();
+            return;
+        }
+
+        var bodyStructureDef = BodyStructureResourceManager.Instance.GetDefinition(baseStructure);
+        Health?.InitializeFromDefinition(bodyStructureDef);
     }
 }

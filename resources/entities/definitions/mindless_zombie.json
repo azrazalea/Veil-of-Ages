@@ -1,5 +1,6 @@
 {
   "Id": "mindless_zombie",
+  "ParentId": "undead_base",
   "Name": "Mindless Zombie",
   "Description": "A shambling undead driven by hunger for brains",
   "Category": "Undead",
@@ -16,12 +17,18 @@
   "Movement": {
     "BaseMovementPointsPerTick": 0.15
   },
+  "Needs": [
+    { "Id": "hunger", "Name": "Brain Hunger", "Initial": 60, "DecayRate": 0.0015, "Critical": 15, "Low": 40, "High": 90 }
+  ],
   "Traits": [
+    { "TraitType": "ZombieLivingTrait", "Priority": 3, "Parameters": {} },
+    { "TraitType": "HomeTrait", "Priority": 2, "Parameters": {} },
     { "TraitType": "MindlessTrait", "Priority": 1, "Parameters": {} },
-    { "TraitType": "ZombieTrait", "Priority": 2, "Parameters": {} }
+    { "TraitType": "ItemConsumptionBehaviorTrait", "Priority": 0, "Parameters": { "foodTag": "zombie_food", "restoreAmount": 70, "consumptionDuration": 365 } },
+    { "TraitType": "ZombieTrait", "Priority": -1, "Parameters": {} }
   ],
   "Body": {
-    "BaseStructure": "Humanoid",
+    "BaseStructure": "humanoid",
     "Modifications": [
       { "Type": "ApplyRandomDecay", "Parameters": { "MinParts": 2, "MaxParts": 5, "MinDamagePercent": 0.3, "MaxDamagePercent": 0.7 } }
     ]
@@ -31,5 +38,5 @@
       "groan": "res://assets/pixabay/zombie-moans-29924.mp3"
     }
   },
-  "Tags": ["undead", "mindless", "zombie"]
+  "Tags": ["mindless", "zombie"]
 }

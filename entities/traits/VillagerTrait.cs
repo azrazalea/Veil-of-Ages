@@ -35,60 +35,37 @@ public class VillagerTrait : BeingTrait
     private Vector2I _squarePosition;
     private Building? _currentDestinationBuilding;
 
-    // Home building for this villager
-    private Building? _home;
-    public Building? Home => _home;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="VillagerTrait"/> class.
     /// Parameterless constructor for data-driven entity system.
-    /// Home must be configured via Configure() method.
+    /// Home must be configured via HomeTrait.
     /// </summary>
     public VillagerTrait()
     {
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="VillagerTrait"/> class.
-    /// Convenience constructor for direct instantiation with a home building.
+    /// Gets the home building from HomeTrait.
     /// </summary>
-    public VillagerTrait(Building home)
-    {
-        _home = home;
-    }
+    private Building? GetHome() => _owner?.SelfAsEntity().GetTrait<HomeTrait>()?.Home;
 
     /// <summary>
     /// Validates that the trait has all required configuration.
-    /// Expected parameters:
-    /// - "home" (Building): The home building for this villager (optional but recommended).
+    /// Home should be configured via HomeTrait, not directly on VillagerTrait.
     /// </summary>
     /// <remarks>
-    /// If no home is provided, the villager will function but cannot return home to sleep
-    /// or access home storage for food. A warning is logged if home is not configured.
+    /// If no home is provided via HomeTrait, the villager will function but cannot return home to sleep
+    /// or access home storage for food.
     /// </remarks>
     public override bool ValidateConfiguration(TraitConfiguration config)
     {
-        // Home is optional but recommended - villager will have limited functionality without it
-        if (config.GetBuilding("home") == null && _home == null)
-        {
-            Log.Warn("VillagerTrait: 'home' parameter recommended for proper sleep and storage access");
-        }
-
-        return true; // Don't fail - we handle missing home gracefully
+        // Home is managed by HomeTrait, not VillagerTrait
+        return true;
     }
 
     public override void Configure(TraitConfiguration config)
     {
-        // Only apply config if not already set via constructor
-        if (_home == null)
-        {
-            var home = config.GetBuilding("home");
-            if (home != null)
-            {
-                SetHome(home);
-                Log.Print($"VillagerTrait configured with home: {home.BuildingName}");
-            }
-        }
+        // Home is managed by HomeTrait, not VillagerTrait
     }
 
     public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue = null)
@@ -106,28 +83,14 @@ public class VillagerTrait : BeingTrait
             return;
         }
 
-        // Add LivingTrait to handle basic living needs - priority -1 so it initializes before consumption trait
-        _owner?.SelfAsEntity().AddTraitToQueue<LivingTrait>(-1, initQueue);
-
-        // Add InventoryTrait so villager can carry items
-        _owner?.SelfAsEntity().AddTraitToQueue<InventoryTrait>(-1, initQueue);
-
-        // Add ItemConsumptionBehaviorTrait for hunger
-        // Uses item system: checks inventory then home storage for "food" tagged items
-        var consumptionTrait = new ItemConsumptionBehaviorTrait(
-            needId: "hunger",
-            foodTag: "food",
-            getHome: () => _home,
-            restoreAmount: 60f,
-            consumptionDuration: 244);
-
-        // Add the consumption trait with a priority just below this trait
-        _owner?.SelfAsEntity().AddTraitToQueue(consumptionTrait, Priority - 1, initQueue);
-
+        // NOTE: LivingTrait, InventoryTrait, HomeTrait, and ItemConsumptionBehaviorTrait
+        // are now defined in JSON (human_townsfolk.json) rather than programmatically added here.
+        // This follows the ECS architecture where trait composition is data-driven.
         _currentState = VillagerState.IdleAtHome;
-        if (_home != null)
+        var home = GetHome();
+        if (home != null)
         {
-            Log.Print($"{_owner?.Name}: Villager trait initialized with home {_home.BuildingName}");
+            Log.Print($"{_owner?.Name}: Villager trait initialized with home {home.BuildingName}");
         }
         else
         {
@@ -138,28 +101,19 @@ public class VillagerTrait : BeingTrait
     }
 
     /// <summary>
-    /// Set the home building for this villager.
-    /// Called by VillageGenerator when spawning villagers.
-    /// </summary>
-    public void SetHome(Building home)
-    {
-        _home = home;
-        Log.Print($"{_owner?.Name}: Home set to {home.BuildingName}");
-    }
-
-    /// <summary>
     /// Check if the entity is currently inside their home building.
     /// </summary>
     private bool IsAtHome()
     {
-        if (_owner == null || _home == null)
+        var home = GetHome();
+        if (_owner == null || home == null)
         {
             return false;
         }
 
         Vector2I entityPos = _owner.GetCurrentGridPosition();
-        Vector2I homePos = _home.GetCurrentGridPosition();
-        var interiorPositions = _home.GetInteriorPositions();
+        Vector2I homePos = home.GetCurrentGridPosition();
+        var interiorPositions = home.GetInteriorPositions();
 
         foreach (var relativePos in interiorPositions)
         {
@@ -245,7 +199,8 @@ public class VillagerTrait : BeingTrait
 
     private EntityAction? ProcessIdleAtHomeState(bool shouldSleep = false)
     {
-        if (_owner == null || _home == null)
+        var home = GetHome();
+        if (_owner == null || home == null)
         {
             DebugLog("SLEEP", $"ProcessIdleAtHomeState: owner or home is null", 0);
             return null;
@@ -264,7 +219,7 @@ public class VillagerTrait : BeingTrait
         if (!IsAtHome())
         {
             DebugLog("SLEEP", $"ProcessIdleAtHomeState: Not at home, starting navigation. ShouldSleep={shouldSleep}");
-            var newGoHomeActivity = new GoToBuildingActivity(_home, priority: 1);
+            var newGoHomeActivity = new GoToBuildingActivity(home, priority: 1);
             return new StartActivityAction(_owner, this, newGoHomeActivity, priority: 1);
         }
 
@@ -296,9 +251,10 @@ public class VillagerTrait : BeingTrait
             if (_rng.Randf() < VisitBuildingProbability)
             {
                 // Get all known buildings from SharedKnowledge (using thread-safe method)
+                // Note: 'home' is already defined at the start of this method
                 var knownBuildings = _owner.SharedKnowledge
                     .SelectMany(k => k.GetAllBuildings())
-                    .Where(b => b.IsValid && b.Building != _home) // Exclude home and invalid refs
+                    .Where(b => b.IsValid && b.Building != home) // Exclude home and invalid refs
                     .ToList();
 
                 if (knownBuildings.Count > 0)
@@ -448,19 +404,20 @@ public class VillagerTrait : BeingTrait
     /// </summary>
     private void LogHomeStorage()
     {
-        if (_owner?.DebugEnabled != true || _home == null || !GodotObject.IsInstanceValid(_home))
+        var home = GetHome();
+        if (_owner?.DebugEnabled != true || home == null || !GodotObject.IsInstanceValid(home))
         {
             return;
         }
 
-        var homeStorage = _home.GetStorage();
+        var homeStorage = home.GetStorage();
         if (homeStorage != null)
         {
             var realContents = homeStorage.GetContentsSummary();
 
             // Get remembered contents
             var memoryContents = "nothing (no memory)";
-            var storageMemory = _owner.Memory?.RecallStorageContents(_home);
+            var storageMemory = _owner.Memory?.RecallStorageContents(home);
             if (storageMemory != null)
             {
                 var rememberedItems = storageMemory.Items
@@ -469,7 +426,7 @@ public class VillagerTrait : BeingTrait
                 memoryContents = rememberedItems.Count > 0 ? string.Join(", ", rememberedItems) : "empty";
             }
 
-            DebugLog("STORAGE", $"[{_home.BuildingName}] Real: {realContents} | Remembered: {memoryContents}");
+            DebugLog("STORAGE", $"[{home.BuildingName}] Real: {realContents} | Remembered: {memoryContents}");
         }
 
         var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();

@@ -21,58 +21,86 @@ namespace VeilOfAges.Entities.Traits;
 /// </summary>
 public class ItemConsumptionBehaviorTrait : BeingTrait
 {
-    private readonly string _needId;
-    private readonly string _foodTag;
-    private readonly Func<Building?> _getHome;
-    private readonly float _restoreAmount;
-    private readonly uint _consumptionDuration;
+    private string _needId = "hunger";
+    private string _foodTag = "food";
+    private float _restoreAmount = 60f;
+    private uint _consumptionDuration = 244;
 
     private Need? _need;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ItemConsumptionBehaviorTrait"/> class.
-    /// Create a trait for item-based consumption.
+    /// Parameterless constructor for data-driven entity system.
+    /// Configure via Configure() method with parameters from JSON.
     /// </summary>
-    /// <param name="needId">The need to satisfy (e.g., "hunger").</param>
-    /// <param name="foodTag">Tag to identify food items (e.g., "food", "zombie_food").</param>
-    /// <param name="getHome">Function to get home building (may return null).</param>
-    /// <param name="restoreAmount">Amount to restore when eating.</param>
-    /// <param name="consumptionDuration">Ticks to spend eating.</param>
-    public ItemConsumptionBehaviorTrait(
-        string needId,
-        string foodTag,
-        Func<Building?> getHome,
-        float restoreAmount = 60f,
-        uint consumptionDuration = 244)
+    public ItemConsumptionBehaviorTrait()
     {
-        _needId = needId;
-        _foodTag = foodTag;
-        _getHome = getHome;
-        _restoreAmount = restoreAmount;
-        _consumptionDuration = consumptionDuration;
+    }
+
+    /// <summary>
+    /// Gets the home building from the HomeTrait.
+    /// Returns null if owner doesn't have HomeTrait or no home is set.
+    /// </summary>
+    private Building? GetHome()
+    {
+        return _owner?.SelfAsEntity().GetTrait<HomeTrait>()?.Home;
+    }
+
+    /// <summary>
+    /// Validates configuration parameters.
+    /// </summary>
+    public override bool ValidateConfiguration(TraitConfiguration config)
+    {
+        // foodTag is required
+        if (string.IsNullOrEmpty(config.GetString("foodTag")))
+        {
+            Log.Warn("ItemConsumptionBehaviorTrait: 'foodTag' parameter required");
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Configures the trait from JSON parameters.
+    /// Expected parameters:
+    /// - "needId" (string): The need to satisfy (default: "hunger")
+    /// - "foodTag" (string): Tag to identify food items (required, e.g., "food", "zombie_food")
+    /// - "restoreAmount" (float): Amount to restore when eating (default: 60)
+    /// - "consumptionDuration" (int): Ticks to spend eating (default: 244).
+    /// </summary>
+    public override void Configure(TraitConfiguration config)
+    {
+        _needId = config.GetString("needId") ?? "hunger";
+        _foodTag = config.GetString("foodTag") ?? "food";
+        _restoreAmount = config.GetFloat("restoreAmount") ?? 60f;
+        _consumptionDuration = (uint)(config.GetInt("consumptionDuration") ?? 244);
     }
 
     public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue = null)
     {
         base.Initialize(owner, health, initQueue);
 
-        _need = _owner?.NeedsSystem?.GetNeed(_needId);
-
-        if (_need == null)
-        {
-            Log.Error($"{_owner?.Name}: ItemConsumptionBehaviorTrait could not find need '{_needId}'");
-        }
-        else
-        {
-            Log.Print($"{_owner?.Name}: ItemConsumptionBehaviorTrait initialized for need '{_needId}' with food tag '{_foodTag}'");
-        }
+        // Need is found lazily in SuggestAction to handle initialization order
     }
 
     public override EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
     {
-        if (!IsInitialized || _owner == null || _need == null)
+        if (!IsInitialized || _owner == null)
         {
             return null;
+        }
+
+        // Lazily find the need (handles initialization order - LivingTrait may not have run yet)
+        if (_need == null)
+        {
+            _need = _owner.NeedsSystem?.GetNeed(_needId);
+            if (_need == null)
+            {
+                return null; // Need not registered yet, wait for next tick
+            }
+
+            Log.Print($"{_owner.Name}: ItemConsumptionBehaviorTrait found need '{_needId}' with food tag '{_foodTag}'");
         }
 
         // If we already have a consume or check storage activity running, let it handle things
@@ -110,19 +138,41 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
         if (!HasFoodAvailable())
         {
             // No food in inventory and no memory of food locations
-            // If we have a home, go check its storage to refresh memory
-            var home = _getHome();
+            // Determine priority - use same logic as eating
+            int checkPriority = _need.IsCritical() ? -2 : -1;
+
+            // First try: check home storage
+            var home = GetHome();
             if (home != null && GodotObject.IsInstanceValid(home))
             {
-                // Determine priority - use same logic as eating
-                int checkPriority = _need.IsCritical() ? -2 : -1;
-
                 DebugLog("EATING", $"No food memory, going to check home storage (priority {checkPriority})", 0);
                 var checkActivity = new CheckHomeStorageActivity(home, priority: checkPriority);
                 return new StartActivityAction(_owner, this, checkActivity, priority: checkPriority);
             }
 
-            // No home to check - log debug info about why food wasn't found
+            // Second try: use SharedKnowledge to find buildings that store food
+            var foodBuildings = _owner.SharedKnowledge
+                .SelectMany(k => k.GetBuildingsByTag(_foodTag))
+                .Where(b => b.IsValid)
+                .ToList();
+
+            if (foodBuildings.Count > 0)
+            {
+                // Go to nearest building that stores food and check its storage
+                var currentPos = _owner.GetCurrentGridPosition();
+                var nearest = foodBuildings
+                    .OrderBy(b => b.Position.DistanceSquaredTo(currentPos))
+                    .First();
+
+                if (nearest.Building != null)
+                {
+                    DebugLog("EATING", $"No home, but found {nearest.BuildingName} that stores '{_foodTag}', going to check (priority {checkPriority})", 0);
+                    var checkActivity = new CheckHomeStorageActivity(nearest.Building, priority: checkPriority);
+                    return new StartActivityAction(_owner, this, checkActivity, priority: checkPriority);
+                }
+            }
+
+            // No home and no known food storage buildings - log debug info about why food wasn't found
             DebugLogFoodSearch();
             return null;
         }
@@ -133,7 +183,7 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
         int actionPriority = _need.IsCritical() ? -2 : -1;
 
         // Start consume activity
-        var homeBuilding = _getHome();
+        var homeBuilding = GetHome();
         var consumeActivity = new ConsumeItemActivity(
             _foodTag,
             _need,
@@ -160,7 +210,7 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
 
         var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
         var inventoryFood = inventory?.FindItemByTag(_foodTag);
-        var home = _getHome();
+        var home = GetHome();
 
         // Check memory for remembered food
         var remembersFood = _owner.Memory?.RemembersItemAvailable(_foodTag) == true;

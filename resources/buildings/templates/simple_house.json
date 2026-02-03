@@ -22,7 +22,8 @@
       "Storage": {
         "VolumeCapacity": 1.0,
         "WeightCapacity": -1,
-        "DecayRateModifier": 1.0
+        "DecayRateModifier": 1.0,
+        "Tags": ["food"]
       }
     }
   ],

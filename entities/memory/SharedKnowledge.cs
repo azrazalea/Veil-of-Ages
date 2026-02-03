@@ -1,3 +1,4 @@
+using System.Globalization;
 using Godot;
 using VeilOfAges.Entities;
 
@@ -78,6 +79,12 @@ public class SharedKnowledge
     // Building locations by type - scope-appropriate granularity
     private readonly Dictionary<string, List<BuildingReference>> _buildings = new ();
 
+    // Storage tag tracking - what tags each building stores
+    // This is common knowledge about what types of items each building is INTENDED to store
+    // (e.g., "granary stores food", "well provides water"), NOT current contents
+    private readonly Dictionary<string, HashSet<string>> _buildingStorageTags = new ();  // buildingId -> tags
+    private readonly Dictionary<string, List<BuildingReference>> _buildingsByStorageTag = new ();  // tag -> buildings
+
     // Named landmarks (town square, main gate, etc.)
     private readonly Dictionary<string, Vector2I> _landmarks = new ();
 
@@ -122,6 +129,97 @@ public class SharedKnowledge
         {
             list.RemoveAll(r => r.Building == building);
         }
+
+        // Also clean up storage tag registrations
+        var buildingId = building.GetInstanceId().ToString(CultureInfo.InvariantCulture);
+        if (_buildingStorageTags.TryGetValue(buildingId, out var tags))
+        {
+            foreach (var tag in tags)
+            {
+                if (_buildingsByStorageTag.TryGetValue(tag, out var taggedBuildings))
+                {
+                    taggedBuildings.RemoveAll(r => r.Building == building);
+                }
+            }
+
+            _buildingStorageTags.Remove(buildingId);
+        }
+    }
+
+    /// <summary>
+    /// Register a building's storage tags indicating what types of items it stores.
+    /// This represents common knowledge about what a building is INTENDED to store,
+    /// not the actual current contents (use PersonalMemory for that).
+    /// Example: Granary stores "food", "grain"; Well provides "water".
+    /// Main thread only.
+    /// </summary>
+    /// <param name="building">The building to register.</param>
+    /// <param name="tags">Tags indicating what this building stores (e.g., "food", "grain", "water").</param>
+    public void RegisterBuildingStorageTags(Building building, IEnumerable<string> tags)
+    {
+        // First ensure the building is registered normally
+        RegisterBuilding(building);
+
+        var buildingId = building.GetInstanceId().ToString(CultureInfo.InvariantCulture);
+        var reference = new BuildingReference(building);
+
+        // Store the tags for this building
+        if (!_buildingStorageTags.TryGetValue(buildingId, out var existingTags))
+        {
+            existingTags = new HashSet<string>();
+            _buildingStorageTags[buildingId] = existingTags;
+        }
+
+        foreach (var tag in tags)
+        {
+            existingTags.Add(tag);
+
+            // Add to the reverse lookup
+            if (!_buildingsByStorageTag.TryGetValue(tag, out var taggedBuildings))
+            {
+                taggedBuildings = new List<BuildingReference>();
+                _buildingsByStorageTag[tag] = taggedBuildings;
+            }
+
+            // Only add if not already present
+            if (!taggedBuildings.Any(r => r.Building == building))
+            {
+                taggedBuildings.Add(reference);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Get all buildings known to store items with a specific tag.
+    /// This is common knowledge about what buildings are INTENDED to store,
+    /// not whether they actually have items right now.
+    /// Returns a snapshot copy safe for background thread access.
+    /// </summary>
+    /// <param name="tag">The tag to search for (e.g., "food", "water").</param>
+    /// <returns>List of building references that store this type of item.</returns>
+    public IReadOnlyList<BuildingReference> GetBuildingsByTag(string tag)
+    {
+        if (_buildingsByStorageTag.TryGetValue(tag, out var buildings))
+        {
+            return buildings.Where(b => b.IsValid).ToList(); // Return a copy for thread safety
+        }
+
+        return Array.Empty<BuildingReference>();
+    }
+
+    /// <summary>
+    /// Get all tags registered for a specific building's storage.
+    /// Returns a snapshot copy safe for background thread access.
+    /// </summary>
+    public IReadOnlyList<string> GetBuildingTags(Building building)
+    {
+        var buildingId = building.GetInstanceId().ToString(CultureInfo.InvariantCulture);
+        if (_buildingStorageTags.TryGetValue(buildingId, out var tags))
+        {
+            return tags.ToList(); // Return a copy for thread safety
+        }
+
+        return Array.Empty<string>();
     }
 
     /// <summary>
@@ -257,6 +355,39 @@ public class SharedKnowledge
     public void CleanupInvalidReferences()
     {
         foreach (var list in _buildings.Values)
+        {
+            list.RemoveAll(r => !r.IsValid);
+        }
+
+        // Also clean up storage tag references
+        var invalidBuildingIds = new List<string>();
+        foreach (var (buildingId, _) in _buildingStorageTags)
+        {
+            // Check if any building reference with this ID is still valid
+            // We need to check by iterating through the tagged buildings
+            bool isValid = false;
+            foreach (var taggedList in _buildingsByStorageTag.Values)
+            {
+                if (taggedList.Any(r => r.IsValid && r.Building?.GetInstanceId().ToString(CultureInfo.InvariantCulture) == buildingId))
+                {
+                    isValid = true;
+                    break;
+                }
+            }
+
+            if (!isValid)
+            {
+                invalidBuildingIds.Add(buildingId);
+            }
+        }
+
+        foreach (var buildingId in invalidBuildingIds)
+        {
+            _buildingStorageTags.Remove(buildingId);
+        }
+
+        // Clean up invalid references in the tagged buildings lists
+        foreach (var list in _buildingsByStorageTag.Values)
         {
             list.RemoveAll(r => !r.IsValid);
         }

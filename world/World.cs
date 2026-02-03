@@ -158,6 +158,8 @@ public partial class World : Node2D
     /// <summary>
     /// Deferred player initialization that runs after world generation.
     /// This ensures the player doesn't block building placement during generation.
+    /// Note: Player home is assigned during village generation (VillageGenerator.PlacePlayerHouseNearGraveyard)
+    /// so that the player is registered as a resident before granary standing orders are initialized.
     /// </summary>
     private void InitializePlayerAfterGeneration()
     {

@@ -81,6 +81,17 @@ layout_mode = 2
 tooltip_text = "Hunger"
 theme_override_font_sizes/font_size = 7
 
+[node name="Energy Label" type="RichTextLabel" parent="Character Container/Basic Info Container/Needs Container/Needs Vbox"]
+layout_mode = 2
+theme_override_font_sizes/normal_font_size = 12
+text = "Energy"
+fit_content = true
+
+[node name="Energy Need Bar" type="ProgressBar" parent="Character Container/Basic Info Container/Needs Container/Needs Vbox"]
+layout_mode = 2
+tooltip_text = "Energy"
+theme_override_font_sizes/font_size = 7
+
 [node name="Queue Label" type="RichTextLabel" parent="Character Container/Basic Info Container" unique_id=329178253]
 layout_mode = 2
 text = "Cmd Queue"
@@ -200,7 +211,7 @@ autowrap_mode = 0
 
 [node name="Context Menu" type="PopupMenu" parent="." unique_id=857285601]
 
-[node name="PlayerInputController" type="Node2D" parent="." unique_id=579160580 node_paths=PackedStringArray("_dialogueUI", "_quickActions", "_minimap", "_chooseLocationPrompt", "_contextMenu", "_nameLabel", "_hungerBar", "_commandQueueContainer", "_activityLabel", "_timeLabel", "_dateLabel", "_speedLabel")]
+[node name="PlayerInputController" type="Node2D" parent="." unique_id=579160580 node_paths=PackedStringArray("_dialogueUI", "_quickActions", "_minimap", "_chooseLocationPrompt", "_contextMenu", "_nameLabel", "_hungerBar", "_energyBar", "_commandQueueContainer", "_activityLabel", "_timeLabel", "_dateLabel", "_speedLabel")]
 script = ExtResource("4_whbmk")
 _dialogueUI = NodePath("../Dialogue")
 _quickActions = NodePath("../Quick Actions Container")
@@ -209,6 +220,7 @@ _chooseLocationPrompt = NodePath("../Choose Location Prompt")
 _contextMenu = NodePath("../Context Menu")
 _nameLabel = NodePath("../Character Container/Basic Info Container/Player Name Label")
 _hungerBar = NodePath("../Character Container/Basic Info Container/Needs Container/Needs Vbox/Hunger Need Bar")
+_energyBar = NodePath("../Character Container/Basic Info Container/Needs Container/Needs Vbox/Energy Need Bar")
 _commandQueueContainer = NodePath("../Character Container/Basic Info Container/Command Queue Panel Container/Command Queue List")
 _activityLabel = NodePath("../Character Container/Basic Info Container/Activity Label")
 _timeLabel = NodePath("../Top Bar Container/Top Bar HBox/Time Label")

@@ -1,0 +1,19 @@
+{
+  "Id": "living_base",
+  "Abstract": true,
+  "Name": "Living Being",
+  "Description": "Base definition for all living entities with standard biological needs",
+  "Category": "Living",
+  "Needs": [
+    { "Id": "hunger", "Name": "Hunger", "Initial": 75, "DecayRate": 0.012, "Critical": 15, "Low": 40, "High": 90 },
+    { "Id": "energy", "Name": "Energy", "Initial": 100, "DecayRate": 0.008, "Critical": 20, "Low": 40, "High": 80 }
+  ],
+  "Body": {
+    "BaseStructure": "humanoid",
+    "Modifications": []
+  },
+  "Traits": [
+    { "TraitType": "LivingTrait", "Priority": 10, "Parameters": {} }
+  ],
+  "Tags": ["living"]
+}

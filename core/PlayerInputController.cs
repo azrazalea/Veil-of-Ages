@@ -55,24 +55,45 @@ public partial class PlayerInputController : Node
         }
     }
 
+    [Export]
+    private ProgressBar? _energyBar;
+
     public override void _PhysicsProcess(double delta)
     {
         base._PhysicsProcess(delta);
         var hungerNeed = _player?.NeedsSystem?.GetNeed("hunger");
+        var energyNeed = _player?.NeedsSystem?.GetNeed("energy");
 
         if (_nameLabel != null && _nameLabel.Text != _player?.Name)
         {
             _nameLabel.Text = _player?.Name;
         }
 
+        // Show current activity (not just assigned command)
         if (_activityLabel != null)
         {
-            _activityLabel.Text = _player?.GetAssignedCommand()?.GetType().ToString().Split('.').Last() ?? "Idle";
+            var activity = _player?.GetCurrentActivity();
+            if (activity != null)
+            {
+                // Use activity's display name, falling back to class name
+                _activityLabel.Text = activity.GetType().Name.Replace("Activity", string.Empty);
+            }
+            else
+            {
+                // No activity - show command if any, otherwise Idle
+                var command = _player?.GetAssignedCommand();
+                _activityLabel.Text = command?.GetType().Name.Replace("Command", string.Empty) ?? "Idle";
+            }
         }
 
         if (_hungerBar != null && hungerNeed != null)
         {
             _hungerBar.Value = hungerNeed.Value;
+        }
+
+        if (_energyBar != null && energyNeed != null)
+        {
+            _energyBar.Value = energyNeed.Value;
         }
 
         UpdateTimeDisplay();

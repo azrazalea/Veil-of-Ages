@@ -23,44 +23,25 @@ public class ZombieTrait : UndeadBehaviorTrait
 
     private ZombieState _currentState = ZombieState.Idle;
 
-    // Home graveyard for this zombie
-    private Building? _homeGraveyard;
-    public Building? HomeGraveyard => _homeGraveyard;
-
     private bool _hasGroaned;
 
     /// <summary>
-    /// Set the home graveyard for this zombie.
-    /// Called by spawning systems when creating zombies.
-    /// </summary>
-    public void SetHomeGraveyard(Building graveyard)
-    {
-        _homeGraveyard = graveyard;
-        Log.Print($"{_owner?.Name}: Home graveyard set to {graveyard.BuildingName}");
-    }
-
-    /// <summary>
     /// Validates that the trait has all required configuration.
-    /// Expected parameters:
-    /// - "homeGraveyard" or "home" (Building): The graveyard building this zombie is associated with (optional).
+    /// Home graveyard is managed by HomeTrait, not directly on ZombieTrait.
     /// </summary>
     /// <remarks>
-    /// If no home graveyard is provided, the zombie will still function but won't have access
+    /// If no home graveyard is provided via HomeTrait, the zombie will still function but won't have access
     /// to graveyard storage for feeding. This is acceptable for zombies spawned in the wild.
     /// </remarks>
     public override bool ValidateConfiguration(TraitConfiguration config)
     {
-        // Home graveyard is optional - zombies can function without it
+        // Home graveyard is managed by HomeTrait, not ZombieTrait
         return true;
     }
 
     public override void Configure(TraitConfiguration config)
     {
-        var graveyard = config.GetBuilding("homeGraveyard") ?? config.GetBuilding("home");
-        if (graveyard != null)
-        {
-            SetHomeGraveyard(graveyard);
-        }
+        // Home graveyard is managed by HomeTrait, not ZombieTrait
     }
 
     public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue)
@@ -72,32 +53,16 @@ public class ZombieTrait : UndeadBehaviorTrait
             return;
         }
 
-        // Initialize zombie-specific hunger need directly in this trait
-        var needsSystem = owner.NeedsSystem;
-        if (needsSystem != null)
-        {
-            // Zombies get hungrier much slower than living beings
-            var brainHunger = new Need("hunger", "Brain Hunger", 60f, 0.0015f, 15f, 40f, 90f);
-            needsSystem.AddNeed(brainHunger);
-        }
-
-        // Add ItemConsumptionBehaviorTrait for brain hunger
-        // Uses item system: checks inventory then graveyard storage for "zombie_food" tagged items (corpses)
-        var consumptionTrait = new ItemConsumptionBehaviorTrait(
-            needId: "hunger",
-            foodTag: "zombie_food",
-            getHome: () => _homeGraveyard,
-            restoreAmount: 70f,  // Zombies get more from feeding
-            consumptionDuration: 365);  // Zombies take longer to feed as they're messier eaters
-
-        // Add the consumption trait with a priority just above this trait
-        owner.SelfAsEntity().AddTraitToQueue(consumptionTrait, Priority - 1, initQueue);
+        // NOTE: The hunger need and ItemConsumptionBehaviorTrait are now defined in JSON
+        // (mindless_zombie.json) rather than programmatically added here.
+        // This follows the ECS architecture where trait composition is data-driven.
+        // ZombieLivingTrait handles registering the brain hunger need.
 
         // Zombie-specific initialization
         WanderProbability = 0.3f; // Zombies wander more often
         WanderRange = 15.0f;      // And further from spawn
 
-        Log.Print($"{owner.Name}: Zombie trait initialized with brain hunger");
+        Log.Print($"{owner.Name}: Zombie trait initialized");
     }
 
     protected override EntityAction? ProcessState(Vector2I currentOwnerGridPosition, Perception currentPerception)
