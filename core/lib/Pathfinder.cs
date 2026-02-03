@@ -264,32 +264,14 @@ public class PathFinder
         // Store the building and facility ID for smart recalculation
         _targetFacilityBuilding = building;
         _targetFacilityId = facilityId;
+        _goalType = PathGoalType.Facility;
+        _firstGoalCalculation = true;
+        _pathNeedsCalculation = true;
+        _recalculationAttempts = 0;
 
-        Vector2I buildingPos = building.GetCurrentGridPosition();
-
-        // Find a facility position that has an adjacent walkable tile
-        foreach (var relativePos in facilityPositions)
-        {
-            Vector2I absoluteFacilityPos = buildingPos + relativePos;
-            Vector2I? adjacentPos = building.GetAdjacentWalkablePosition(relativePos);
-
-            if (adjacentPos.HasValue)
-            {
-                _targetFacilityPosition = absoluteFacilityPos;
-
-                // Set the actual pathfinding goal to the adjacent walkable position
-                Vector2I absoluteAdjacentPos = buildingPos + adjacentPos.Value;
-                _targetPosition = absoluteAdjacentPos;
-                _goalType = PathGoalType.Facility;
-                _firstGoalCalculation = true;
-                _pathNeedsCalculation = true;
-                _recalculationAttempts = 0;
-
-                return true;
-            }
-        }
-
-        return false; // No accessible facility found
+        // Actual facility selection happens in CalculatePathForCurrentGoal
+        // which tries all facilities and finds one with a valid path
+        return true;
     }
 
     // Check if goal is reached

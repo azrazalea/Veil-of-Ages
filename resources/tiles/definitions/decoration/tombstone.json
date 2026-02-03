@@ -1,4 +1,5 @@
 {
+    "Id": "decoration",
     "Category": "Tombstone",
     "AtlasSource": "graveyard_props",
     "BaseDurability": 200,
