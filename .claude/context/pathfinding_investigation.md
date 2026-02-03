@@ -32,11 +32,13 @@ Every N steps/ticks, entity should recalculate path with current perception. Thi
 - WITHOUT recalculating every time entity enters/leaves perception
 
 ### 6. "Ask to Move" Should Be Last Resort
-Asking another entity to move should be weighted MEDIUM-HEAVY:
+Asking another entity to move (INCLUDING QUEUING) should be weighted MEDIUM-HEAVY:
 - If can path around in ~5 steps, do that instead
 - If no reasonable path around, try to walk through
 - Trust the bumping/blocking system to handle collision
 - Don't ask someone to move when you could easily go around
+- Queuing IS "asking to move" - it's the last resort when someone won't move
+- Example: Farmers at crop facilities - if one farmer is blocking, others should try alternate paths/facilities before queuing
 
 ---
 
@@ -101,15 +103,26 @@ if (startPos == _targetPosition)
 }
 ```
 
-### Bug 6 (SUSPECTED): Pathfinding on Wrong Thread
-**NEEDS VERIFICATION**
-**Problem:** `CalculatePathForCurrentGoal` may be called during action execution (main thread) rather than during Think (background thread)
-**Impact:** Performance - pathfinding should be parallelized across entities
+### Bug 6: Pathfinding on Wrong Thread
+**CONFIRMED - Feb 2026**
+**Problem:** `CalculatePathForCurrentGoal` runs on MAIN THREAD during action execution, NOT on background think thread.
+
+**Call Chain (confirmed):**
+```
+Main Thread:
+  EntityThinkingSystem.ApplyAllPendingActions()
+    -> MoveAlongPathAction.Execute()
+      -> PathFinder.TryFollowPath()
+        -> PathFinder.CalculatePathForCurrentGoal()  <-- A* HERE
+```
+
+**Impact:** All pathfinding calculations for ALL entities happen serially on main thread, negating Think parallelization benefits.
+
 **Fix:** Restructure flow:
-1. Think proposes path action (no calculation yet)
-2. Orchestrator accepts action, sets activity/pathfinder goal
-3. NEXT Think: First step attempt triggers path calculation ON THINK THREAD
-4. Recalculations also happen in Think via special action
+1. Think thread PROPOSES action with goal set but does NOT calculate (multiple traits may have competing goals)
+2. Orchestrator chooses which goal to focus on based on priority and other logic
+3. NEXT Think iteration: path is calculated ON THINK THREAD and first move is proposed as action
+4. Recalculations also happen in Think thread (may need action type for this but probably not)
 
 ---
 
@@ -155,20 +168,20 @@ This respects no-god-knowledge - only reacts to entities encountered.
 
 ## TODO LIST
 
-### Phase 1: Fix Counter Bugs (Low Risk)
-- [ ] Reset `_recalculationAttempts` when PathIndex advances
-- [ ] Reset `_stuckTicks` when path is valid
-- [ ] Handle "already at target" with single-element path
+### Phase 1: Fix Counter Bugs (Low Risk) - COMPLETED
+- [x] Reset `_recalculationAttempts` when PathIndex advances
+- [x] Reset `_stuckTicks` when path is valid
+- [x] Handle "already at target" with single-element path
 
-### Phase 2: Remove God Knowledge (Medium Risk)
-- [ ] Fix `GetWalkableInteriorPositions` - remove entity check
-- [ ] Fix facility path calculation - remove `IsCellWalkable` occupancy check
+### Phase 2: Remove God Knowledge (Medium Risk) - COMPLETED
+- [x] Fix `GetWalkableInteriorPositions` - remove entity check (uses AStarGrid.IsPointSolid now)
+- [x] Fix facility path calculation - remove `IsCellWalkable` occupancy check
 - [ ] Audit all pathfinding code for `IsCellWalkable`/entity occupancy checks
 
-### Phase 3: Verify Threading (IMPORTANT)
-- [ ] Trace where `CalculatePathForCurrentGoal` is called from
-- [ ] Verify if it runs on think thread or main thread
-- [ ] If main thread, restructure flow as described above
+### Phase 3: Verify Threading (IMPORTANT) - CONFIRMED BUG
+- [x] Trace where `CalculatePathForCurrentGoal` is called from
+- [x] Verify if it runs on think thread or main thread - CONFIRMED MAIN THREAD
+- [ ] Restructure flow as described in Bug 6
 
 ### Phase 4: Perception-Aware Pathfinding
 - [ ] Pass perception data to PathFinder

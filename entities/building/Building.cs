@@ -623,16 +623,21 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
     /// Get all walkable positions inside the building bounds.
     /// Excludes entrance positions (doors) and positions adjacent to entrances
     /// so entities don't path to or block doorways.
-    /// Queries the GridArea for actual walkability (checks current occupancy).
+    /// Checks terrain/building walkability via the A* grid (NOT entity occupancy).
     /// Use for pathfinding destinations.
     /// Returns relative positions to building origin.
     /// </summary>
+    /// <remarks>
+    /// This method intentionally does NOT check entity occupancy. Entities should not
+    /// have "god knowledge" of where all other entities are standing. The blocking
+    /// response system handles dynamic entity collisions at runtime.
+    /// </remarks>
     /// <param name="excludeEntranceAdjacent">If true, also excludes positions adjacent to entrances (default: true).</param>
     public List<Vector2I> GetWalkableInteriorPositions(bool excludeEntranceAdjacent = true)
     {
         var result = new List<Vector2I>();
 
-        if (GridArea == null)
+        if (GridArea?.AStarGrid == null)
         {
             return result;
         }
@@ -650,9 +655,14 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
                 Vector2I relativePos = new (x, y);
                 Vector2I absolutePos = _gridPosition + relativePos;
 
+                // Use A* grid's IsPointSolid which only checks terrain/buildings, NOT entity occupancy.
+                // A solid point means the terrain itself is unwalkable (wall, water, etc.)
+                bool isTerrainWalkable = GridArea.AStarGrid.IsInBoundsv(absolutePos) &&
+                                         !GridArea.AStarGrid.IsPointSolid(absolutePos);
+
                 // Exclude entrance positions so entities don't target doorways
                 // Also exclude positions adjacent to entrances to prevent doorway blocking
-                if (GridArea.IsCellWalkable(absolutePos) &&
+                if (isTerrainWalkable &&
                     !_entrancePositions.Contains(relativePos) &&
                     !entranceAdjacentPositions.Contains(relativePos))
                 {

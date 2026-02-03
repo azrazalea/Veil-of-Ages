@@ -103,9 +103,9 @@ public class GoToBuildingActivity : Activity
                 return null;
             }
         }
-        else if (_owner.IsInQueue)
+        else
         {
-            // Reset stuck counter while in queue - we're waiting, not stuck
+            // Reset stuck counter on ANY success - either in queue or has valid path
             _stuckTicks = 0;
         }
 

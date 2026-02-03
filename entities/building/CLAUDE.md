@@ -25,7 +25,7 @@ Main building entity class that implements `IEntity<Trait>`.
 
 **Interior Position Methods:**
 - `GetInteriorPositions()` - Returns ALL tile positions from both `_tiles` (walls, doors, furniture) AND `_groundTiles` (floors), excluding entrance positions. Used for goal checking (e.g., `IsGoalReached`) to determine if an entity is inside the building bounds. Does NOT check current walkability.
-- `GetWalkableInteriorPositions()` - Returns positions within the building bounds that are currently walkable according to `GridArea.IsCellWalkable()`, excluding entrance positions. Used for pathfinding destinations where entities can actually move to.
+- `GetWalkableInteriorPositions()` - Returns positions within the building bounds that are walkable according to the A* grid (`!IsPointSolid()`), excluding entrance positions. Checks terrain/building walkability only, NOT entity occupancy. This is intentional - entities should not have "god knowledge" of where other entities are standing. Dynamic entity collisions are handled by the blocking response system at runtime.
 - `GetWalkableTiles()` - Legacy method returning tiles marked as inherently walkable in their definition. Prefer `GetWalkableInteriorPositions()` for pathfinding.
 
 **Facility Methods:**

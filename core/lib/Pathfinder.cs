@@ -553,6 +553,7 @@ public class PathFinder
         if (moveSuccessful)
         {
             PathIndex++;
+            _recalculationAttempts = 0; // Reset throttle counter when making progress
 
             // Check if we've completed the path
             if (PathIndex >= CurrentPath.Count)
@@ -628,10 +629,12 @@ public class PathFinder
                         return false;
                     }
 
-                    // If start and target are the same, no path needed
+                    // If start and target are the same, create single-element path
                     if (startPos == _targetPosition)
                     {
-                        Log.Print("Target and start are same");
+                        CurrentPath = [startPos];
+                        PathIndex = 0;
+                        _pathNeedsCalculation = false;
                         return true;
                     }
 
@@ -662,9 +665,12 @@ public class PathFinder
                             return true;
                         }
 
-                        // If already within proximity, no path needed
+                        // If already within proximity, create single-element path
                         if (Utils.WithinProximityRangeOf(startPos, targetPos, _proximityRange))
                         {
+                            CurrentPath = [startPos];
+                            PathIndex = 0;
+                            _pathNeedsCalculation = false;
                             return true;
                         }
 
@@ -708,9 +714,12 @@ public class PathFinder
 
                     break;
                 case PathGoalType.Area:
-                    // If already within area, no path needed
+                    // If already within area, create single-element path
                     if (Utils.WithinProximityRangeOf(entity.GetCurrentGridPosition(), _targetPosition, _proximityRange))
                     {
+                        CurrentPath = [startPos];
+                        PathIndex = 0;
+                        _pathNeedsCalculation = false;
                         return true;
                     }
 
@@ -912,8 +921,10 @@ public class PathFinder
                     var entrancePositions = new HashSet<Vector2I>(_targetFacilityBuilding.GetEntrancePositions());
                     var entranceAdjacentPositions = _targetFacilityBuilding.GetEntranceAdjacentPositions();
 
-                    // Collect all valid (facilityPos, adjacentPos, isOccupied, blocksEntrance) candidates
-                    var facilityCandidates = new List<(Vector2I facilityPos, Vector2I adjacentPos, bool isOccupied, bool blocksEntrance)>();
+                    // Collect all valid (facilityPos, adjacentPos, blocksEntrance) candidates
+                    // Note: We do NOT check entity occupancy here - that would be "god knowledge"
+                    // Entities will handle encountering others via the blocking response system
+                    var facilityCandidates = new List<(Vector2I facilityPos, Vector2I adjacentPos, bool blocksEntrance)>();
 
                     foreach (var relativePos in facilityPositions)
                     {
@@ -928,35 +939,27 @@ public class PathFinder
                             }
 
                             // Check if this position is solid terrain (walls, water, etc.)
+                            // This uses astar.IsPointSolid() which only knows about terrain/buildings, not entities
                             if (astar.IsPointSolid(adjacentPos))
                             {
                                 continue;
                             }
 
-                            // Check if occupied by another entity (but still add as candidate)
-                            bool isOccupied = !gridArea.IsCellWalkable(adjacentPos);
-
                             // Check if this position blocks an entrance
                             bool blocksEntrance = entrancePositions.Contains(adjacentPos) ||
                                                   entranceAdjacentPositions.Contains(adjacentPos);
 
-                            facilityCandidates.Add((absoluteFacilityPos, adjacentPos, isOccupied, blocksEntrance));
+                            facilityCandidates.Add((absoluteFacilityPos, adjacentPos, blocksEntrance));
                         }
                     }
 
-                    // Sort: non-blocking first, then unoccupied, then by distance
+                    // Sort: non-entrance-blocking positions first, then by distance
                     facilityCandidates.Sort((a, b) =>
                     {
                         // Non-entrance-blocking positions first
                         if (a.blocksEntrance != b.blocksEntrance)
                         {
                             return a.blocksEntrance ? 1 : -1;
-                        }
-
-                        // Unoccupied facilities second
-                        if (a.isOccupied != b.isOccupied)
-                        {
-                            return a.isOccupied ? 1 : -1;
                         }
 
                         // Then by distance
@@ -966,7 +969,7 @@ public class PathFinder
 
                     bool foundFacilityPath = false;
 
-                    foreach (var (facilityPos, adjacentPos, _, _) in facilityCandidates)
+                    foreach (var (facilityPos, adjacentPos, _) in facilityCandidates)
                     {
                         // If we're already at this position, we found it!
                         if (startPos == adjacentPos)

@@ -156,6 +156,19 @@ Official Godot Engine documentation for reference when implementing engine featu
 - **Usage**: Search this directory when you need Godot API reference, tutorials, or best practices
 - **Note**: Read-only reference; do not modify
 
+## Current Work: Pathfinding Investigation
+
+**READ FIRST:** `.claude/context/pathfinding_investigation.md`
+
+This contains the full investigation with:
+- Core axioms (NO GOD KNOWLEDGE, pathfinding on think thread, etc.)
+- Confirmed bugs with file:line references
+- Phased TODO list
+
+**Tasks #18-26 are active** - use `TaskList` to see them, `TaskGet` for details.
+
+**USE SUBAGENTS HEAVILY** - spawn Task agents for parallel work.
+
 ## Working with This Codebase
 
 When making changes:
