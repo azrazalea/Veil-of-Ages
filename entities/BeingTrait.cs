@@ -119,7 +119,8 @@ public abstract class BeingTrait : Trait
     }
 
     /// <summary>
-    /// Updated helper for goal-based movement to a position - uses lazy pathfinding.
+    /// Helper for goal-based movement to a position.
+    /// Path is calculated here (Think thread), then Execute only follows.
     /// </summary>
     /// <returns></returns>
     protected EntityAction? MoveToPosition(Vector2I targetPos, int priority = 1)
@@ -129,15 +130,23 @@ public abstract class BeingTrait : Trait
             return null;
         }
 
-        // Set position goal without calculating path yet
+        // Set position goal
         MyPathfinder.SetPositionGoal(_owner, targetPos);
 
-        // Return action that will handle lazy path calculation
+        // Calculate path now (on Think thread)
+        if (!MyPathfinder.CalculatePathIfNeeded(_owner))
+        {
+            // Path calculation failed, return idle
+            return new IdleAction(_owner, this, priority);
+        }
+
+        // Return action that will follow the pre-calculated path
         return new MoveAlongPathAction(_owner, this, MyPathfinder, priority);
     }
 
     /// <summary>
-    /// Updated helper for goal-based movement near an entity - uses lazy pathfinding.
+    /// Helper for goal-based movement near an entity.
+    /// Path is calculated here (Think thread), then Execute only follows.
     /// </summary>
     /// <returns></returns>
     protected EntityAction? MoveNearEntity(Being targetEntity, int proximityRange = 1, int priority = 1)
@@ -147,15 +156,23 @@ public abstract class BeingTrait : Trait
             return null;
         }
 
-        // Set entity proximity goal without calculating path yet
+        // Set entity proximity goal
         MyPathfinder.SetEntityProximityGoal(_owner, targetEntity, proximityRange);
 
-        // Return action that will handle lazy path calculation
+        // Calculate path now (on Think thread)
+        if (!MyPathfinder.CalculatePathIfNeeded(_owner))
+        {
+            // Path calculation failed, return idle
+            return new IdleAction(_owner, this, priority);
+        }
+
+        // Return action that will follow the pre-calculated path
         return new MoveAlongPathAction(_owner, this, MyPathfinder, priority);
     }
 
     /// <summary>
-    /// Updated helper for goal-based movement to an area - uses lazy pathfinding.
+    /// Helper for goal-based movement to an area.
+    /// Path is calculated here (Think thread), then Execute only follows.
     /// </summary>
     /// <returns></returns>
     protected EntityAction? MoveToArea(Vector2I centerPos, int radius, int priority = 1)
@@ -165,10 +182,17 @@ public abstract class BeingTrait : Trait
             return null;
         }
 
-        // Set area goal without calculating path yet
+        // Set area goal
         MyPathfinder.SetAreaGoal(_owner, centerPos, radius);
 
-        // Return action that will handle lazy path calculation
+        // Calculate path now (on Think thread)
+        if (!MyPathfinder.CalculatePathIfNeeded(_owner))
+        {
+            // Path calculation failed, return idle
+            return new IdleAction(_owner, this, priority);
+        }
+
+        // Return action that will follow the pre-calculated path
         return new MoveAlongPathAction(_owner, this, MyPathfinder, priority);
     }
 
@@ -243,6 +267,7 @@ public abstract class BeingTrait : Trait
 
     /// <summary>
     /// Helper to move back to spawn position when too far away.
+    /// Path is calculated here (Think thread), then Execute only follows.
     /// </summary>
     /// <returns></returns>
     protected EntityAction? ReturnToSpawn(int priority = 1)
@@ -252,10 +277,17 @@ public abstract class BeingTrait : Trait
             return null;
         }
 
-        // Set position goal without calculating path yet
+        // Set position goal
         MyPathfinder.SetPositionGoal(_owner, _spawnPosition);
 
-        // Return action that will handle lazy path calculation
+        // Calculate path now (on Think thread)
+        if (!MyPathfinder.CalculatePathIfNeeded(_owner))
+        {
+            // Path calculation failed, return idle
+            return new IdleAction(_owner, this, priority);
+        }
+
+        // Return action that will follow the pre-calculated path
         return new MoveAlongPathAction(_owner, this, MyPathfinder, priority);
     }
 

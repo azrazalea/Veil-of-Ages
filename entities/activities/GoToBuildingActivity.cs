@@ -91,10 +91,17 @@ public class GoToBuildingActivity : Activity
             return null;
         }
 
-        // Check if we're stuck (but not if we're in a queue - that's intentional waiting)
-        bool hasValidPath = _pathFinder.HasValidPath();
-        if (!hasValidPath && !_owner.IsInQueue)
+        // If in queue, just idle - we're intentionally waiting
+        if (_owner.IsInQueue)
         {
+            _stuckTicks = 0;
+            return new IdleAction(_owner, this, Priority);
+        }
+
+        // Calculate path if needed (A* runs here on Think thread, not in Execute)
+        if (!_pathFinder.CalculatePathIfNeeded(_owner))
+        {
+            // Path calculation failed
             _stuckTicks++;
             if (_stuckTicks > MAXSTUCKTICKS)
             {
@@ -102,14 +109,15 @@ public class GoToBuildingActivity : Activity
                 Fail();
                 return null;
             }
-        }
-        else
-        {
-            // Reset stuck counter on ANY success - either in queue or has valid path
-            _stuckTicks = 0;
+
+            // Return idle to wait for next think cycle
+            return new IdleAction(_owner, this, Priority);
         }
 
-        // Return movement action
+        // Reset stuck counter on successful path
+        _stuckTicks = 0;
+
+        // Return movement action (Execute will only follow pre-calculated path)
         return new MoveAlongPathAction(_owner, this, _pathFinder, Priority);
     }
 }

@@ -38,11 +38,36 @@ A* pathfinding system that wraps Godot's `AStarGrid2D`.
     - When `true`: Entity must reach a walkable interior position; no perimeter fallback
     - When `false`: Entity can reach either an interior position or an adjacent perimeter position
   - `Facility`: Navigate adjacent to a specific facility within a building
+
+**Threading Model (Critical)**:
+
+Path calculation runs on the **Think thread** (background), not the Execute thread (main). This is enforced by splitting the old `TryFollowPath()` into two methods:
+
+- **`CalculatePathIfNeeded(entity)`**: Call from Think thread. Does A* calculation if path is needed.
+- **`FollowPath(entity)`**: Call from Execute thread. Only follows pre-calculated path, no A*.
+
+The old `TryFollowPath()` has been removed - use the split methods.
+
+**Correct Usage Pattern**:
+```csharp
+// In Activity.GetNextAction() or Trait.SuggestAction() - runs on Think thread
+_pathFinder.SetPositionGoal(owner, targetPos);
+if (!_pathFinder.CalculatePathIfNeeded(owner))
+{
+    return new IdleAction(owner, this, priority);  // Path failed
+}
+return new MoveAlongPathAction(owner, this, _pathFinder, priority);
+
+// In MoveAlongPathAction.Execute() - runs on Main thread
+return _pathFinder.FollowPath(entity);  // No A* here, just follows
+```
+
 - **Key Methods**:
   - `SetBuildingGoal(entity, building, requireInterior = true)`: Sets building navigation goal with interior/adjacency control
+  - `CalculatePathIfNeeded(entity)`: **Call from Think thread**. Calculates path if needed.
+  - `FollowPath(entity)`: **Call from Execute thread**. Follows pre-calculated path only.
   - `IsGoalReached(entity)`: Checks if entity has reached goal, respects `requireInterior` flag for Building goals
-  - `CalculatePathForCurrentGoal(entity)`: Calculates path based on current goal type, respects `requireInterior` flag
-  - `GetBuildingPerimeterPositions(buildingPos, buildingSize)`: Helper method that returns all positions one tile outside the building bounds (used by both `IsGoalReached` and `CalculatePathForCurrentGoal` to avoid code duplication)
+  - `GetBuildingPerimeterPositions(buildingPos, buildingSize)`: Helper method that returns all positions one tile outside the building bounds
 - **Features**:
   - Automatic path recalculation with cooldown (5 ticks)
   - Maximum 3 recalculation attempts before failure
@@ -123,6 +148,9 @@ Logging utility that prefixes messages with the current game tick. Supports both
 - **CRITICAL**: AStarGrid2D modification cannot happen in background tasks
 - PathFinder methods that modify the grid check `Task.CurrentId` and abort if called from a thread
 - This is a Godot engine limitation - scene tree modifications must happen on main thread
+- **Path calculation** happens on Think thread (background) via `CalculatePathIfNeeded()`
+- **Path following** happens on Execute thread (main) via `FollowPath()`
+- This separation ensures A* does not block the main thread
 
 ### Time Conversion
 - `GameToRealTime()`: Convert game centiseconds to real seconds

@@ -83,15 +83,33 @@ public class GoToFacilityActivity : Activity
             return null;
         }
 
-        // Check if we're stuck
-        if (!_pathFinder.HasValidPath() && _stuckTicks++ > MAXSTUCKTICKS)
+        // If in queue, just idle - we're intentionally waiting
+        if (_owner.IsInQueue)
         {
-            Log.Warn($"{_owner.Name}: Stuck trying to reach {_facilityId}");
-            Fail();
-            return null;
+            _stuckTicks = 0;
+            return new IdleAction(_owner, this, Priority);
         }
 
-        // Return movement action
+        // Calculate path if needed (A* runs here on Think thread, not in Execute)
+        if (!_pathFinder.CalculatePathIfNeeded(_owner))
+        {
+            // Path calculation failed
+            _stuckTicks++;
+            if (_stuckTicks > MAXSTUCKTICKS)
+            {
+                Log.Warn($"{_owner.Name}: Stuck trying to reach {_facilityId}");
+                Fail();
+                return null;
+            }
+
+            // Return idle to wait for next think cycle
+            return new IdleAction(_owner, this, Priority);
+        }
+
+        // Reset stuck counter on successful path
+        _stuckTicks = 0;
+
+        // Return movement action (Execute will only follow pre-calculated path)
         return new MoveAlongPathAction(_owner, this, _pathFinder, Priority);
     }
 }

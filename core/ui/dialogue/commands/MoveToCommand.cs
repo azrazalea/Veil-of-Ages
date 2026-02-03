@@ -74,6 +74,12 @@ public class MoveToCommand(Being owner, Being commander, bool isComplex = false)
             return null;
         }
 
+        // Calculate path on Think thread
+        if (!MyPathfinder.CalculatePathIfNeeded(_owner))
+        {
+            return new IdleAction(_owner, this, priority: -1);
+        }
+
         return new MoveAlongPathAction(_owner, this, MyPathfinder, priority: -1);
     }
 }

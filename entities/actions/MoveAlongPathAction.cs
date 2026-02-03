@@ -15,7 +15,8 @@ public class MoveAlongPathAction : EntityAction
 
     public override bool Execute()
     {
-        // The PathFinder knows the goal and handles calculation on demand
-        return _pathFinder.TryFollowPath(Entity!);
+        // Path calculation happens in Think() via CalculatePathIfNeeded()
+        // Execute() only follows the pre-calculated path - no A* here
+        return _pathFinder.FollowPath(Entity!);
     }
 }

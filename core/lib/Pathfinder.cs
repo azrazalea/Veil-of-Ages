@@ -481,17 +481,22 @@ public class PathFinder
         return result;
     }
 
-    // Method to follow the current path
-    public bool TryFollowPath(Being entity)
+    /// <summary>
+    /// Calculate path if needed. MUST be called from the Think thread (background).
+    /// This is where A* calculation happens - never during Execute().
+    /// </summary>
+    /// <param name="entity">The entity to calculate path for.</param>
+    /// <returns>True if a valid path exists (calculated or already cached), false if path calculation failed.</returns>
+    public bool CalculatePathIfNeeded(Being entity)
     {
         if (entity == null)
         {
-            Log.Error("TryFollowPath: Entity is null");
+            Log.Error("CalculatePathIfNeeded: Entity is null");
             return false;
         }
 
-        // First check if we've reached the goal directly or entity is currently moving
-        if (IsGoalReached(entity) || entity.IsMoving())
+        // If goal is already reached, no path needed
+        if (IsGoalReached(entity))
         {
             return true;
         }
@@ -517,9 +522,34 @@ public class PathFinder
             }
         }
 
-        // If no valid path, can't follow
+        return HasValidPath() || IsGoalReached(entity);
+    }
+
+    /// <summary>
+    /// Follow a pre-calculated path. MUST be called from the Execute thread (main).
+    /// Does NOT calculate paths - only follows what was already calculated in Think().
+    /// If path needs recalculation, marks it for next Think() cycle and returns false.
+    /// </summary>
+    /// <param name="entity">The entity to move along the path.</param>
+    /// <returns>True if movement succeeded or goal reached, false if blocked or no valid path.</returns>
+    public bool FollowPath(Being entity)
+    {
+        if (entity == null)
+        {
+            Log.Error("FollowPath: Entity is null");
+            return false;
+        }
+
+        // First check if we've reached the goal directly or entity is currently moving
+        if (IsGoalReached(entity) || entity.IsMoving())
+        {
+            return true;
+        }
+
+        // If no valid path, can't follow - need to calculate in next Think()
         if (!HasValidPath())
         {
+            _pathNeedsCalculation = true;
             return false;
         }
 
@@ -608,14 +638,6 @@ public class PathFinder
             return false;
         }
 
-        // Godot 4.6 behavior change: get_id_path returns empty if start position is solid.
-        // Entities mark their own position as solid, so we must temporarily unmark it.
-        bool startWasSolid = astar.IsPointSolid(startPos);
-        if (startWasSolid)
-        {
-            astar.SetPointSolid(startPos, false);
-        }
-
         try
         {
             // Calculate path based on goal type
@@ -639,7 +661,7 @@ public class PathFinder
                     }
 
                     // Get path to specific position
-                    var positionPath = astar.GetIdPath(startPos, _targetPosition, true);
+                    var positionPath = GetIdPathThreadSafe(astar, startPos, _targetPosition, true);
 
                     if (positionPath.Count > 0)
                     {
@@ -691,7 +713,7 @@ public class PathFinder
                                 break;
                             }
 
-                            var path = astar.GetIdPath(startPos, pos, true);
+                            var path = GetIdPathThreadSafe(astar, startPos, pos, true);
                             if (path.Count > 0)
                             {
                                 CurrentPath = path.Cast<Vector2I>().ToList();
@@ -736,7 +758,7 @@ public class PathFinder
                         bool foundAreaPath = false;
                         foreach (var pos in areaPositions)
                         {
-                            var areaPath = astar.GetIdPath(startPos, pos, true);
+                            var areaPath = GetIdPathThreadSafe(astar, startPos, pos, true);
                             if (areaPath.Count > 0)
                             {
                                 CurrentPath = areaPath.Cast<Vector2I>().ToList();
@@ -828,7 +850,7 @@ public class PathFinder
                                 break;
                             }
 
-                            var path = astar.GetIdPath(startPos, pos, true);
+                            var path = GetIdPathThreadSafe(astar, startPos, pos, true);
                             if (path.Count > 0)
                             {
                                 CurrentPath = path.Cast<Vector2I>().ToList();
@@ -981,7 +1003,7 @@ public class PathFinder
                         }
 
                         // Try to path to this position
-                        var facilityPath = astar.GetIdPath(startPos, adjacentPos, true);
+                        var facilityPath = GetIdPathThreadSafe(astar, startPos, adjacentPos, true);
                         if (facilityPath.Count > 0)
                         {
                             _targetFacilityPosition = facilityPos;
@@ -1016,14 +1038,6 @@ public class PathFinder
         {
             Log.Error($"Exception in path calculation: {e.Message}\n{e.StackTrace}");
             return false;
-        }
-        finally
-        {
-            // Always restore start position solid state if we changed it
-            if (startWasSolid)
-            {
-                astar.SetPointSolid(startPos, true);
-            }
         }
     }
 
@@ -1192,5 +1206,19 @@ public class PathFinder
         }
 
         return clone;
+    }
+
+    /// <summary>
+    /// Thread-safe wrapper around AStarGrid2D.GetIdPath.
+    /// Godot's A* modifies internal Point state (g_score, prev_point, etc.) during pathfinding,
+    /// so concurrent calls on the same grid corrupt each other. Lock on the grid instance.
+    /// </summary>
+    private static Godot.Collections.Array<Vector2I> GetIdPathThreadSafe(
+        AStarGrid2D astar, Vector2I from, Vector2I to, bool allowPartial)
+    {
+        lock (astar)
+        {
+            return astar.GetIdPath(from, to, allowPartial);
+        }
     }
 }

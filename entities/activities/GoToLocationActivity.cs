@@ -48,14 +48,25 @@ public class GoToLocationActivity : Activity
             return null;
         }
 
-        // Check if we're stuck
-        if (!_pathFinder.HasValidPath() && _stuckTicks++ > MAXSTUCKTICKS)
+        // Calculate path if needed (A* runs here on Think thread, not in Execute)
+        if (!_pathFinder.CalculatePathIfNeeded(_owner))
         {
-            Fail();
-            return null;
+            // Path calculation failed
+            _stuckTicks++;
+            if (_stuckTicks > MAXSTUCKTICKS)
+            {
+                Fail();
+                return null;
+            }
+
+            // Return idle to wait for next think cycle
+            return new IdleAction(_owner, this, Priority);
         }
 
-        // Return movement action
+        // Reset stuck counter on successful path
+        _stuckTicks = 0;
+
+        // Return movement action (Execute will only follow pre-calculated path)
         return new MoveAlongPathAction(_owner, this, _pathFinder, Priority);
     }
 }

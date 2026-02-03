@@ -53,12 +53,26 @@ new PushAction(entity, source, targetEntity, pushDirection, priority: 0)
 ```
 
 ### MoveAlongPathAction.cs
-Pathfinding-based movement action using lazy path calculation.
-- Takes a `PathFinder` instance with a pre-set goal
-- Delegates to `PathFinder.TryFollowPath()`
-- PathFinder calculates path on-demand (lazy evaluation)
+Pathfinding-based movement action that follows a pre-calculated path.
+- Takes a `PathFinder` instance with path already calculated
+- Delegates to `PathFinder.FollowPath()` - does NOT calculate path
+- **Path must be calculated in Think thread** via `CalculatePathIfNeeded()` before returning this action
 - Used for complex multi-tile navigation
 - Supports position goals, entity proximity goals, and area goals
+
+**Critical Threading Note:**
+Path calculation happens in Think() (background thread), not Execute() (main thread).
+The caller must call `_pathFinder.CalculatePathIfNeeded(entity)` before creating this action.
+
+```csharp
+// Correct usage in Activity.GetNextAction() or Trait.SuggestAction():
+_pathFinder.SetPositionGoal(_owner, targetPos);
+if (!_pathFinder.CalculatePathIfNeeded(_owner))
+{
+    return new IdleAction(_owner, this, priority);  // Path failed
+}
+return new MoveAlongPathAction(_owner, this, _pathFinder, priority);
+```
 
 ### TakeFromStorageAction.cs
 Action to take items from a building's storage into the entity's inventory.

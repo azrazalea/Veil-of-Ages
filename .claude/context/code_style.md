@@ -75,6 +75,23 @@ Nullable reference types are **enabled** project-wide. This means:
 - Node-based architecture aligned with Godot's scene system
 - Signal-based communication for loose coupling when appropriate
 
+## No Backwards Compatibility Hacks
+
+**NEVER create backwards compatibility shims, fallbacks, or deprecation wrappers.** When refactoring:
+
+- **DELETE old methods/code completely** - don't mark as `[Obsolete]`
+- **Let the compiler find all usages** - it will error on missing methods
+- **Fix every call site** - don't leave any using old patterns
+- **No re-exports or aliases** - if something is renamed, update all references
+
+**Why:** Backwards compat shims hide bugs that can lurk for months or years. The compiler is your friend - let it tell you what needs updating. Being "lazy" with deprecation attributes creates technical debt and hidden failures.
+
+**Examples of what NOT to do:**
+- `[Obsolete] public void OldMethod() => NewMethod();`
+- `public Type OldName => NewName; // alias for backwards compat`
+- `// removed` comments where code used to be
+- Keeping unused parameters with `_` prefix "in case needed later"
+
 ## Other Conventions
 - Prefer nullable reference types with ? suffix for nullable references
 - Use expression-bodied members for simple properties and methods
