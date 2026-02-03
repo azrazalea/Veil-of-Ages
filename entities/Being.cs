@@ -277,6 +277,17 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     private bool _blockedByStuckEntity;
 
     /// <summary>
+    /// Set the side-step target position. This will be converted to a MoveAction
+    /// at the start of the next Think() cycle, respecting the action queue architecture.
+    /// Used by Activity.HandleMoveRequest() to defer movement to proper action execution.
+    /// </summary>
+    /// <param name="target">The grid position to step aside to.</param>
+    public void SetSideStepTarget(Vector2I target)
+    {
+        _sideStepTarget = target;
+    }
+
+    /// <summary>
     /// Enter a queue behind another entity.
     /// </summary>
     /// <param name="inFrontOf">The entity in front of us.</param>

@@ -117,12 +117,13 @@ public abstract class Activity
             return true;
         }
 
-        // Try to step aside within our work area
+        // Try to step aside within our work area using activity-specific alternative positions
         var alternatives = GetAlternativeGoalPositions(_owner);
         if (alternatives.Count > 0)
         {
-            // Move to nearest alternative position
-            _owner.TryMoveToGridPosition(alternatives[0]);
+            // Set the side-step target - Being.Think() will convert this to a MoveAction
+            // Return true so Being.cs doesn't overwrite with its own TryStepAside
+            _owner.SetSideStepTarget(alternatives[0]);
             return true;
         }
 
