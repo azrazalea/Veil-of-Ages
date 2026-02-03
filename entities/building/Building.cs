@@ -9,7 +9,7 @@ using VeilOfAges.Entities.Traits;
 
 namespace VeilOfAges.Entities;
 
-public partial class Building : Node2D, IEntity<Trait>
+public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
 {
     [Export]
     public string BuildingType = "House";

@@ -127,9 +127,9 @@ public partial class Area(Vector2I worldSize): Node2D
     {
         _groundGridSystem.SetCell(groundPos, tile);
 
-        // Only mark solid if terrain is unwalkable OR a Building is here (not Beings - they're dynamic)
+        // Only mark solid if terrain is unwalkable OR a pathfinding-blocking entity is here
         var entityAtPos = EntitiesGridSystem.GetCell(groundPos);
-        bool hasBlockingEntity = entityAtPos is Building;
+        bool hasBlockingEntity = entityAtPos is IBlocksPathfinding;
         AStarGrid?.SetPointSolid(groundPos, !tile.IsWalkable || hasBlockingEntity);
         AStarGrid?.SetPointWeightScale(groundPos, tile.WalkDifficulty);
 
@@ -148,9 +148,9 @@ public partial class Area(Vector2I worldSize): Node2D
 
         Entities.Add(entity);
 
-        // Only mark Buildings as solid in the pathfinding grid.
+        // Mark entities that block pathfinding as solid in the A* grid.
         // Beings are dynamic and can move/queue, so they shouldn't block pathing.
-        bool shouldMarkSolid = entity is Building;
+        bool shouldMarkSolid = entity is IBlocksPathfinding;
 
         if (entitySize is Vector2I size)
         {
@@ -194,8 +194,8 @@ public partial class Area(Vector2I worldSize): Node2D
 
         Entities.Remove(foundEntity);
 
-        // Only Buildings were marked solid, so only unmark them
-        bool shouldUnmarkSolid = foundEntity is Building;
+        // Only IBlocksPathfinding entities were marked solid, so only unmark them
+        bool shouldUnmarkSolid = foundEntity is IBlocksPathfinding;
 
         if (entitySize is Vector2I size)
         {

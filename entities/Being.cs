@@ -360,12 +360,25 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             return;
         }
 
-        // If already in a queue, tell requester to queue behind me
+        // If already in a queue, only tell requester to queue if they want the same destination
         if (_queueState != null)
         {
-            var destination = _queueState.Destination;
-            evt.Sender.QueueEvent(EntityEventType.QueueRequest, this, new QueueResponseData(destination));
-            return;
+            if (_currentActivity != null)
+            {
+                var moveData = evt.Data as MoveRequestData;
+                if (_currentActivity.RequesterWantsSameTarget(moveData?.TargetBuilding, moveData?.TargetFacilityId))
+                {
+                    evt.Sender.QueueEvent(EntityEventType.QueueRequest, this, new QueueResponseData(_queueState.Destination));
+                    return;
+                }
+
+                // Different destination - fall through to step aside
+            }
+            else
+            {
+                // In queue but no activity - shouldn't happen, leave queue
+                LeaveQueue();
+            }
         }
 
         // Let the activity decide how to respond

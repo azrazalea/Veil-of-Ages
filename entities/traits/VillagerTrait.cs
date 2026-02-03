@@ -310,7 +310,10 @@ public class VillagerTrait : BeingTrait
                     {
                         ChangeState(VillagerState.VisitingBuilding, $"Visiting {_currentDestinationBuilding.BuildingType}");
                         _stateTimer = (uint)_rng.RandiRange(80, 150);
-                        var visitActivity = new GoToBuildingActivity(_currentDestinationBuilding, priority: 1);
+
+                        // Use requireInterior: false so villagers can visit buildings by standing nearby
+                        // (e.g., gathering at the well doesn't require going inside)
+                        var visitActivity = new GoToBuildingActivity(_currentDestinationBuilding, priority: 1, requireInterior: false);
                         return new StartActivityAction(_owner, this, visitActivity, priority: 1);
                     }
                 }

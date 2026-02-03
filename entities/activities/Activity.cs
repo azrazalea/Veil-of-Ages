@@ -81,6 +81,20 @@ public abstract class Activity
     public virtual bool IsInterruptible => true;
 
     /// <summary>
+    /// Check if a requester wants to access the same building and facility as this activity.
+    /// Used to determine if they should queue behind us or find another path.
+    /// </summary>
+    /// <param name="requesterBuilding">The building the requester is heading to.</param>
+    /// <param name="requesterFacility">The facility the requester wants to use.</param>
+    /// <returns>True if they want the same target and should queue.</returns>
+    public bool RequesterWantsSameTarget(Building? requesterBuilding, string? requesterFacility)
+    {
+        return TargetBuilding != null &&
+               requesterBuilding == TargetBuilding &&
+               requesterFacility == TargetFacilityId;
+    }
+
+    /// <summary>
     /// Handle a move request from another entity trying to pass through our position.
     /// Default behavior: if same building+facility, they queue. Otherwise try to step aside.
     /// </summary>
@@ -95,10 +109,10 @@ public abstract class Activity
             return false;
         }
 
-        // If not interruptible, always tell them to queue
+        // If not interruptible, only queue them if they want the same target
         if (!IsInterruptible)
         {
-            if (TargetBuilding != null)
+            if (RequesterWantsSameTarget(requesterBuilding, requesterFacility))
             {
                 requester.QueueEvent(EntityEventType.QueueRequest, _owner, new QueueResponseData(TargetBuilding));
             }
@@ -111,7 +125,7 @@ public abstract class Activity
         }
 
         // If requester wants the same building AND facility, they must queue
-        if (TargetBuilding != null && requesterBuilding == TargetBuilding && requesterFacility == TargetFacilityId)
+        if (RequesterWantsSameTarget(requesterBuilding, requesterFacility))
         {
             requester.QueueEvent(EntityEventType.QueueRequest, _owner, new QueueResponseData(TargetBuilding));
             return true;
@@ -129,7 +143,7 @@ public abstract class Activity
 
         // Can't step aside - only tell them to queue if they want the same building AND facility
         // (Don't queue random passers-by who are going somewhere else)
-        if (TargetBuilding != null && requesterBuilding == TargetBuilding && requesterFacility == TargetFacilityId)
+        if (RequesterWantsSameTarget(requesterBuilding, requesterFacility))
         {
             requester.QueueEvent(EntityEventType.QueueRequest, _owner, new QueueResponseData(TargetBuilding));
             return true;

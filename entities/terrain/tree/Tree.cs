@@ -3,7 +3,7 @@ using VeilOfAges.Core.Lib;
 
 namespace VeilOfAges.Entities.Terrain;
 
-public partial class Tree : Node2D
+public partial class Tree : Node2D, IBlocksPathfinding
 {
     [Export]
     public Vector2I GridSize = new (5, 6); // Size in tiles (most trees are 1x1)

@@ -770,12 +770,24 @@ public class PathFinder
                         // Build list of candidate positions - interior first, then perimeter if allowed
                         var candidatePositions = new List<Vector2I>();
 
+                        // Debug tracking
+                        var rejectedInterior = new List<(Vector2I pos, string reason)>();
+                        var rejectedPerimeter = new List<(Vector2I pos, string reason)>();
+
                         // Add walkable interior positions
                         var walkableInterior = _targetBuilding.GetWalkableInteriorPositions();
                         foreach (var relativePos in walkableInterior)
                         {
                             Vector2I absolutePos = buildingPos + relativePos;
-                            if (astar.IsInBoundsv(absolutePos) && !astar.IsPointSolid(absolutePos))
+                            if (!astar.IsInBoundsv(absolutePos))
+                            {
+                                rejectedInterior.Add((absolutePos, "out of bounds"));
+                            }
+                            else if (astar.IsPointSolid(absolutePos))
+                            {
+                                rejectedInterior.Add((absolutePos, "solid in A*"));
+                            }
+                            else
                             {
                                 candidatePositions.Add(absolutePos);
                             }
@@ -786,7 +798,15 @@ public class PathFinder
                         {
                             foreach (var pos in GetBuildingPerimeterPositions(buildingPos, buildingSize))
                             {
-                                if (astar.IsInBoundsv(pos) && !astar.IsPointSolid(pos))
+                                if (!astar.IsInBoundsv(pos))
+                                {
+                                    rejectedPerimeter.Add((pos, "out of bounds"));
+                                }
+                                else if (astar.IsPointSolid(pos))
+                                {
+                                    rejectedPerimeter.Add((pos, "solid in A*"));
+                                }
+                                else
                                 {
                                     candidatePositions.Add(pos);
                                 }
@@ -796,6 +816,9 @@ public class PathFinder
                         // Sort by distance and try to path to each
                         candidatePositions.Sort((a, b) =>
                             startPos.DistanceSquaredTo(a).CompareTo(startPos.DistanceSquaredTo(b)));
+
+                        // Track path failures
+                        var pathFailures = new List<Vector2I>();
 
                         foreach (var pos in candidatePositions)
                         {
@@ -813,11 +836,64 @@ public class PathFinder
                                 foundPath = true;
                                 break;
                             }
+                            else
+                            {
+                                pathFailures.Add(pos);
+                            }
                         }
 
                         if (!foundPath)
                         {
-                            Log.Error($"No path found to building {_targetBuilding.BuildingType} - tried {candidatePositions.Count} positions");
+                            var culture = System.Globalization.CultureInfo.InvariantCulture;
+                            var sb = new System.Text.StringBuilder();
+                            sb.AppendLine(culture, $"No path found to building {_targetBuilding.BuildingType} at {buildingPos} (size {buildingSize})");
+                            sb.AppendLine(culture, $"  Entity at: {startPos}, requireInterior: {_requireInterior}");
+                            sb.AppendLine(culture, $"  Walkable interior count: {walkableInterior.Count}");
+                            sb.AppendLine(culture, $"  Candidates accepted: {candidatePositions.Count}");
+
+                            if (rejectedInterior.Count > 0)
+                            {
+                                sb.AppendLine(culture, $"  Rejected interior ({rejectedInterior.Count}):");
+                                foreach (var (pos, reason) in rejectedInterior.Take(5))
+                                {
+                                    sb.AppendLine(culture, $"    {pos}: {reason}");
+                                }
+
+                                if (rejectedInterior.Count > 5)
+                                {
+                                    sb.AppendLine(culture, $"    ... and {rejectedInterior.Count - 5} more");
+                                }
+                            }
+
+                            if (rejectedPerimeter.Count > 0)
+                            {
+                                sb.AppendLine(culture, $"  Rejected perimeter ({rejectedPerimeter.Count}):");
+                                foreach (var (pos, reason) in rejectedPerimeter.Take(10))
+                                {
+                                    sb.AppendLine(culture, $"    {pos}: {reason}");
+                                }
+
+                                if (rejectedPerimeter.Count > 10)
+                                {
+                                    sb.AppendLine(culture, $"    ... and {rejectedPerimeter.Count - 10} more");
+                                }
+                            }
+
+                            if (pathFailures.Count > 0)
+                            {
+                                sb.AppendLine(culture, $"  Path calculation failed for ({pathFailures.Count}):");
+                                foreach (var pos in pathFailures.Take(5))
+                                {
+                                    sb.AppendLine(culture, $"    {pos}: no path from {startPos}");
+                                }
+
+                                if (pathFailures.Count > 5)
+                                {
+                                    sb.AppendLine(culture, $"    ... and {pathFailures.Count - 5} more");
+                                }
+                            }
+
+                            Log.Error(sb.ToString());
                             return false;
                         }
                     }

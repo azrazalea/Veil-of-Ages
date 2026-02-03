@@ -18,6 +18,7 @@ public class GoToBuildingActivity : Activity
 {
     private readonly Building _targetBuilding;
     private readonly bool _targetStorage;
+    private readonly bool _requireInterior;
     private PathFinder? _pathFinder;
     private int _stuckTicks;
     private const int MAXSTUCKTICKS = 50;
@@ -32,10 +33,12 @@ public class GoToBuildingActivity : Activity
     /// <param name="targetBuilding">The building to navigate to.</param>
     /// <param name="priority">Action priority.</param>
     /// <param name="targetStorage">If true, navigate to storage access position (handles facility's RequireAdjacent automatically).</param>
-    public GoToBuildingActivity(Building targetBuilding, int priority = 0, bool targetStorage = false)
+    /// <param name="requireInterior">If false, entity can reach goal by standing adjacent to building (perimeter). Default true.</param>
+    public GoToBuildingActivity(Building targetBuilding, int priority = 0, bool targetStorage = false, bool requireInterior = true)
     {
         _targetBuilding = targetBuilding;
         _targetStorage = targetStorage;
+        _requireInterior = requireInterior;
         Priority = priority;
     }
 
@@ -62,7 +65,7 @@ public class GoToBuildingActivity : Activity
         }
         else
         {
-            _pathFinder.SetBuildingGoal(owner, _targetBuilding);
+            _pathFinder.SetBuildingGoal(owner, _targetBuilding, requireInterior: _requireInterior);
         }
     }
 

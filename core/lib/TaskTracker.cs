@@ -12,8 +12,9 @@ using Microsoft.Diagnostics.Runtime;
 namespace VeilOfAges.Core.Lib;
 
 /// <summary>
-/// Tracks running tasks and can kill stuck ones while capturing their stack traces using ClrMD.
-/// Stack capture happens on a background thread so the game can continue.
+/// Tracks running tasks and captures stack traces of stuck ones using ClrMD.
+/// Stack capture happens synchronously so diagnostics are logged before any freeze.
+/// Note: Cannot actually kill stuck tasks in cross-platform .NET - they will continue running.
 /// </summary>
 public sealed class TaskTracker : IDisposable
 {
@@ -29,6 +30,7 @@ public sealed class TaskTracker : IDisposable
         public required CancellationTokenSource Cts { get; init; }
         public long StartTicks { get; init; }
         public int ManagedThreadId { get; set; } = -1;
+        public bool StackCaptured { get; set; }
 
         public double ElapsedMs => (Stopwatch.GetTimestamp() - StartTicks) * 1000.0 / Stopwatch.Frequency;
     }
@@ -85,10 +87,11 @@ public sealed class TaskTracker : IDisposable
     }
 
     /// <summary>
-    /// Check for stuck tasks and kill them. Stack traces are captured on a background thread.
+    /// Check for stuck tasks and capture their stack traces synchronously.
+    /// The game will freeze waiting for these tasks, but diagnostics will be logged first.
     /// </summary>
     /// <param name="currentTick">Current game tick for identifying when the stuck task occurred.</param>
-    /// <returns>Number of stuck tasks found and killed.</returns>
+    /// <returns>Number of stuck tasks found.</returns>
     public int CheckAndKillStuck(ulong currentTick)
     {
         var stuckTasks = _tasks.Values
@@ -100,23 +103,44 @@ public sealed class TaskTracker : IDisposable
             return 0;
         }
 
-        // Collect info we need before canceling
-        var stuckInfo = stuckTasks.Select(t => new StuckTaskInfo
-        {
-            Name = t.Name,
-            ManagedThreadId = t.ManagedThreadId,
-            ElapsedMs = t.ElapsedMs
-        }).ToList();
+        // Only capture stacks for tasks we haven't already captured
+        var newlyStuckTasks = stuckTasks.Where(t => !t.StackCaptured).ToList();
 
-        // Cancel all stuck tasks
-        foreach (var task in stuckTasks)
+        if (newlyStuckTasks.Count > 0)
         {
-            task.Cts.Cancel();
+            // Log IMMEDIATELY before any stack capture - if we freeze after this but before
+            // "STUCK TASK DETECTED" appears, the stack capture itself is hanging
+            foreach (var task in newlyStuckTasks)
+            {
+                Log.Error($"[Tick {currentTick}] STUCK TASK FOUND (pre-capture): {task.Name} (elapsed: {task.ElapsedMs:F0}ms, thread: {task.ManagedThreadId})");
+            }
+
+            // Collect info we need before capturing
+            var stuckInfo = newlyStuckTasks.Select(t => new StuckTaskInfo
+            {
+                Name = t.Name,
+                ManagedThreadId = t.ManagedThreadId,
+                ElapsedMs = t.ElapsedMs
+            }).ToList();
+
+            // Mark as captured so we don't spam logs
+            foreach (var task in newlyStuckTasks)
+            {
+                task.StackCaptured = true;
+            }
+
+            // Capture stacks SYNCHRONOUSLY so we have diagnostics before freeze
+            var threadIds = stuckInfo.Select(s => s.ManagedThreadId).ToHashSet();
+            Log.Error($"[Tick {currentTick}] About to capture stacks for {threadIds.Count} threads...");
+            CaptureAndLogStacks(currentTick, stuckInfo, threadIds);
+            Log.Error($"[Tick {currentTick}] Stack capture completed.");
+
+            // Cancel stuck tasks (won't actually stop them, but signals intent)
+            foreach (var task in newlyStuckTasks)
+            {
+                task.Cts.Cancel();
+            }
         }
-
-        // Capture stacks on a background thread so game can continue
-        var threadIds = stuckInfo.Select(s => s.ManagedThreadId).ToHashSet();
-        Task.Run(() => CaptureAndLogStacks(currentTick, stuckInfo, threadIds));
 
         return stuckTasks.Count;
     }
@@ -141,7 +165,7 @@ public sealed class TaskTracker : IDisposable
         foreach (var info in stuckInfo)
         {
             var sb = new StringBuilder();
-            sb.AppendLine(CultureInfo.InvariantCulture, $"\n=== STUCK TASK KILLED (Tick {tick}) ===");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"\n=== STUCK TASK DETECTED (Tick {tick}) ===");
             sb.AppendLine(CultureInfo.InvariantCulture, $"Task: {info.Name}");
             sb.AppendLine(CultureInfo.InvariantCulture, $"Elapsed: {info.ElapsedMs:F0}ms (timeout exceeded)");
             sb.AppendLine(CultureInfo.InvariantCulture, $"ManagedThreadId: {info.ManagedThreadId}");
@@ -166,7 +190,9 @@ public sealed class TaskTracker : IDisposable
     {
         var result = new Dictionary<int, string>();
 
+        Log.Error($"CaptureStacksForThreads: Creating snapshot for PID {Environment.ProcessId}...");
         using var target = DataTarget.CreateSnapshotAndAttach(Environment.ProcessId);
+        Log.Error("CaptureStacksForThreads: Snapshot created successfully.");
         var clrVersion = target.ClrVersions.FirstOrDefault();
 
         if (clrVersion == null)
