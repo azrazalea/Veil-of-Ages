@@ -537,7 +537,15 @@ public class PathFinder
         // skip our own position
         if (entity.GetCurrentGridPosition() == nextPos)
         {
-            nextPos = CurrentPath[++PathIndex];
+            PathIndex++;
+            if (PathIndex >= CurrentPath.Count)
+            {
+                // We're already at the end of the path
+                _pathNeedsCalculation = true;
+                return true;
+            }
+
+            nextPos = CurrentPath[PathIndex];
         }
 
         bool moveSuccessful = entity.TryMoveToGridPosition(nextPos);
