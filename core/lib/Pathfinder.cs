@@ -661,7 +661,7 @@ public class PathFinder
                     }
 
                     // Get path to specific position
-                    var positionPath = GetIdPathThreadSafe(astar, startPos, _targetPosition, true);
+                    var positionPath = ThreadSafeAStar.GetPath(astar, startPos, _targetPosition, true);
 
                     if (positionPath.Count > 0)
                     {
@@ -713,7 +713,7 @@ public class PathFinder
                                 break;
                             }
 
-                            var path = GetIdPathThreadSafe(astar, startPos, pos, true);
+                            var path = ThreadSafeAStar.GetPath(astar, startPos, pos, true);
                             if (path.Count > 0)
                             {
                                 CurrentPath = path.Cast<Vector2I>().ToList();
@@ -758,7 +758,7 @@ public class PathFinder
                         bool foundAreaPath = false;
                         foreach (var pos in areaPositions)
                         {
-                            var areaPath = GetIdPathThreadSafe(astar, startPos, pos, true);
+                            var areaPath = ThreadSafeAStar.GetPath(astar, startPos, pos, true);
                             if (areaPath.Count > 0)
                             {
                                 CurrentPath = areaPath.Cast<Vector2I>().ToList();
@@ -850,7 +850,7 @@ public class PathFinder
                                 break;
                             }
 
-                            var path = GetIdPathThreadSafe(astar, startPos, pos, true);
+                            var path = ThreadSafeAStar.GetPath(astar, startPos, pos, true);
                             if (path.Count > 0)
                             {
                                 CurrentPath = path.Cast<Vector2I>().ToList();
@@ -1003,7 +1003,7 @@ public class PathFinder
                         }
 
                         // Try to path to this position
-                        var facilityPath = GetIdPathThreadSafe(astar, startPos, adjacentPos, true);
+                        var facilityPath = ThreadSafeAStar.GetPath(astar, startPos, adjacentPos, true);
                         if (facilityPath.Count > 0)
                         {
                             _targetFacilityPosition = facilityPos;
@@ -1206,19 +1206,5 @@ public class PathFinder
         }
 
         return clone;
-    }
-
-    /// <summary>
-    /// Thread-safe wrapper around AStarGrid2D.GetIdPath.
-    /// Godot's A* modifies internal Point state (g_score, prev_point, etc.) during pathfinding,
-    /// so concurrent calls on the same grid corrupt each other. Lock on the grid instance.
-    /// </summary>
-    private static Godot.Collections.Array<Vector2I> GetIdPathThreadSafe(
-        AStarGrid2D astar, Vector2I from, Vector2I to, bool allowPartial)
-    {
-        lock (astar)
-        {
-            return astar.GetIdPath(from, to, allowPartial);
-        }
     }
 }
