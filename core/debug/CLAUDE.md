@@ -133,23 +133,31 @@ Command classes for server control:
 
 ### Example Usage
 
+**Use `jq` for parsing JSON responses** - it's more reliable than grep/python for JSON.
+
 ```bash
 # Check server is running
 curl -s http://localhost:8765/ping
 
-# Get game state (pipe to head to limit output)
-curl -s http://localhost:8765/state | head -c 500
+# Get game time and tick
+curl -s http://localhost:8765/state | jq '{tick: .tick, time: .gameTime}'
 
-# Get all entities
-curl -s http://localhost:8765/entities | head -c 800
+# Get all entities with key info (first 15)
+curl -s http://localhost:8765/entities | jq -r '.[:15] | .[] | "\(.name[:30]) \(.position) \(.activity[:20]) blk=\(.isBlocked) q=\(.isInQueue)"'
 
 # Get specific entity (URL-encode spaces)
-curl -s "http://localhost:8765/entity/Lilith%20Galonadel"
+curl -s "http://localhost:8765/entity/Lilith%20Galonadel" | jq .
+
+# Count entities by activity type
+curl -s http://localhost:8765/entities | jq 'group_by(.activity) | map({activity: .[0].activity, count: length})'
+
+# Find blocked or queued entities
+curl -s http://localhost:8765/entities | jq '.[] | select(.isBlocked or .isInQueue)'
 
 # View ASCII grid (first 20 lines)
 curl -s http://localhost:8765/grid | head -20
 
-# Get just the tick count
+# Get just the tick count (grep fallback)
 curl -s http://localhost:8765/state | grep -o '"tick":[0-9]*'
 
 # Pause, step 5 ticks, resume
