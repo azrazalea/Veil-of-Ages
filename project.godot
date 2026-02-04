@@ -15,12 +15,6 @@ run/main_scene="uid://ba8h7co1n3v3u"
 config/features=PackedStringArray("4.6", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 
-[display]
-
-window/size/viewport_width=1280
-window/size/viewport_height=720
-window/stretch/mode="canvas_items"
-
 [autoload]
 
 DebugServer="*res://core/debug/DebugServer.cs"
@@ -29,6 +23,12 @@ ItemResourceManager="*res://entities/items/ItemResourceManager.cs"
 ReactionResourceManager="*res://entities/reactions/ReactionResourceManager.cs"
 BodyStructureResourceManager="*res://entities/beings/health/BodyStructureResourceManager.cs"
 BeingResourceManager="*res://entities/beings/BeingResourceManager.cs"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
 
 [dotnet]
 
