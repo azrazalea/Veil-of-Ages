@@ -507,13 +507,64 @@ Traits return actions with appropriate priorities:
 - Emergency actions: negative values
 - Critical needs: -1 (interrupts sleep)
 
-### Job Trait Pattern
-Job traits (FarmerJobTrait, BakerJobTrait) follow a common pattern:
-1. Check if owner is valid and not already moving/working
+### Job Trait Pattern (CRITICAL)
+
+Job traits (FarmerJobTrait, BakerJobTrait, etc.) must follow this pattern to avoid bugs.
+
+**Rule: Traits DECIDE, Activities EXECUTE**
+
+Job traits should ONLY:
+1. Check if work should happen (time of day, not already in work activity)
+2. Create and return a work activity via StartActivityAction
+
+Job traits should NEVER:
+- Access storage directly (storage requires physical proximity)
+- Manage navigation (activities handle this)
+- Check storage contents in SuggestAction (use memory checks only)
+
+**Correct Pattern (FarmerJobTrait):**
+```csharp
+public override EntityAction? SuggestAction(...)
+{
+    // Check if already working - let activity handle everything
+    if (_owner.GetCurrentActivity() is WorkFieldActivity) return null;
+
+    // Check work hours
+    if (gameTime.CurrentDayPhase is not(DayPhaseType.Dawn or DayPhaseType.Day)) return null;
+
+    // Create activity - it handles ALL work logic (navigation, storage, work phases)
+    var workActivity = new WorkFieldActivity(_workplace, WORKDURATION, priority: 0);
+    return new StartActivityAction(_owner, this, workActivity, priority: 0);
+}
+```
+
+**Wrong Pattern (causes bugs):**
+```csharp
+public override EntityAction? SuggestAction(...)
+{
+    // BAD: Accessing storage in trait - entity might not be at workplace!
+    var storage = _owner.AccessStorage(_workplace);
+    if (storage != null && storage.HasItem("wheat")) { ... }
+
+    // BAD: This returns null when entity is far from workplace
+    // The trait thinks there's no wheat, but really it just can't see the storage
+}
+```
+
+**Why This Matters:**
+- `AccessStorage()` returns null if entity isn't adjacent to building
+- Traits run every tick; navigation takes many ticks
+- Phase-based activities ensure storage access only happens when entity has arrived
+
+**Reference Implementations:**
+- `WorkFieldActivity.cs` - Farming with GoingToWork/Working/TakingWheat/GoingHome/Depositing phases
+- `BakingActivity.cs` / `ProcessReactionActivity.cs` - Crafting with navigation and storage phases
+
+**Basic Job Trait Workflow:**
+1. Check if owner is valid and not already in a work activity
 2. Check if work hours (Dawn/Day)
-3. Check for required resources/inputs
-4. Start appropriate work activity
-5. Return null at night (let VillagerTrait handle sleep)
+3. Start appropriate work activity (activity handles everything else)
+4. Return null at night (let VillagerTrait handle sleep)
 
 ### Undead Detection
 Checking if an entity is undead:

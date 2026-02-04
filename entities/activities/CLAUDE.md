@@ -21,6 +21,51 @@ This directory contains the Activity system - the execution layer between trait 
 3. **Activities are separate from Traits** - stored in `Being._currentActivity`, not in `_traits` collection (for threading safety)
 4. **Commands START Activities** - player commands create activities, then poll their state
 
+### Work Activities: Phase-Based State Machines (CRITICAL)
+
+Work activities (farming, baking, crafting) MUST use phase-based state machines to ensure storage access only happens when the entity has physically arrived at the location.
+
+**Required Pattern:**
+1. **Navigation phases** use `RunSubActivity()` with `GoToBuildingActivity`
+2. **Storage access phases** only run AFTER navigation completes
+3. Activities handle ALL work logic - traits just start them
+
+**Why This Matters:**
+Storage access (`AccessStorage`, `TakeFromStorage`, etc.) requires physical proximity (within 1 tile). If a trait tries to access storage before navigation completes, the access returns null/fails. This was the root cause of the baker bug where baking failed because the trait checked storage while the entity was still walking.
+
+**Canonical Examples:**
+- `WorkFieldActivity.cs` - Phases: GoingToWork -> Working -> TakingWheat -> GoingHome -> DepositingWheat
+- `ProcessReactionActivity.cs` - Phases: GoToWorkplace -> GoToFacility -> VerifyInputs -> ConsumeInputs -> Process -> ProduceOutputs
+
+**Phase Transition Pattern:**
+```csharp
+private enum Phase { GoingToWork, Working, TakingHarvest, GoingHome, Depositing }
+private Phase _currentPhase = Phase.GoingToWork;
+
+public override EntityAction? GetNextAction(...)
+{
+    switch (_currentPhase)
+    {
+        case Phase.GoingToWork:
+            // Use RunSubActivity for navigation
+            var (result, action) = RunSubActivity(_goToWorkActivity, position, perception);
+            if (result == SubActivityResult.Failed) { Fail(); return null; }
+            if (result == SubActivityResult.Continue) return action;
+            // Completed - NOW we can access workplace storage
+            _currentPhase = Phase.Working;
+            break;
+
+        case Phase.Working:
+            // Safe to access storage here - we've arrived
+            var storage = _owner.AccessStorage(_workplace);
+            // ... do work ...
+            break;
+    }
+}
+```
+
+See `/entities/traits/CLAUDE.md` "Job Trait Pattern (CRITICAL)" section for the trait-side requirements.
+
 ## Files
 
 ### Activity.cs
