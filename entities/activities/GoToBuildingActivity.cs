@@ -97,8 +97,11 @@ public class GoToBuildingActivity : Activity
 
     public override EntityAction? GetNextAction(Vector2I position, Perception perception)
     {
+        DebugLog("GO_TO_BUILDING", $"GetNextAction called: owner={_owner != null}, pathFinder={_pathFinder != null}, target={_targetBuilding?.BuildingName ?? "null"}", 0);
+
         if (_owner == null || _pathFinder == null)
         {
+            DebugLog("GO_TO_BUILDING", $"FAILING: owner={_owner != null}, pathFinder={_pathFinder != null}", 0);
             Fail();
             return null;
         }
@@ -106,6 +109,7 @@ public class GoToBuildingActivity : Activity
         // Check if building still exists
         if (!GodotObject.IsInstanceValid(_targetBuilding))
         {
+            DebugLog("GO_TO_BUILDING", "FAILING: target building invalid", 0);
             Fail();
             return null;
         }
@@ -113,6 +117,7 @@ public class GoToBuildingActivity : Activity
         // Check if we've reached the goal
         if (_pathFinder.IsGoalReached(_owner))
         {
+            DebugLog("GO_TO_BUILDING", "COMPLETING: goal reached", 0);
             Complete();
             return null;
         }
