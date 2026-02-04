@@ -39,10 +39,10 @@ public class FetchResourceActivity : Activity
 
     private GoToBuildingActivity? _goToSourcePhase;
     private GoToBuildingActivity? _goToDestinationPhase;
+    private TakeFromStorageActivity? _takeResourcePhase;
+    private DepositToStorageActivity? _depositResourcePhase;
     private FetchPhase _currentPhase = FetchPhase.GoingToSource;
     private int _actualQuantityTaken;
-    private TakeFromStorageAction? _takeAction;
-    private DepositToStorageAction? _depositAction;
 
     // Work phase tracking
     private uint _workTimer;
@@ -137,9 +137,9 @@ public class FetchResourceActivity : Activity
         {
             FetchPhase.GoingToSource => ProcessGoingToSource(position, perception),
             FetchPhase.WorkingAtSource => ProcessWorkingAtSource(),
-            FetchPhase.TakingResource => ProcessTakingResource(),
+            FetchPhase.TakingResource => ProcessTakingResource(position, perception),
             FetchPhase.GoingToDestination => ProcessGoingToDestination(position, perception),
-            FetchPhase.DepositingResource => ProcessDepositingResource(),
+            FetchPhase.DepositingResource => ProcessDepositingResource(position, perception),
             _ => null
         };
     }
@@ -217,65 +217,68 @@ public class FetchResourceActivity : Activity
         return new IdleAction(_owner, this, Priority);
     }
 
-    private EntityAction? ProcessTakingResource()
+    private EntityAction? ProcessTakingResource(Vector2I position, Perception perception)
     {
         if (_owner == null)
         {
             return null;
         }
 
-        // If we already have a take action in progress, check if it completed
-        if (_takeAction != null)
+        // Initialize take-resource phase if needed
+        if (_takeResourcePhase == null)
         {
-            // Action was executed - check result via the callback-set value
-            if (_actualQuantityTaken > 0)
+            // Check how much is available using memory (auto-observes)
+            int available = _owner.GetStorageItemCount(_sourceBuilding, _itemId);
+            if (available == 0)
             {
-                // Success - move to next phase
-                Log.Print($"{_owner.Name}: Took {_actualQuantityTaken}x {_itemId} from {_sourceBuilding.BuildingName}");
-                DebugLog("FETCH", $"Took {_actualQuantityTaken}x {_itemId}, transitioning to GoingToDestination", 0);
-                _takeAction = null;
-                _currentPhase = FetchPhase.GoingToDestination;
-                return new IdleAction(_owner, this, Priority);
-            }
-            else
-            {
-                // Action failed
-                DebugLog("FETCH", $"Failed to take {_itemId} from storage", 0);
-                _takeAction = null;
+                DebugLog("FETCH", $"No {_itemId} available at {_sourceBuilding.BuildingName}", 0);
                 Fail();
                 return null;
             }
+
+            // Take up to desired quantity, or all available if less
+            int actualAmount = System.Math.Min(_desiredQuantity, available);
+
+            // Create sub-activity with single item to take
+            var itemsToTake = new List<(string itemId, int quantity)> { (_itemId, actualAmount) };
+            _takeResourcePhase = new TakeFromStorageActivity(_sourceBuilding, itemsToTake, Priority);
+            _takeResourcePhase.Initialize(_owner);
+            DebugLog("FETCH", $"Taking {actualAmount}x {_itemId} from {_sourceBuilding.BuildingName}", 0);
         }
 
-        // Check how much is available using memory (auto-observes)
-        int available = _owner.GetStorageItemCount(_sourceBuilding, _itemId);
-        if (available == 0)
+        // Run the take sub-activity
+        var (result, action) = RunSubActivity(_takeResourcePhase, position, perception);
+        switch (result)
         {
-            DebugLog("FETCH", $"No {_itemId} available at {_sourceBuilding.BuildingName}", 0);
+            case SubActivityResult.Failed:
+                DebugLog("FETCH", $"Failed to take {_itemId} from storage", 0);
+                Fail();
+                return null;
+            case SubActivityResult.Continue:
+                return action;
+            case SubActivityResult.Completed:
+                // Fall through to check result
+                break;
+        }
+
+        // Check inventory to see how much we actually got
+        var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
+        _actualQuantityTaken = inventory?.GetItemCount(_itemId) ?? 0;
+
+        if (_actualQuantityTaken > 0)
+        {
+            Log.Print($"{_owner.Name}: Took {_actualQuantityTaken}x {_itemId} from {_sourceBuilding.BuildingName}");
+            DebugLog("FETCH", $"Took {_actualQuantityTaken}x {_itemId}, transitioning to GoingToDestination", 0);
+            _currentPhase = FetchPhase.GoingToDestination;
+            return new IdleAction(_owner, this, Priority);
+        }
+        else
+        {
+            // Sub-activity completed but we have nothing - fail
+            DebugLog("FETCH", $"Take completed but no {_itemId} in inventory", 0);
             Fail();
             return null;
         }
-
-        // Take up to desired quantity, or all available if less
-        int actualAmount = System.Math.Min(_desiredQuantity, available);
-
-        // Create TakeFromStorageAction with callback to track result
-        _takeAction = new TakeFromStorageAction(
-            _owner,
-            this,
-            _sourceBuilding,
-            _itemId,
-            actualAmount,
-            Priority)
-        {
-            OnSuccessful = (action) =>
-            {
-                var takeAction = (TakeFromStorageAction)action;
-                _actualQuantityTaken = takeAction.ActualQuantity;
-            }
-        };
-
-        return _takeAction;
     }
 
     private EntityAction? ProcessGoingToDestination(Vector2I position, Perception perception)
@@ -315,7 +318,7 @@ public class FetchResourceActivity : Activity
         return new IdleAction(_owner, this, Priority);
     }
 
-    private EntityAction? ProcessDepositingResource()
+    private EntityAction? ProcessDepositingResource(Vector2I position, Perception perception)
     {
         if (_owner == null)
         {
@@ -323,55 +326,63 @@ public class FetchResourceActivity : Activity
             return null;
         }
 
-        // If we already have a deposit action in progress, check if it completed
-        if (_depositAction != null)
+        // Initialize deposit-resource phase if needed
+        if (_depositResourcePhase == null)
         {
-            // Action was executed - check result
-            int deposited = _depositAction.ActualDeposited;
-            if (deposited > 0)
+            var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
+            if (inventory == null)
             {
-                Log.Print($"{_owner.Name}: Stored {deposited}x {_itemId} at {_destinationBuilding.BuildingName}");
-                DebugLog("FETCH", $"Deposited {deposited}x {_itemId}, activity complete", 0);
+                Complete();
+                return null;
             }
-            else
+
+            // Check how much we have in inventory
+            int itemCount = inventory.GetItemCount(_itemId);
+            if (itemCount == 0)
             {
+                DebugLog("FETCH", $"No {_itemId} in inventory to deposit", 0);
+                Complete();
+                return null;
+            }
+
+            // Deposit up to what we actually took from source
+            int amountToDeposit = System.Math.Min(itemCount, _actualQuantityTaken);
+
+            // Create sub-activity with single item to deposit
+            var itemsToDeposit = new List<(string itemId, int quantity)> { (_itemId, amountToDeposit) };
+            _depositResourcePhase = new DepositToStorageActivity(_destinationBuilding, itemsToDeposit, Priority);
+            _depositResourcePhase.Initialize(_owner);
+            DebugLog("FETCH", $"Depositing {amountToDeposit}x {_itemId} to {_destinationBuilding.BuildingName}", 0);
+        }
+
+        // Run the deposit sub-activity
+        var (result, action) = RunSubActivity(_depositResourcePhase, position, perception);
+        switch (result)
+        {
+            case SubActivityResult.Failed:
                 // Deposit failed - items stay in inventory
                 Log.Warn($"{_owner.Name}: {_destinationBuilding.BuildingName} storage full, keeping {_itemId} in inventory");
-            }
-
-            _depositAction = null;
-            Complete();
-            return null;
+                Complete();
+                return null;
+            case SubActivityResult.Continue:
+                return action;
+            case SubActivityResult.Completed:
+                // Fall through to complete
+                break;
         }
 
-        var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
-        if (inventory == null)
+        // Check how much we still have in inventory (less means successful deposit)
+        var inventory2 = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
+        int remaining = inventory2?.GetItemCount(_itemId) ?? 0;
+        int deposited = _actualQuantityTaken - remaining;
+
+        if (deposited > 0)
         {
-            Complete();
-            return null;
+            Log.Print($"{_owner.Name}: Stored {deposited}x {_itemId} at {_destinationBuilding.BuildingName}");
+            DebugLog("FETCH", $"Deposited {deposited}x {_itemId}, activity complete", 0);
         }
 
-        // Check how much we have in inventory
-        int itemCount = inventory.GetItemCount(_itemId);
-        if (itemCount == 0)
-        {
-            DebugLog("FETCH", $"No {_itemId} in inventory to deposit", 0);
-            Complete();
-            return null;
-        }
-
-        // Create DepositToStorageAction to transfer items
-        // Take up to what we actually took from source
-        int amountToDeposit = System.Math.Min(itemCount, _actualQuantityTaken);
-
-        _depositAction = new DepositToStorageAction(
-            _owner,
-            this,
-            _destinationBuilding,
-            _itemId,
-            amountToDeposit,
-            Priority);
-
-        return _depositAction;
+        Complete();
+        return null;
     }
 }

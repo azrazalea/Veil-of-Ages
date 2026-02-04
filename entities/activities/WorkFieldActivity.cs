@@ -60,6 +60,8 @@ public class WorkFieldActivity : Activity
     private GoToBuildingActivity? _goToWorkPhase;
     private GoToFacilityActivity? _goToCropPhase;
     private GoToBuildingActivity? _goToHomePhase;
+    private TakeFromStorageActivity? _takeWheatPhase;
+    private DepositToStorageActivity? _depositWheatPhase;
     private uint _workTimer;
     private uint _ticksSinceLastWheat;
     private int _wheatProducedThisShift;
@@ -67,9 +69,6 @@ public class WorkFieldActivity : Activity
     private Need? _energyNeed;
     private uint _variedWorkDuration;
     private uint _breakTimer;
-    private TakeFromStorageAction? _takeWheatAction;
-    private DepositToStorageAction? _depositWheatAction;
-    private int _actualWheatTaken;
     private ProduceToStorageAction? _pendingProduceAction;
 
     public override string DisplayName => _currentPhase switch
@@ -162,9 +161,9 @@ public class WorkFieldActivity : Activity
             WorkPhase.GoingToCrop => ProcessGoingToCrop(position, perception),
             WorkPhase.Working => ProcessWorking(),
             WorkPhase.TakingBreak => ProcessTakingBreak(),
-            WorkPhase.TakingWheat => ProcessTakingWheat(),
+            WorkPhase.TakingWheat => ProcessTakingWheat(position, perception),
             WorkPhase.GoingHome => ProcessGoingHome(position, perception),
-            WorkPhase.DepositingWheat => ProcessDepositingWheat(),
+            WorkPhase.DepositingWheat => ProcessDepositingWheat(position, perception),
             _ => null
         };
     }
@@ -360,87 +359,96 @@ public class WorkFieldActivity : Activity
         return new IdleAction(_owner, this, Priority);
     }
 
-    private EntityAction? ProcessTakingWheat()
+    private EntityAction? ProcessTakingWheat(Vector2I position, Perception perception)
     {
         if (_owner == null)
         {
             return null;
         }
 
-        // If we already have a take action in progress, check if it completed
-        if (_takeWheatAction != null)
+        // Initialize take-wheat phase if needed
+        if (_takeWheatPhase == null)
         {
-            // Action was executed - check result via the callback-set value
-            if (_actualWheatTaken > 0)
+            // Check how much is available using memory (auto-observes when accessed)
+            int available = _owner.GetStorageItemCount(_workplace, "wheat");
+            if (available == 0)
             {
-                // Success - log and transition
-                var farmStorage = _workplace.GetStorage();
-                var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
-                Log.Print($"{_owner.Name}: Took {_actualWheatTaken} wheat to bring home (Farm: {farmStorage?.GetContentsSummary() ?? "unknown"}, Inventory: {inventory?.GetContentsSummary() ?? "unknown"})");
+                Log.Print($"{_owner.Name}: No wheat at farm to bring home");
+
+                // If no home, just complete here
+                if (_home == null || !GodotObject.IsInstanceValid(_home))
+                {
+                    Log.Print($"{_owner.Name}: No home to bring harvest to, shift complete");
+                    DebugLog("ACTIVITY", "No wheat and no home, completing activity", 0);
+                    Complete();
+                    return null;
+                }
+
+                // No wheat but has home - just go home
+                DebugLog("ACTIVITY", "No wheat at farm, transitioning to GoingHome", 0);
+                _currentPhase = WorkPhase.GoingHome;
+                return new IdleAction(_owner, this, Priority);
             }
-            else
-            {
-                // Action failed - log warning but continue (no wheat to bring)
+
+            // Take exactly WHEATTOBRINGHOME, or all available if less
+            int actualAmount = System.Math.Min(WHEATTOBRINGHOME, available);
+
+            var itemsToTake = new List<(string itemId, int quantity)> { ("wheat", actualAmount) };
+            _takeWheatPhase = new TakeFromStorageActivity(_workplace, itemsToTake, Priority);
+            _takeWheatPhase.Initialize(_owner);
+            DebugLog("ACTIVITY", $"Taking up to {actualAmount} wheat from farm", 0);
+        }
+
+        // Run the take sub-activity
+        var (result, action) = RunSubActivity(_takeWheatPhase, position, perception);
+        switch (result)
+        {
+            case SubActivityResult.Failed:
+                // Take failed - log warning but continue (no wheat to bring)
                 Log.Warn($"{_owner.Name}: Failed to take wheat from farm storage");
-            }
 
-            _takeWheatAction = null;
+                // If no home, just complete here
+                if (_home == null || !GodotObject.IsInstanceValid(_home))
+                {
+                    Log.Print($"{_owner.Name}: No home to bring harvest to, shift complete");
+                    DebugLog("ACTIVITY", "No home to bring harvest to, completing activity", 0);
+                    Complete();
+                    return null;
+                }
 
-            // If no home, just complete here
-            if (_home == null || !GodotObject.IsInstanceValid(_home))
-            {
-                Log.Print($"{_owner.Name}: No home to bring harvest to, shift complete");
-                DebugLog("ACTIVITY", "No home to bring harvest to, completing activity", 0);
-                Complete();
-                return null;
-            }
+                DebugLog("ACTIVITY", "Take failed, transitioning to GoingHome anyway", 0);
+                _currentPhase = WorkPhase.GoingHome;
+                return new IdleAction(_owner, this, Priority);
 
-            DebugLog("ACTIVITY", "Wheat phase done, transitioning to GoingHome", 0);
-            _currentPhase = WorkPhase.GoingHome;
-            return new IdleAction(_owner, this, Priority);
+            case SubActivityResult.Continue:
+                return action;
+
+            case SubActivityResult.Completed:
+                // Check how much wheat we actually have in inventory now
+                var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
+                int wheatInInventory = inventory?.GetItemCount("wheat") ?? 0;
+
+                if (wheatInInventory > 0)
+                {
+                    var farmStorage = _workplace.GetStorage();
+                    Log.Print($"{_owner.Name}: Took {wheatInInventory} wheat to bring home (Farm: {farmStorage?.GetContentsSummary() ?? "unknown"}, Inventory: {inventory?.GetContentsSummary() ?? "unknown"})");
+                }
+
+                // If no home, just complete here
+                if (_home == null || !GodotObject.IsInstanceValid(_home))
+                {
+                    Log.Print($"{_owner.Name}: No home to bring harvest to, shift complete");
+                    DebugLog("ACTIVITY", "No home to bring harvest to, completing activity", 0);
+                    Complete();
+                    return null;
+                }
+
+                DebugLog("ACTIVITY", "Wheat taken, transitioning to GoingHome", 0);
+                _currentPhase = WorkPhase.GoingHome;
+                return new IdleAction(_owner, this, Priority);
         }
 
-        // Check how much is available using memory (auto-observes when accessed)
-        int available = _owner.GetStorageItemCount(_workplace, "wheat");
-        if (available == 0)
-        {
-            Log.Print($"{_owner.Name}: No wheat at farm to bring home");
-
-            // If no home, just complete here
-            if (_home == null || !GodotObject.IsInstanceValid(_home))
-            {
-                Log.Print($"{_owner.Name}: No home to bring harvest to, shift complete");
-                DebugLog("ACTIVITY", "No wheat and no home, completing activity", 0);
-                Complete();
-                return null;
-            }
-
-            // No wheat but has home - just go home
-            DebugLog("ACTIVITY", "No wheat at farm, transitioning to GoingHome", 0);
-            _currentPhase = WorkPhase.GoingHome;
-            return new IdleAction(_owner, this, Priority);
-        }
-
-        // Take exactly WHEATTOBRINGHOME, or all available if less
-        int actualAmount = System.Math.Min(WHEATTOBRINGHOME, available);
-
-        // Create TakeFromStorageAction with callback to track result
-        _takeWheatAction = new TakeFromStorageAction(
-            _owner,
-            this,
-            _workplace,
-            "wheat",
-            actualAmount,
-            Priority)
-        {
-            OnSuccessful = (action) =>
-            {
-                var takeAction = (TakeFromStorageAction)action;
-                _actualWheatTaken = takeAction.ActualQuantity;
-            }
-        };
-
-        return _takeWheatAction;
+        return null;
     }
 
     private EntityAction? ProcessGoingHome(Vector2I position, Perception perception)
@@ -480,7 +488,7 @@ public class WorkFieldActivity : Activity
         return new IdleAction(_owner, this, Priority);
     }
 
-    private EntityAction? ProcessDepositingWheat()
+    private EntityAction? ProcessDepositingWheat(Vector2I position, Perception perception)
     {
         if (_owner == null || _home == null)
         {
@@ -488,58 +496,60 @@ public class WorkFieldActivity : Activity
             return null;
         }
 
-        // If we already have a deposit action in progress, check if it completed
-        if (_depositWheatAction != null)
+        // Initialize deposit-wheat phase if needed
+        if (_depositWheatPhase == null)
         {
-            // Action was executed - check result
-            int deposited = _depositWheatAction.ActualDeposited;
-            if (deposited > 0)
+            var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
+            if (inventory == null)
             {
-                var homeStorage = _home.GetStorage();
-                Log.Print($"{_owner.Name}: Stored {deposited} wheat at home (Home: {homeStorage?.GetContentsSummary() ?? "unknown"})");
+                Complete();
+                return null;
             }
-            else
+
+            // Check how much wheat we have to deposit
+            int wheatCount = inventory.GetItemCount("wheat");
+            if (wheatCount == 0)
             {
+                Log.Print($"{_owner.Name}: Work day complete, no harvest to store");
+                DebugLog("ACTIVITY", "No wheat in inventory, activity complete", 0);
+                LogStorageInfo();
+                Complete();
+                return null;
+            }
+
+            var itemsToDeposit = new List<(string itemId, int quantity)> { ("wheat", wheatCount) };
+            _depositWheatPhase = new DepositToStorageActivity(_home, itemsToDeposit, Priority);
+            _depositWheatPhase.Initialize(_owner);
+            DebugLog("ACTIVITY", $"Depositing {wheatCount} wheat to home", 0);
+        }
+
+        // Run the deposit sub-activity
+        var (result, action) = RunSubActivity(_depositWheatPhase, position, perception);
+        switch (result)
+        {
+            case SubActivityResult.Failed:
                 // Deposit failed - items stay in inventory
                 Log.Warn($"{_owner.Name}: Home storage full, keeping wheat in inventory");
-            }
+                Log.Print($"{_owner.Name}: Work day complete, harvest stored at home");
+                DebugLog("ACTIVITY", "Deposit failed, activity complete", 0);
+                LogStorageInfo();
+                Complete();
+                return null;
 
-            _depositWheatAction = null;
-            Log.Print($"{_owner.Name}: Work day complete, harvest stored at home");
-            DebugLog("ACTIVITY", "Wheat deposited at home, activity complete", 0);
-            LogStorageInfo();
-            Complete();
-            return null;
+            case SubActivityResult.Continue:
+                return action;
+
+            case SubActivityResult.Completed:
+                var homeStorage = _home.GetStorage();
+                Log.Print($"{_owner.Name}: Stored wheat at home (Home: {homeStorage?.GetContentsSummary() ?? "unknown"})");
+                Log.Print($"{_owner.Name}: Work day complete, harvest stored at home");
+                DebugLog("ACTIVITY", "Wheat deposited at home, activity complete", 0);
+                LogStorageInfo();
+                Complete();
+                return null;
         }
 
-        var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
-        if (inventory == null)
-        {
-            Complete();
-            return null;
-        }
-
-        // Check how much wheat we have to deposit
-        int wheatCount = inventory.GetItemCount("wheat");
-        if (wheatCount == 0)
-        {
-            Log.Print($"{_owner.Name}: Work day complete, no harvest to store");
-            DebugLog("ACTIVITY", "No wheat in inventory, activity complete", 0);
-            LogStorageInfo();
-            Complete();
-            return null;
-        }
-
-        // Create DepositToStorageAction to transfer items
-        _depositWheatAction = new DepositToStorageAction(
-            _owner,
-            this,
-            _home,
-            "wheat",
-            wheatCount,
-            Priority);
-
-        return _depositWheatAction;
+        return null;
     }
 
     /// <summary>

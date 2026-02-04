@@ -307,8 +307,51 @@ var knownBuildings = _owner.SharedKnowledge
 ```
 Villagers receive SharedKnowledge when added as village residents via `Village.AddResident()`.
 
+### JobTrait.cs (IMPORTANT - Base Class)
+Abstract base class for all job traits that work at a building during specific hours.
+
+**Purpose:**
+JobTrait **structurally enforces** the correct pattern for job traits:
+- Traits DECIDE when to work (check hours, not busy, etc.)
+- Activities EXECUTE the work (navigation, storage access, multi-step work)
+
+The key design is that `SuggestAction()` is **sealed** - subclasses cannot override it.
+Instead, they must implement `CreateWorkActivity()` to define the actual work.
+
+**Why This Exists:**
+This prevents the "baker bug" pattern where traits accessed storage directly before
+the entity had arrived at the building. By sealing SuggestAction and forcing work
+through CreateWorkActivity, we guarantee that:
+1. Only time/status checks happen in the trait
+2. All storage access happens in activities (which have navigation phases)
+
+**Abstract Members:**
+- `WorkActivityType` - Type of the work activity (for "already working" check)
+- `CreateWorkActivity()` - Create and return the work activity
+
+**Virtual Members (Override to Customize):**
+- `WorkPhases` - Day phases when work happens (default: Dawn, Day)
+- `GetWorkplace()` - Get the workplace building (default: `_workplace` field)
+- `WorkplaceConfigKey` - Config key for workplace (default: "workplace")
+- `DesiredResources` - IDesiredResources implementation (default: empty)
+- `GetJobName()` - Human-readable name for debug logging
+
+**Usage:**
+```csharp
+public class MyJobTrait : JobTrait
+{
+    protected override Type WorkActivityType => typeof(MyWorkActivity);
+
+    protected override Activity? CreateWorkActivity()
+    {
+        return new MyWorkActivity(_workplace!, duration, priority: 0);
+    }
+}
+```
+
 ### FarmerJobTrait.cs
 Job trait for farmers who work at assigned farms during daytime.
+**Inherits from JobTrait** - enforces the correct pattern.
 
 **Features:**
 - Assigned to a specific farm building on construction
@@ -317,8 +360,13 @@ Job trait for farmers who work at assigned farms during daytime.
 - Context-aware dialogue based on time of day
 - Deposits harvest to farmer's home storage
 
+**JobTrait Overrides:**
+- `WorkActivityType`: `WorkFieldActivity`
+- `WorkplaceConfigKey`: "farm"
+- `DesiredResources`: wheat (10)
+
 **Constants:**
-- `WORKDURATION`: 400 ticks (~50 seconds real time at 8 ticks/sec)
+- `WORKDURATION`: 1500 ticks (~3.1 real minutes)
 
 **Usage:**
 ```csharp
@@ -330,20 +378,20 @@ typedBeing.SelfAsEntity().AddTraitToQueue(farmerTrait, priority: -1);
 
 ### BakerJobTrait.cs
 Job trait for bakers who work at bakeries during daytime.
+**Inherits from JobTrait** - enforces the correct pattern.
 
 **Features:**
 - Assigned to a specific workplace (bakery) building
-- Finds and processes reactions with "baking" or "milling" tags
-- Checks for required facilities and input items
-- Starts ProcessReactionActivity when work is available
-- Starts CheckHomeStorageActivity when no memory of required inputs (refreshes memory)
-- Fetches water from village Well when workplace is low on water
+- Starts BakingActivity during Dawn/Day phases
 - Returns null at night (VillagerTrait handles sleep)
 - Context-aware dialogue based on time of day
 
-**Reaction Tags (priority order):**
-1. "baking"
-2. "milling"
+**JobTrait Overrides:**
+- `WorkActivityType`: `BakingActivity`
+- `DesiredResources`: wheat (10), bread (5)
+
+**Constants:**
+- `WORKDURATION`: 400 ticks (~50 seconds real time)
 
 **Usage:**
 ```csharp
@@ -353,28 +401,31 @@ typedBeing.SelfAsEntity().AddTraitToQueue(bakerTrait, priority: -1);
 
 **Priority:** -1 (runs before VillagerTrait at priority 1)
 
-**Work Flow:**
-1. Check if work hours (Dawn/Day)
-2. Get workplace storage and facilities
-3. Find reaction with matching tags that can be performed
-4. Check if required inputs are available in storage (uses memory)
-5. If inputs available: Start ProcessReactionActivity
-6. If water is missing and workplace water < 10: Start FetchResourceActivity to get water from Well
-7. If no inputs AND no memory of required items: Start CheckHomeStorageActivity to observe workplace storage
-8. After observation, memory is updated and baker can find inputs on next think cycle
+### ScholarJobTrait.cs
+Job trait for scholars who study at their home during daytime.
+**Inherits from JobTrait** - enforces the correct pattern.
 
-**Water Fetching:**
-When the baker cannot bake due to missing water:
-- Checks if workplace has < 10 water (DESIRED_WATER_AT_WORKPLACE)
-- Uses SharedKnowledge to find a Well building
-- Starts FetchResourceActivity to fetch up to 5 water from Well to workplace
-- If no memory of well contents, first checks well storage
+**Features:**
+- Uses home as workplace (special case - overrides GetWorkplace())
+- Starts StudyActivity during Dawn/Day phases
+- Returns null at night (PlayerBehaviorTrait handles night behavior)
+- Context-aware dialogue based on time of day
 
-**Desired Resources:**
-Bakers implement `IDesiredResources` to specify home stockpile targets:
-- 5 flour (for baking bread)
-- 10 water (for dough)
-- 5 bread (finished product)
+**JobTrait Overrides:**
+- `WorkActivityType`: `StudyActivity`
+- `WorkplaceConfigKey`: "home"
+- `GetWorkplace()`: Returns `_home` instead of `_workplace`
+
+**Constants:**
+- `WORKDURATION`: 400 ticks (~50 seconds real time)
+
+**Usage:**
+```csharp
+var scholarTrait = new ScholarJobTrait(home);
+// or
+var scholarTrait = new ScholarJobTrait();
+scholarTrait.SetHome(home);
+```
 
 ### IDesiredResources.cs
 Interface for traits that specify desired resource levels at home storage.
@@ -420,8 +471,11 @@ Trait (base)
         +-- ItemConsumptionBehaviorTrait (item-based need satisfaction)
         +-- InventoryTrait (personal item storage, implements IStorageContainer)
         +-- VillagerTrait (village life + sleep)
-        +-- FarmerJobTrait (daytime work at farm, implements IDesiredResources)
-        +-- BakerJobTrait (daytime work at bakery, implements IDesiredResources)
+        +-- HomeTrait (home building reference)
+        +-- JobTrait (ABSTRACT - sealed SuggestAction, implements IDesiredResources)
+              +-- FarmerJobTrait (farming work, WorkFieldActivity)
+              +-- BakerJobTrait (baking work, BakingActivity)
+              +-- ScholarJobTrait (studying work, StudyActivity)
         +-- UndeadTrait (undead properties)
               +-- UndeadBehaviorTrait (abstract, wandering)
                     +-- SkeletonTrait (territorial)
@@ -447,8 +501,11 @@ Interfaces:
 | `SkeletonTrait` | Territorial skeleton behavior |
 | `ZombieTrait` | Hunger-driven zombie behavior |
 | `VillagerTrait` | Village daily routine + sleep |
-| `FarmerJobTrait` | Work at assigned farm during day (implements IDesiredResources) |
-| `BakerJobTrait` | Work at assigned bakery during day (implements IDesiredResources) |
+| `HomeTrait` | Home building reference for beings |
+| `JobTrait` | **Abstract base for all job traits** - sealed SuggestAction enforces pattern |
+| `FarmerJobTrait` | Work at assigned farm during day (extends JobTrait) |
+| `BakerJobTrait` | Work at assigned bakery during day (extends JobTrait) |
+| `ScholarJobTrait` | Study at home during day (extends JobTrait) |
 | `IDesiredResources` | Interface for traits that specify desired home stockpile levels |
 
 ## Important Notes
@@ -769,34 +826,47 @@ foreach (var entity in perception.GetEntitiesOfType<Being>())
 }
 ```
 
-**Creating a job trait**:
+**Creating a job trait (using JobTrait base class)**:
 ```csharp
-public class MyJobTrait : BeingTrait
+public class MyJobTrait : JobTrait
 {
-    private readonly Building _workplace;
+    private const uint WORKDURATION = 400;
+
+    // Required: specify the activity type for "already working" check
+    protected override Type WorkActivityType => typeof(MyWorkActivity);
+
+    // Optional: customize the config key (default is "workplace")
+    protected override string WorkplaceConfigKey => "workplace";
+
+    // Optional: specify desired resources for home storage
+    public override IReadOnlyDictionary<string, int> DesiredResources => _desiredResources;
+    private static readonly Dictionary<string, int> _desiredResources = new()
+    {
+        { "my_resource", 5 }
+    };
+
+    public MyJobTrait() { }
 
     public MyJobTrait(Building workplace)
     {
         _workplace = workplace;
     }
 
-    public override EntityAction? SuggestAction(Vector2I pos, Perception perception)
+    // Required: create the work activity
+    // This is the ONLY way to define work - you cannot access storage here
+    protected override Activity? CreateWorkActivity()
     {
-        if (_owner == null || !GodotObject.IsInstanceValid(_workplace))
-            return null;
-
-        if (_owner.IsMoving() || _owner.GetCurrentActivity() is MyWorkActivity)
-            return null;
-
-        var gameTime = GameTime.FromTicks(GameController.CurrentTick);
-        if (gameTime.CurrentDayPhase is not(DayPhaseType.Dawn or DayPhaseType.Day))
-            return null;
-
-        var workActivity = new MyWorkActivity(_workplace, priority: 0);
-        return new StartActivityAction(_owner, this, workActivity, priority: 0);
+        return new MyWorkActivity(_workplace!, WORKDURATION, priority: 0);
     }
 }
 ```
+
+**Why use JobTrait instead of BeingTrait directly?**
+- `SuggestAction()` is **sealed** - you cannot accidentally access storage
+- Work hours checking is handled automatically
+- "Already in activity" checking is handled automatically
+- Movement interruption checking is handled automatically
+- The pattern is enforced at compile time, not just by convention
 
 **Navigating to a building using activity**:
 ```csharp

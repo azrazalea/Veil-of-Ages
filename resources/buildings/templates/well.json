@@ -11,13 +11,13 @@
       "Id": "storage",
       "Position": [1, 1],
       "Storage": {
-        "VolumeCapacity": 50.0,
+        "VolumeCapacity": 500.0,
         "WeightCapacity": -1,
         "DecayRateModifier": 0.5,
         "RegenerationItem": "water",
-        "RegenerationRate": 0.5,
-        "RegenerationMaxQuantity": 50,
-        "RegenerationInitialQuantity": 50,
+        "RegenerationRate": 5.0,
+        "RegenerationMaxQuantity": 500,
+        "RegenerationInitialQuantity": 500,
         "FetchDuration": 8,
         "Tags": ["water"]
       }

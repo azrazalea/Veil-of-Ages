@@ -1,38 +1,65 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
+using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
-using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Activities;
 using VeilOfAges.Entities.Memory;
-using VeilOfAges.Entities.Sensory;
+using VeilOfAges.Entities.Reactions;
 
 namespace VeilOfAges.Entities.Traits;
 
 /// <summary>
-/// Job trait for bakers. Bakers work at their assigned workplace during daytime (Dawn/Day).
-/// They bake bread by consuming wheat from the workplace storage.
-/// At night, BakerJobTrait returns null and VillagerTrait handles sleep behavior.
+/// Job trait for bakers who work at their assigned workplace during daytime (Dawn/Day).
+/// Bakers use the reaction system to mill wheat into flour and bake bread.
+/// When missing water for baking, they proactively fetch water from the village well.
+/// At night, returns null to let VillagerTrait handle sleep behavior.
+///
+/// Inherits from JobTrait which enforces the pattern:
+/// - Traits DECIDE when to work (via sealed SuggestAction)
+/// - Activities EXECUTE the work (via CreateWorkActivity)
+///
+/// Uses the reaction system (resources/reactions/*.json) rather than hardcoded recipes.
 /// </summary>
-public class BakerJobTrait : BeingTrait, IDesiredResources
+public class BakerJobTrait : JobTrait
 {
-    private Building? _workplace;
+    // Reaction tags this baker can handle, in priority order (first = highest priority)
+    // "baking" = bake_bread reaction (flour + water -> bread)
+    // "milling" = mill_wheat reaction (wheat -> flour)
+    private static readonly string[] _reactionTags = ["baking", "milling"];
 
-    // Desired resource stockpile for baker's home
-    // Bakers want wheat for baking and bread as finished product
-    private static readonly Dictionary<string, int> _desiredResources = new ()
-    {
-        { "wheat", 10 },  // Need wheat for baking bread
-        { "bread", 5 } // Keep some bread in stock
-    };
+    // Cooldown to prevent constant storage checking when no inputs are available
+    private uint _lastStorageCheckTick;
+    private const uint STORAGECHECKCOOLDOWN = 500; // ~1 minute game time at 8 ticks/sec
+
+    // Water management - how much water to maintain at the workplace for baking
+    private const int WATERFETCHTHRESHOLD = 4; // Only fetch when below this amount
+    private const int WATERFETCHAMOUNT = 5;
+    private const int DESIREDWATERATWORKPLACE = 10;
+
+    // Wheat management - how much wheat to maintain at the workplace for milling
+    private const int WHEATFETCHTHRESHOLD = 2; // Only fetch when below this amount
+    private const int WHEATFETCHAMOUNT = 5;
+    private const int DESIREDWHEATATWORKPLACE = 10;
 
     /// <summary>
-    /// Gets the desired resource levels for the baker's home storage.
-    /// Bakers want to stockpile wheat and bread.
+    /// Gets the activity type for baker work - we use ProcessReactionActivity.
     /// </summary>
-    public IReadOnlyDictionary<string, int> DesiredResources => _desiredResources;
+    protected override Type WorkActivityType => typeof(ProcessReactionActivity);
 
-    // Work duration in ticks (~50 seconds at 8 ticks/sec)
-    private const uint WORKDURATION = 400;
+    /// <summary>
+    /// Gets desired resource stockpile for baker's home.
+    /// Bakers want flour for baking, water for dough, and bread as finished product.
+    /// </summary>
+    public override IReadOnlyDictionary<string, int> DesiredResources => _desiredResources;
+
+    private static readonly Dictionary<string, int> _desiredResources = new ()
+    {
+        { "flour", 5 },   // Need flour for baking bread
+        { "water", 10 },  // Need water for dough
+        { "bread", 5 } // Keep some bread in stock
+    };
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BakerJobTrait"/> class.
@@ -52,91 +79,357 @@ public class BakerJobTrait : BeingTrait, IDesiredResources
     }
 
     /// <summary>
-    /// Validates that the trait has all required configuration.
-    /// Expected parameters:
-    /// - "workplace" (Building): The bakery building to work at (recommended but optional).
+    /// Create the work activity for baking.
+    /// Returns (in priority order):
+    /// - ProcessReactionActivity if a reaction can be performed (milling or baking)
+    /// - FetchResourceActivity for water if water is low and a well is available
+    /// - FetchResourceActivity for wheat if wheat is low and a source is known
+    /// - CheckHomeStorageActivity if we have no memory of required inputs
+    /// - null if nothing can be done (lets VillagerTrait handle idle behavior).
     /// </summary>
-    /// <remarks>
-    /// If no workplace is provided, the trait will be non-functional but won't crash.
-    /// The baker will simply not suggest any work actions until a workplace is assigned.
-    /// </remarks>
-    public override bool ValidateConfiguration(TraitConfiguration config)
+    protected override Activity? CreateWorkActivity()
     {
-        // If workplace is already set (direct instantiation), configuration is valid
-        if (_workplace != null)
+        if (_owner == null || _workplace == null)
         {
-            return true;
-        }
-
-        // workplace is recommended but we handle null gracefully in SuggestAction()
-        if (config.GetBuilding("workplace") == null)
-        {
-            Log.Warn("BakerJobTrait: 'workplace' parameter recommended for proper function");
-        }
-
-        return true; // Don't fail - we handle missing workplace gracefully
-    }
-
-    /// <inheritdoc/>
-    public override void Configure(TraitConfiguration config)
-    {
-        // If workplace is already set (direct instantiation), skip configuration
-        if (_workplace != null)
-        {
-            DebugLog("BAKER", $"Configure: workplace already set = {_workplace.BuildingName}");
-            return;
-        }
-
-        // Get the workplace building from configuration
-        _workplace = config.GetBuilding("workplace");
-        DebugLog("BAKER", $"Configure: workplace = {_workplace?.BuildingName ?? "null"}");
-    }
-
-    public override EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
-    {
-        DebugLog("BAKER", $"SuggestAction: owner={_owner != null}, workplace={_workplace?.BuildingName ?? "null"}, valid={_workplace != null && GodotObject.IsInstanceValid(_workplace)}", 0);
-
-        if (_owner == null || _workplace == null || !GodotObject.IsInstanceValid(_workplace))
-        {
-            DebugLog("BAKER", $"Early return: owner={_owner != null}, workplace={_workplace != null}, workplaceValid={_workplace != null && GodotObject.IsInstanceValid(_workplace)}", 0);
             return null;
         }
 
-        // Don't interrupt movement
-        if (_owner.IsMoving())
+        // If already in a fetch activity, let it complete
+        if (_owner.GetCurrentActivity() is FetchResourceActivity)
         {
-            DebugLog("BAKER", "Returning null: IsMoving() = true", 0);
+            DebugLog("BAKER", "Already fetching resources, waiting for completion");
             return null;
         }
 
-        // If already baking, let the activity handle things
-        if (_owner.GetCurrentActivity() is BakingActivity)
+        // If already checking storage, let it complete
+        if (_owner.GetCurrentActivity() is CheckHomeStorageActivity)
         {
-            DebugLog("BAKER", "Returning null: already in BakingActivity", 0);
+            DebugLog("BAKER", "Already checking storage, waiting for completion");
             return null;
         }
 
-        // Only work during work hours (Dawn/Day)
-        var gameTime = _owner.GameController?.CurrentGameTime ?? new GameTime(0);
-        if (gameTime.CurrentDayPhase is not(DayPhaseType.Dawn or DayPhaseType.Day))
+        // Get workplace storage using wrapper method (auto-observes contents when adjacent)
+        // Note: This uses MEMORY - we can only see what we remember from past observations
+        var storage = _workplace.GetStorage();
+        if (storage == null)
         {
-            DebugLog("BAKER", $"Returning null: not work hours, phase={gameTime.CurrentDayPhase}", 0);
-            return null; // Let VillagerTrait handle night behavior
+            DebugLog("BAKER", "Workplace has no storage");
+            return null;
         }
 
-        DebugLog("BAKER", $"Work hours, starting BakingActivity at {_workplace.BuildingName}", 0);
+        var facilities = _workplace.GetFacilityIds();
 
-        // Start the baking activity - it handles all navigation and storage access
-        var bakingActivity = new BakingActivity(_workplace, WORKDURATION, priority: 0);
-        return new StartActivityAction(_owner, this, bakingActivity, priority: 0);
+        // Track missing inputs for potential water fetch or storage check
+        List<string> missingInputItemIds = [];
+
+        // Find a reaction we can perform (check in priority order)
+        ReactionDefinition? selectedReaction = null;
+
+        foreach (var tag in _reactionTags)
+        {
+            var taggedReactions = ReactionResourceManager.Instance.GetReactionsByTag(tag);
+
+            foreach (var reaction in taggedReactions)
+            {
+                // Check if we have the required facilities
+                bool hasFacilities = reaction.CanPerformWith(facilities);
+                if (!hasFacilities)
+                {
+                    continue;
+                }
+
+                // Check if we have the required inputs (using memory)
+                bool hasInputs = HasRequiredInputs(reaction);
+
+                if (hasInputs)
+                {
+                    selectedReaction = reaction;
+                    break;
+                }
+                else
+                {
+                    // Track which inputs are missing for potential fetch/check
+                    foreach (var input in reaction.Inputs ?? [])
+                    {
+                        if (!string.IsNullOrEmpty(input.ItemId) && !missingInputItemIds.Contains(input.ItemId))
+                        {
+                            missingInputItemIds.Add(input.ItemId);
+                        }
+                    }
+                }
+            }
+
+            if (selectedReaction != null)
+            {
+                break;
+            }
+        }
+
+        if (selectedReaction != null)
+        {
+            // We can perform a reaction - start processing
+            DebugLog("BAKER", $"Starting reaction: {selectedReaction.Id} ({selectedReaction.Name})", 0);
+            return new ProcessReactionActivity(selectedReaction, _workplace, storage, priority: 0);
+        }
+
+        // No reaction available - check if water is needed and we can fetch it
+        // This takes priority because it's proactive resource gathering
+        var waterFetchActivity = TryCreateWaterFetchActivity(missingInputItemIds);
+        if (waterFetchActivity != null)
+        {
+            return waterFetchActivity;
+        }
+
+        // No water fetch needed - check if wheat is needed and we can fetch it
+        // Wheat is needed for milling into flour
+        var wheatFetchActivity = TryCreateWheatFetchActivity(missingInputItemIds);
+        if (wheatFetchActivity != null)
+        {
+            return wheatFetchActivity;
+        }
+
+        // No reaction, no water fetch, no wheat fetch - check if we should observe the workplace storage
+        // This happens when we don't remember any of the input items we need
+        var currentTick = GameController.CurrentTick;
+        if (missingInputItemIds.Count > 0 && ShouldCheckStorage(missingInputItemIds, currentTick))
+        {
+            DebugLog("BAKER", $"No memory of required inputs ({string.Join(", ", missingInputItemIds)}), going to check workplace storage", 0);
+            _lastStorageCheckTick = currentTick;
+            return new CheckHomeStorageActivity(_workplace, priority: 0);
+        }
+
+        // Nothing to do - return null to let VillagerTrait handle idle behavior
+        // This is intentional: bakers should do villager things (wander, socialize) when there's nothing to bake
+        DebugLog("BAKER", "Nothing to do (no inputs available or cooldown active), deferring to VillagerTrait");
+        return null;
     }
 
+    /// <summary>
+    /// Check if we should go observe the workplace storage.
+    /// Returns true if we don't remember any of the given items being available
+    /// AND enough time has passed since our last check.
+    /// </summary>
+    private bool ShouldCheckStorage(List<string> itemIds, uint currentTick)
+    {
+        if (_owner?.Memory == null)
+        {
+            return true; // No memory system, should check
+        }
+
+        // If we remember any of the required items being available, no need to check
+        foreach (var itemId in itemIds)
+        {
+            if (_owner.Memory.RemembersItemAvailableById(itemId))
+            {
+                DebugLog("BAKER", $"Remembers {itemId} being available somewhere");
+                return false;
+            }
+        }
+
+        // We don't remember any of the required items - but check cooldown first
+        if (currentTick - _lastStorageCheckTick < STORAGECHECKCOOLDOWN)
+        {
+            DebugLog("BAKER", $"Storage check on cooldown ({currentTick - _lastStorageCheckTick}/{STORAGECHECKCOOLDOWN} ticks)");
+            return false;
+        }
+
+        // Cooldown expired - go check storage
+        return true;
+    }
+
+    /// <summary>
+    /// Check if storage has all required inputs for a reaction.
+    /// Uses Being wrapper methods so the baker queries their MEMORY of storage contents.
+    /// </summary>
+    private bool HasRequiredInputs(ReactionDefinition reaction)
+    {
+        if (_owner == null || _workplace == null || reaction.Inputs == null || reaction.Inputs.Count == 0)
+        {
+            return reaction.Inputs == null || reaction.Inputs.Count == 0;
+        }
+
+        foreach (var input in reaction.Inputs)
+        {
+            // Use wrapper method which queries MEMORY (not real storage)
+            if (!_owner.StorageHasItem(_workplace, input.ItemId, input.Quantity))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Try to create a water fetch activity if water is low at the workplace.
+    /// Returns a FetchResourceActivity if water should be fetched, null otherwise.
+    /// </summary>
+    /// <param name="missingInputs">List of missing input item IDs from reaction checks.</param>
+    private Activity? TryCreateWaterFetchActivity(List<string> missingInputs)
+    {
+        if (_owner == null || _workplace == null)
+        {
+            return null;
+        }
+
+        // Check if water is one of the missing inputs
+        if (!missingInputs.Contains("water"))
+        {
+            return null;
+        }
+
+        // Check current water level at workplace (from memory)
+        int currentWater = _owner.GetStorageItemCount(_workplace, "water");
+        if (currentWater >= WATERFETCHTHRESHOLD)
+        {
+            // We have enough water, don't fetch yet
+            return null;
+        }
+
+        // We need water - try to find a well via SharedKnowledge
+        if (!_owner.TryFindBuildingOfType("Well", out BuildingReference? wellRef) || wellRef?.Building == null)
+        {
+            DebugLog("BAKER", "Need water but no well found via SharedKnowledge");
+            return null;
+        }
+
+        var well = wellRef.Building;
+
+        // Check if well has water available (from memory or go check it)
+        int wellWater = _owner.GetStorageItemCount(well, "water");
+        if (wellWater <= 0)
+        {
+            // We don't remember seeing water at the well
+            var wellMemory = _owner.Memory?.RecallStorageContents(well);
+            if (wellMemory == null)
+            {
+                // No memory of well - go check it
+                DebugLog("BAKER", "Need water, no memory of well storage, going to check well", 0);
+                return new CheckHomeStorageActivity(well, priority: 0);
+            }
+
+            // We have memory of the well being empty - wait for water to regenerate
+            DebugLog("BAKER", "Need water but remember well being empty, waiting for regeneration");
+            return null;
+        }
+
+        // Calculate how much water to fetch
+        int amountToFetch = System.Math.Min(WATERFETCHAMOUNT, DESIREDWATERATWORKPLACE - currentWater);
+        amountToFetch = System.Math.Max(1, amountToFetch); // At least try to get 1
+
+        DebugLog("BAKER", $"Workplace water low ({currentWater}/{DESIREDWATERATWORKPLACE}), fetching {amountToFetch} from well", 0);
+
+        return new FetchResourceActivity(well, _workplace, "water", amountToFetch, priority: 0);
+    }
+
+    /// <summary>
+    /// Try to create a wheat fetch activity if wheat is low at the workplace.
+    /// Uses personal memory and SharedKnowledge to find buildings with wheat.
+    /// Pattern from ItemConsumptionBehaviorTrait for finding items.
+    /// Returns a FetchResourceActivity if wheat should be fetched, null otherwise.
+    /// </summary>
+    /// <param name="missingInputs">List of missing input item IDs from reaction checks.</param>
+    private Activity? TryCreateWheatFetchActivity(List<string> missingInputs)
+    {
+        if (_owner == null || _workplace == null)
+        {
+            return null;
+        }
+
+        // Check if wheat is one of the missing inputs
+        if (!missingInputs.Contains("wheat"))
+        {
+            return null;
+        }
+
+        // Check current wheat level at workplace (from memory)
+        int currentWheat = _owner.GetStorageItemCount(_workplace, "wheat");
+        if (currentWheat >= WHEATFETCHTHRESHOLD)
+        {
+            // We have enough wheat, don't fetch yet
+            return null;
+        }
+
+        // We need wheat - find a building that has it
+        // Strategy 1: Check personal memory for buildings where we saw wheat
+        var rememberedWheatLocations = _owner.Memory?.RecallStorageWithItemById("wheat") ?? [];
+
+        // Strategy 2: Check SharedKnowledge for buildings tagged as storing grain
+        // (Farmer homes with IDesiredResources wheat would be tagged as "grain" storage)
+        var grainBuildings = _owner.SharedKnowledge
+            .SelectMany(k => k.GetBuildingsByTag("grain"))
+            .Where(b => b.IsValid && b.Building != null && b.Building != _workplace)
+            .Select(b => b.Building!)
+            .ToList();
+
+        // Build list of candidate buildings to fetch from
+        // Priority: buildings we remember having wheat > buildings known to store grain
+        Building? sourceBuilding = null;
+        int rememberedQuantity = 0;
+
+        // First, check remembered locations (highest confidence)
+        foreach (var (building, quantity) in rememberedWheatLocations)
+        {
+            // Skip our own workplace
+            if (building == _workplace)
+            {
+                continue;
+            }
+
+            // Skip invalid buildings
+            if (!GodotObject.IsInstanceValid(building))
+            {
+                continue;
+            }
+
+            // Use the building with the most remembered wheat
+            if (quantity > rememberedQuantity)
+            {
+                sourceBuilding = building;
+                rememberedQuantity = quantity;
+            }
+        }
+
+        // If we found a building with remembered wheat, use it
+        if (sourceBuilding != null && rememberedQuantity > 0)
+        {
+            int amountToFetch = System.Math.Min(WHEATFETCHAMOUNT, DESIREDWHEATATWORKPLACE - currentWheat);
+            amountToFetch = System.Math.Min(amountToFetch, rememberedQuantity); // Don't try to take more than we remember
+            amountToFetch = System.Math.Max(1, amountToFetch);
+
+            DebugLog("BAKER", $"Workplace wheat low ({currentWheat}/{DESIREDWHEATATWORKPLACE}), fetching {amountToFetch} from {sourceBuilding.BuildingName} (remembered {rememberedQuantity})", 0);
+
+            return new FetchResourceActivity(sourceBuilding, _workplace, "wheat", amountToFetch, priority: 0);
+        }
+
+        // No remembered wheat - check if there are grain buildings we haven't observed
+        foreach (var building in grainBuildings)
+        {
+            // Check if we have any memory of this building's storage
+            var observation = _owner.Memory?.RecallStorageContents(building);
+            if (observation == null)
+            {
+                // No memory of this building - go check it
+                DebugLog("BAKER", $"Need wheat, no memory of {building.BuildingName} storage, going to check", 0);
+                return new CheckHomeStorageActivity(building, priority: 0);
+            }
+
+            // We have memory but it showed no wheat (or we already checked above)
+            // Continue to next building
+        }
+
+        // No wheat sources found or all checked and empty
+        DebugLog("BAKER", "Need wheat but no sources found via memory or SharedKnowledge");
+        return null;
+    }
+
+    // ===== Dialogue Methods =====
     public override string InitialDialogue(Being speaker)
     {
         var gameTime = _owner?.GameController?.CurrentGameTime ?? new GameTime(0);
         if (gameTime.CurrentDayPhase is DayPhaseType.Dawn or DayPhaseType.Day)
         {
-            return $"Morning, {speaker.Name}! The oven waits for no one.";
+            return $"Morning, {speaker.Name}! The mill waits for no one.";
         }
 
         return $"Evening, {speaker.Name}. Bread's baked for tomorrow.";

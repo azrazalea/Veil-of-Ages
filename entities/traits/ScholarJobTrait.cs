@@ -1,10 +1,6 @@
-using System.Collections.Generic;
-using Godot;
+using System;
 using VeilOfAges.Core.Lib;
-using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Activities;
-using VeilOfAges.Entities.Beings.Health;
-using VeilOfAges.Entities.Sensory;
 
 namespace VeilOfAges.Entities.Traits;
 
@@ -12,16 +8,40 @@ namespace VeilOfAges.Entities.Traits;
 /// Job trait for the village scholar/wiseperson (player's daytime occupation).
 /// Scholars study at their home/study during daytime (Dawn/Day).
 /// At night, ScholarJobTrait returns null and PlayerBehaviorTrait handles night behavior.
+///
+/// Inherits from JobTrait which enforces the pattern:
+/// - Traits DECIDE when to work (via sealed SuggestAction)
+/// - Activities EXECUTE the work (via CreateWorkActivity)
+///
+/// Special case: Scholars use their home as the workplace, so GetWorkplace()
+/// is overridden to return the home from HomeTrait instead of _workplace.
 /// </summary>
-public class ScholarJobTrait : BeingTrait
+public class ScholarJobTrait : JobTrait
 {
-    private Building? _home;
     private const uint WORKDURATION = 400; // ~50 seconds real time at 8 ticks/sec
+
+    // Scholar uses home as workplace - this is set via Configure or SetHome
+    private Building? _home;
+
+    /// <summary>
+    /// Gets the activity type for studying work.
+    /// </summary>
+    protected override Type WorkActivityType => typeof(StudyActivity);
+
+    /// <summary>
+    /// Gets scholars use "home" as the configuration key.
+    /// </summary>
+    protected override string WorkplaceConfigKey => "home";
+
+    /// <summary>
+    /// Scholars use their home as the workplace.
+    /// </summary>
+    protected override Building? GetWorkplace() => _home;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ScholarJobTrait"/> class.
     /// Parameterless constructor for data-driven entity system.
-    /// Home must be configured via Configure() method.
+    /// Home must be configured via Configure() method or SetHome().
     /// </summary>
     public ScholarJobTrait()
     {
@@ -47,13 +67,7 @@ public class ScholarJobTrait : BeingTrait
 
     /// <summary>
     /// Validates that the trait has all required configuration.
-    /// Expected parameters:
-    /// - "home" (Building): The home/study building to work at (recommended but optional).
     /// </summary>
-    /// <remarks>
-    /// If no home is provided, the trait will be non-functional but won't crash.
-    /// The scholar will simply not suggest any study actions until a home is assigned.
-    /// </remarks>
     public override bool ValidateConfiguration(TraitConfiguration config)
     {
         // If already set via constructor, we're good
@@ -62,7 +76,7 @@ public class ScholarJobTrait : BeingTrait
             return true;
         }
 
-        // home is recommended but we handle null gracefully in SuggestAction()
+        // home is recommended but we handle null gracefully
         if (config.GetBuilding("home") == null)
         {
             Log.Warn("ScholarJobTrait: 'home' parameter recommended for proper function");
@@ -76,7 +90,7 @@ public class ScholarJobTrait : BeingTrait
     /// </summary>
     public override void Configure(TraitConfiguration config)
     {
-        // If already set via constructor, skip configuration
+        // If already set via constructor or SetHome, skip configuration
         if (_home != null)
         {
             return;
@@ -85,40 +99,16 @@ public class ScholarJobTrait : BeingTrait
         _home = config.GetBuilding("home");
     }
 
-    public override EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
+    /// <summary>
+    /// Create the study activity.
+    /// The activity handles navigation to home and studying.
+    /// </summary>
+    protected override Activity? CreateWorkActivity()
     {
-        if (_owner == null || _home == null || !GodotObject.IsInstanceValid(_home))
-        {
-            return null;
-        }
-
-        // Don't interrupt movement
-        if (_owner.IsMoving())
-        {
-            return null;
-        }
-
-        var currentActivity = _owner.GetCurrentActivity();
-        var gameTime = _owner.GameController?.CurrentGameTime ?? new GameTime(0);
-
-        // If already studying, let the activity handle things
-        if (currentActivity is StudyActivity)
-        {
-            return null;
-        }
-
-        // Only study during work hours (Dawn/Day)
-        if (gameTime.CurrentDayPhase is not(DayPhaseType.Dawn or DayPhaseType.Day))
-        {
-            DebugLog("SCHOLAR", $"Not work hours ({gameTime.CurrentDayPhase}), deferring to PlayerBehaviorTrait");
-            return null; // Let PlayerBehaviorTrait handle night behavior
-        }
-
-        // Start study activity at home
-        var studyActivity = new StudyActivity(_home, WORKDURATION, priority: 0);
-        return new StartActivityAction(_owner, this, studyActivity, priority: 0);
+        return new StudyActivity(_home!, WORKDURATION, priority: 0);
     }
 
+    // ===== Dialogue Methods (not part of job pattern, kept in subclass) =====
     public override string InitialDialogue(Being speaker)
     {
         var gameTime = _owner?.GameController?.CurrentGameTime ?? new GameTime(0);
