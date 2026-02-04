@@ -47,11 +47,8 @@ public class VillageGenerator
     // Track spawned villagers for debug selection
     private readonly List<Being> _spawnedVillagers = [];
 
-    // Debug villager selection - specifically target bakers for debugging
-    private bool _debugVillagerSelected;
-#pragma warning disable CS0649 // Field never assigned (intentional: set to job name for debugging)
-    private readonly string? _debugTargetJob; // Set to a job name (e.g., "baker") to target, or leave unset for random
-#pragma warning restore CS0649
+    // Debug villager selection - enable debug on first villager of each job type
+    private readonly HashSet<string> _debugEnabledJobTypes = [];
 
     // The village being generated (tracks buildings and residents)
     private Village? _currentVillage;
@@ -142,7 +139,7 @@ public class VillageGenerator
         PlaceRoads();
 
         // Reset debug selection state
-        _debugVillagerSelected = false;
+        _debugEnabledJobTypes.Clear();
 
         // Place the well in the center of the village square FIRST (before other buildings)
         PlaceWellInVillageCenter(villageCenter);
@@ -830,22 +827,13 @@ public class VillageGenerator
         if (beingPos != buildingPos && _gridArea.IsCellWalkable(beingPos))
         {
             // Check if this villager should have debug enabled
-            // If targeting a specific job, only that job gets debug. Otherwise, first villager.
+            // Enable debug on the first villager of each job type for comprehensive logging
             bool isDebugVillager = false;
-            if (!_debugVillagerSelected)
+            string jobKey = job?.ToLowerInvariant() ?? "none";
+            if (!_debugEnabledJobTypes.Contains(jobKey))
             {
-                if (_debugTargetJob == null)
-                {
-                    // No target job: debug the first villager
-                    isDebugVillager = true;
-                    _debugVillagerSelected = true;
-                }
-                else if (string.Equals(job, _debugTargetJob, StringComparison.OrdinalIgnoreCase))
-                {
-                    // Target job matches: debug this villager
-                    isDebugVillager = true;
-                    _debugVillagerSelected = true;
-                }
+                isDebugVillager = true;
+                _debugEnabledJobTypes.Add(jobKey);
             }
 
             // Determine definition ID based on job
