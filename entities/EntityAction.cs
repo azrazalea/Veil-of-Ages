@@ -27,5 +27,11 @@ public abstract class EntityAction(Being entity, object source, Action<EntityAct
     /// </summary>
     public Action<EntityAction>? OnSuccessful { get; set; } = onSuccessful;
 
+    /// <summary>
+    /// Gets or sets optional sound effect name to play on successful execution.
+    /// Sound is played via Entity's PlaySound method if Entity is a GenericBeing.
+    /// </summary>
+    public string? SoundEffect { get; set; }
+
     public abstract bool Execute();
 }

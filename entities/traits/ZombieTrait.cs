@@ -1,13 +1,8 @@
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Activities;
-using VeilOfAges.Entities.Beings;
 using VeilOfAges.Entities.Beings.Health;
-using VeilOfAges.Entities.Needs;
 using VeilOfAges.Entities.Sensory;
 
 namespace VeilOfAges.Entities.Traits;
@@ -99,15 +94,16 @@ public class ZombieTrait : UndeadBehaviorTrait
                 _currentState = ZombieState.Wandering;
                 _stateTimer = (uint)_rng.RandiRange(60, 180);
 
-                // Occasionally make zombie sounds
-                if (!_hasGroaned && _rng.Randf() < 0.3f)
+                var wanderAction = TryToWander(perception);
+
+                // Occasionally add groan sound to the wander action
+                if (wanderAction != null && !_hasGroaned && _rng.Randf() < 0.3f)
                 {
-                    Log.Print($"{_owner.Name}: *groans*");
-                    PlayZombieGroan();
+                    wanderAction.SoundEffect = "groan";
                     _hasGroaned = true;
                 }
 
-                return TryToWander(perception);
+                return wanderAction;
             }
             else
             {
@@ -159,11 +155,5 @@ public class ZombieTrait : UndeadBehaviorTrait
         }
 
         return new IdleAction(_owner, this);
-    }
-
-    private void PlayZombieGroan()
-    {
-        // Play the ambient sound (zombie groan) via GenericBeing's audio system
-        (_owner as GenericBeing)?.CallDeferred("PlaySound", "ambient");
     }
 }

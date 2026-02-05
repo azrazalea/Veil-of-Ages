@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
+using VeilOfAges.Entities.Beings;
 using VeilOfAges.Entities.Sensory;
 
 namespace VeilOfAges.Core;
@@ -128,6 +129,12 @@ public partial class EntityThinkingSystem : Node
                 if (success)
                 {
                     action.OnSuccessful?.Invoke(action);
+
+                    // Play sound effect if specified
+                    if (!string.IsNullOrEmpty(action.SoundEffect))
+                    {
+                        (action.Entity as GenericBeing)?.CallDeferred("PlaySound", action.SoundEffect);
+                    }
                 }
 
                 action.Entity.ProcessMovementTick();

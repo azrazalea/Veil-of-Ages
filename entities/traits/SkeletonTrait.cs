@@ -1,9 +1,7 @@
-using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Activities;
-using VeilOfAges.Entities.Beings;
 using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Sensory;
 
@@ -138,16 +136,6 @@ public class SkeletonTrait : UndeadBehaviorTrait
                 _currentState = SkeletonState.Defending;
                 _intimidationTimer = IntimidationTime;
 
-                // Make a skeleton rattle when first seeing an intruder
-                if (!_hasRattled)
-                {
-                    Log.Print($"{_owner?.Name}: *bones rattle menacingly*");
-
-                    // Play sound effect
-                    PlayBoneRattle();
-                    _hasRattled = true;
-                }
-
                 Log.Print($"{_owner?.Name}: Intruder detected in territory!");
                 return;
             }
@@ -255,7 +243,16 @@ public class SkeletonTrait : UndeadBehaviorTrait
 
         if (targetPosition.HasValue)
         {
-            return ContinuePursuit(targetPosition.Value);
+            var action = ContinuePursuit(targetPosition.Value);
+
+            // Add rattle sound on first defend action
+            if (action != null && !_hasRattled)
+            {
+                action.SoundEffect = "ambient";
+                _hasRattled = true;
+            }
+
+            return action;
         }
 
         // If we have no target info, just idle
@@ -318,11 +315,5 @@ public class SkeletonTrait : UndeadBehaviorTrait
 
         return Mathf.Abs(relativePos.X) <= TerritoryRange &&
                Mathf.Abs(relativePos.Y) <= TerritoryRange;
-    }
-
-    private void PlayBoneRattle()
-    {
-        // Play the ambient sound (bone rattle) via GenericBeing's audio system
-        (_owner as GenericBeing)?.CallDeferred("PlaySound", "ambient");
     }
 }

@@ -95,6 +95,12 @@ public class DormantUndeadTrait : BeingTrait
             return new StartActivityAction(_owner, this, emergeActivity, priority: -1);
         }
 
+        // If hidden during hide phases, stay dormant (block all other actions)
+        if (_owner.IsHidden && HidePhases.Contains(currentPhase))
+        {
+            return new IdleAction(_owner, this, priority: -10);
+        }
+
         // If not hidden and should hide
         if (!_owner.IsHidden && HidePhases.Contains(currentPhase))
         {
