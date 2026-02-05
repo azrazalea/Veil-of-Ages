@@ -92,6 +92,48 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     protected EntityCommand? _currentCommand;
     protected Activity? _currentActivity;
 
+    // Hidden state - when true, entity is not visible, not on grid, and not detectable
+    private bool _isHidden;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this entity is hidden/dormant.
+    /// When hidden: invisible, not on grid (won't block pathfinding), and not detectable by perception.
+    /// Needs still decay and entity can still Think() and perform activities.
+    /// </summary>
+    public bool IsHidden
+    {
+        get => _isHidden;
+        set
+        {
+            if (_isHidden == value)
+            {
+                return;
+            }
+
+            _isHidden = value;
+            CallDeferred(nameof(ApplyHiddenStateDeferred));
+        }
+    }
+
+    /// <summary>
+    /// Applies the hidden state changes on the main thread.
+    /// Toggles visibility and grid occupancy.
+    /// </summary>
+    private void ApplyHiddenStateDeferred()
+    {
+        Visible = !_isHidden;
+
+        // Update grid occupancy - hidden entities don't block pathfinding
+        if (_isHidden)
+        {
+            GridArea?.RemoveEntity(GetCurrentGridPosition());
+        }
+        else
+        {
+            GridArea?.AddEntity(GetCurrentGridPosition(), this);
+        }
+    }
+
     protected MovementController? Movement { get; set; }
 
     /// <summary>

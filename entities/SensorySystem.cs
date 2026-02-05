@@ -72,6 +72,12 @@ public class SensorySystem
         _spatialHash.Clear();
         foreach (var sensable in _world.GetBeings())
         {
+            // Skip hidden entities - they can't be perceived
+            if (sensable.IsHidden)
+            {
+                continue;
+            }
+
             _spatialHash.Add(sensable);
         }
     }

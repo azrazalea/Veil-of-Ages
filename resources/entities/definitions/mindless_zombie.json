@@ -23,9 +23,10 @@
   "Traits": [
     { "TraitType": "ZombieLivingTrait", "Priority": 3, "Parameters": {} },
     { "TraitType": "HomeTrait", "Priority": 2, "Parameters": {} },
-    { "TraitType": "MindlessTrait", "Priority": 1, "Parameters": {} },
-    { "TraitType": "ItemConsumptionBehaviorTrait", "Priority": 0, "Parameters": { "foodTag": "zombie_food", "restoreAmount": 70, "consumptionDuration": 365 } },
-    { "TraitType": "ZombieTrait", "Priority": -1, "Parameters": {} }
+    { "TraitType": "DormantUndeadTrait", "Priority": 1, "Parameters": { "hidePhases": ["Day", "Dawn"], "emergePhases": ["Night", "Dusk"] } },
+    { "TraitType": "MindlessTrait", "Priority": 0, "Parameters": {} },
+    { "TraitType": "ItemConsumptionBehaviorTrait", "Priority": -1, "Parameters": { "foodTag": "zombie_food", "restoreAmount": 70, "consumptionDuration": 365 } },
+    { "TraitType": "ZombieTrait", "Priority": -2, "Parameters": {} }
   ],
   "Body": {
     "BaseStructure": "humanoid",

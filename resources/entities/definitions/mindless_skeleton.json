@@ -18,8 +18,10 @@
     "BaseMovementPointsPerTick": 0.39
   },
   "Traits": [
+    { "TraitType": "HomeTrait", "Priority": 3, "Parameters": {} },
+    { "TraitType": "DormantUndeadTrait", "Priority": 2, "Parameters": { "hidePhases": ["Day", "Dawn"], "emergePhases": ["Night", "Dusk"] } },
     { "TraitType": "MindlessTrait", "Priority": 1, "Parameters": {} },
-    { "TraitType": "SkeletonTrait", "Priority": 2, "Parameters": {} }
+    { "TraitType": "SkeletonTrait", "Priority": 0, "Parameters": {} }
   ],
   "Body": {
     "BaseStructure": "humanoid",

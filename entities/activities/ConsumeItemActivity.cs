@@ -86,6 +86,32 @@ public class ConsumeItemActivity : Activity
             }
         }
 
+        // Phase 0.5: Hidden entities skip navigation - they're already at home
+        if (_owner.IsHidden && !_isConsuming && !_itemConsumed && _home != null)
+        {
+            // Check if home building is valid
+            if (!GodotObject.IsInstanceValid(_home))
+            {
+                DebugLog("EATING", "Hidden: Home building no longer valid", 0);
+                Fail();
+                return null;
+            }
+
+            // Direct storage access (entity is inside the building)
+            if (_owner.StorageHasItemByTag(_home, _foodTag))
+            {
+                _isFromInventory = false;
+                _isConsuming = true;
+                DebugLog("EATING", $"Hidden: Found food at {_home.BuildingName}, starting to eat", 0);
+            }
+            else
+            {
+                Log.Warn($"{_owner.Name}: Hidden but no food at {_home.BuildingName}");
+                Fail();
+                return null;
+            }
+        }
+
         // Phase 1: Go to home if we haven't found food in inventory
         if (!_isConsuming && !_itemConsumed && _home != null)
         {
