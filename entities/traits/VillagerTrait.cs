@@ -32,7 +32,7 @@ public class VillagerTrait : BeingTrait
     private VillagerState _currentState = VillagerState.IdleAtHome;
 
     // Village knowledge
-    private Vector2I _squarePosition;
+    private Building? _wellBuilding;
     private Building? _currentDestinationBuilding;
 
     /// <summary>
@@ -72,10 +72,17 @@ public class VillagerTrait : BeingTrait
     {
         base.Initialize(owner, health, initQueue);
 
-        // Find village square (assume it's near the center of the map)
-        if (owner?.GridArea != null)
+        // Find the well building from SharedKnowledge (village gathering point)
+        if (owner != null)
         {
-            _squarePosition = new Vector2I(owner.GridArea.GridSize.X / 2, owner.GridArea.GridSize.Y / 2);
+            foreach (var knowledge in owner.SharedKnowledge)
+            {
+                if (knowledge.TryGetBuildingOfType("Well", out var wellRef) && wellRef?.Building != null)
+                {
+                    _wellBuilding = wellRef.Building;
+                    break;
+                }
+            }
         }
 
         if (owner == null || owner.Health == null)
@@ -238,13 +245,13 @@ public class VillagerTrait : BeingTrait
         // Daytime behavior
         if (_stateTimer == 0)
         {
-            // Chance to go to the village square
-            if (_rng.Randf() < WanderProbability)
+            // Chance to go to the village well (gathering point)
+            if (_rng.Randf() < WanderProbability && _wellBuilding != null)
             {
-                ChangeState(VillagerState.IdleAtSquare, "Going to village square");
+                ChangeState(VillagerState.IdleAtSquare, "Going to village well");
                 _stateTimer = (uint)_rng.RandiRange(100, 200);
-                var goToSquareActivity = new GoToLocationActivity(_squarePosition, priority: 1);
-                return new StartActivityAction(_owner, this, goToSquareActivity, priority: 1);
+                var goToWellActivity = new GoToBuildingActivity(_wellBuilding, priority: 1, requireInterior: false);
+                return new StartActivityAction(_owner, this, goToWellActivity, priority: 1);
             }
 
             // Chance to visit a building (using SharedKnowledge)
@@ -296,25 +303,30 @@ public class VillagerTrait : BeingTrait
             return null;
         }
 
-        // Check if GoToLocationActivity is still running
-        if (_owner.GetCurrentActivity() is GoToLocationActivity)
+        // Check if GoToBuildingActivity is still running
+        if (_owner.GetCurrentActivity() is GoToBuildingActivity)
         {
             // Let the activity handle navigation
             return null;
         }
 
-        // Activity completed or not started - check if we're at the square
-        Vector2I currentPos = _owner.GetCurrentGridPosition();
-        if (currentPos.DistanceTo(_squarePosition) > 3)
+        // Activity completed or not started - check if we're near the well
+        if (_wellBuilding != null)
         {
-            // Need to navigate to square (activity failed or wasn't started)
-            var goToSquareActivity = new GoToLocationActivity(_squarePosition, priority: 1);
-            return new StartActivityAction(_owner, this, goToSquareActivity, priority: 1);
+            Vector2I currentPos = _owner.GetCurrentGridPosition();
+            Vector2I wellPos = _wellBuilding.GetCurrentGridPosition();
+            if (currentPos.DistanceTo(wellPos) > 3)
+            {
+                // Need to navigate to well (activity failed or wasn't started)
+                var goToWellActivity = new GoToBuildingActivity(_wellBuilding, priority: 1, requireInterior: false);
+                return new StartActivityAction(_owner, this, goToWellActivity, priority: 1);
+            }
         }
 
-        // If we're at the square, just idle or wander slightly
+        // If we're near the well, just idle or wander slightly
         if (_rng.Randf() < 0.2f)
         {
+            Vector2I currentPos = _owner.GetCurrentGridPosition();
             int dx = _rng.RandiRange(-1, 1);
             int dy = _rng.RandiRange(-1, 1);
             Vector2I targetPos = currentPos + new Vector2I(dx, dy);

@@ -29,6 +29,12 @@ public class HomeTrait : BeingTrait
     public override void Initialize(Being owner, BodyHealth? health, Queue<BeingTrait>? initQueue = null)
     {
         base.Initialize(owner, health, initQueue);
+
+        // Register as resident now that _owner is available.
+        // Configure() may have set _home before _owner was set,
+        // so we need to do the AddResident call here.
+        _home?.AddResident(_owner!);
+
         IsInitialized = true;
     }
 
@@ -54,7 +60,13 @@ public class HomeTrait : BeingTrait
         _home = home;
         Log.Print($"{_owner?.Name}: Home set to {home.BuildingName}");
 
-        // Register as a resident of the home
-        home.AddResident(_owner!);
+        // Register as a resident of the home.
+        // Only call AddResident if _owner is already set (i.e., Initialize has run).
+        // If called from Configure() before Initialize(), the registration is
+        // deferred to Initialize() where _owner becomes available.
+        if (_owner != null)
+        {
+            home.AddResident(_owner);
+        }
     }
 }

@@ -693,7 +693,7 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
     // Resident management methods
     public void AddResident(Being being)
     {
-        if (!_residents.Contains(being) && _residents.Count < _capacity)
+        if (being != null && !_residents.Contains(being) && _residents.Count < _capacity)
         {
             _residents.Add(being);
         }
