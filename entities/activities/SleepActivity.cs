@@ -42,6 +42,13 @@ public class SleepActivity : Activity
         _energyNeed = owner.NeedsSystem?.GetNeed("energy");
     }
 
+    protected override void OnInterrupted(InterruptionReason reason)
+    {
+        // Sleep can't be paused - cancel it entirely
+        DebugLog("SLEEP", $"Sleep interrupted by {reason}, cancelling", 0);
+        Fail();
+    }
+
     public override EntityAction? GetNextAction(Vector2I position, Perception perception)
     {
         if (_owner == null)

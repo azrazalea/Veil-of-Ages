@@ -15,10 +15,26 @@ namespace VeilOfAges.Entities.Activities;
 /// The distributor visits all households to:
 /// 1. Deliver items they need (from granary stock)
 /// 2. Collect excess items (bread, wheat) to bring back to granary.
+///
+/// Uses a Stateless state machine to manage phase transitions and interruption/resumption.
+///
+/// Three-zone regression on interruption:
+/// - Granary zone (ReadingOrders, CheckingGranaryStock, LoadingDeliveryItems) regresses to GoingToGranary
+/// - Household zone (CheckingHousehold, ExchangingItems, TakingBreak) regresses to GoingToHousehold
+/// - Return zone (DepositingCollected) regresses to ReturningToGranary
+///
+/// Navigation states (GoingToGranary, GoingToHousehold, ReturningToGranary) use PermitReentry
+/// to force fresh pathfinder creation on both interruption and resumption.
+///
+/// Progress is preserved across interruptions: households visited, items collected/delivered,
+/// exchange sub-phase state, etc. Only navigation sub-activities are invalidated.
 /// </summary>
-public class DistributorRoundActivity : Activity
+public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivity.DistributionState, DistributorRoundActivity.DistributionTrigger>
 {
-    private enum DistributionPhase
+    /// <summary>
+    /// States representing the phases of a distribution round.
+    /// </summary>
+    public enum DistributionState
     {
         GoingToGranary,
         ReadingOrders,
@@ -30,7 +46,27 @@ public class DistributorRoundActivity : Activity
         TakingBreak,
         ReturningToGranary,
         DepositingCollected,
-        Done
+    }
+
+    /// <summary>
+    /// Triggers that cause state transitions.
+    /// </summary>
+    public enum DistributionTrigger
+    {
+        ArrivedAtGranary,
+        OrdersRead,
+        StockChecked,
+        ItemsLoaded,
+        ArrivedAtHousehold,
+        HouseholdChecked,
+        ExchangeComplete,
+        BreakComplete,
+        ArrivedBackAtGranary,
+        ItemsDeposited,
+        NoHouseholdsToVisit,
+        TakeBreak,
+        Interrupted,
+        Resumed,
     }
 
     private const uint READINGDURATION = 30;
@@ -44,10 +80,7 @@ public class DistributorRoundActivity : Activity
     private const int WHEATEXCESSTHRESHOLD = 5;  // Collect wheat if household has more than this
 
     private readonly Building _granary;
-    private GoToBuildingActivity? _goToGranaryPhase;
-    private GoToBuildingActivity? _goToHouseholdPhase;
 
-    private DistributionPhase _currentPhase = DistributionPhase.GoingToGranary;
     private uint _phaseTimer;
 
     // All households to visit (from standing orders)
@@ -93,35 +126,115 @@ public class DistributorRoundActivity : Activity
     private DepositToStorageAction? _depositAction;
     private int _lastDepositedQuantity;
 
-    public override string DisplayName => _currentPhase switch
+    protected override DistributionTrigger InterruptedTrigger => DistributionTrigger.Interrupted;
+
+    protected override DistributionTrigger ResumedTrigger => DistributionTrigger.Resumed;
+
+    public override string DisplayName => _machine.State switch
     {
-        DistributionPhase.GoingToGranary => "Going to granary",
-        DistributionPhase.ReadingOrders => "Reading delivery orders",
-        DistributionPhase.CheckingGranaryStock => "Checking granary stock",
-        DistributionPhase.LoadingDeliveryItems => "Loading items for delivery",
-        DistributionPhase.GoingToHousehold => "Visiting household",
-        DistributionPhase.CheckingHousehold => "Checking household stock",
-        DistributionPhase.ExchangingItems => "Exchanging items",
-        DistributionPhase.TakingBreak => "Taking a break",
-        DistributionPhase.ReturningToGranary => "Returning to granary",
-        DistributionPhase.DepositingCollected => "Depositing collected items",
+        DistributionState.GoingToGranary => "Going to granary",
+        DistributionState.ReadingOrders => "Reading delivery orders",
+        DistributionState.CheckingGranaryStock => "Checking granary stock",
+        DistributionState.LoadingDeliveryItems => "Loading items for delivery",
+        DistributionState.GoingToHousehold => "Visiting household",
+        DistributionState.CheckingHousehold => "Checking household stock",
+        DistributionState.ExchangingItems => "Exchanging items",
+        DistributionState.TakingBreak => "Taking a break",
+        DistributionState.ReturningToGranary => "Returning to granary",
+        DistributionState.DepositingCollected => "Depositing collected items",
         _ => "Distributing"
     };
 
-    public override Building? TargetBuilding => _currentPhase switch
+    public override Building? TargetBuilding => _machine.State switch
     {
-        DistributionPhase.GoingToHousehold or DistributionPhase.CheckingHousehold or DistributionPhase.ExchangingItems
+        DistributionState.GoingToHousehold or DistributionState.CheckingHousehold or DistributionState.ExchangingItems
             => _currentHouseholdIndex < _householdsToVisit.Count ? _householdsToVisit[_currentHouseholdIndex] : _granary,
         _ => _granary
     };
 
     public DistributorRoundActivity(Building granary, int priority = 0)
+        : base(DistributionState.GoingToGranary)
     {
         _granary = granary;
         Priority = priority;
 
         // Distributors get hungry faster (lots of walking)
         NeedDecayMultipliers["hunger"] = 1.3f;
+
+        ConfigureStateMachine();
+    }
+
+    /// <summary>
+    /// Configures the state machine transitions, including interruption/resumption behavior.
+    ///
+    /// Three-zone regression:
+    /// - Granary zone: ReadingOrders, CheckingGranaryStock, LoadingDeliveryItems regress to GoingToGranary
+    /// - Household zone: CheckingHousehold, ExchangingItems, TakingBreak regress to GoingToHousehold
+    /// - Return zone: DepositingCollected regresses to ReturningToGranary
+    ///
+    /// Navigation states use PermitReentry for both Interrupted and Resumed to force fresh pathfinder creation.
+    /// Sub-activity references are automatically nulled by the base class OnTransitioned callback.
+    /// </summary>
+    private void ConfigureStateMachine()
+    {
+        // GoingToGranary: navigation state for granary zone
+        _machine.Configure(DistributionState.GoingToGranary)
+            .Permit(DistributionTrigger.ArrivedAtGranary, DistributionState.ReadingOrders)
+            .PermitReentry(DistributionTrigger.Interrupted)
+            .PermitReentry(DistributionTrigger.Resumed);
+
+        // ReadingOrders: timed work phase at granary
+        _machine.Configure(DistributionState.ReadingOrders)
+            .Permit(DistributionTrigger.OrdersRead, DistributionState.CheckingGranaryStock)
+            .Permit(DistributionTrigger.Interrupted, DistributionState.GoingToGranary);
+
+        // CheckingGranaryStock: observe storage contents
+        _machine.Configure(DistributionState.CheckingGranaryStock)
+            .Permit(DistributionTrigger.StockChecked, DistributionState.LoadingDeliveryItems)
+            .Permit(DistributionTrigger.Interrupted, DistributionState.GoingToGranary);
+
+        // LoadingDeliveryItems: transfer items from granary to inventory
+        _machine.Configure(DistributionState.LoadingDeliveryItems)
+            .Permit(DistributionTrigger.ItemsLoaded, DistributionState.GoingToHousehold)
+            .Permit(DistributionTrigger.NoHouseholdsToVisit, DistributionState.ReturningToGranary)
+            .Permit(DistributionTrigger.Interrupted, DistributionState.GoingToGranary);
+
+        // GoingToHousehold: navigation state for household zone
+        _machine.Configure(DistributionState.GoingToHousehold)
+            .Permit(DistributionTrigger.ArrivedAtHousehold, DistributionState.CheckingHousehold)
+            .Permit(DistributionTrigger.NoHouseholdsToVisit, DistributionState.ReturningToGranary)
+            .PermitReentry(DistributionTrigger.Interrupted)
+            .PermitReentry(DistributionTrigger.Resumed);
+
+        // CheckingHousehold: observe household storage
+        _machine.Configure(DistributionState.CheckingHousehold)
+            .Permit(DistributionTrigger.HouseholdChecked, DistributionState.ExchangingItems)
+            .Permit(DistributionTrigger.NoHouseholdsToVisit, DistributionState.ReturningToGranary)
+            .Permit(DistributionTrigger.Interrupted, DistributionState.GoingToHousehold);
+
+        // ExchangingItems: deliver and collect items at household
+        _machine.Configure(DistributionState.ExchangingItems)
+            .Permit(DistributionTrigger.ExchangeComplete, DistributionState.GoingToHousehold)
+            .Permit(DistributionTrigger.TakeBreak, DistributionState.TakingBreak)
+            .Permit(DistributionTrigger.NoHouseholdsToVisit, DistributionState.ReturningToGranary)
+            .Permit(DistributionTrigger.Interrupted, DistributionState.GoingToHousehold);
+
+        // TakingBreak: short rest between households
+        _machine.Configure(DistributionState.TakingBreak)
+            .Permit(DistributionTrigger.BreakComplete, DistributionState.GoingToHousehold)
+            .Permit(DistributionTrigger.Interrupted, DistributionState.GoingToHousehold);
+
+        // ReturningToGranary: navigation state for return zone
+        _machine.Configure(DistributionState.ReturningToGranary)
+            .Permit(DistributionTrigger.ArrivedBackAtGranary, DistributionState.DepositingCollected)
+            .PermitReentry(DistributionTrigger.Interrupted)
+            .PermitReentry(DistributionTrigger.Resumed);
+
+        // DepositingCollected: deposit collected items at granary
+        _machine.Configure(DistributionState.DepositingCollected)
+            .Permit(DistributionTrigger.Interrupted, DistributionState.ReturningToGranary);
+
+        // ItemsDeposited is handled by Complete() directly, no state transition needed
     }
 
     public override void Initialize(Being owner)
@@ -144,18 +257,18 @@ public class DistributorRoundActivity : Activity
             return null;
         }
 
-        return _currentPhase switch
+        return _machine.State switch
         {
-            DistributionPhase.GoingToGranary => ProcessGoingToGranary(position, perception),
-            DistributionPhase.ReadingOrders => ProcessReadingOrders(),
-            DistributionPhase.CheckingGranaryStock => ProcessCheckingGranaryStock(),
-            DistributionPhase.LoadingDeliveryItems => ProcessLoadingDeliveryItems(),
-            DistributionPhase.GoingToHousehold => ProcessGoingToHousehold(position, perception),
-            DistributionPhase.CheckingHousehold => ProcessCheckingHousehold(),
-            DistributionPhase.ExchangingItems => ProcessExchangingItems(),
-            DistributionPhase.TakingBreak => ProcessTakingBreak(),
-            DistributionPhase.ReturningToGranary => ProcessReturningToGranary(position, perception),
-            DistributionPhase.DepositingCollected => ProcessDepositingCollected(),
+            DistributionState.GoingToGranary => ProcessGoingToGranary(position, perception),
+            DistributionState.ReadingOrders => ProcessReadingOrders(),
+            DistributionState.CheckingGranaryStock => ProcessCheckingGranaryStock(),
+            DistributionState.LoadingDeliveryItems => ProcessLoadingDeliveryItems(),
+            DistributionState.GoingToHousehold => ProcessGoingToHousehold(position, perception),
+            DistributionState.CheckingHousehold => ProcessCheckingHousehold(),
+            DistributionState.ExchangingItems => ProcessExchangingItems(),
+            DistributionState.TakingBreak => ProcessTakingBreak(),
+            DistributionState.ReturningToGranary => ProcessReturningToGranary(position, perception),
+            DistributionState.DepositingCollected => ProcessDepositingCollected(),
             _ => null
         };
     }
@@ -167,13 +280,13 @@ public class DistributorRoundActivity : Activity
             return null;
         }
 
-        if (_goToGranaryPhase == null)
-        {
-            _goToGranaryPhase = new GoToBuildingActivity(_granary, Priority, targetStorage: true);
-            _goToGranaryPhase.Initialize(_owner);
-        }
-
-        var (result, action) = RunSubActivity(_goToGranaryPhase, position, perception);
+        var (result, action) = RunCurrentSubActivity(
+            () =>
+            {
+                DebugLog("DISTRIBUTOR", $"Starting navigation to granary: {_granary.BuildingName}", 0);
+                return new GoToBuildingActivity(_granary, Priority, targetStorage: true);
+            },
+            position, perception);
         switch (result)
         {
             case SubActivityResult.Failed:
@@ -185,9 +298,9 @@ public class DistributorRoundActivity : Activity
                 break;
         }
 
-        _currentPhase = DistributionPhase.ReadingOrders;
         _phaseTimer = ActivityTiming.GetVariedDuration(READINGDURATION, 0.2f);
         DebugLog("DISTRIBUTOR", "Arrived at granary, reading orders", 0);
+        _machine.Fire(DistributionTrigger.ArrivedAtGranary);
         return new IdleAction(_owner, this, Priority);
     }
 
@@ -234,7 +347,7 @@ public class DistributorRoundActivity : Activity
             DebugLog("DISTRIBUTOR", $"  To visit: {h.BuildingName} (hash: {h.GetHashCode()})", 0);
         }
 
-        _currentPhase = DistributionPhase.CheckingGranaryStock;
+        _machine.Fire(DistributionTrigger.OrdersRead);
         return new IdleAction(_owner, this, Priority);
     }
 
@@ -249,13 +362,13 @@ public class DistributorRoundActivity : Activity
         var storage = _owner.AccessStorage(_granary);
         if (storage == null)
         {
-            _goToGranaryPhase = null;
-            _currentPhase = DistributionPhase.GoingToGranary;
+            // Not adjacent - regress to navigation via reentry
+            _machine.Fire(DistributionTrigger.Interrupted);
             return new IdleAction(_owner, this, Priority);
         }
 
         DebugLog("DISTRIBUTOR", $"Granary stock: {storage.GetContentsSummary()}", 0);
-        _currentPhase = DistributionPhase.LoadingDeliveryItems;
+        _machine.Fire(DistributionTrigger.StockChecked);
         return new IdleAction(_owner, this, Priority);
     }
 
@@ -333,13 +446,12 @@ public class DistributorRoundActivity : Activity
 
             if (_householdsToVisit.Count > 0)
             {
-                _goToHouseholdPhase = null;
-                _currentPhase = DistributionPhase.GoingToHousehold;
+                _machine.Fire(DistributionTrigger.ItemsLoaded);
             }
             else
             {
                 DebugLog("DISTRIBUTOR", "No households to visit", 0);
-                _currentPhase = DistributionPhase.ReturningToGranary;
+                _machine.Fire(DistributionTrigger.NoHouseholdsToVisit);
             }
 
             return new IdleAction(_owner, this, Priority);
@@ -385,7 +497,7 @@ public class DistributorRoundActivity : Activity
 
         if (_currentHouseholdIndex >= _householdsToVisit.Count)
         {
-            _currentPhase = DistributionPhase.ReturningToGranary;
+            _machine.Fire(DistributionTrigger.NoHouseholdsToVisit);
             return new IdleAction(_owner, this, Priority);
         }
 
@@ -394,22 +506,24 @@ public class DistributorRoundActivity : Activity
         if (!GodotObject.IsInstanceValid(household))
         {
             _currentHouseholdIndex++;
-            _goToHouseholdPhase = null;
+
+            // Null the sub-activity so the next iteration creates a fresh one for the next household
+            _currentSubActivity = null;
             return new IdleAction(_owner, this, Priority);
         }
 
-        if (_goToHouseholdPhase == null)
-        {
-            _goToHouseholdPhase = new GoToBuildingActivity(household, Priority, targetStorage: true);
-            _goToHouseholdPhase.Initialize(_owner);
-        }
-
-        var (result, action) = RunSubActivity(_goToHouseholdPhase, position, perception);
+        var (result, action) = RunCurrentSubActivity(
+            () =>
+            {
+                DebugLog("DISTRIBUTOR", $"Starting navigation to household: {household.BuildingName}", 0);
+                return new GoToBuildingActivity(household, Priority, targetStorage: true);
+            },
+            position, perception);
         switch (result)
         {
             case SubActivityResult.Failed:
                 _currentHouseholdIndex++;
-                _goToHouseholdPhase = null;
+                _currentSubActivity = null;
                 return new IdleAction(_owner, this, Priority);
             case SubActivityResult.Continue:
                 return action;
@@ -417,8 +531,8 @@ public class DistributorRoundActivity : Activity
                 break;
         }
 
-        _currentPhase = DistributionPhase.CheckingHousehold;
         DebugLog("DISTRIBUTOR", $"Arrived at {household.BuildingName}", 0);
+        _machine.Fire(DistributionTrigger.ArrivedAtHousehold);
         return new IdleAction(_owner, this, Priority);
     }
 
@@ -431,7 +545,7 @@ public class DistributorRoundActivity : Activity
 
         if (_currentHouseholdIndex >= _householdsToVisit.Count)
         {
-            _currentPhase = DistributionPhase.ReturningToGranary;
+            _machine.Fire(DistributionTrigger.NoHouseholdsToVisit);
             return new IdleAction(_owner, this, Priority);
         }
 
@@ -441,16 +555,14 @@ public class DistributorRoundActivity : Activity
         var storage = _owner.AccessStorage(household);
         if (storage == null)
         {
-            // Not adjacent, skip this household
-            _currentHouseholdIndex++;
-            _goToHouseholdPhase = null;
-            _currentPhase = DistributionPhase.GoingToHousehold;
+            // Not adjacent, regress to navigation via reentry
+            _machine.Fire(DistributionTrigger.Interrupted);
             return new IdleAction(_owner, this, Priority);
         }
 
         DebugLog("DISTRIBUTOR", $"{household.BuildingName} has: {storage.GetContentsSummary()}", 0);
 
-        _currentPhase = DistributionPhase.ExchangingItems;
+        _machine.Fire(DistributionTrigger.HouseholdChecked);
         return new IdleAction(_owner, this, Priority);
     }
 
@@ -463,7 +575,7 @@ public class DistributorRoundActivity : Activity
 
         if (_currentHouseholdIndex >= _householdsToVisit.Count)
         {
-            _currentPhase = DistributionPhase.ReturningToGranary;
+            _machine.Fire(DistributionTrigger.NoHouseholdsToVisit);
             return new IdleAction(_owner, this, Priority);
         }
 
@@ -714,24 +826,23 @@ public class DistributorRoundActivity : Activity
     private void MoveToNextHousehold()
     {
         _currentHouseholdIndex++;
-        _goToHouseholdPhase = null;
 
         if (_currentHouseholdIndex < _householdsToVisit.Count)
         {
             if (ActivityTiming.ShouldTakeBreak(BREAKPROBABILITY))
             {
                 _phaseTimer = ActivityTiming.GetBreakDuration(MINBREAKDURATION, MAXBREAKDURATION);
-                _currentPhase = DistributionPhase.TakingBreak;
+                _machine.Fire(DistributionTrigger.TakeBreak);
                 DebugLog("DISTRIBUTOR", $"Taking a short break ({_phaseTimer} ticks)", 0);
             }
             else
             {
-                _currentPhase = DistributionPhase.GoingToHousehold;
+                _machine.Fire(DistributionTrigger.ExchangeComplete);
             }
         }
         else
         {
-            _currentPhase = DistributionPhase.ReturningToGranary;
+            _machine.Fire(DistributionTrigger.NoHouseholdsToVisit);
         }
     }
 
@@ -749,7 +860,7 @@ public class DistributorRoundActivity : Activity
         }
 
         DebugLog("DISTRIBUTOR", "Break finished, continuing rounds", 0);
-        _currentPhase = DistributionPhase.GoingToHousehold;
+        _machine.Fire(DistributionTrigger.BreakComplete);
         return new IdleAction(_owner, this, Priority);
     }
 
@@ -761,10 +872,13 @@ public class DistributorRoundActivity : Activity
             return null;
         }
 
-        _goToGranaryPhase = new GoToBuildingActivity(_granary, Priority, targetStorage: true);
-        _goToGranaryPhase.Initialize(_owner);
-
-        var (result, action) = RunSubActivity(_goToGranaryPhase, position, perception);
+        var (result, action) = RunCurrentSubActivity(
+            () =>
+            {
+                DebugLog("DISTRIBUTOR", $"Starting navigation back to granary: {_granary.BuildingName}", 0);
+                return new GoToBuildingActivity(_granary, Priority, targetStorage: true);
+            },
+            position, perception);
         switch (result)
         {
             case SubActivityResult.Failed:
@@ -780,7 +894,7 @@ public class DistributorRoundActivity : Activity
         int totalCollected = _collectedItems.Values.Sum();
         if (totalCollected > 0)
         {
-            _currentPhase = DistributionPhase.DepositingCollected;
+            _machine.Fire(DistributionTrigger.ArrivedBackAtGranary);
             DebugLog("DISTRIBUTOR", $"Back at granary, depositing {_collectedItems.Count} collected item types ({totalCollected} total items)", 0);
         }
         else

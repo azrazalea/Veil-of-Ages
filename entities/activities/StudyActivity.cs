@@ -70,6 +70,12 @@ public class StudyActivity : Activity
         DebugLog("ACTIVITY", $"Started StudyActivity at {_home.BuildingName}, priority: {Priority}, study duration: {_studyDuration} ticks", 0);
     }
 
+    protected override void OnResume()
+    {
+        base.OnResume();
+        _goToStudyPhase = null; // Force fresh pathfinder
+    }
+
     public override EntityAction? GetNextAction(Vector2I position, Perception perception)
     {
         if (_owner == null)

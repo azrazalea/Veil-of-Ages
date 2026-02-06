@@ -61,6 +61,12 @@ public class ConsumeItemActivity : Activity
         Priority = priority;
     }
 
+    protected override void OnResume()
+    {
+        base.OnResume();
+        _goToPhase = null; // Force fresh pathfinder
+    }
+
     public override EntityAction? GetNextAction(Vector2I position, Perception perception)
     {
         if (_owner == null)

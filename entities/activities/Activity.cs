@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
 using Godot;
+using Stateless;
 using VeilOfAges.Core.Lib;
+using VeilOfAges.Entities;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Sensory;
 
@@ -79,6 +82,74 @@ public abstract class Activity
     /// If false, the entity will never step aside and others must queue or go around.
     /// </summary>
     public virtual bool IsInterruptible => true;
+
+    /// <summary>
+    /// Reasons an activity can be interrupted.
+    /// </summary>
+    public enum InterruptionReason
+    {
+        Command,
+        Pushed,
+        HighPriorityTrait
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether tracks whether this activity has been interrupted by a command/push.
+    /// Reset when the interruption ends (e.g., command completes).
+    /// </summary>
+    protected bool WasInterrupted { get; set; }
+
+    /// <summary>
+    /// Process entity events from perception before suggesting action.
+    /// Called by Being.Think() before GetNextAction() - activities do not need to call this manually.
+    /// Override to customize event handling.
+    /// </summary>
+    /// <param name="perception">Current perception with entity events.</param>
+    public virtual void ProcessEntityEvents(Perception perception)
+    {
+        // Check for command interruption
+        if (perception.HasEntityEvent(EntityEventType.CommandAssigned))
+        {
+            OnInterrupted(InterruptionReason.Command);
+        }
+
+        // Check for push
+        if (perception.HasEntityEvent(EntityEventType.EntityPushed))
+        {
+            OnInterrupted(InterruptionReason.Pushed);
+        }
+
+        // Check for command completion (can resume)
+        if (perception.HasEntityEvent(EntityEventType.CommandCompleted))
+        {
+            OnResume();
+        }
+    }
+
+    /// <summary>
+    /// Called when this activity is interrupted.
+    /// Default: Sets WasInterrupted flag.
+    /// Override for custom behavior (e.g., reset phase, cancel).
+    /// </summary>
+    protected virtual void OnInterrupted(InterruptionReason reason)
+    {
+        WasInterrupted = true;
+        DebugLog("ACTIVITY", $"Interrupted by {reason}", 0);
+    }
+
+    /// <summary>
+    /// Called when interruption ends and activity can resume.
+    /// Default: Clears WasInterrupted flag.
+    /// Override for custom resumption behavior.
+    /// </summary>
+    protected virtual void OnResume()
+    {
+        if (WasInterrupted)
+        {
+            DebugLog("ACTIVITY", "Resuming after interruption", 0);
+            WasInterrupted = false;
+        }
+    }
 
     /// <summary>
     /// Try to find an alternate path around a blocking entity.
@@ -263,6 +334,20 @@ public abstract class Activity
             return (SubActivityResult.Completed, null);
         }
 
+        // Propagate entity events to sub-activity (may change state)
+        subActivity.ProcessEntityEvents(perception);
+
+        // Check state after event processing
+        if (subActivity.State == ActivityState.Failed)
+        {
+            return (SubActivityResult.Failed, null);
+        }
+
+        if (subActivity.State == ActivityState.Completed)
+        {
+            return (SubActivityResult.Completed, null);
+        }
+
         // Try to get next action
         var action = subActivity.GetNextAction(position, perception);
 
@@ -298,6 +383,112 @@ public abstract class Activity
         if (_owner?.DebugEnabled == true)
         {
             Log.EntityDebug(_owner.Name, category, message, tickInterval);
+        }
+    }
+}
+
+/// <summary>
+/// Base class for activities that use a Stateless state machine for phase management.
+/// Subclasses define TState (phase enum) and TTrigger (transition triggers enum).
+/// The state machine handles interruption/resumption automatically via triggers.
+///
+/// Threading: The state machine is only touched by the owning entity's think thread,
+/// so no locking is needed.
+/// </summary>
+public abstract class StatefulActivity<TState, TTrigger> : Activity
+    where TState : notnull
+    where TTrigger : notnull
+{
+    /// <summary>
+    /// The Stateless state machine that drives phase transitions.
+    /// Subclasses configure this in their constructor via ConfigureStateMachine().
+    /// </summary>
+    protected StateMachine<TState, TTrigger> _machine;
+
+    /// <summary>
+    /// Gets the trigger to fire when the activity is interrupted by a command or push.
+    /// Subclasses must return their enum value for the Interrupted trigger.
+    /// </summary>
+    protected abstract TTrigger InterruptedTrigger { get; }
+
+    /// <summary>
+    /// Gets the trigger to fire when the interruption ends and the activity can resume.
+    /// Subclasses must return their enum value for the Resumed trigger.
+    /// </summary>
+    protected abstract TTrigger ResumedTrigger { get; }
+
+    /// <summary>
+    /// The currently active sub-activity for the current state.
+    /// Automatically nulled when the state machine transitions to a new state.
+    /// Subclasses create sub-activities lazily in their Process* methods.
+    /// </summary>
+    protected Activity? _currentSubActivity;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="StatefulActivity{TState, TTrigger}"/> class.
+    /// Creates the state machine with the given initial state.
+    /// Subclasses should call ConfigureStateMachine() in their constructor after this.
+    /// </summary>
+    /// <param name="initialState">The starting state for the state machine.</param>
+    protected StatefulActivity(TState initialState)
+    {
+        _machine = new StateMachine<TState, TTrigger>(initialState);
+        _machine.OnTransitioned(transition =>
+        {
+            _currentSubActivity = null;
+        });
+    }
+
+    /// <summary>
+    /// Gets current state of the activity's state machine.
+    /// </summary>
+    public TState CurrentState => _machine.State;
+
+    /// <summary>
+    /// Run the current sub-activity via the base RunSubActivity method.
+    /// Creates the sub-activity lazily if null using the provided factory.
+    /// </summary>
+    protected (SubActivityResult result, EntityAction? action) RunCurrentSubActivity(
+        Func<Activity> factory, Vector2I position, Perception perception)
+    {
+        if (_currentSubActivity == null)
+        {
+            _currentSubActivity = factory();
+            _currentSubActivity.Initialize(_owner!);
+        }
+
+        return RunSubActivity(_currentSubActivity, position, perception);
+    }
+
+    /// <summary>
+    /// Processes entity events by firing Interrupted/Resumed triggers on the state machine
+    /// instead of using the manual OnInterrupted/OnResume virtual methods.
+    /// </summary>
+    /// <param name="perception">Current perception with entity events.</param>
+    public override void ProcessEntityEvents(Perception perception)
+    {
+        // Check for interruption (command assigned or entity pushed)
+        if (perception.HasEntityEvent(EntityEventType.CommandAssigned) ||
+            perception.HasEntityEvent(EntityEventType.EntityPushed))
+        {
+            if (_machine.CanFire(InterruptedTrigger))
+            {
+                _machine.Fire(InterruptedTrigger);
+                WasInterrupted = true;
+                DebugLog("ACTIVITY", $"State machine interrupted, now in {_machine.State}", 0);
+            }
+        }
+
+        // Check for resumption (command completed)
+        if (perception.HasEntityEvent(EntityEventType.CommandCompleted))
+        {
+            if (WasInterrupted && _machine.CanFire(ResumedTrigger))
+            {
+                _machine.Fire(ResumedTrigger);
+                DebugLog("ACTIVITY", $"State machine resumed, now in {_machine.State}", 0);
+            }
+
+            WasInterrupted = false;
         }
     }
 }

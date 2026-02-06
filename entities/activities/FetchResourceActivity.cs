@@ -13,23 +13,41 @@ namespace VeilOfAges.Entities.Activities;
 /// Activity for fetching resources from one building (source) and bringing them to another (destination).
 /// Used by bakers to fetch water from the well, or any entity that needs to transport items between buildings.
 ///
-/// Phases:
-/// 1. Navigate to source building
-/// 2. Work at source (if FetchDuration > 0, e.g., drawing water from a well)
-/// 3. Take items from source storage into inventory
-/// 4. Navigate to destination building
-/// 5. Deposit items from inventory to destination storage.
+/// Uses a Stateless state machine to manage phase transitions and interruption/resumption.
+///
+/// States:
+/// GoingToSource -> WorkingAtSource -> TakingResource -> GoingToDestination -> DepositingResource
+///
+/// Interruption behavior (two-zone regression):
+/// - Source zone (GoingToSource, WorkingAtSource, TakingResource) regresses to GoingToSource
+/// - Destination zone (GoingToDestination, DepositingResource) regresses to GoingToDestination.
 /// </summary>
-public class FetchResourceActivity : Activity
+public class FetchResourceActivity : StatefulActivity<FetchResourceActivity.FetchState, FetchResourceActivity.FetchTrigger>
 {
-    private enum FetchPhase
+    /// <summary>
+    /// States representing the phases of fetching a resource.
+    /// </summary>
+    public enum FetchState
     {
         GoingToSource,
         WorkingAtSource,
         TakingResource,
         GoingToDestination,
         DepositingResource,
-        Done
+    }
+
+    /// <summary>
+    /// Triggers that cause state transitions.
+    /// </summary>
+    public enum FetchTrigger
+    {
+        ArrivedAtSource,
+        WorkComplete,
+        ResourceTaken,
+        ArrivedAtDestination,
+        ResourceDeposited,
+        Interrupted,
+        Resumed,
     }
 
     private readonly Building _sourceBuilding;
@@ -37,14 +55,9 @@ public class FetchResourceActivity : Activity
     private readonly string _itemId;
     private readonly int _desiredQuantity;
 
-    private GoToBuildingActivity? _goToSourcePhase;
-    private GoToBuildingActivity? _goToDestinationPhase;
-    private TakeFromStorageActivity? _takeResourcePhase;
-    private DepositToStorageActivity? _depositResourcePhase;
-    private FetchPhase _currentPhase = FetchPhase.GoingToSource;
     private int _actualQuantityTaken;
 
-    // Work phase tracking
+    // Work phase tracking (progress preserved across interruptions)
     private uint _workTimer;
     private uint _fetchDuration;
     private Need? _energyNeed;
@@ -52,23 +65,32 @@ public class FetchResourceActivity : Activity
     // Energy cost per tick while working (same as DrawWaterActivity)
     private const float ENERGYCOSTPERTICK = 0.02f;
 
-    public override string DisplayName => _currentPhase switch
+    protected override FetchTrigger InterruptedTrigger => FetchTrigger.Interrupted;
+
+    protected override FetchTrigger ResumedTrigger => FetchTrigger.Resumed;
+
+    public override string DisplayName => _machine.State switch
     {
-        FetchPhase.GoingToSource => $"Going to get {_itemId}",
-        FetchPhase.WorkingAtSource => $"Fetching {_itemId}",
-        FetchPhase.TakingResource => $"Taking {_itemId}",
-        FetchPhase.GoingToDestination => $"Bringing {_itemId}",
-        FetchPhase.DepositingResource => $"Storing {_itemId}",
+        FetchState.GoingToSource => $"Going to get {_itemId}",
+        FetchState.WorkingAtSource => $"Fetching {_itemId}",
+        FetchState.TakingResource => $"Taking {_itemId}",
+        FetchState.GoingToDestination => $"Bringing {_itemId}",
+        FetchState.DepositingResource => $"Storing {_itemId}",
         _ => $"Fetching {_itemId}"
     };
-    public override Building? TargetBuilding => _currentPhase <= FetchPhase.TakingResource ? _sourceBuilding : _destinationBuilding;
+
+    public override Building? TargetBuilding => _machine.State is FetchState.GoingToSource
+        or FetchState.WorkingAtSource
+        or FetchState.TakingResource
+            ? _sourceBuilding
+            : _destinationBuilding;
 
     public override List<Vector2I> GetAlternativeGoalPositions(Being entity)
     {
         // When working at source, delegate to the navigation sub-activity for goal positions
-        if (_currentPhase == FetchPhase.WorkingAtSource && _goToSourcePhase != null)
+        if (_machine.State == FetchState.WorkingAtSource && _currentSubActivity != null)
         {
-            return _goToSourcePhase.GetAlternativeGoalPositions(entity);
+            return _currentSubActivity.GetAlternativeGoalPositions(entity);
         }
 
         return new List<Vector2I>();
@@ -89,12 +111,55 @@ public class FetchResourceActivity : Activity
         string itemId,
         int desiredQuantity,
         int priority = 0)
+        : base(FetchState.GoingToSource)
     {
         _sourceBuilding = sourceBuilding;
         _destinationBuilding = destinationBuilding;
         _itemId = itemId;
         _desiredQuantity = desiredQuantity;
         Priority = priority;
+
+        ConfigureStateMachine();
+    }
+
+    /// <summary>
+    /// Configures the state machine transitions, including interruption/resumption behavior.
+    ///
+    /// Source zone states (GoingToSource, WorkingAtSource, TakingResource) regress to GoingToSource on interruption.
+    /// Destination zone states (GoingToDestination, DepositingResource) regress to GoingToDestination on interruption.
+    /// Navigation states use PermitReentry for Resumed to force fresh pathfinder creation.
+    /// Sub-activity references are automatically nulled by the base class OnTransitioned callback.
+    /// </summary>
+    private void ConfigureStateMachine()
+    {
+        // GoingToSource: navigation state for source zone
+        _machine.Configure(FetchState.GoingToSource)
+            .Permit(FetchTrigger.ArrivedAtSource, FetchState.WorkingAtSource)
+            .Permit(FetchTrigger.ResourceTaken, FetchState.GoingToDestination) // Skip work if no fetch duration
+            .PermitReentry(FetchTrigger.Interrupted) // Source zone regression
+            .PermitReentry(FetchTrigger.Resumed);    // Re-enter to force fresh pathfinder
+
+        // WorkingAtSource: idle work timer phase
+        _machine.Configure(FetchState.WorkingAtSource)
+            .Permit(FetchTrigger.WorkComplete, FetchState.TakingResource)
+            .Permit(FetchTrigger.Interrupted, FetchState.GoingToSource); // Source zone regression
+
+        // TakingResource: take items from source storage
+        _machine.Configure(FetchState.TakingResource)
+            .Permit(FetchTrigger.ResourceTaken, FetchState.GoingToDestination)
+            .Permit(FetchTrigger.Interrupted, FetchState.GoingToSource); // Source zone regression
+
+        // GoingToDestination: navigation state for destination zone
+        _machine.Configure(FetchState.GoingToDestination)
+            .Permit(FetchTrigger.ArrivedAtDestination, FetchState.DepositingResource)
+            .PermitReentry(FetchTrigger.Interrupted) // Destination zone regression
+            .PermitReentry(FetchTrigger.Resumed);    // Re-enter to force fresh pathfinder
+
+        // DepositingResource: deposit items to destination storage
+        _machine.Configure(FetchState.DepositingResource)
+            .Permit(FetchTrigger.Interrupted, FetchState.GoingToDestination); // Destination zone regression
+
+        // ResourceDeposited is handled by Complete() directly, no state transition needed
     }
 
     public override void Initialize(Being owner)
@@ -133,13 +198,13 @@ public class FetchResourceActivity : Activity
             return null;
         }
 
-        return _currentPhase switch
+        return _machine.State switch
         {
-            FetchPhase.GoingToSource => ProcessGoingToSource(position, perception),
-            FetchPhase.WorkingAtSource => ProcessWorkingAtSource(),
-            FetchPhase.TakingResource => ProcessTakingResource(position, perception),
-            FetchPhase.GoingToDestination => ProcessGoingToDestination(position, perception),
-            FetchPhase.DepositingResource => ProcessDepositingResource(position, perception),
+            FetchState.GoingToSource => ProcessGoingToSource(position, perception),
+            FetchState.WorkingAtSource => ProcessWorkingAtSource(),
+            FetchState.TakingResource => ProcessTakingResource(position, perception),
+            FetchState.GoingToDestination => ProcessGoingToDestination(position, perception),
+            FetchState.DepositingResource => ProcessDepositingResource(position, perception),
             _ => null
         };
     }
@@ -151,16 +216,14 @@ public class FetchResourceActivity : Activity
             return null;
         }
 
-        // Initialize go-to phase if needed (targeting storage position)
-        if (_goToSourcePhase == null)
-        {
-            _goToSourcePhase = new GoToBuildingActivity(_sourceBuilding, Priority, targetStorage: true);
-            _goToSourcePhase.Initialize(_owner);
-            DebugLog("FETCH", $"Starting navigation to source: {_sourceBuilding.BuildingName}", 0);
-        }
-
-        // Run the navigation sub-activity
-        var (result, action) = RunSubActivity(_goToSourcePhase, position, perception);
+        // Run the navigation sub-activity (created lazily via factory)
+        var (result, action) = RunCurrentSubActivity(
+            () =>
+            {
+                DebugLog("FETCH", $"Starting navigation to source: {_sourceBuilding.BuildingName}", 0);
+                return new GoToBuildingActivity(_sourceBuilding, Priority, targetStorage: true);
+            },
+            position, perception);
         switch (result)
         {
             case SubActivityResult.Failed:
@@ -181,12 +244,15 @@ public class FetchResourceActivity : Activity
         if (_fetchDuration > 0)
         {
             DebugLog("FETCH", $"Starting work phase (duration: {_fetchDuration} ticks)", 0);
-            _currentPhase = FetchPhase.WorkingAtSource;
+            _machine.Fire(FetchTrigger.ArrivedAtSource);
             _workTimer = 0;
         }
         else
         {
-            _currentPhase = FetchPhase.TakingResource;
+            // Skip WorkingAtSource, go to ArrivedAtSource -> WorkingAtSource -> WorkComplete -> TakingResource
+            // Actually, we need to go through ArrivedAtSource first, then immediately fire WorkComplete
+            _machine.Fire(FetchTrigger.ArrivedAtSource);
+            _machine.Fire(FetchTrigger.WorkComplete);
         }
 
         return new IdleAction(_owner, this, Priority);
@@ -211,9 +277,9 @@ public class FetchResourceActivity : Activity
             return new IdleAction(_owner, this, Priority);
         }
 
-        // Done working - now take the resource
+        // Done working - fire transition to TakingResource
         DebugLog("FETCH", "Finished working, taking resource", 0);
-        _currentPhase = FetchPhase.TakingResource;
+        _machine.Fire(FetchTrigger.WorkComplete);
         return new IdleAction(_owner, this, Priority);
     }
 
@@ -224,8 +290,8 @@ public class FetchResourceActivity : Activity
             return null;
         }
 
-        // Initialize take-resource phase if needed
-        if (_takeResourcePhase == null)
+        // Check availability before creating sub-activity (only when _currentSubActivity is null)
+        if (_currentSubActivity == null)
         {
             // Check how much is available using memory (auto-observes)
             int available = _owner.GetStorageItemCount(_sourceBuilding, _itemId);
@@ -235,19 +301,19 @@ public class FetchResourceActivity : Activity
                 Fail();
                 return null;
             }
-
-            // Take up to desired quantity, or all available if less
-            int actualAmount = System.Math.Min(_desiredQuantity, available);
-
-            // Create sub-activity with single item to take
-            var itemsToTake = new List<(string itemId, int quantity)> { (_itemId, actualAmount) };
-            _takeResourcePhase = new TakeFromStorageActivity(_sourceBuilding, itemsToTake, Priority);
-            _takeResourcePhase.Initialize(_owner);
-            DebugLog("FETCH", $"Taking {actualAmount}x {_itemId} from {_sourceBuilding.BuildingName}", 0);
         }
 
-        // Run the take sub-activity
-        var (result, action) = RunSubActivity(_takeResourcePhase, position, perception);
+        // Run the take sub-activity (created lazily via factory)
+        var (result, action) = RunCurrentSubActivity(
+            () =>
+            {
+                int available = _owner!.GetStorageItemCount(_sourceBuilding, _itemId);
+                int actualAmount = System.Math.Min(_desiredQuantity, available);
+                var itemsToTake = new List<(string itemId, int quantity)> { (_itemId, actualAmount) };
+                DebugLog("FETCH", $"Taking {actualAmount}x {_itemId} from {_sourceBuilding.BuildingName}", 0);
+                return new TakeFromStorageActivity(_sourceBuilding, itemsToTake, Priority);
+            },
+            position, perception);
         switch (result)
         {
             case SubActivityResult.Failed:
@@ -269,7 +335,7 @@ public class FetchResourceActivity : Activity
         {
             Log.Print($"{_owner.Name}: Took {_actualQuantityTaken}x {_itemId} from {_sourceBuilding.BuildingName}");
             DebugLog("FETCH", $"Took {_actualQuantityTaken}x {_itemId}, transitioning to GoingToDestination", 0);
-            _currentPhase = FetchPhase.GoingToDestination;
+            _machine.Fire(FetchTrigger.ResourceTaken);
             return new IdleAction(_owner, this, Priority);
         }
         else
@@ -288,16 +354,14 @@ public class FetchResourceActivity : Activity
             return null;
         }
 
-        // Initialize go-to phase if needed (targeting storage position)
-        if (_goToDestinationPhase == null)
-        {
-            _goToDestinationPhase = new GoToBuildingActivity(_destinationBuilding, Priority, targetStorage: true);
-            _goToDestinationPhase.Initialize(_owner);
-            DebugLog("FETCH", $"Starting navigation to destination: {_destinationBuilding.BuildingName}", 0);
-        }
-
-        // Run the navigation sub-activity
-        var (result, action) = RunSubActivity(_goToDestinationPhase, position, perception);
+        // Run the navigation sub-activity (created lazily via factory)
+        var (result, action) = RunCurrentSubActivity(
+            () =>
+            {
+                DebugLog("FETCH", $"Starting navigation to destination: {_destinationBuilding.BuildingName}", 0);
+                return new GoToBuildingActivity(_destinationBuilding, Priority, targetStorage: true);
+            },
+            position, perception);
         switch (result)
         {
             case SubActivityResult.Failed:
@@ -314,7 +378,7 @@ public class FetchResourceActivity : Activity
 
         // We've arrived at destination
         DebugLog("FETCH", $"Arrived at destination: {_destinationBuilding.BuildingName}", 0);
-        _currentPhase = FetchPhase.DepositingResource;
+        _machine.Fire(FetchTrigger.ArrivedAtDestination);
         return new IdleAction(_owner, this, Priority);
     }
 
@@ -326,8 +390,8 @@ public class FetchResourceActivity : Activity
             return null;
         }
 
-        // Initialize deposit-resource phase if needed
-        if (_depositResourcePhase == null)
+        // Check inventory before creating sub-activity (only when _currentSubActivity is null)
+        if (_currentSubActivity == null)
         {
             var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
             if (inventory == null)
@@ -344,19 +408,20 @@ public class FetchResourceActivity : Activity
                 Complete();
                 return null;
             }
-
-            // Deposit up to what we actually took from source
-            int amountToDeposit = System.Math.Min(itemCount, _actualQuantityTaken);
-
-            // Create sub-activity with single item to deposit
-            var itemsToDeposit = new List<(string itemId, int quantity)> { (_itemId, amountToDeposit) };
-            _depositResourcePhase = new DepositToStorageActivity(_destinationBuilding, itemsToDeposit, Priority);
-            _depositResourcePhase.Initialize(_owner);
-            DebugLog("FETCH", $"Depositing {amountToDeposit}x {_itemId} to {_destinationBuilding.BuildingName}", 0);
         }
 
-        // Run the deposit sub-activity
-        var (result, action) = RunSubActivity(_depositResourcePhase, position, perception);
+        // Run the deposit sub-activity (created lazily via factory)
+        var (result, action) = RunCurrentSubActivity(
+            () =>
+            {
+                var inventory = _owner!.SelfAsEntity().GetTrait<InventoryTrait>();
+                int itemCount = inventory?.GetItemCount(_itemId) ?? 0;
+                int amountToDeposit = System.Math.Min(itemCount, _actualQuantityTaken);
+                var itemsToDeposit = new List<(string itemId, int quantity)> { (_itemId, amountToDeposit) };
+                DebugLog("FETCH", $"Depositing {amountToDeposit}x {_itemId} to {_destinationBuilding.BuildingName}", 0);
+                return new DepositToStorageActivity(_destinationBuilding, itemsToDeposit, Priority);
+            },
+            position, perception);
         switch (result)
         {
             case SubActivityResult.Failed:

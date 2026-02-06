@@ -1,7 +1,5 @@
 using Godot;
 using VeilOfAges.Core.Lib;
-using VeilOfAges.Entities.Actions;
-using VeilOfAges.Entities.Sensory;
 
 namespace VeilOfAges.Entities.Activities;
 
@@ -14,17 +12,16 @@ namespace VeilOfAges.Entities.Activities;
 /// the activity will navigate to a position adjacent to the storage facility
 /// rather than just the building entrance.
 /// </summary>
-public class GoToBuildingActivity : Activity
+public class GoToBuildingActivity : NavigationActivity
 {
     private readonly Building _targetBuilding;
     private readonly bool _targetStorage;
     private readonly bool _requireInterior;
-    private PathFinder? _pathFinder;
-    private int _stuckTicks;
-    private const int MAXSTUCKTICKS = 50;
 
     public override string DisplayName => $"Going to {_targetBuilding.BuildingType}";
     public override Building? TargetBuilding => _targetBuilding;
+
+    protected override bool ShouldCheckQueue => true;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GoToBuildingActivity"/> class.
@@ -69,86 +66,19 @@ public class GoToBuildingActivity : Activity
         }
     }
 
-    /// <summary>
-    /// Try to find an alternate path around a blocking entity.
-    /// Clears the current path and recalculates with perception-aware pathfinding.
-    /// </summary>
-    public override bool TryFindAlternatePath(Perception perception)
+    protected override bool ValidateTarget()
     {
-        if (_owner == null || _pathFinder == null)
-        {
-            return false;
-        }
-
-        // Force path recalculation
-        _pathFinder.ClearPath();
-
-        // Try to calculate a new path - perception will mark the blocker as blocked
-        bool foundPath = _pathFinder.CalculatePathIfNeeded(_owner, perception);
-
-        if (foundPath && _pathFinder.HasValidPath())
-        {
-            _stuckTicks = 0; // Reset stuck counter on finding alternate path
-            return true;
-        }
-
-        return false;
-    }
-
-    public override EntityAction? GetNextAction(Vector2I position, Perception perception)
-    {
-        DebugLog("GO_TO_BUILDING", $"GetNextAction called: owner={_owner != null}, pathFinder={_pathFinder != null}, target={_targetBuilding?.BuildingName ?? "null"}", 0);
-
-        if (_owner == null || _pathFinder == null)
-        {
-            DebugLog("GO_TO_BUILDING", $"FAILING: owner={_owner != null}, pathFinder={_pathFinder != null}", 0);
-            Fail();
-            return null;
-        }
-
-        // Check if building still exists
         if (!GodotObject.IsInstanceValid(_targetBuilding))
         {
             DebugLog("GO_TO_BUILDING", "FAILING: target building invalid", 0);
-            Fail();
-            return null;
+            return false;
         }
 
-        // Check if we've reached the goal
-        if (_pathFinder.IsGoalReached(_owner))
-        {
-            DebugLog("GO_TO_BUILDING", "COMPLETING: goal reached", 0);
-            Complete();
-            return null;
-        }
+        return true;
+    }
 
-        // If in queue, just idle - we're intentionally waiting
-        if (_owner.IsInQueue)
-        {
-            _stuckTicks = 0;
-            return new IdleAction(_owner, this, Priority);
-        }
-
-        // Calculate path if needed (A* runs here on Think thread, not in Execute)
-        if (!_pathFinder.CalculatePathIfNeeded(_owner, perception))
-        {
-            // Path calculation failed
-            _stuckTicks++;
-            if (_stuckTicks > MAXSTUCKTICKS)
-            {
-                DebugLog("GO_TO_BUILDING", $"Failed: stuck at {position} trying to reach {_targetBuilding.BuildingName}");
-                Fail();
-                return null;
-            }
-
-            // Return idle to wait for next think cycle
-            return new IdleAction(_owner, this, Priority);
-        }
-
-        // Reset stuck counter on successful path
-        _stuckTicks = 0;
-
-        // Return movement action (Execute will only follow pre-calculated path)
-        return new MoveAlongPathAction(_owner, this, _pathFinder, Priority);
+    protected override void OnStuckFailed(Vector2I position)
+    {
+        DebugLog("GO_TO_BUILDING", $"Failed: stuck at {position} trying to reach {_targetBuilding.BuildingName}");
     }
 }

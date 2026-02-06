@@ -16,18 +16,52 @@ namespace VeilOfAges.Entities.Activities;
 /// navigates to facility to execute reaction, then navigates back to storage to deposit outputs.
 /// Consumes energy while processing based on reaction's EnergyCostMultiplier.
 ///
-/// Flow:
-/// 1. Navigate to building (GoToBuildingActivity)
-/// 2. Navigate to storage (GoToBuildingActivity with targetStorage: true)
-/// 3. Take inputs: Storage -> Inventory (TakeFromStorageActivity)
-/// 4. Navigate to facility (GoToFacilityActivity)
-/// 5. Execute reaction: Inventory -> Inventory (ExecuteReactionAction)
-/// 6. Wait for processing duration
-/// 7. Navigate to storage (GoToBuildingActivity with targetStorage: true)
-/// 8. Deposit outputs: Inventory -> Storage (DepositToStorageActivity).
+/// Uses a Stateless state machine to manage phase transitions and interruption/resumption.
+///
+/// States:
+/// GoingToBuilding -> GoingToStorageForInputs -> TakingInputs -> GoingToFacility ->
+/// ExecutingReaction -> Processing -> GoingToStorageForOutputs -> DepositingOutputs -> Complete
+///
+/// Interruption behavior (two-zone regression):
+/// - Pre-reaction zone (GoingToBuilding through Processing): Interrupted -> GoingToBuilding
+/// - Post-reaction zone (GoingToStorageForOutputs, DepositingOutputs): Interrupted -> GoingToStorageForOutputs
+/// - Navigation states (GoingToBuilding, GoingToStorageForInputs, GoingToFacility,
+///   GoingToStorageForOutputs): PermitReentry for Interrupted and Resumed.
 /// </summary>
-public class ProcessReactionActivity : Activity
+public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.ReactionState, ProcessReactionActivity.ReactionTrigger>
 {
+    /// <summary>
+    /// States representing the phases of processing a reaction.
+    /// </summary>
+    public enum ReactionState
+    {
+        GoingToBuilding,
+        GoingToStorageForInputs,
+        TakingInputs,
+        GoingToFacility,
+        ExecutingReaction,
+        Processing,
+        GoingToStorageForOutputs,
+        DepositingOutputs,
+    }
+
+    /// <summary>
+    /// Triggers that cause state transitions.
+    /// </summary>
+    public enum ReactionTrigger
+    {
+        ArrivedAtBuilding,
+        ArrivedAtStorageForInputs,
+        InputsTaken,
+        ArrivedAtFacility,
+        ReactionExecuted,
+        ProcessingComplete,
+        ArrivedAtStorageForOutputs,
+        OutputsDeposited,
+        Interrupted,
+        Resumed,
+    }
+
     // Base energy cost per tick while processing (same as WorkFieldActivity)
     // Multiplied by reaction's EnergyCostMultiplier
     private const float BASEENERGYCOSTPERTICK = 0.01f;
@@ -35,42 +69,41 @@ public class ProcessReactionActivity : Activity
     private readonly ReactionDefinition _reaction;
     private readonly Building? _workplace;
 
-    // Navigation phases
-    private GoToBuildingActivity? _goToBuildingPhase;
-    private GoToBuildingActivity? _goToStorageForInputsPhase;
-    private GoToFacilityActivity? _goToFacilityPhase;
-    private GoToBuildingActivity? _goToStorageForOutputsPhase;
-
-    // Storage transfer phases
-    private TakeFromStorageActivity? _takeInputsPhase;
-    private DepositToStorageActivity? _depositOutputsPhase;
-
-    // State tracking
+    // Progress tracking (preserved across interruptions)
     private uint _processTimer;
     private uint _variedDuration;
-    private bool _isAtBuilding;
-    private bool _atStorageForInputs;
-    private bool _inputsTaken;
-    private bool _isAtFacility;
-    private bool _reactionExecuted;
-    private bool _atStorageForOutputs;
-    private bool _outputsDeposited;
     private Need? _energyNeed;
 
-    public override string DisplayName => _reactionExecuted
-        ? $"Processing {_reaction.Name}"
-        : $"Preparing {_reaction.Name}";
+    protected override ReactionTrigger InterruptedTrigger => ReactionTrigger.Interrupted;
+
+    protected override ReactionTrigger ResumedTrigger => ReactionTrigger.Resumed;
+
+    public override string DisplayName => _machine.State switch
+    {
+        ReactionState.Processing => $"Processing {_reaction.Name}",
+        ReactionState.GoingToStorageForOutputs => $"Storing {_reaction.Name} outputs",
+        ReactionState.DepositingOutputs => $"Storing {_reaction.Name} outputs",
+        _ => $"Preparing {_reaction.Name}"
+    };
+
     public override Building? TargetBuilding => _workplace;
-    public override string? TargetFacilityId => _isAtFacility && _reaction.RequiredFacilities.Count > 0
-        ? _reaction.RequiredFacilities[0]
-        : null;
+
+    public override string? TargetFacilityId => _machine.State is ReactionState.GoingToFacility
+        or ReactionState.ExecutingReaction
+        or ReactionState.Processing
+        && _reaction.RequiredFacilities.Count > 0
+            ? _reaction.RequiredFacilities[0]
+            : null;
 
     public override List<Vector2I> GetAlternativeGoalPositions(Being entity)
     {
-        // When at the facility, delegate to the facility navigation sub-activity
-        if (_isAtFacility && _goToFacilityPhase != null)
+        // When at facility states, delegate to the current sub-activity
+        if (_machine.State is ReactionState.GoingToFacility
+            or ReactionState.ExecutingReaction
+            or ReactionState.Processing
+            && _currentSubActivity != null)
         {
-            return _goToFacilityPhase.GetAlternativeGoalPositions(entity);
+            return _currentSubActivity.GetAlternativeGoalPositions(entity);
         }
 
         return new List<Vector2I>();
@@ -85,6 +118,7 @@ public class ProcessReactionActivity : Activity
     /// <param name="storage">The storage to use for inputs/outputs (kept for compatibility but not used directly).</param>
     /// <param name="priority">Action priority.</param>
     public ProcessReactionActivity(ReactionDefinition reaction, Building? workplace, StorageTrait storage, int priority = 0)
+        : base(ReactionState.GoingToBuilding)
     {
         _reaction = reaction;
         _workplace = workplace;
@@ -95,6 +129,63 @@ public class ProcessReactionActivity : Activity
         {
             NeedDecayMultipliers["hunger"] = reaction.HungerMultiplier;
         }
+
+        ConfigureStateMachine();
+    }
+
+    /// <summary>
+    /// Configures the state machine transitions, including interruption/resumption behavior.
+    ///
+    /// Pre-reaction zone states (GoingToBuilding through Processing) regress to GoingToBuilding on interruption.
+    /// Post-reaction zone states (GoingToStorageForOutputs, DepositingOutputs) regress to GoingToStorageForOutputs.
+    /// Navigation states use PermitReentry for Interrupted and Resumed to force fresh pathfinder creation.
+    /// Sub-activity references are automatically nulled by the base class OnTransitioned callback.
+    /// </summary>
+    private void ConfigureStateMachine()
+    {
+        // GoingToBuilding: navigation state for pre-reaction zone
+        _machine.Configure(ReactionState.GoingToBuilding)
+            .Permit(ReactionTrigger.ArrivedAtBuilding, ReactionState.GoingToStorageForInputs)
+            .PermitReentry(ReactionTrigger.Interrupted) // Pre-reaction zone regression
+            .PermitReentry(ReactionTrigger.Resumed);     // Re-enter to force fresh pathfinder
+
+        // GoingToStorageForInputs: navigation state for pre-reaction zone
+        _machine.Configure(ReactionState.GoingToStorageForInputs)
+            .Permit(ReactionTrigger.ArrivedAtStorageForInputs, ReactionState.TakingInputs)
+            .Permit(ReactionTrigger.Interrupted, ReactionState.GoingToBuilding) // Pre-reaction zone regression
+            .PermitReentry(ReactionTrigger.Resumed);     // Re-enter to force fresh pathfinder
+
+        // TakingInputs: take items from storage
+        _machine.Configure(ReactionState.TakingInputs)
+            .Permit(ReactionTrigger.InputsTaken, ReactionState.GoingToFacility)
+            .Permit(ReactionTrigger.Interrupted, ReactionState.GoingToBuilding);  // Pre-reaction zone regression
+
+        // GoingToFacility: navigation state for pre-reaction zone
+        _machine.Configure(ReactionState.GoingToFacility)
+            .Permit(ReactionTrigger.ArrivedAtFacility, ReactionState.ExecutingReaction)
+            .Permit(ReactionTrigger.Interrupted, ReactionState.GoingToBuilding) // Pre-reaction zone regression
+            .PermitReentry(ReactionTrigger.Resumed);     // Re-enter to force fresh pathfinder
+
+        // ExecutingReaction: fire the reaction action (single tick)
+        _machine.Configure(ReactionState.ExecutingReaction)
+            .Permit(ReactionTrigger.ReactionExecuted, ReactionState.Processing)
+            .Permit(ReactionTrigger.Interrupted, ReactionState.GoingToBuilding);  // Pre-reaction zone regression
+
+        // Processing: wait for processing duration
+        _machine.Configure(ReactionState.Processing)
+            .Permit(ReactionTrigger.ProcessingComplete, ReactionState.GoingToStorageForOutputs)
+            .Permit(ReactionTrigger.Interrupted, ReactionState.GoingToBuilding);  // Pre-reaction zone regression
+
+        // GoingToStorageForOutputs: navigation state for post-reaction zone
+        _machine.Configure(ReactionState.GoingToStorageForOutputs)
+            .Permit(ReactionTrigger.ArrivedAtStorageForOutputs, ReactionState.DepositingOutputs)
+            .PermitReentry(ReactionTrigger.Interrupted) // Post-reaction zone regression
+            .PermitReentry(ReactionTrigger.Resumed);     // Re-enter to force fresh pathfinder
+
+        // DepositingOutputs: deposit items to storage
+        _machine.Configure(ReactionState.DepositingOutputs)
+            .Permit(ReactionTrigger.OutputsDeposited, ReactionState.GoingToStorageForOutputs) // Unused - Complete() called directly
+            .Permit(ReactionTrigger.Interrupted, ReactionState.GoingToStorageForOutputs);  // Post-reaction zone regression
     }
 
     public override void Initialize(Being owner)
@@ -124,289 +215,328 @@ public class ProcessReactionActivity : Activity
             return null;
         }
 
-        // Phase 1: Go to workplace building if specified and not yet there
-        if (_workplace != null && !_isAtBuilding)
+        return _machine.State switch
         {
-            // Initialize go-to-building phase if needed
-            if (_goToBuildingPhase == null)
-            {
-                _goToBuildingPhase = new GoToBuildingActivity(_workplace, Priority);
-                _goToBuildingPhase.Initialize(_owner);
-            }
+            ReactionState.GoingToBuilding => ProcessGoingToBuilding(position, perception),
+            ReactionState.GoingToStorageForInputs => ProcessGoingToStorageForInputs(position, perception),
+            ReactionState.TakingInputs => ProcessTakingInputs(position, perception),
+            ReactionState.GoingToFacility => ProcessGoingToFacility(position, perception),
+            ReactionState.ExecutingReaction => ProcessExecutingReaction(),
+            ReactionState.Processing => ProcessProcessing(),
+            ReactionState.GoingToStorageForOutputs => ProcessGoingToStorageForOutputs(position, perception),
+            ReactionState.DepositingOutputs => ProcessDepositingOutputs(position, perception),
+            _ => null
+        };
+    }
 
-            // Run the navigation sub-activity
-            var (result, action) = RunSubActivity(_goToBuildingPhase, position, perception);
-            switch (result)
-            {
-                case SubActivityResult.Failed:
-                    Fail();
-                    return null;
-                case SubActivityResult.Continue:
-                    return action;
-                case SubActivityResult.Completed:
-                    // Fall through to mark as arrived
-                    break;
-            }
-
-            // We've arrived at the building
-            _isAtBuilding = true;
-            DebugLog("REACTION", $"Arrived at {_workplace.BuildingName} to process {_reaction.Name}", 0);
-        }
-        else if (_workplace == null)
+    private EntityAction? ProcessGoingToBuilding(Vector2I position, Perception perception)
+    {
+        if (_owner == null)
         {
-            // No workplace needed
-            _isAtBuilding = true;
+            return null;
         }
 
-        // Phase 2: Navigate to storage to take inputs
-        if (_isAtBuilding && !_atStorageForInputs)
+        // No workplace needed - skip directly to storage for inputs
+        if (_workplace == null)
         {
-            if (_workplace != null)
+            _machine.Fire(ReactionTrigger.ArrivedAtBuilding);
+            return new IdleAction(_owner, this, Priority);
+        }
+
+        var (result, action) = RunCurrentSubActivity(
+            () =>
             {
-                // Check if we have inputs to take
+                DebugLog("REACTION", $"Navigating to {_workplace.BuildingName} to process {_reaction.Name}", 0);
+                return new GoToBuildingActivity(_workplace, Priority);
+            },
+            position, perception);
+        switch (result)
+        {
+            case SubActivityResult.Failed:
+                Fail();
+                return null;
+            case SubActivityResult.Continue:
+                return action;
+            case SubActivityResult.Completed:
+                break;
+        }
+
+        // Arrived at building
+        DebugLog("REACTION", $"Arrived at {_workplace.BuildingName} to process {_reaction.Name}", 0);
+        _machine.Fire(ReactionTrigger.ArrivedAtBuilding);
+        return new IdleAction(_owner, this, Priority);
+    }
+
+    private EntityAction? ProcessGoingToStorageForInputs(Vector2I position, Perception perception)
+    {
+        if (_owner == null)
+        {
+            return null;
+        }
+
+        // Check if we have inputs to take
+        var inputsToTake = _reaction.Inputs
+            .Where(i => !string.IsNullOrEmpty(i.ItemId))
+            .ToList();
+
+        // No inputs needed or no workplace - skip to taking inputs (which will also skip)
+        if (inputsToTake.Count == 0 || _workplace == null)
+        {
+            _machine.Fire(ReactionTrigger.ArrivedAtStorageForInputs);
+            return new IdleAction(_owner, this, Priority);
+        }
+
+        var (result, action) = RunCurrentSubActivity(
+            () =>
+            {
+                DebugLog("REACTION", $"Navigating to storage to take inputs for {_reaction.Name}", 0);
+                return new GoToBuildingActivity(_workplace, Priority, targetStorage: true);
+            },
+            position, perception);
+        switch (result)
+        {
+            case SubActivityResult.Failed:
+                Log.Warn($"{_owner.Name}: Could not reach storage for {_reaction.Name}");
+                Fail();
+                return null;
+            case SubActivityResult.Continue:
+                return action;
+            case SubActivityResult.Completed:
+                break;
+        }
+
+        DebugLog("REACTION", $"Arrived at storage to take inputs for {_reaction.Name}", 0);
+        _machine.Fire(ReactionTrigger.ArrivedAtStorageForInputs);
+        return new IdleAction(_owner, this, Priority);
+    }
+
+    private EntityAction? ProcessTakingInputs(Vector2I position, Perception perception)
+    {
+        if (_owner == null)
+        {
+            return null;
+        }
+
+        // No workplace - skip taking inputs
+        if (_workplace == null)
+        {
+            _machine.Fire(ReactionTrigger.InputsTaken);
+            return new IdleAction(_owner, this, Priority);
+        }
+
+        // Check if there are inputs to take (before creating sub-activity)
+        if (_currentSubActivity == null)
+        {
+            var inputsToTake = _reaction.Inputs
+                .Where(i => !string.IsNullOrEmpty(i.ItemId))
+                .Select(i => (i.ItemId!, i.Quantity))
+                .ToList();
+
+            if (inputsToTake.Count == 0)
+            {
+                _machine.Fire(ReactionTrigger.InputsTaken);
+                return new IdleAction(_owner, this, Priority);
+            }
+        }
+
+        var (result, action) = RunCurrentSubActivity(
+            () =>
+            {
                 var inputsToTake = _reaction.Inputs
                     .Where(i => !string.IsNullOrEmpty(i.ItemId))
+                    .Select(i => (i.ItemId!, i.Quantity))
                     .ToList();
-
-                if (inputsToTake.Count == 0)
-                {
-                    // No inputs needed, skip storage navigation
-                    _atStorageForInputs = true;
-                }
-                else
-                {
-                    if (_goToStorageForInputsPhase == null)
-                    {
-                        _goToStorageForInputsPhase = new GoToBuildingActivity(_workplace, Priority, targetStorage: true);
-                        _goToStorageForInputsPhase.Initialize(_owner);
-                        DebugLog("REACTION", $"Navigating to storage to take inputs for {_reaction.Name}", 0);
-                    }
-
-                    var (result, action) = RunSubActivity(_goToStorageForInputsPhase, position, perception);
-                    switch (result)
-                    {
-                        case SubActivityResult.Failed:
-                            Log.Warn($"{_owner.Name}: Could not reach storage for {_reaction.Name}");
-                            Fail();
-                            return null;
-                        case SubActivityResult.Continue:
-                            return action;
-                        case SubActivityResult.Completed:
-                            _atStorageForInputs = true;
-                            DebugLog("REACTION", $"Arrived at storage to take inputs for {_reaction.Name}", 0);
-                            break;
-                    }
-                }
-            }
-            else
-            {
-                // No workplace
-                _atStorageForInputs = true;
-            }
+                DebugLog("REACTION", $"Taking inputs for {_reaction.Name}", 0);
+                return new TakeFromStorageActivity(_workplace, inputsToTake, Priority);
+            },
+            position, perception);
+        switch (result)
+        {
+            case SubActivityResult.Failed:
+                Log.Warn($"{_owner.Name}: Failed to take inputs for {_reaction.Name}");
+                Fail();
+                return null;
+            case SubActivityResult.Continue:
+                return action;
+            case SubActivityResult.Completed:
+                break;
         }
 
-        // Phase 3: Take inputs from storage to inventory
-        if (_atStorageForInputs && !_inputsTaken)
+        DebugLog("REACTION", $"Inputs in inventory for {_reaction.Name}", 0);
+        _machine.Fire(ReactionTrigger.InputsTaken);
+        return new IdleAction(_owner, this, Priority);
+    }
+
+    private EntityAction? ProcessGoingToFacility(Vector2I position, Perception perception)
+    {
+        if (_owner == null)
         {
-            if (_workplace == null)
-            {
-                // No workplace - skip taking inputs (legacy/edge case)
-                _inputsTaken = true;
-            }
-            else
-            {
-                // Initialize take-inputs phase if needed
-                if (_takeInputsPhase == null)
-                {
-                    var inputsToTake = _reaction.Inputs
-                        .Where(i => !string.IsNullOrEmpty(i.ItemId))
-                        .Select(i => (i.ItemId!, i.Quantity))
-                        .ToList();
-
-                    if (inputsToTake.Count == 0)
-                    {
-                        // No inputs to take
-                        _inputsTaken = true;
-                    }
-                    else
-                    {
-                        _takeInputsPhase = new TakeFromStorageActivity(_workplace, inputsToTake, Priority);
-                        _takeInputsPhase.Initialize(_owner);
-                        DebugLog("REACTION", $"Taking inputs for {_reaction.Name}", 0);
-                    }
-                }
-
-                if (_takeInputsPhase != null)
-                {
-                    var (result, action) = RunSubActivity(_takeInputsPhase, position, perception);
-                    switch (result)
-                    {
-                        case SubActivityResult.Failed:
-                            Log.Warn($"{_owner.Name}: Failed to take inputs for {_reaction.Name}");
-                            Fail();
-                            return null;
-                        case SubActivityResult.Continue:
-                            return action;
-                        case SubActivityResult.Completed:
-                            _inputsTaken = true;
-                            DebugLog("REACTION", $"Inputs in inventory for {_reaction.Name}", 0);
-                            break;
-                    }
-                }
-            }
+            return null;
         }
 
-        // Phase 4: Navigate to facility before executing reaction
-        if (_inputsTaken && !_isAtFacility)
+        // No facility required - skip to executing reaction
+        if (_workplace == null || _reaction.RequiredFacilities.Count == 0)
         {
-            // Check if reaction requires a facility
-            if (_workplace != null && _reaction.RequiredFacilities.Count > 0)
-            {
-                // Initialize go-to-facility phase if needed
-                if (_goToFacilityPhase == null)
-                {
-                    // Use the first required facility
-                    string facilityId = _reaction.RequiredFacilities[0];
-                    _goToFacilityPhase = new GoToFacilityActivity(_workplace, facilityId, Priority);
-                    _goToFacilityPhase.Initialize(_owner);
-                    DebugLog("REACTION", $"Navigating to {facilityId} to execute {_reaction.Name}", 0);
-                }
-
-                // Run the navigation sub-activity
-                var (result, action) = RunSubActivity(_goToFacilityPhase, position, perception);
-                switch (result)
-                {
-                    case SubActivityResult.Failed:
-                        // Fall back to just being at the building
-                        Log.Warn($"{_owner.Name}: Could not reach facility for {_reaction.Name}, proceeding anyway");
-                        _isAtFacility = true;
-                        break;
-                    case SubActivityResult.Continue:
-                        return action;
-                    case SubActivityResult.Completed:
-                        _isAtFacility = true;
-                        DebugLog("REACTION", $"At {_reaction.RequiredFacilities[0]} to process {_reaction.Name}", 0);
-                        break;
-                }
-            }
-            else
-            {
-                // No facility required
-                _isAtFacility = true;
-            }
+            _machine.Fire(ReactionTrigger.ArrivedAtFacility);
+            return new IdleAction(_owner, this, Priority);
         }
 
-        // Phase 5: Execute reaction (inventory -> inventory)
-        if (_isAtFacility && !_reactionExecuted)
+        var (result, action) = RunCurrentSubActivity(
+            () =>
+            {
+                string facilityId = _reaction.RequiredFacilities[0];
+                DebugLog("REACTION", $"Navigating to {facilityId} to execute {_reaction.Name}", 0);
+                return new GoToFacilityActivity(_workplace, facilityId, Priority);
+            },
+            position, perception);
+        switch (result)
         {
-            _reactionExecuted = true;
-            DebugLog("REACTION", $"Executing {_reaction.Name}", 0);
-            return new ExecuteReactionAction(_owner, this, _reaction, Priority);
+            case SubActivityResult.Failed:
+                // Fall back to just proceeding - facility nav failure is not fatal
+                Log.Warn($"{_owner.Name}: Could not reach facility for {_reaction.Name}, proceeding anyway");
+                _machine.Fire(ReactionTrigger.ArrivedAtFacility);
+                return new IdleAction(_owner, this, Priority);
+            case SubActivityResult.Continue:
+                return action;
+            case SubActivityResult.Completed:
+                break;
         }
 
-        // Phase 6: Wait for processing duration
-        if (_reactionExecuted && _processTimer < _variedDuration)
+        DebugLog("REACTION", $"At {_reaction.RequiredFacilities[0]} to process {_reaction.Name}", 0);
+        _machine.Fire(ReactionTrigger.ArrivedAtFacility);
+        return new IdleAction(_owner, this, Priority);
+    }
+
+    private EntityAction? ProcessExecutingReaction()
+    {
+        if (_owner == null)
         {
-            _processTimer++;
+            return null;
+        }
 
-            // Spend energy while processing (base cost * reaction multiplier)
-            float energyCost = BASEENERGYCOSTPERTICK * _reaction.EnergyCostMultiplier;
-            _energyNeed?.Restore(-energyCost);
+        DebugLog("REACTION", $"Executing {_reaction.Name}", 0);
+        _machine.Fire(ReactionTrigger.ReactionExecuted);
+        return new ExecuteReactionAction(_owner, this, _reaction, Priority);
+    }
 
+    private EntityAction? ProcessProcessing()
+    {
+        if (_owner == null)
+        {
+            return null;
+        }
+
+        _processTimer++;
+
+        // Spend energy while processing (base cost * reaction multiplier)
+        float energyCost = BASEENERGYCOSTPERTICK * _reaction.EnergyCostMultiplier;
+        _energyNeed?.Restore(-energyCost);
+
+        if (_processTimer < _variedDuration)
+        {
             // Still processing, idle
             return new IdleAction(_owner, this, Priority);
         }
 
-        // Phase 7: Navigate to storage then deposit outputs
-        if (_reactionExecuted && !_outputsDeposited)
+        // Processing complete - transition to output storage
+        DebugLog("REACTION", $"Processing complete for {_reaction.Name}", 0);
+        _machine.Fire(ReactionTrigger.ProcessingComplete);
+        return new IdleAction(_owner, this, Priority);
+    }
+
+    private EntityAction? ProcessGoingToStorageForOutputs(Vector2I position, Perception perception)
+    {
+        if (_owner == null)
         {
-            if (_workplace == null)
-            {
-                // No workplace - skip depositing (outputs stay in inventory)
-                _outputsDeposited = true;
-            }
-            else
-            {
-                // Phase 7a: Navigate to storage first (handles RequireAdjacent)
-                if (!_atStorageForOutputs)
-                {
-                    if (_goToStorageForOutputsPhase == null)
-                    {
-                        _goToStorageForOutputsPhase = new GoToBuildingActivity(_workplace, Priority, targetStorage: true);
-                        _goToStorageForOutputsPhase.Initialize(_owner);
-                        DebugLog("REACTION", $"Navigating to storage to deposit outputs for {_reaction.Name}", 0);
-                    }
-
-                    var (result, action) = RunSubActivity(_goToStorageForOutputsPhase, position, perception);
-                    switch (result)
-                    {
-                        case SubActivityResult.Failed:
-                            // Outputs stay in inventory - not a complete failure
-                            Log.Warn($"{_owner.Name}: Could not reach storage for {_reaction.Name}, outputs remain in inventory");
-                            _outputsDeposited = true;
-                            break;
-                        case SubActivityResult.Continue:
-                            return action;
-                        case SubActivityResult.Completed:
-                            _atStorageForOutputs = true;
-                            DebugLog("REACTION", $"Arrived at storage to deposit outputs for {_reaction.Name}", 0);
-                            break;
-                    }
-                }
-
-                // Phase 8: Deposit outputs to storage
-                if (_atStorageForOutputs && !_outputsDeposited)
-                {
-                    // Initialize deposit-outputs phase if needed
-                    if (_depositOutputsPhase == null)
-                    {
-                        var outputsToDeposit = _reaction.Outputs
-                            .Where(o => !string.IsNullOrEmpty(o.ItemId))
-                            .Select(o => (o.ItemId!, o.Quantity))
-                            .ToList();
-
-                        if (outputsToDeposit.Count == 0)
-                        {
-                            // No outputs to deposit
-                            _outputsDeposited = true;
-                        }
-                        else
-                        {
-                            _depositOutputsPhase = new DepositToStorageActivity(_workplace, outputsToDeposit, Priority);
-                            _depositOutputsPhase.Initialize(_owner);
-                            DebugLog("REACTION", $"Depositing outputs for {_reaction.Name}", 0);
-                        }
-                    }
-
-                    if (_depositOutputsPhase != null)
-                    {
-                        var (result, action) = RunSubActivity(_depositOutputsPhase, position, perception);
-                        switch (result)
-                        {
-                            case SubActivityResult.Failed:
-                                // Outputs stay in inventory - not a complete failure
-                                Log.Warn($"{_owner.Name}: Could not deposit all outputs for {_reaction.Name}, outputs remain in inventory");
-                                _outputsDeposited = true;
-                                break;
-                            case SubActivityResult.Continue:
-                                return action;
-                            case SubActivityResult.Completed:
-                                _outputsDeposited = true;
-                                break;
-                        }
-                    }
-                }
-            }
+            return null;
         }
 
-        // All phases complete
-        if (_outputsDeposited)
+        // No workplace - skip depositing (outputs stay in inventory)
+        if (_workplace == null)
         {
+            // No workplace means we can't deposit - just complete
             Log.Print($"{_owner.Name}: Completed {_reaction.Name}");
             Complete();
             return null;
         }
 
+        var (result, action) = RunCurrentSubActivity(
+            () =>
+            {
+                DebugLog("REACTION", $"Navigating to storage to deposit outputs for {_reaction.Name}", 0);
+                return new GoToBuildingActivity(_workplace, Priority, targetStorage: true);
+            },
+            position, perception);
+        switch (result)
+        {
+            case SubActivityResult.Failed:
+                // Outputs stay in inventory - not a complete failure
+                Log.Warn($"{_owner.Name}: Could not reach storage for {_reaction.Name}, outputs remain in inventory");
+                Log.Print($"{_owner.Name}: Completed {_reaction.Name}");
+                Complete();
+                return null;
+            case SubActivityResult.Continue:
+                return action;
+            case SubActivityResult.Completed:
+                break;
+        }
+
+        DebugLog("REACTION", $"Arrived at storage to deposit outputs for {_reaction.Name}", 0);
+        _machine.Fire(ReactionTrigger.ArrivedAtStorageForOutputs);
+        return new IdleAction(_owner, this, Priority);
+    }
+
+    private EntityAction? ProcessDepositingOutputs(Vector2I position, Perception perception)
+    {
+        if (_owner == null)
+        {
+            Complete();
+            return null;
+        }
+
+        // Check if there are outputs to deposit (before creating sub-activity)
+        if (_currentSubActivity == null)
+        {
+            var outputsToDeposit = _reaction.Outputs
+                .Where(o => !string.IsNullOrEmpty(o.ItemId))
+                .Select(o => (o.ItemId!, o.Quantity))
+                .ToList();
+
+            if (outputsToDeposit.Count == 0)
+            {
+                Log.Print($"{_owner.Name}: Completed {_reaction.Name}");
+                Complete();
+                return null;
+            }
+        }
+
+        var (result, action) = RunCurrentSubActivity(
+            () =>
+            {
+                var outputsToDeposit = _reaction.Outputs
+                    .Where(o => !string.IsNullOrEmpty(o.ItemId))
+                    .Select(o => (o.ItemId!, o.Quantity))
+                    .ToList();
+                DebugLog("REACTION", $"Depositing outputs for {_reaction.Name}", 0);
+                return new DepositToStorageActivity(_workplace!, outputsToDeposit, Priority);
+            },
+            position, perception);
+        switch (result)
+        {
+            case SubActivityResult.Failed:
+                // Outputs stay in inventory - not a complete failure
+                Log.Warn($"{_owner.Name}: Could not deposit all outputs for {_reaction.Name}, outputs remain in inventory");
+                Log.Print($"{_owner.Name}: Completed {_reaction.Name}");
+                Complete();
+                return null;
+            case SubActivityResult.Continue:
+                return action;
+            case SubActivityResult.Completed:
+                break;
+        }
+
+        Log.Print($"{_owner.Name}: Completed {_reaction.Name}");
+        Complete();
         return null;
     }
 }

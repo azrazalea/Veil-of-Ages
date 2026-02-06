@@ -12,19 +12,25 @@ namespace VeilOfAges.Entities.Activities;
 
 /// <summary>
 /// Activity for working at a field/farm during daytime.
-/// Phases:
-/// 1. Navigate to workplace building
-/// 2. Navigate to crop facility (if available)
-/// 3. Work (idle, produce wheat)
-/// 4. Take wheat from farm storage into inventory
-/// 5. Navigate home
-/// 6. Deposit wheat to home storage
-/// Completes after depositing or if day phase ends.
+/// Uses a Stateless state machine to manage phase transitions and interruption/resumption.
+///
+/// States:
+/// GoingToWork -> GoingToCrop -> Working -> TakingBreak? -> TakingWheat -> GoingHome -> DepositingWheat
+///
+/// Interruption behavior (two-zone regression):
+/// - Work zone (GoingToCrop through TakingWheat): Interrupted -> GoingToWork (re-navigate to workplace)
+/// - Home zone (GoingHome through DepositingWheat): Interrupted -> GoingHome (re-navigate home)
+/// - GoingToWork itself: PermitReentry (already at nav entry point)
+/// - TakingBreak: Interrupted -> GoingToWork (simpler to re-navigate)
+///
 /// Drains energy while working (restored by sleeping).
 /// </summary>
-public class WorkFieldActivity : Activity
+public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, WorkFieldActivity.WorkTrigger>
 {
-    private enum WorkPhase
+    /// <summary>
+    /// States representing the phases of field work.
+    /// </summary>
+    public enum WorkState
     {
         GoingToWork,
         GoingToCrop,
@@ -33,7 +39,24 @@ public class WorkFieldActivity : Activity
         TakingWheat,
         GoingHome,
         DepositingWheat,
-        Done
+    }
+
+    /// <summary>
+    /// Triggers that cause state transitions.
+    /// </summary>
+    public enum WorkTrigger
+    {
+        ArrivedAtWork,
+        ArrivedAtCrop,
+        WorkComplete,
+        TakeBreak,
+        BreakComplete,
+        WheatTaken,
+        ArrivedHome,
+        WheatDeposited,
+        DayEnded,
+        Interrupted,
+        Resumed,
     }
 
     // Energy cost per tick while actively working
@@ -57,40 +80,41 @@ public class WorkFieldActivity : Activity
     private readonly Building? _home;
     private readonly uint _workDuration;
 
-    private GoToBuildingActivity? _goToWorkPhase;
-    private GoToFacilityActivity? _goToCropPhase;
-    private GoToBuildingActivity? _goToHomePhase;
-    private TakeFromStorageActivity? _takeWheatPhase;
-    private DepositToStorageActivity? _depositWheatPhase;
+    // Progress variables preserved across interruptions
     private uint _workTimer;
     private uint _ticksSinceLastWheat;
     private int _wheatProducedThisShift;
-    private WorkPhase _currentPhase = WorkPhase.GoingToWork;
-    private Need? _energyNeed;
     private uint _variedWorkDuration;
     private uint _breakTimer;
     private ProduceToStorageAction? _pendingProduceAction;
+    private Need? _energyNeed;
 
-    public override string DisplayName => _currentPhase switch
+    protected override WorkTrigger InterruptedTrigger => WorkTrigger.Interrupted;
+
+    protected override WorkTrigger ResumedTrigger => WorkTrigger.Resumed;
+
+    public override string DisplayName => _machine.State switch
     {
-        WorkPhase.GoingToWork => "Going to work",
-        WorkPhase.GoingToCrop => "Going to crops",
-        WorkPhase.Working => $"Working at {_workplace.BuildingType}",
-        WorkPhase.TakingBreak => "Taking a break",
-        WorkPhase.TakingWheat => "Gathering harvest",
-        WorkPhase.GoingHome => "Bringing harvest home",
-        WorkPhase.DepositingWheat => "Storing harvest",
+        WorkState.GoingToWork => "Going to work",
+        WorkState.GoingToCrop => "Going to crops",
+        WorkState.Working => $"Working at {_workplace.BuildingType}",
+        WorkState.TakingBreak => "Taking a break",
+        WorkState.TakingWheat => "Gathering harvest",
+        WorkState.GoingHome => "Bringing harvest home",
+        WorkState.DepositingWheat => "Storing harvest",
         _ => "Working"
     };
-    public override Building? TargetBuilding => _currentPhase == WorkPhase.GoingHome ? _home : _workplace;
-    public override string? TargetFacilityId => _currentPhase is WorkPhase.Working or WorkPhase.TakingBreak ? "crop" : null;
+
+    public override Building? TargetBuilding => _machine.State == WorkState.GoingHome ? _home : _workplace;
+
+    public override string? TargetFacilityId => _machine.State is WorkState.Working or WorkState.TakingBreak ? "crop" : null;
 
     public override List<Vector2I> GetAlternativeGoalPositions(Being entity)
     {
         // Delegate to the crop navigation sub-activity if we're in a working phase
-        if (_currentPhase is WorkPhase.Working or WorkPhase.TakingBreak && _goToCropPhase != null)
+        if (_machine.State is WorkState.Working or WorkState.TakingBreak && _currentSubActivity != null)
         {
-            return _goToCropPhase.GetAlternativeGoalPositions(entity);
+            return _currentSubActivity.GetAlternativeGoalPositions(entity);
         }
 
         return new List<Vector2I>();
@@ -105,6 +129,7 @@ public class WorkFieldActivity : Activity
     /// <param name="workDuration">How many ticks to work before taking a break.</param>
     /// <param name="priority">Action priority (default 0).</param>
     public WorkFieldActivity(Building workplace, Building? home, uint workDuration, int priority = 0)
+        : base(WorkState.GoingToWork)
     {
         _workplace = workplace;
         _home = home;
@@ -113,6 +138,60 @@ public class WorkFieldActivity : Activity
 
         // Working makes you hungry faster
         NeedDecayMultipliers["hunger"] = 1.2f;
+
+        ConfigureStateMachine();
+    }
+
+    /// <summary>
+    /// Configures the state machine transitions, including interruption/resumption behavior.
+    ///
+    /// Work zone states (GoingToCrop, Working, TakingBreak, TakingWheat) regress to GoingToWork on interruption.
+    /// Home zone states (DepositingWheat) regress to GoingHome on interruption.
+    /// GoingToWork and GoingHome use PermitReentry for both Interrupted and Resumed to force fresh pathfinder creation.
+    /// Sub-activity references are automatically nulled by the base class OnTransitioned callback.
+    /// </summary>
+    private void ConfigureStateMachine()
+    {
+        // GoingToWork: navigation state for work zone entry
+        _machine.Configure(WorkState.GoingToWork)
+            .Permit(WorkTrigger.ArrivedAtWork, WorkState.GoingToCrop)
+            .PermitReentry(WorkTrigger.Interrupted) // Already at nav entry, re-enter to force fresh pathfinder
+            .PermitReentry(WorkTrigger.Resumed); // Re-enter to force fresh pathfinder
+
+        // GoingToCrop: navigation to crop facility within workplace
+        _machine.Configure(WorkState.GoingToCrop)
+            .Permit(WorkTrigger.ArrivedAtCrop, WorkState.Working)
+            .Permit(WorkTrigger.DayEnded, WorkState.TakingWheat)
+            .Permit(WorkTrigger.Interrupted, WorkState.GoingToWork); // Work zone regression
+
+        // Working: idle work timer phase
+        _machine.Configure(WorkState.Working)
+            .Permit(WorkTrigger.WorkComplete, WorkState.TakingWheat)
+            .Permit(WorkTrigger.TakeBreak, WorkState.TakingBreak)
+            .Permit(WorkTrigger.DayEnded, WorkState.TakingWheat)
+            .Permit(WorkTrigger.Interrupted, WorkState.GoingToWork); // Work zone regression
+
+        // TakingBreak: optional short break after work segment
+        _machine.Configure(WorkState.TakingBreak)
+            .Permit(WorkTrigger.BreakComplete, WorkState.TakingWheat)
+            .Permit(WorkTrigger.Interrupted, WorkState.GoingToWork); // Work zone regression
+
+        // TakingWheat: take items from farm storage into inventory
+        _machine.Configure(WorkState.TakingWheat)
+            .Permit(WorkTrigger.WheatTaken, WorkState.GoingHome)
+            .Permit(WorkTrigger.Interrupted, WorkState.GoingToWork); // Work zone regression
+
+        // GoingHome: navigation state for home zone entry
+        _machine.Configure(WorkState.GoingHome)
+            .Permit(WorkTrigger.ArrivedHome, WorkState.DepositingWheat)
+            .PermitReentry(WorkTrigger.Interrupted) // Home zone nav entry, re-enter to force fresh pathfinder
+            .PermitReentry(WorkTrigger.Resumed); // Re-enter to force fresh pathfinder
+
+        // DepositingWheat: deposit items from inventory to home storage
+        _machine.Configure(WorkState.DepositingWheat)
+            .Permit(WorkTrigger.Interrupted, WorkState.GoingHome); // Home zone regression
+
+        // WheatDeposited is handled by Complete() directly, no state transition needed
     }
 
     public override void Initialize(Being owner)
@@ -148,22 +227,22 @@ public class WorkFieldActivity : Activity
         var gameTime = _owner.GameController?.CurrentGameTime ?? new GameTime(0);
         if (gameTime.CurrentDayPhase is not(DayPhaseType.Dawn or DayPhaseType.Day))
         {
-            if (_currentPhase is WorkPhase.Working or WorkPhase.GoingToCrop)
+            if (_machine.State is WorkState.Working or WorkState.GoingToCrop)
             {
                 Log.Print($"{_owner.Name}: Work time ended, gathering harvest to bring home");
-                _currentPhase = WorkPhase.TakingWheat;
+                _machine.Fire(WorkTrigger.DayEnded);
             }
         }
 
-        return _currentPhase switch
+        return _machine.State switch
         {
-            WorkPhase.GoingToWork => ProcessGoingToWork(position, perception),
-            WorkPhase.GoingToCrop => ProcessGoingToCrop(position, perception),
-            WorkPhase.Working => ProcessWorking(),
-            WorkPhase.TakingBreak => ProcessTakingBreak(),
-            WorkPhase.TakingWheat => ProcessTakingWheat(position, perception),
-            WorkPhase.GoingHome => ProcessGoingHome(position, perception),
-            WorkPhase.DepositingWheat => ProcessDepositingWheat(position, perception),
+            WorkState.GoingToWork => ProcessGoingToWork(position, perception),
+            WorkState.GoingToCrop => ProcessGoingToCrop(position, perception),
+            WorkState.Working => ProcessWorking(),
+            WorkState.TakingBreak => ProcessTakingBreak(),
+            WorkState.TakingWheat => ProcessTakingWheat(position, perception),
+            WorkState.GoingHome => ProcessGoingHome(position, perception),
+            WorkState.DepositingWheat => ProcessDepositingWheat(position, perception),
             _ => null
         };
     }
@@ -175,15 +254,14 @@ public class WorkFieldActivity : Activity
             return null;
         }
 
-        // Initialize go-to phase if needed
-        if (_goToWorkPhase == null)
-        {
-            _goToWorkPhase = new GoToBuildingActivity(_workplace, Priority);
-            _goToWorkPhase.Initialize(_owner);
-        }
-
-        // Run the navigation sub-activity
-        var (result, action) = RunSubActivity(_goToWorkPhase, position, perception);
+        // Run the navigation sub-activity (created lazily via factory)
+        var (result, action) = RunCurrentSubActivity(
+            () =>
+            {
+                DebugLog("ACTIVITY", $"Starting navigation to workplace: {_workplace.BuildingName}", 0);
+                return new GoToBuildingActivity(_workplace, Priority);
+            },
+            position, perception);
         switch (result)
         {
             case SubActivityResult.Failed:
@@ -203,12 +281,14 @@ public class WorkFieldActivity : Activity
         // If the workplace has a crop facility, navigate to it; otherwise start working directly
         if (_workplace.HasFacility("crop"))
         {
-            _currentPhase = WorkPhase.GoingToCrop;
+            _machine.Fire(WorkTrigger.ArrivedAtWork);
         }
         else
         {
-            // No crop facility defined, proceed to work directly
-            _currentPhase = WorkPhase.Working;
+            // No crop facility defined - fire ArrivedAtWork to get to GoingToCrop,
+            // then immediately fire ArrivedAtCrop to skip to Working
+            _machine.Fire(WorkTrigger.ArrivedAtWork);
+            _machine.Fire(WorkTrigger.ArrivedAtCrop);
             Log.Print($"{_owner.Name}: Started working at {_workplace.BuildingType}");
             DebugLog("ACTIVITY", $"No crop facility, starting work phase directly (duration: {_workDuration} ticks)", 0);
             LogStorageInfo();
@@ -224,22 +304,21 @@ public class WorkFieldActivity : Activity
             return null;
         }
 
-        // Initialize go-to-crop phase if needed
-        if (_goToCropPhase == null)
-        {
-            _goToCropPhase = new GoToFacilityActivity(_workplace, "crop", Priority);
-            _goToCropPhase.Initialize(_owner);
-        }
-
-        // Run the navigation sub-activity
-        var (result, action) = RunSubActivity(_goToCropPhase, position, perception);
+        // Run the navigation sub-activity (created lazily via factory)
+        var (result, action) = RunCurrentSubActivity(
+            () =>
+            {
+                DebugLog("ACTIVITY", $"Starting navigation to crop facility at {_workplace.BuildingName}", 0);
+                return new GoToFacilityActivity(_workplace, "crop", Priority);
+            },
+            position, perception);
         switch (result)
         {
             case SubActivityResult.Failed:
                 // Fall back to working at current position
                 Log.Warn($"{_owner.Name}: Could not reach crop facility, working at current position");
                 DebugLog("ACTIVITY", "Failed to reach crop facility, starting work phase anyway", 0);
-                _currentPhase = WorkPhase.Working;
+                _machine.Fire(WorkTrigger.ArrivedAtCrop);
                 LogStorageInfo();
                 return new IdleAction(_owner, this, Priority);
             case SubActivityResult.Continue:
@@ -250,7 +329,7 @@ public class WorkFieldActivity : Activity
         }
 
         // We've arrived at crop
-        _currentPhase = WorkPhase.Working;
+        _machine.Fire(WorkTrigger.ArrivedAtCrop);
         Log.Print($"{_owner.Name}: Started working at crops in {_workplace.BuildingType}");
         DebugLog("ACTIVITY", $"Arrived at crop facility, starting work phase (duration: {_workDuration} ticks)", 0);
         LogStorageInfo();
@@ -322,13 +401,13 @@ public class WorkFieldActivity : Activity
             if (ActivityTiming.ShouldTakeBreak(BREAKPROBABILITY))
             {
                 _breakTimer = ActivityTiming.GetBreakDuration(MINBREAKDURATION, MAXBREAKDURATION);
-                _currentPhase = WorkPhase.TakingBreak;
                 DebugLog("ACTIVITY", $"Taking a short break ({_breakTimer} ticks)", 0);
+                _machine.Fire(WorkTrigger.TakeBreak);
                 return new IdleAction(_owner, this, Priority);
             }
 
             // No break, proceed to taking wheat
-            _currentPhase = WorkPhase.TakingWheat;
+            _machine.Fire(WorkTrigger.WorkComplete);
             return new IdleAction(_owner, this, Priority);
         }
 
@@ -351,7 +430,7 @@ public class WorkFieldActivity : Activity
         if (_breakTimer <= 0)
         {
             DebugLog("ACTIVITY", "Break finished, gathering harvest", 0);
-            _currentPhase = WorkPhase.TakingWheat;
+            _machine.Fire(WorkTrigger.BreakComplete);
             return new IdleAction(_owner, this, Priority);
         }
 
@@ -366,8 +445,8 @@ public class WorkFieldActivity : Activity
             return null;
         }
 
-        // Initialize take-wheat phase if needed
-        if (_takeWheatPhase == null)
+        // Check availability before creating sub-activity (only when _currentSubActivity is null)
+        if (_currentSubActivity == null)
         {
             // Check how much is available using memory (auto-observes when accessed)
             int available = _owner.GetStorageItemCount(_workplace, "wheat");
@@ -386,21 +465,22 @@ public class WorkFieldActivity : Activity
 
                 // No wheat but has home - just go home
                 DebugLog("ACTIVITY", "No wheat at farm, transitioning to GoingHome", 0);
-                _currentPhase = WorkPhase.GoingHome;
+                _machine.Fire(WorkTrigger.WheatTaken);
                 return new IdleAction(_owner, this, Priority);
             }
-
-            // Take exactly WHEATTOBRINGHOME, or all available if less
-            int actualAmount = System.Math.Min(WHEATTOBRINGHOME, available);
-
-            var itemsToTake = new List<(string itemId, int quantity)> { ("wheat", actualAmount) };
-            _takeWheatPhase = new TakeFromStorageActivity(_workplace, itemsToTake, Priority);
-            _takeWheatPhase.Initialize(_owner);
-            DebugLog("ACTIVITY", $"Taking up to {actualAmount} wheat from farm", 0);
         }
 
-        // Run the take sub-activity
-        var (result, action) = RunSubActivity(_takeWheatPhase, position, perception);
+        // Run the take sub-activity (created lazily via factory)
+        var (result, action) = RunCurrentSubActivity(
+            () =>
+            {
+                int available = _owner!.GetStorageItemCount(_workplace, "wheat");
+                int actualAmount = System.Math.Min(WHEATTOBRINGHOME, available);
+                var itemsToTake = new List<(string itemId, int quantity)> { ("wheat", actualAmount) };
+                DebugLog("ACTIVITY", $"Taking up to {actualAmount} wheat from farm", 0);
+                return new TakeFromStorageActivity(_workplace, itemsToTake, Priority);
+            },
+            position, perception);
         switch (result)
         {
             case SubActivityResult.Failed:
@@ -417,7 +497,7 @@ public class WorkFieldActivity : Activity
                 }
 
                 DebugLog("ACTIVITY", "Take failed, transitioning to GoingHome anyway", 0);
-                _currentPhase = WorkPhase.GoingHome;
+                _machine.Fire(WorkTrigger.WheatTaken);
                 return new IdleAction(_owner, this, Priority);
 
             case SubActivityResult.Continue:
@@ -444,7 +524,7 @@ public class WorkFieldActivity : Activity
                 }
 
                 DebugLog("ACTIVITY", "Wheat taken, transitioning to GoingHome", 0);
-                _currentPhase = WorkPhase.GoingHome;
+                _machine.Fire(WorkTrigger.WheatTaken);
                 return new IdleAction(_owner, this, Priority);
         }
 
@@ -459,15 +539,14 @@ public class WorkFieldActivity : Activity
             return null;
         }
 
-        // Initialize go-to-home phase if needed (targeting storage position)
-        if (_goToHomePhase == null)
-        {
-            _goToHomePhase = new GoToBuildingActivity(_home, Priority, targetStorage: true);
-            _goToHomePhase.Initialize(_owner);
-        }
-
-        // Run the navigation sub-activity
-        var (result, action) = RunSubActivity(_goToHomePhase, position, perception);
+        // Run the navigation sub-activity (created lazily via factory)
+        var (result, action) = RunCurrentSubActivity(
+            () =>
+            {
+                DebugLog("ACTIVITY", $"Starting navigation to home: {_home!.BuildingName}", 0);
+                return new GoToBuildingActivity(_home, Priority, targetStorage: true);
+            },
+            position, perception);
         switch (result)
         {
             case SubActivityResult.Failed:
@@ -484,7 +563,7 @@ public class WorkFieldActivity : Activity
 
         // We've arrived at home
         DebugLog("ACTIVITY", "Arrived at home, transitioning to DepositingWheat", 0);
-        _currentPhase = WorkPhase.DepositingWheat;
+        _machine.Fire(WorkTrigger.ArrivedHome);
         return new IdleAction(_owner, this, Priority);
     }
 
@@ -496,8 +575,8 @@ public class WorkFieldActivity : Activity
             return null;
         }
 
-        // Initialize deposit-wheat phase if needed
-        if (_depositWheatPhase == null)
+        // Check inventory before creating sub-activity (only when _currentSubActivity is null)
+        if (_currentSubActivity == null)
         {
             var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
             if (inventory == null)
@@ -516,15 +595,19 @@ public class WorkFieldActivity : Activity
                 Complete();
                 return null;
             }
-
-            var itemsToDeposit = new List<(string itemId, int quantity)> { ("wheat", wheatCount) };
-            _depositWheatPhase = new DepositToStorageActivity(_home, itemsToDeposit, Priority);
-            _depositWheatPhase.Initialize(_owner);
-            DebugLog("ACTIVITY", $"Depositing {wheatCount} wheat to home", 0);
         }
 
-        // Run the deposit sub-activity
-        var (result, action) = RunSubActivity(_depositWheatPhase, position, perception);
+        // Run the deposit sub-activity (created lazily via factory)
+        var (result, action) = RunCurrentSubActivity(
+            () =>
+            {
+                var inventory = _owner!.SelfAsEntity().GetTrait<InventoryTrait>();
+                int wheatCount = inventory?.GetItemCount("wheat") ?? 0;
+                var itemsToDeposit = new List<(string itemId, int quantity)> { ("wheat", wheatCount) };
+                DebugLog("ACTIVITY", $"Depositing {wheatCount} wheat to home", 0);
+                return new DepositToStorageActivity(_home!, itemsToDeposit, Priority);
+            },
+            position, perception);
         switch (result)
         {
             case SubActivityResult.Failed:

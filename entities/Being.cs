@@ -53,6 +53,20 @@ public enum EntityEventType
     QueueRequest,       // Response: "Please queue behind me"
     StuckNotification,  // Response: "I can't move"
     EntityPushed,       // For mindless beings: physical push
+
+    // Player command events
+
+    /// <summary>
+    /// A player command was assigned that will override activity actions.
+    /// Data: EntityCommand (the new command)
+    /// </summary>
+    CommandAssigned,
+
+    /// <summary>
+    /// The current player command completed (returned null from SuggestAction).
+    /// Data: EntityCommand (the completed command)
+    /// </summary>
+    CommandCompleted,
 }
 
 /// <summary>
@@ -785,6 +799,9 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             return false;
         }
 
+        // Queue event so activity can detect the interruption
+        QueueEvent(EntityEventType.CommandAssigned, this, command);
+
         _currentCommand = command;
         return true;
     }
@@ -987,6 +1004,12 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         // Process perception early - we need it for blocking entity handling and activity/command decisions
         var currentPerception = PerceptionSystem.ProcessPerception(observationData);
 
+        // Add entity events to perception so activities/traits can see them
+        foreach (var evt in pendingEvents)
+        {
+            currentPerception.AddEntityEvent(evt);
+        }
+
         // Check if we were blocked by an entity last tick and need to respond
         var (blockingEntity, blockedTarget) = ConsumeBlockingEntity();
 
@@ -1063,6 +1086,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             var suggestedAction = _currentCommand.SuggestAction(GetCurrentGridPosition(), currentPerception);
             if (suggestedAction == null) // command complete
             {
+                QueueEvent(EntityEventType.CommandCompleted, this, _currentCommand);
                 _currentCommand = null;
             }
             else
@@ -1074,18 +1098,30 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         // Process current activity
         if (_currentActivity != null)
         {
-            var suggestedAction = _currentActivity.GetNextAction(GetCurrentGridPosition(), currentPerception);
+            // Let activity react to entity events (commands, pushes, etc.) before suggesting action
+            _currentActivity.ProcessEntityEvents(currentPerception);
 
-            // Check state AFTER GetNextAction (activity may complete/fail during call)
+            // Check state AFTER event processing (activity may fail, e.g., SleepActivity cancels on interrupt)
             if (_currentActivity.State != Activity.ActivityState.Running)
             {
                 _currentActivity.Cleanup();
                 _currentActivity = null;
             }
-
-            if (suggestedAction != null)
+            else
             {
-                possibleActions.Enqueue(suggestedAction, suggestedAction.Priority);
+                var suggestedAction = _currentActivity.GetNextAction(GetCurrentGridPosition(), currentPerception);
+
+                // Check state AFTER GetNextAction (activity may complete/fail during call)
+                if (_currentActivity.State != Activity.ActivityState.Running)
+                {
+                    _currentActivity.Cleanup();
+                    _currentActivity = null;
+                }
+
+                if (suggestedAction != null)
+                {
+                    possibleActions.Enqueue(suggestedAction, suggestedAction.Priority);
+                }
             }
         }
 
