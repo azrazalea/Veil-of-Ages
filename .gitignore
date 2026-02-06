@@ -6,6 +6,7 @@ profiles/
 
 # Godot-specific ignores
 .import/
+*.import
 export.cfg
 
 # Imported translations (automatically generated from CSV files)
@@ -20,6 +21,13 @@ mono_crash.*.json
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Accidentally created files
+*.csproj.old*
+nul
+
+# Log files
+*.log
 
 assets/minifantasy
 !assets/README.md
