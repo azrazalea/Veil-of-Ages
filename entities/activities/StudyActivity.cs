@@ -74,6 +74,7 @@ public class StudyActivity : Activity
     {
         base.OnResume();
         _goToStudyPhase = null; // Force fresh pathfinder
+        _currentPhase = StudyPhase.GoingToStudy; // Re-navigate home before resuming
     }
 
     public override EntityAction? GetNextAction(Vector2I position, Perception perception)

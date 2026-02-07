@@ -212,6 +212,20 @@ public class ConsumeItemActivity : Activity
                 }
             }
 
+            // After storage take action executed, food is now in inventory.
+            // Switch to inventory path so ConsumeFromInventoryAction actually consumes it.
+            if (_consumeActionIssued && !_isFromInventory && !_itemConsumed)
+            {
+                var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
+                var foodItem = inventory?.FindItemByTag(_foodTag);
+                if (foodItem != null)
+                {
+                    _isFromInventory = true;
+                    _foodItemId = foodItem.Definition.Id;
+                    _consumeActionIssued = false; // Need to issue ConsumeFromInventoryAction
+                }
+            }
+
             // After action has been issued and presumably executed, mark item as consumed
             if (!_itemConsumed)
             {

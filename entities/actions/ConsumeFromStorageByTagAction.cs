@@ -1,12 +1,12 @@
 using VeilOfAges.Entities.Items;
+using VeilOfAges.Entities.Traits;
 
 namespace VeilOfAges.Entities.Actions;
 
 /// <summary>
-/// Action to consume (remove) items from a building's storage by tag for direct consumption.
-/// Searches for items matching the specified tag and consumes them.
-/// Unlike TakeFromStorageAction, the items are consumed directly rather than being
-/// transferred to inventory. Used for eating food from home storage.
+/// Action to take items from a building's storage by tag for consumption.
+/// If the entity has inventory, the item is transferred there (making it portable
+/// during interruption). Otherwise, the item is consumed directly from storage.
 /// Requires entity to be adjacent to the building.
 /// </summary>
 public class ConsumeFromStorageByTagAction : EntityAction
@@ -15,11 +15,17 @@ public class ConsumeFromStorageByTagAction : EntityAction
     private readonly string _itemTag;
     private readonly int _quantity;
     private Item? _consumedItem;
+    private bool _addedToInventory;
 
     /// <summary>
     /// Gets the item that was actually consumed (available after Execute succeeds).
     /// </summary>
     public Item? ConsumedItem => _consumedItem;
+
+    /// <summary>
+    /// Gets a value indicating whether gets whether the item was added to the entity's inventory (true) or consumed directly (false).
+    /// </summary>
+    public bool AddedToInventory => _addedToInventory;
 
     /// <summary>
     /// Gets actual quantity consumed (may be less than requested if not enough available).
@@ -48,6 +54,29 @@ public class ConsumeFromStorageByTagAction : EntityAction
         // - Finding item by tag and removing it
         _consumedItem = Entity.TakeFromStorageByTag(_building, _itemTag, _quantity);
 
-        return _consumedItem != null;
+        if (_consumedItem == null)
+        {
+            return false;
+        }
+
+        // Try to add to inventory so food is portable during interruption.
+        // If entity has no inventory (e.g., zombies), consume directly from storage.
+        var inventory = Entity.SelfAsEntity().GetTrait<InventoryTrait>();
+        if (inventory != null)
+        {
+            if (inventory.AddItem(_consumedItem))
+            {
+                _addedToInventory = true;
+            }
+            else
+            {
+                // Inventory full - put back in storage
+                Entity.PutInStorage(_building, _consumedItem);
+                _consumedItem = null;
+                return false;
+            }
+        }
+
+        return true;
     }
 }
