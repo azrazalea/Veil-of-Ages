@@ -1,0 +1,15 @@
+{
+    "Id": "baking",
+    "Name": "Baking",
+    "Description": "Skill in transforming raw ingredients into baked goods",
+    "Category": "Crafting",
+    "MaxLevel": 100,
+    "BaseXpPerLevel": 80,
+    "XpScaling": 1.1,
+    "AttributeInfluences": {
+        "Dexterity": 0.4,
+        "Wisdom": 0.3,
+        "Intelligence": 0.3
+    },
+    "Tags": ["crafting", "cooking", "food"]
+}

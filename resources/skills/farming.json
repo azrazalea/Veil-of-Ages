@@ -1,0 +1,15 @@
+{
+    "Id": "farming",
+    "Name": "Farming",
+    "Description": "Knowledge of crop cultivation, soil management, and harvest techniques",
+    "Category": "Crafting",
+    "MaxLevel": 100,
+    "BaseXpPerLevel": 80,
+    "XpScaling": 1.1,
+    "AttributeInfluences": {
+        "Strength": 0.4,
+        "Constitution": 0.3,
+        "Wisdom": 0.3
+    },
+    "Tags": ["crafting", "agriculture", "labor"]
+}

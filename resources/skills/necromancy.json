@@ -1,0 +1,15 @@
+{
+    "Id": "necromancy",
+    "Name": "Necromancy",
+    "Description": "The art of manipulating the boundary between life and death",
+    "Category": "Magic",
+    "MaxLevel": 100,
+    "BaseXpPerLevel": 200,
+    "XpScaling": 1.2,
+    "AttributeInfluences": {
+        "Willpower": 0.4,
+        "Intelligence": 0.3,
+        "Wisdom": 0.3
+    },
+    "Tags": ["magic", "necromancy", "dark_arts"]
+}

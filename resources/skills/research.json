@@ -1,0 +1,15 @@
+{
+    "Id": "research",
+    "Name": "Research",
+    "Description": "Ability to systematically investigate and learn new concepts",
+    "Category": "General",
+    "MaxLevel": 100,
+    "BaseXpPerLevel": 100,
+    "XpScaling": 1.12,
+    "AttributeInfluences": {
+        "Intelligence": 0.5,
+        "Wisdom": 0.3,
+        "Willpower": 0.2
+    },
+    "Tags": ["knowledge", "academic"]
+}

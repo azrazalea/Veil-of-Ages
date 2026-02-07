@@ -52,59 +52,137 @@ public class GameStateSnapshot
 /// </summary>
 public class EntitySnapshot
 {
-    /// <summary>
-    /// Gets or sets entity name.
-    /// </summary>
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Gets or sets entity type (class name).
-    /// </summary>
     [JsonPropertyName("type")]
     public string Type { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Gets or sets grid position.
-    /// </summary>
+    [JsonPropertyName("definitionId")]
+    public string? DefinitionId { get; set; }
+
     [JsonPropertyName("position")]
     public Vector2I Position { get; set; }
 
-    /// <summary>
-    /// Gets or sets current activity description (or "Idle").
-    /// </summary>
     [JsonPropertyName("activity")]
     public string Activity { get; set; } = "Idle";
 
-    /// <summary>
-    /// Gets or sets need name to value (0-1) mapping.
-    /// </summary>
+    [JsonPropertyName("activityDisplayName")]
+    public string? ActivityDisplayName { get; set; }
+
+    [JsonPropertyName("command")]
+    public string? Command { get; set; }
+
     [JsonPropertyName("needs")]
     public Dictionary<string, float> Needs { get; set; } = [];
 
-    /// <summary>
-    /// Gets or sets list of trait names.
-    /// </summary>
     [JsonPropertyName("traits")]
     public List<string> Traits { get; set; } = [];
 
-    /// <summary>
-    /// Gets or sets a value indicating whether whether entity is currently moving.
-    /// </summary>
+    [JsonPropertyName("skills")]
+    public List<SkillSnapshot> Skills { get; set; } = [];
+
+    [JsonPropertyName("attributes")]
+    public AttributeSnapshot? Attributes { get; set; }
+
+    [JsonPropertyName("health")]
+    public HealthSnapshot? Health { get; set; }
+
+    [JsonPropertyName("inventory")]
+    public List<ItemSnapshot> Inventory { get; set; } = [];
+
+    [JsonPropertyName("village")]
+    public string? Village { get; set; }
+
     [JsonPropertyName("isMoving")]
     public bool IsMoving { get; set; }
 
-    /// <summary>
-    /// Gets or sets a value indicating whether whether entity is in a queue.
-    /// </summary>
     [JsonPropertyName("isInQueue")]
     public bool IsInQueue { get; set; }
 
-    /// <summary>
-    /// Gets or sets a value indicating whether whether entity was blocked last tick.
-    /// </summary>
-    [JsonPropertyName("isBlocked")]
-    public bool IsBlocked { get; set; }
+    [JsonPropertyName("isHidden")]
+    public bool IsHidden { get; set; }
+}
+
+/// <summary>
+/// Skill state snapshot.
+/// </summary>
+public class SkillSnapshot
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("level")]
+    public int Level { get; set; }
+
+    [JsonPropertyName("currentXp")]
+    public float CurrentXp { get; set; }
+
+    [JsonPropertyName("xpToNextLevel")]
+    public float XpToNextLevel { get; set; }
+
+    [JsonPropertyName("progress")]
+    public float Progress { get; set; }
+}
+
+/// <summary>
+/// Attribute values snapshot.
+/// </summary>
+public class AttributeSnapshot
+{
+    [JsonPropertyName("strength")]
+    public float Strength { get; set; }
+
+    [JsonPropertyName("dexterity")]
+    public float Dexterity { get; set; }
+
+    [JsonPropertyName("constitution")]
+    public float Constitution { get; set; }
+
+    [JsonPropertyName("intelligence")]
+    public float Intelligence { get; set; }
+
+    [JsonPropertyName("willpower")]
+    public float Willpower { get; set; }
+
+    [JsonPropertyName("wisdom")]
+    public float Wisdom { get; set; }
+
+    [JsonPropertyName("charisma")]
+    public float Charisma { get; set; }
+}
+
+/// <summary>
+/// Health state snapshot.
+/// </summary>
+public class HealthSnapshot
+{
+    [JsonPropertyName("percentage")]
+    public float Percentage { get; set; }
+
+    [JsonPropertyName("status")]
+    public string Status { get; set; } = string.Empty;
+
+    [JsonPropertyName("efficiency")]
+    public float Efficiency { get; set; }
+}
+
+/// <summary>
+/// Inventory item snapshot.
+/// </summary>
+public class ItemSnapshot
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("quantity")]
+    public int Quantity { get; set; }
 }
 
 /// <summary>
@@ -151,7 +229,7 @@ public class GridSnapshot
     /// - '#' = building
     /// - '@' = idle entity
     /// - 'W' = walking entity
-    /// - 'B' = blocked entity
+    /// - 'H' = hidden entity
     /// - 'Q' = queued entity
     /// - '~' = water.
     /// </summary>
@@ -194,10 +272,10 @@ public class GridSnapshot
                 // Check for entity first (entities appear on top)
                 if (entityPositions.TryGetValue(pos, out var entity))
                 {
-                    // Priority: Blocked > Queued > Walking > Idle
-                    if (entity.IsBlocked)
+                    // Priority: Hidden > Queued > Walking > Idle
+                    if (entity.IsHidden)
                     {
-                        sb.Append('B');
+                        sb.Append('H');
                     }
                     else if (entity.IsInQueue)
                     {

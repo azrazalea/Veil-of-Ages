@@ -69,6 +69,12 @@ public class BeingDefinition
     public List<NeedDefinition> Needs { get; set; } = [];
 
     /// <summary>
+    /// Gets or sets starting skills for this being.
+    /// Skills are initialized in SkillSystem before traits are created.
+    /// </summary>
+    public List<SkillStartDefinition> Skills { get; set; } = [];
+
+    /// <summary>
     /// Gets or sets list of traits to add to this being.
     /// </summary>
     public List<TraitDefinition> Traits { get; set; } = [];
@@ -332,4 +338,26 @@ public class NeedDefinition
     /// Gets or sets high threshold above which the need is well satisfied.
     /// </summary>
     public float High { get; set; } = 90f;
+}
+
+/// <summary>
+/// JSON-serializable starting skill for being definitions.
+/// Defines a skill the being starts with at a given level.
+/// </summary>
+public class SkillStartDefinition
+{
+    /// <summary>
+    /// Gets or sets the skill definition ID (must match a loaded SkillDefinition).
+    /// </summary>
+    public string? Id { get; set; }
+
+    /// <summary>
+    /// Gets or sets the starting level for this skill (default 1).
+    /// </summary>
+    public int Level { get; set; } = 1;
+
+    /// <summary>
+    /// Gets or sets the starting XP within the current level (default 0).
+    /// </summary>
+    public float Xp { get; set; }
 }

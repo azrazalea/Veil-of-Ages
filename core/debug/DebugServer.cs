@@ -13,6 +13,9 @@ using System.Threading.Tasks;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
+using VeilOfAges.Entities.Beings;
+using VeilOfAges.Entities.Items;
+using VeilOfAges.Entities.Traits;
 
 namespace VeilOfAges.Core.Debug;
 
@@ -150,17 +153,44 @@ public partial class DebugServer : Node
             Type = being.GetType().Name,
             Position = being.GetCurrentGridPosition(),
             IsMoving = being.IsMoving(),
-            IsInQueue = being.IsInQueue
+            IsInQueue = being.IsInQueue,
+            IsHidden = being.IsHidden
         };
 
-        // Get current activity
+        // Definition ID for GenericBeing
+        if (being is GenericBeing genericBeing)
+        {
+            snapshot.DefinitionId = genericBeing.DefinitionId;
+        }
+
+        // Activity and command
         var activity = being.GetCurrentActivity();
         if (activity != null)
         {
             snapshot.Activity = activity.GetType().Name;
+            snapshot.ActivityDisplayName = activity.DisplayName;
         }
 
-        // Get needs
+        var command = being.GetCurrentCommand();
+        if (command != null)
+        {
+            snapshot.Command = command.GetType().Name;
+        }
+
+        // Attributes
+        var attrs = being.Attributes;
+        snapshot.Attributes = new AttributeSnapshot
+        {
+            Strength = attrs.strength,
+            Dexterity = attrs.dexterity,
+            Constitution = attrs.constitution,
+            Intelligence = attrs.intelligence,
+            Willpower = attrs.willpower,
+            Wisdom = attrs.wisdom,
+            Charisma = attrs.charisma
+        };
+
+        // Needs
         if (being.NeedsSystem != null)
         {
             foreach (var need in being.NeedsSystem.GetAllNeeds())
@@ -169,10 +199,56 @@ public partial class DebugServer : Node
             }
         }
 
-        // Get traits
+        // Skills
+        if (being.SkillSystem != null)
+        {
+            foreach (var skill in being.SkillSystem.GetAllSkills())
+            {
+                snapshot.Skills.Add(new SkillSnapshot
+                {
+                    Id = skill.Definition.Id ?? string.Empty,
+                    Name = skill.Definition.Name ?? string.Empty,
+                    Level = skill.Level,
+                    CurrentXp = skill.CurrentXp,
+                    XpToNextLevel = skill.XpToNextLevel,
+                    Progress = skill.LevelProgress
+                });
+            }
+        }
+
+        // Health
+        snapshot.Health = new HealthSnapshot
+        {
+            Percentage = being.GetHealthPercentage(),
+            Status = being.GetHealthStatus(),
+            Efficiency = being.GetEfficiency()
+        };
+
+        // Traits
         foreach (var trait in being.Traits)
         {
             snapshot.Traits.Add(trait.GetType().Name);
+        }
+
+        // Inventory
+        var inventory = being.SelfAsEntity().GetTrait<InventoryTrait>();
+        if (inventory != null)
+        {
+            foreach (var item in inventory.GetAllItems())
+            {
+                snapshot.Inventory.Add(new ItemSnapshot
+                {
+                    Id = item.Definition.Id ?? string.Empty,
+                    Name = item.Definition.Name ?? string.Empty,
+                    Quantity = item.Quantity
+                });
+            }
+        }
+
+        // Village
+        if (being.Village != null)
+        {
+            snapshot.Village = being.Village.VillageName;
         }
 
         return snapshot;

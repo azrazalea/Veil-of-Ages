@@ -1,0 +1,15 @@
+{
+    "Id": "arcane_theory",
+    "Name": "Arcane Theory",
+    "Description": "Understanding of arcane magical principles and energy flows",
+    "Category": "Magic",
+    "MaxLevel": 100,
+    "BaseXpPerLevel": 150,
+    "XpScaling": 1.18,
+    "AttributeInfluences": {
+        "Intelligence": 0.5,
+        "Willpower": 0.3,
+        "Wisdom": 0.2
+    },
+    "Tags": ["magic", "arcane", "knowledge"]
+}

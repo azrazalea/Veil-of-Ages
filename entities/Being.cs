@@ -13,6 +13,7 @@ using VeilOfAges.Entities.Items;
 using VeilOfAges.Entities.Memory;
 using VeilOfAges.Entities.Needs;
 using VeilOfAges.Entities.Sensory;
+using VeilOfAges.Entities.Skills;
 using VeilOfAges.Entities.Traits;
 using VeilOfAges.Grid;
 using VeilOfAges.UI;
@@ -212,6 +213,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     public Dictionary<SenseType, float> DetectionDifficulties { get; protected set; } = [];
     public BeingPerceptionSystem? PerceptionSystem { get; private set; }
     public BeingNeedsSystem? NeedsSystem { get; protected set; }
+    public BeingSkillSystem? SkillSystem { get; protected set; }
 
     /// <summary>
     /// Gets or sets personal memory for this entity's observations.
@@ -738,6 +740,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         // Use ??= to preserve systems created in _Ready() (e.g., for Player which is in scene tree)
         PerceptionSystem ??= new BeingPerceptionSystem(this);
         NeedsSystem ??= new BeingNeedsSystem(this);
+        SkillSystem ??= new BeingSkillSystem(this);
         Memory ??= new PersonalMemory(this);
 
         // Set attributes if provided
@@ -1401,8 +1404,9 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         return GridArea;
     }
 
-    // Activity management
+    // Activity and command management
     public Activity? GetCurrentActivity() => _currentActivity;
+    public EntityCommand? GetCurrentCommand() => _currentCommand;
 
     public void SetCurrentActivity(Activity? activity)
     {

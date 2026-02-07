@@ -6,6 +6,7 @@ using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Needs;
+using VeilOfAges.Entities.Skills;
 using VeilOfAges.Entities.Traits;
 using VeilOfAges.Grid;
 
@@ -130,6 +131,10 @@ public partial class GenericBeing : Being
         // Initialize needs from definition BEFORE creating traits
         // This ensures needs exist when traits initialize
         InitializeNeedsFromDefinition(definition);
+
+        // Initialize skills from definition BEFORE creating traits
+        SkillSystem ??= new BeingSkillSystem(this);
+        InitializeSkillsFromDefinition(definition);
 
         // Create and add traits from definition
         foreach (var traitDef in definition.Traits)
@@ -331,6 +336,44 @@ public partial class GenericBeing : Being
         {
             var needNames = string.Join(", ", definition.Needs.Select(n => n.Name));
             Log.Print($"{Name}: Initialized needs from definition: {needNames}");
+        }
+    }
+
+    /// <summary>
+    /// Initialize skills from the definition's Skills array.
+    /// Called BEFORE traits are created to ensure skills exist when traits initialize.
+    /// </summary>
+    /// <param name="definition">The being definition containing skills.</param>
+    private void InitializeSkillsFromDefinition(BeingDefinition definition)
+    {
+        if (SkillSystem == null || definition.Skills == null || definition.Skills.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var skillStart in definition.Skills)
+        {
+            if (string.IsNullOrEmpty(skillStart.Id))
+            {
+                Log.Warn($"GenericBeing: Skipping skill with missing Id in definition '{DefinitionId}'");
+                continue;
+            }
+
+            var skillDef = SkillResourceManager.Instance.GetDefinition(skillStart.Id);
+            if (skillDef == null)
+            {
+                Log.Warn($"GenericBeing: Skill definition '{skillStart.Id}' not found for definition '{DefinitionId}'");
+                continue;
+            }
+
+            var skill = new Skill(skillDef, skillStart.Level, skillStart.Xp);
+            SkillSystem.AddSkill(skill);
+        }
+
+        if (definition.Skills.Count > 0)
+        {
+            var skillNames = string.Join(", ", definition.Skills.Select(s => s.Id));
+            Log.Print($"{Name}: Initialized skills from definition: {skillNames}");
         }
     }
 

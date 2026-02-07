@@ -97,7 +97,11 @@ Main HTTP server autoload. Handles:
 ### DebugSnapshot.cs
 State snapshot models for JSON serialization:
 - `GameStateSnapshot` - Full game state (tick, time, paused, entities, grid)
-- `EntitySnapshot` - Single entity state (position, activity, needs, traits)
+- `EntitySnapshot` - Comprehensive entity state (see Entity Snapshot Fields below)
+- `SkillSnapshot` - Skill state (id, name, level, xp, progress)
+- `AttributeSnapshot` - All 7 attribute values
+- `HealthSnapshot` - Health percentage, status string, efficiency
+- `ItemSnapshot` - Inventory item (id, name, quantity)
 - `GridSnapshot` - Grid visualization with `ToAscii()` method
 - `BuildingSnapshot` - Building info (name, type, position, size)
 
@@ -131,6 +135,28 @@ Command classes for server control:
 | `/restart` | Reload current scene (server stays up, tick counter persists) |
 | `/quit` | Quit the game cleanly |
 
+### Entity Snapshot Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Entity instance name |
+| `type` | string | C# class name (e.g., "GenericBeing") |
+| `definitionId` | string? | Being definition ID (e.g., "player", "villager") |
+| `position` | Vector2I | Current grid position |
+| `activity` | string | Activity class name (or "Idle") |
+| `activityDisplayName` | string? | Human-readable activity name (e.g., "Going to study", "Working at Farm") |
+| `command` | string? | Active player command class name (null if none) |
+| `needs` | dict | Need ID to value (0-100) mapping |
+| `skills` | array | Skill snapshots with id, name, level, xp, progress |
+| `attributes` | object | All 7 attributes (strength, dexterity, constitution, intelligence, willpower, wisdom, charisma) |
+| `health` | object | Health percentage (0-1), status string, efficiency (0-1) |
+| `inventory` | array | Items in entity's inventory (id, name, quantity) |
+| `traits` | array | Trait class names |
+| `village` | string? | Village name if entity belongs to one |
+| `isMoving` | bool | Currently moving |
+| `isInQueue` | bool | Waiting in a queue |
+| `isHidden` | bool | Entity is hidden/dormant |
+
 ### Example Usage
 
 **Use `jq` for parsing JSON responses** - it's more reliable than grep/python for JSON.
@@ -143,16 +169,31 @@ curl -s http://localhost:8765/ping
 curl -s http://localhost:8765/state | jq '{tick: .tick, time: .gameTime}'
 
 # Get all entities with key info (first 15)
-curl -s http://localhost:8765/entities | jq -r '.[:15] | .[] | "\(.name[:30]) \(.position) \(.activity[:20]) blk=\(.isBlocked) q=\(.isInQueue)"'
+curl -s http://localhost:8765/entities | jq -r '.[:15] | .[] | "\(.name[:30]) \(.position) \(.activityDisplayName // .activity)"'
 
-# Get specific entity (URL-encode spaces)
-curl -s "http://localhost:8765/entity/Lilith%20Galonadel" | jq .
+# Get specific entity with full details (URL-encode spaces)
+curl -s "http://localhost:8765/entity/Player-abc12345" | jq .
+
+# Get entity skills
+curl -s "http://localhost:8765/entity/Player-abc12345" | jq '.skills[] | "\(.name) L\(.level) (\(.progress * 100 | floor)%)"'
+
+# Get entity attributes
+curl -s "http://localhost:8765/entity/Player-abc12345" | jq '.attributes'
+
+# Get entity health status
+curl -s "http://localhost:8765/entity/Player-abc12345" | jq '{health: .health.status, efficiency: .health.efficiency}'
+
+# Get entity inventory
+curl -s "http://localhost:8765/entity/Player-abc12345" | jq '.inventory[] | "\(.quantity)x \(.name)"'
 
 # Count entities by activity type
 curl -s http://localhost:8765/entities | jq 'group_by(.activity) | map({activity: .[0].activity, count: length})'
 
-# Find blocked or queued entities
-curl -s http://localhost:8765/entities | jq '.[] | select(.isBlocked or .isInQueue)'
+# Find entities with commands
+curl -s http://localhost:8765/entities | jq '.[] | select(.command != null) | {name, command, activity: .activityDisplayName}'
+
+# Find queued or hidden entities
+curl -s http://localhost:8765/entities | jq '.[] | select(.isInQueue or .isHidden)'
 
 # View ASCII grid (first 20 lines)
 curl -s http://localhost:8765/grid | head -20
@@ -180,7 +221,7 @@ curl -s -X POST http://localhost:8765/quit
 | `#` | Building |
 | `@` | Idle entity |
 | `W` | Walking entity |
-| `B` | Blocked entity |
+| `H` | Hidden entity |
 | `Q` | Queued entity |
 | `~` | Water |
 
@@ -194,7 +235,7 @@ curl -s -X POST http://localhost:8765/quit
 | `ResumeCommand` | Resumes simulation |
 | `StepCommand` | Steps N ticks while paused |
 | `GameStateSnapshot` | Full game state for JSON serialization |
-| `EntitySnapshot` | Entity state (position, activity, needs, traits) |
+| `EntitySnapshot` | Entity state (position, activity, needs, skills, attributes, health, inventory, traits) |
 | `GridSnapshot` | Grid with ASCII rendering |
 | `BuildingSnapshot` | Building information |
 
@@ -229,7 +270,11 @@ The log file is truncated on each game start and properly closed on quit.
 - `VeilOfAges.Core.Lib.Log` - Logging with file output
 - `VeilOfAges.Core.Lib.JsonOptions` - JSON serialization with Godot types
 - `VeilOfAges.Entities` - Being and entity data
+- `VeilOfAges.Entities.Beings` - GenericBeing for DefinitionId
+- `VeilOfAges.Entities.Items` - Item data for inventory
 - `VeilOfAges.Entities.Needs` - Need system for entity needs
+- `VeilOfAges.Entities.Skills` - Skill system for entity skills
+- `VeilOfAges.Entities.Traits` - Trait system (InventoryTrait for inventory access)
 - `System.Net.Sockets` - TCP server
 - `System.Collections.Concurrent` - Thread-safe queue
 - `System.Text.Json` - JSON serialization

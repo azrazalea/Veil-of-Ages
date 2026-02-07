@@ -22,6 +22,7 @@ TileResourceManager="*res://entities/building/TileResourceManager.cs"
 ItemResourceManager="*res://entities/items/ItemResourceManager.cs"
 ReactionResourceManager="*res://entities/reactions/ReactionResourceManager.cs"
 BodyStructureResourceManager="*res://entities/beings/health/BodyStructureResourceManager.cs"
+SkillResourceManager="*res://entities/skills/SkillResourceManager.cs"
 BeingResourceManager="*res://entities/beings/BeingResourceManager.cs"
 
 [display]

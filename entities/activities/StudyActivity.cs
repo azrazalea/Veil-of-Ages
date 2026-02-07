@@ -157,6 +157,9 @@ public class StudyActivity : Activity
         // Directly spend energy while studying
         _energyNeed?.Restore(-ENERGYCOSTPERTICK);
 
+        // Grant research skill XP while studying
+        _owner.SkillSystem?.GainXp("research", 0.01f);
+
         if (_studyTimer >= _studyDuration)
         {
             Log.Print($"{_owner.Name}: Completed studying session");

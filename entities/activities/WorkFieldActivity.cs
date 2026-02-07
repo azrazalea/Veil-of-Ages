@@ -366,6 +366,9 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
         // Directly spend energy while working
         _energyNeed?.Restore(-ENERGYCOSTPERTICK);
 
+        // Grant farming skill XP while working
+        _owner.SkillSystem?.GainXp("farming", 0.01f);
+
         // Calculate production interval: produce wheat gradually across the shift
         uint productionInterval = _variedWorkDuration / WHEATPRODUCEDPERSHIFT;
 
