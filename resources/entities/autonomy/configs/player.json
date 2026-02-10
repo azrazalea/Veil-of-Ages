@@ -1,0 +1,4 @@
+{
+  "Id": "player",
+  "Rules": ["study_research", "study_necromancy"]
+}

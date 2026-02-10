@@ -1,0 +1,8 @@
+{
+  "Id": "study_necromancy",
+  "DisplayName": "Study Necromancy",
+  "TraitType": "NecromancyStudyJobTrait",
+  "Priority": -1,
+  "ActiveDuringPhases": ["Dusk", "Night"],
+  "Parameters": {}
+}

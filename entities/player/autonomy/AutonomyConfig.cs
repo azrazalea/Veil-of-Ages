@@ -111,7 +111,7 @@ public class AutonomyConfig
             {
                 TraitType = rule.TraitType,
                 Priority = rule.Priority,
-                Parameters = new Dictionary<string, object?>()
+                Parameters = new Dictionary<string, object?>(rule.Parameters)
             };
 
             // Build runtime config with home building if available
@@ -204,5 +204,38 @@ public class AutonomyConfig
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Create an AutonomyConfig from JSON definitions.
+    /// Looks up each rule ID in the config and creates AutonomyRule instances.
+    /// </summary>
+    /// <param name="configDef">The config definition referencing rule IDs.</param>
+    /// <param name="allRules">Dictionary of all loaded rule definitions.</param>
+    /// <returns>A populated AutonomyConfig.</returns>
+    public static AutonomyConfig FromDefinitions(AutonomyConfigDefinition configDef, Dictionary<string, AutonomyRuleDefinition> allRules)
+    {
+        var config = new AutonomyConfig();
+
+        foreach (var ruleId in configDef.Rules)
+        {
+            if (!allRules.TryGetValue(ruleId, out var ruleDef))
+            {
+                Log.Warn($"AutonomyConfig: Rule '{ruleId}' referenced in config '{configDef.Id}' not found in loaded rules");
+                continue;
+            }
+
+            var rule = new AutonomyRule(
+                ruleDef.Id ?? ruleId,
+                ruleDef.DisplayName ?? ruleId,
+                ruleDef.TraitType ?? string.Empty,
+                ruleDef.Priority,
+                ruleDef.ActiveDuringPhases,
+                ruleDef.Parameters);
+
+            config.AddRule(rule);
+        }
+
+        return config;
     }
 }

@@ -340,6 +340,9 @@ public class AutonomyRuleSnapshot
 
     [JsonPropertyName("activeDuringPhases")]
     public string[] ? ActiveDuringPhases { get; set; }
+
+    [JsonPropertyName("parameters")]
+    public Dictionary<string, object?>? Parameters { get; set; }
 }
 
 /// <summary>

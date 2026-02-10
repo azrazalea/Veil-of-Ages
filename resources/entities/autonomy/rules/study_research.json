@@ -1,0 +1,8 @@
+{
+  "Id": "study_research",
+  "DisplayName": "Study Research",
+  "TraitType": "ScholarJobTrait",
+  "Priority": 0,
+  "ActiveDuringPhases": ["Dawn", "Day"],
+  "Parameters": {}
+}

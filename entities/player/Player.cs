@@ -31,7 +31,7 @@ public partial class Player : GenericBeing
     /// Gets the autonomy configuration that manages the player's trait loadout.
     /// Rules map to traits that are added/removed/configured on the player.
     /// </summary>
-    public AutonomyConfig AutonomyConfig { get; } = new ();
+    public AutonomyConfig AutonomyConfig { get; private set; } = new ();
 
     /// <summary>
     /// Gets the player's home building from HomeTrait.
@@ -77,22 +77,20 @@ public partial class Player : GenericBeing
     }
 
     /// <summary>
-    /// Set up default autonomy rules that record the player's current trait loadout.
+    /// Load autonomy rules from JSON definitions via BeingResourceManager.
+    /// Falls back to empty config if no JSON config is found.
     /// </summary>
     private void InitializeAutonomy()
     {
-        // Record default trait loadout as autonomy rules.
-        // These match what's already in player.json - the config tracks
-        // the player's choices so the UI can display and modify them later.
-        AutonomyConfig.AddRule(new AutonomyRule(
-            "study_research", "Study Research", traitType: "ScholarJobTrait",
-            priority: 0, activeDuringPhases: [DayPhaseType.Dawn, DayPhaseType.Day]));
+        var configDef = Beings.BeingResourceManager.Instance.GetAutonomyConfig("player");
+        if (configDef == null)
+        {
+            Log.Warn("Player: No autonomy config found for 'player', using empty config");
+            return;
+        }
 
-        // Necromancy study - added via autonomy (not in player.json)
-        // This trait is created and configured by AutonomyConfig.Apply()
-        AutonomyConfig.AddRule(new AutonomyRule(
-            "study_necromancy", "Study Necromancy", traitType: "NecromancyStudyJobTrait",
-            priority: -1, activeDuringPhases: [DayPhaseType.Dusk, DayPhaseType.Night]));
+        var allRules = Beings.BeingResourceManager.Instance.GetAutonomyRules();
+        AutonomyConfig = AutonomyConfig.FromDefinitions(configDef, allRules);
     }
 
     private volatile bool _pendingAutonomyReapply;

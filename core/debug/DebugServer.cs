@@ -265,7 +265,8 @@ public partial class DebugServer : Node
                     TraitType = rule.TraitType,
                     Priority = rule.Priority,
                     Enabled = rule.Enabled,
-                    ActiveDuringPhases = rule.ActiveDuringPhases?.Select(p => p.ToString()).ToArray()
+                    ActiveDuringPhases = rule.ActiveDuringPhases?.Select(p => p.ToString()).ToArray(),
+                    Parameters = rule.Parameters.Count > 0 ? rule.Parameters : null
                 };
                 snapshot.AutonomyRules.Add(ruleSnapshot);
             }
@@ -854,7 +855,21 @@ public partial class DebugServer : Node
             phases = parsed.ToArray();
         }
 
-        _commandQueue.Enqueue(new AutonomyAddRuleCommand(id, name, traitType, priority, phases));
+        Dictionary<string, object?>? parameters = null;
+        if (queryParams.TryGetValue("params", out var paramsStr) && !string.IsNullOrEmpty(paramsStr))
+        {
+            try
+            {
+                parameters = JsonSerializer.Deserialize<Dictionary<string, object?>>(paramsStr, JsonOptions.Default);
+            }
+            catch (JsonException)
+            {
+                await SendJsonResponse(writer, 400, new { success = false, message = "Invalid JSON in 'params' parameter" });
+                return;
+            }
+        }
+
+        _commandQueue.Enqueue(new AutonomyAddRuleCommand(id, name, traitType, priority, phases, parameters));
         await SendJsonResponse(writer, 200, new { success = true, message = $"Add rule '{id}' queued" });
     }
 

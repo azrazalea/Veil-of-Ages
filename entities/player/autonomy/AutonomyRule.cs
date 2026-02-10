@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using VeilOfAges.Core.Lib;
 
 namespace VeilOfAges.Entities.Autonomy;
@@ -41,12 +42,19 @@ public class AutonomyRule
     /// </summary>
     public DayPhaseType[] ? ActiveDuringPhases { get; set; }
 
-    public AutonomyRule(string id, string displayName, string traitType, int priority, DayPhaseType[] ? activeDuringPhases = null)
+    /// <summary>
+    /// Gets parameters to pass to the trait when created via TraitFactory.
+    /// These flow into TraitDefinition.Parameters during Apply().
+    /// </summary>
+    public Dictionary<string, object?> Parameters { get; }
+
+    public AutonomyRule(string id, string displayName, string traitType, int priority, DayPhaseType[] ? activeDuringPhases = null, Dictionary<string, object?>? parameters = null)
     {
         Id = id;
         DisplayName = displayName;
         TraitType = traitType;
         Priority = priority;
         ActiveDuringPhases = activeDuringPhases;
+        Parameters = parameters ?? [];
     }
 }

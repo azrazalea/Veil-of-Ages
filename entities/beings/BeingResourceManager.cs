@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
+using VeilOfAges.Entities.Autonomy;
 using VeilOfAges.Entities.Traits;
 
 namespace VeilOfAges.Entities.Beings;
@@ -32,6 +33,12 @@ public partial class BeingResourceManager : Node
     // Animation definition collection
     private readonly Dictionary<string, SpriteAnimationDefinition> _animations = new ();
 
+    // Autonomy rule definitions (loaded from JSON)
+    private Dictionary<string, AutonomyRuleDefinition> _autonomyRules = new ();
+
+    // Autonomy config definitions (loaded from JSON)
+    private Dictionary<string, AutonomyConfigDefinition> _autonomyConfigs = new ();
+
     public override void _Ready()
     {
         _instance = this;
@@ -41,7 +48,8 @@ public partial class BeingResourceManager : Node
 
         LoadAllDefinitions();
         LoadAllAnimations();
-        Log.Print($"BeingResourceManager: Initialized as autoload with {_definitions.Count} being definitions and {_animations.Count} animation definitions");
+        LoadAutonomyData();
+        Log.Print($"BeingResourceManager: Initialized as autoload with {_definitions.Count} being definitions, {_animations.Count} animation definitions, {_autonomyRules.Count} autonomy rules, {_autonomyConfigs.Count} autonomy configs");
     }
 
     /// <summary>
@@ -144,6 +152,36 @@ public partial class BeingResourceManager : Node
         {
             Log.Error($"Failed to load animation definition from: {file}");
         }
+    }
+
+    /// <summary>
+    /// Load autonomy rule definitions and config definitions from JSON.
+    /// </summary>
+    private void LoadAutonomyData()
+    {
+        _autonomyRules = JsonResourceLoader.LoadAllFromDirectory<AutonomyRuleDefinition>(
+            "res://resources/entities/autonomy/rules", d => d.Id);
+
+        _autonomyConfigs = JsonResourceLoader.LoadAllFromDirectory<AutonomyConfigDefinition>(
+            "res://resources/entities/autonomy/configs", d => d.Id);
+    }
+
+    /// <summary>
+    /// Gets all loaded autonomy rule definitions.
+    /// </summary>
+    public Dictionary<string, AutonomyRuleDefinition> GetAutonomyRules()
+    {
+        return _autonomyRules;
+    }
+
+    /// <summary>
+    /// Gets an autonomy config definition by entity ID.
+    /// </summary>
+    /// <param name="entityId">The entity ID (e.g., "player").</param>
+    /// <returns>The config definition, or null if not found.</returns>
+    public AutonomyConfigDefinition? GetAutonomyConfig(string entityId)
+    {
+        return _autonomyConfigs.TryGetValue(entityId, out var config) ? config : null;
     }
 
     /// <summary>

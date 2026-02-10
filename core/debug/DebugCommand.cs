@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
@@ -221,7 +222,7 @@ public class AutonomyReorderCommand(string ruleId, int priority): DebugCommand
 /// <summary>
 /// Command to add a new autonomy rule.
 /// </summary>
-public class AutonomyAddRuleCommand(string id, string displayName, string traitType, int priority, DayPhaseType[] ? phases)
+public class AutonomyAddRuleCommand(string id, string displayName, string traitType, int priority, DayPhaseType[] ? phases, Dictionary<string, object?>? parameters = null)
     : DebugCommand
 {
     public override string Description => $"Add autonomy rule '{id}'";
@@ -241,7 +242,7 @@ public class AutonomyAddRuleCommand(string id, string displayName, string traitT
             return false;
         }
 
-        player.AutonomyConfig.AddRule(new AutonomyRule(id, displayName, traitType, priority, phases));
+        player.AutonomyConfig.AddRule(new AutonomyRule(id, displayName, traitType, priority, phases, parameters));
         player.ReapplyAutonomy();
         return true;
     }
