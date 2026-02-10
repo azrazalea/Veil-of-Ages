@@ -1,0 +1,18 @@
+{
+    "Id": "tombstone",
+    "Name": "Tombstone",
+    "Type": "Decoration",
+    "IsWalkable": false,
+    "BaseDurability": 200,
+    "AtlasSource": "graveyard_props",
+    "Properties": { "BuildCost": "Stone:1", "Purpose": "Memorial" },
+    "Variants": {
+        "stone": {
+            "Plain": { "AtlasCoords": [1, 1] },
+            "Cross": { "AtlasCoords": [5, 1] }
+        },
+        "wood": {
+            "Cross": { "AtlasCoords": [9, 1] }
+        }
+    }
+}

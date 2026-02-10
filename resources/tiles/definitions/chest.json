@@ -1,0 +1,14 @@
+{
+    "Id": "chest",
+    "Name": "Chest",
+    "Type": "Decoration",
+    "IsWalkable": false,
+    "BaseDurability": 150,
+    "AtlasSource": "chest",
+    "Properties": { "BuildCost": "Wood:2", "Purpose": "Storage" },
+    "Variants": {
+        "wood": {
+            "Default": { "AtlasCoords": [0, 0] }
+        }
+    }
+}

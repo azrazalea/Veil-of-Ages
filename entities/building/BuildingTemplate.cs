@@ -143,7 +143,10 @@ public class BuildingTemplate
                     return false;
                 }
 
-                var tileDef = TileResourceManager.Instance.GetTileDefinition(tile.Type.ToLowerInvariant());
+                string tileDefId = !string.IsNullOrEmpty(tile.Category)
+                    ? tile.Category.ToLowerInvariant()
+                    : tile.Type.ToLowerInvariant();
+                var tileDef = TileResourceManager.Instance.GetTileDefinition(tileDefId);
                 if (tileDef == null)
                 {
                     Log.Error($"Tile at {tile.Position} of type {tile.Type} has no corresponding tile definition");

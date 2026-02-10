@@ -1,0 +1,19 @@
+{
+    "Id": "bed",
+    "Name": "Bed",
+    "Type": "Decoration",
+    "IsWalkable": false,
+    "BaseDurability": 100,
+    "AtlasSource": "house_props",
+    "Properties": { "BuildCost": "Wood:3", "Purpose": "Sleeping" },
+    "Variants": {
+        "wood": {
+            "SingleLeft": { "AtlasCoords": [44, 15] },
+            "SingleRight": { "AtlasCoords": [45, 15] },
+            "DoubleTopLeft": { "AtlasCoords": [28, 14] },
+            "DoubleTopRight": { "AtlasCoords": [29, 14] },
+            "DoubleBottomLeft": { "AtlasCoords": [28, 15] },
+            "DoubleBottomRight": { "AtlasCoords": [29, 15] }
+        }
+    }
+}

@@ -1,0 +1,9 @@
+{
+    "Id": "oven",
+    "Name": "Oven Atlas",
+    "Description": "Single oven sprite extracted from kitchen working spritesheet",
+    "TexturePath": "res://assets/minifantasy/buildings/house/Oven.png",
+    "TileSize": [8, 8],
+    "Separation": [0, 0],
+    "Margin": [0, 0]
+}

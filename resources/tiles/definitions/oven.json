@@ -1,0 +1,14 @@
+{
+    "Id": "oven",
+    "Name": "Oven",
+    "Type": "Decoration",
+    "IsWalkable": false,
+    "BaseDurability": 250,
+    "AtlasSource": "oven",
+    "Properties": { "BuildCost": "Stone:3", "Purpose": "Cooking" },
+    "Variants": {
+        "stone": {
+            "Default": { "AtlasCoords": [0, 0] }
+        }
+    }
+}
