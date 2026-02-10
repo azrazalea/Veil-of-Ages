@@ -329,6 +329,9 @@ dotnet_diagnostic.SA1003.severity = none
 # SA1010: Opening square brackets spacing (conflicts with collection expressions)
 dotnet_diagnostic.SA1010.severity = none
 
+# SA1018: Nullable type symbol spacing (conflicts with code formatter on array types)
+dotnet_diagnostic.SA1018.severity = none
+
 # SA1024: Colon spacing (conflicts with record primary constructors)
 dotnet_diagnostic.SA1024.severity = none
 

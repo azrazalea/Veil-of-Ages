@@ -4,6 +4,7 @@ using Godot;
 using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
+using VeilOfAges.Entities.Autonomy;
 using VeilOfAges.Entities.Beings;
 using VeilOfAges.Entities.BeingServices;
 using VeilOfAges.Entities.Sensory;
@@ -18,12 +19,19 @@ namespace VeilOfAges.Entities;
 /// Extends GenericBeing to load configuration from player.json definition.
 /// Adds command queue functionality for player-specific input handling.
 /// Features autonomous behavior via PlayerBehaviorTrait when no commands are queued.
+/// Autonomy configuration tracks which traits the player has chosen and applies them.
 /// </summary>
 public partial class Player : GenericBeing
 {
     public const uint MAXCOMMANDNUM = 7;
 
     private readonly ReorderableQueue<EntityCommand> _commandQueue = new ();
+
+    /// <summary>
+    /// Gets the autonomy configuration that manages the player's trait loadout.
+    /// Rules map to traits that are added/removed/configured on the player.
+    /// </summary>
+    public AutonomyConfig AutonomyConfig { get; } = new ();
 
     /// <summary>
     /// Gets the player's home building from HomeTrait.
@@ -53,6 +61,10 @@ public partial class Player : GenericBeing
         // Notify ScholarJobTrait (needs to know workplace location)
         var scholarJobTrait = SelfAsEntity().GetTrait<ScholarJobTrait>();
         scholarJobTrait?.SetHome(home);
+
+        // Apply autonomy config now that we have a home
+        // (traits added by autonomy may need the home reference)
+        AutonomyConfig.Apply(this);
     }
 
     public override void Initialize(Area gridArea, Vector2I startGridPos, GameController? gameController = null, BeingAttributes? attributes = null, bool debugEnabled = false)
@@ -60,10 +72,50 @@ public partial class Player : GenericBeing
         // Player always has debug enabled for detailed logging
         base.Initialize(gridArea, startGridPos, gameController, attributes, debugEnabled: true);
         Name = "Lilith Galonadel";
+
+        InitializeAutonomy();
+    }
+
+    /// <summary>
+    /// Set up default autonomy rules that record the player's current trait loadout.
+    /// </summary>
+    private void InitializeAutonomy()
+    {
+        // Record default trait loadout as autonomy rules.
+        // These match what's already in player.json - the config tracks
+        // the player's choices so the UI can display and modify them later.
+        AutonomyConfig.AddRule(new AutonomyRule(
+            "study_research", "Study Research", traitType: "ScholarJobTrait",
+            priority: 0, activeDuringPhases: [DayPhaseType.Dawn, DayPhaseType.Day]));
+
+        // Necromancy study - added via autonomy (not in player.json)
+        // This trait is created and configured by AutonomyConfig.Apply()
+        AutonomyConfig.AddRule(new AutonomyRule(
+            "study_necromancy", "Study Necromancy", traitType: "NecromancyStudyJobTrait",
+            priority: -1, activeDuringPhases: [DayPhaseType.Dusk, DayPhaseType.Night]));
+    }
+
+    private volatile bool _pendingAutonomyReapply;
+
+    /// <summary>
+    /// Request that the autonomy configuration be reapplied next tick.
+    /// Removes all autonomy-managed traits, cancels current activity,
+    /// and re-applies all currently enabled rules from scratch.
+    /// Call this after changing enabled rules or adding/removing rules.
+    /// </summary>
+    public void ReapplyAutonomy()
+    {
+        _pendingAutonomyReapply = true;
     }
 
     public override EntityAction Think(Vector2 currentPosition, ObservationData observationData)
     {
+        if (_pendingAutonomyReapply)
+        {
+            _pendingAutonomyReapply = false;
+            return new ReapplyAutonomyAction(this, this);
+        }
+
         if (_commandQueue.Count > 0 && _currentCommand == null)
         {
             _currentCommand = _commandQueue.Dequeue();

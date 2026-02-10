@@ -410,6 +410,16 @@ public abstract class BeingTrait : Trait
         }
     }
 
+    /// <summary>
+    /// Called when this trait is being removed from an entity.
+    /// Override to perform cleanup (e.g., cancel activities, release resources).
+    /// </summary>
+    public virtual void OnRemoved()
+    {
+        _owner = null;
+        IsInitialized = false;
+    }
+
     // Method to suggest actions for the entity
     public virtual EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
     {

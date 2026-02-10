@@ -87,6 +87,11 @@ public interface IEntity<TraitType> : ISensable
         return trait;
     }
 
+    bool RemoveTrait(TraitType trait)
+    {
+        return Traits.Remove(trait);
+    }
+
     T? GetTrait<T>()
         where T : Trait
     {

@@ -3,7 +3,19 @@
     "allow": [
       "Bash(find:*)",
       "Bash(ls:*)",
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Bash(curl:*)",
+      "Bash(powershell.exe -Command \"Get-Content ''C:\\\\Users\\\\azraz\\\\AppData\\\\Roaming\\\\Godot\\\\app_userdata\\\\Veil of Ages\\\\logs\\\\game.log'' -Tail 50\")",
+      "Bash(powershell.exe:*)",
+      "Bash(python:*)",
+      "Bash(curl.exe:*)",
+      "Bash(git push:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(Select-Object -Last 30)",
+      "Bash(git add:*)",
+      "Bash(dotnet-trace:*)",
+      "Bash(dotnet.exe build:*)",
+      "Bash(git status:*)"
     ],
     "deny": []
   }

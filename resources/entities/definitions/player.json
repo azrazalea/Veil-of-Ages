@@ -19,7 +19,8 @@
   },
   "Skills": [
     { "Id": "research", "Level": 1 },
-    { "Id": "arcane_theory", "Level": 1 }
+    { "Id": "arcane_theory", "Level": 1 },
+    { "Id": "necromancy", "Level": 0 }
   ],
   "Traits": [
     { "TraitType": "InventoryTrait", "Priority": 3, "Parameters": {} },
