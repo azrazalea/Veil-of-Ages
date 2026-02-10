@@ -102,6 +102,9 @@ public class EntitySnapshot
 
     [JsonPropertyName("isHidden")]
     public bool IsHidden { get; set; }
+
+    [JsonPropertyName("autonomyRules")]
+    public List<AutonomyRuleSnapshot>? AutonomyRules { get; set; }
 }
 
 /// <summary>
@@ -313,6 +316,30 @@ public class GridSnapshot
 
         return sb.ToString();
     }
+}
+
+/// <summary>
+/// Autonomy rule snapshot for debug server.
+/// </summary>
+public class AutonomyRuleSnapshot
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("displayName")]
+    public string DisplayName { get; set; } = string.Empty;
+
+    [JsonPropertyName("traitType")]
+    public string TraitType { get; set; } = string.Empty;
+
+    [JsonPropertyName("priority")]
+    public int Priority { get; set; }
+
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; }
+
+    [JsonPropertyName("activeDuringPhases")]
+    public string[] ? ActiveDuringPhases { get; set; }
 }
 
 /// <summary>

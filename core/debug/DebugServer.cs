@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
+using VeilOfAges.Entities.Autonomy;
 using VeilOfAges.Entities.Beings;
 using VeilOfAges.Entities.Items;
 using VeilOfAges.Entities.Traits;
@@ -251,6 +252,25 @@ public partial class DebugServer : Node
             snapshot.Village = being.Village.VillageName;
         }
 
+        // Autonomy rules (player only)
+        if (being is Player player)
+        {
+            snapshot.AutonomyRules = [];
+            foreach (var rule in player.AutonomyConfig.Rules)
+            {
+                var ruleSnapshot = new AutonomyRuleSnapshot
+                {
+                    Id = rule.Id,
+                    DisplayName = rule.DisplayName,
+                    TraitType = rule.TraitType,
+                    Priority = rule.Priority,
+                    Enabled = rule.Enabled,
+                    ActiveDuringPhases = rule.ActiveDuringPhases?.Select(p => p.ToString()).ToArray()
+                };
+                snapshot.AutonomyRules.Add(ruleSnapshot);
+            }
+        }
+
         return snapshot;
     }
 
@@ -427,6 +447,9 @@ public partial class DebugServer : Node
                 case "/events":
                     await HandleEvents(writer, queryParams);
                     break;
+                case "/player/autonomy":
+                    await HandleGetAutonomy(writer);
+                    break;
                 default:
                     // Check for /entity/{name} pattern
                     if (pathOnly.StartsWith("/entity/", StringComparison.Ordinal))
@@ -462,7 +485,15 @@ public partial class DebugServer : Node
                     await HandleQuit(writer);
                     break;
                 default:
-                    await SendResponse(writer, 404, "text/plain", "Not Found");
+                    if (pathOnly.StartsWith("/player/", StringComparison.Ordinal))
+                    {
+                        await HandlePlayerCommand(writer, pathOnly, queryParams);
+                    }
+                    else
+                    {
+                        await SendResponse(writer, 404, "text/plain", "Not Found");
+                    }
+
                     break;
             }
         }
@@ -644,6 +675,207 @@ public partial class DebugServer : Node
         // Shutdown logging and quit
         Log.Shutdown();
         GetTree().CallDeferred("quit");
+    }
+
+    // GET /player/autonomy
+    private async Task HandleGetAutonomy(StreamWriter writer)
+    {
+        GameStateSnapshot? snapshot;
+        lock (_snapshotLock)
+        {
+            snapshot = _currentSnapshot;
+        }
+
+        if (snapshot == null)
+        {
+            await SendResponse(writer, 503, "text/plain", "State not available yet");
+            return;
+        }
+
+        var playerEntity = snapshot.Entities.FirstOrDefault(e => e.Type == "Player");
+        if (playerEntity?.AutonomyRules == null)
+        {
+            await SendResponse(writer, 404, "text/plain", "Player not found or has no autonomy rules");
+            return;
+        }
+
+        await SendJsonResponse(writer, 200, playerEntity.AutonomyRules);
+    }
+
+    // POST /player/* dispatch
+    private async Task HandlePlayerCommand(StreamWriter writer, string pathOnly, Dictionary<string, string> queryParams)
+    {
+        switch (pathOnly)
+        {
+            case "/player/move":
+                await HandlePlayerMove(writer, queryParams);
+                break;
+            case "/player/follow":
+                await HandlePlayerFollow(writer, queryParams);
+                break;
+            case "/player/cancel":
+                await HandlePlayerCancel(writer);
+                break;
+            case "/player/autonomy/enable":
+                await HandleAutonomySetEnabled(writer, queryParams, true);
+                break;
+            case "/player/autonomy/disable":
+                await HandleAutonomySetEnabled(writer, queryParams, false);
+                break;
+            case "/player/autonomy/reorder":
+                await HandleAutonomyReorder(writer, queryParams);
+                break;
+            case "/player/autonomy/add":
+                await HandleAutonomyAdd(writer, queryParams);
+                break;
+            case "/player/autonomy/remove":
+                await HandleAutonomyRemove(writer, queryParams);
+                break;
+            case "/player/autonomy/reapply":
+                await HandleAutonomyReapply(writer);
+                break;
+            default:
+                await SendResponse(writer, 404, "text/plain", "Not Found");
+                break;
+        }
+    }
+
+    // POST /player/move?x=N&y=N
+    private async Task HandlePlayerMove(StreamWriter writer, Dictionary<string, string> queryParams)
+    {
+        if (!queryParams.TryGetValue("x", out var xStr) || !int.TryParse(xStr, out var x) ||
+            !queryParams.TryGetValue("y", out var yStr) || !int.TryParse(yStr, out var y))
+        {
+            await SendJsonResponse(writer, 400, new { success = false, message = "Missing or invalid 'x' and 'y' parameters" });
+            return;
+        }
+
+        _commandQueue.Enqueue(new PlayerMoveToCommand(x, y));
+        await SendJsonResponse(writer, 200, new { success = true, message = $"Move to ({x}, {y}) queued" });
+    }
+
+    // POST /player/follow?entity=NAME
+    private async Task HandlePlayerFollow(StreamWriter writer, Dictionary<string, string> queryParams)
+    {
+        if (!queryParams.TryGetValue("entity", out var entityName) || string.IsNullOrEmpty(entityName))
+        {
+            await SendJsonResponse(writer, 400, new { success = false, message = "Missing 'entity' parameter" });
+            return;
+        }
+
+        _commandQueue.Enqueue(new PlayerFollowCommand(entityName));
+        await SendJsonResponse(writer, 200, new { success = true, message = $"Follow '{entityName}' queued" });
+    }
+
+    // POST /player/cancel
+    private Task HandlePlayerCancel(StreamWriter writer)
+    {
+        _commandQueue.Enqueue(new PlayerCancelCommand());
+        return SendJsonResponse(writer, 200, new { success = true, message = "Cancel command queued" });
+    }
+
+    // POST /player/autonomy/enable or /player/autonomy/disable
+    private async Task HandleAutonomySetEnabled(StreamWriter writer, Dictionary<string, string> queryParams, bool enabled)
+    {
+        if (!queryParams.TryGetValue("rule", out var ruleId) || string.IsNullOrEmpty(ruleId))
+        {
+            await SendJsonResponse(writer, 400, new { success = false, message = "Missing 'rule' parameter" });
+            return;
+        }
+
+        _commandQueue.Enqueue(new AutonomySetEnabledCommand(ruleId, enabled));
+        await SendJsonResponse(writer, 200, new { success = true, message = $"Rule '{ruleId}' {(enabled ? "enable" : "disable")} queued" });
+    }
+
+    // POST /player/autonomy/reorder?rule=ID&priority=N
+    private async Task HandleAutonomyReorder(StreamWriter writer, Dictionary<string, string> queryParams)
+    {
+        if (!queryParams.TryGetValue("rule", out var ruleId) || string.IsNullOrEmpty(ruleId))
+        {
+            await SendJsonResponse(writer, 400, new { success = false, message = "Missing 'rule' parameter" });
+            return;
+        }
+
+        if (!queryParams.TryGetValue("priority", out var priorityStr) || !int.TryParse(priorityStr, out var priority))
+        {
+            await SendJsonResponse(writer, 400, new { success = false, message = "Missing or invalid 'priority' parameter" });
+            return;
+        }
+
+        _commandQueue.Enqueue(new AutonomyReorderCommand(ruleId, priority));
+        await SendJsonResponse(writer, 200, new { success = true, message = $"Reorder rule '{ruleId}' to priority {priority} queued" });
+    }
+
+    // POST /player/autonomy/add?id=ID&name=NAME&trait=TYPE&priority=N&phases=Dawn,Day
+    private async Task HandleAutonomyAdd(StreamWriter writer, Dictionary<string, string> queryParams)
+    {
+        if (!queryParams.TryGetValue("id", out var id) || string.IsNullOrEmpty(id))
+        {
+            await SendJsonResponse(writer, 400, new { success = false, message = "Missing 'id' parameter" });
+            return;
+        }
+
+        if (!queryParams.TryGetValue("name", out var name) || string.IsNullOrEmpty(name))
+        {
+            await SendJsonResponse(writer, 400, new { success = false, message = "Missing 'name' parameter" });
+            return;
+        }
+
+        if (!queryParams.TryGetValue("trait", out var traitType) || string.IsNullOrEmpty(traitType))
+        {
+            await SendJsonResponse(writer, 400, new { success = false, message = "Missing 'trait' parameter" });
+            return;
+        }
+
+        if (!queryParams.TryGetValue("priority", out var priorityStr) || !int.TryParse(priorityStr, out var priority))
+        {
+            await SendJsonResponse(writer, 400, new { success = false, message = "Missing or invalid 'priority' parameter" });
+            return;
+        }
+
+        DayPhaseType[] ? phases = null;
+        if (queryParams.TryGetValue("phases", out var phasesStr) && !string.IsNullOrEmpty(phasesStr))
+        {
+            var phaseNames = phasesStr.Split(',');
+            var parsed = new List<DayPhaseType>();
+            foreach (var phaseName in phaseNames)
+            {
+                if (Enum.TryParse<DayPhaseType>(phaseName.Trim(), ignoreCase: true, out var phase))
+                {
+                    parsed.Add(phase);
+                }
+                else
+                {
+                    await SendJsonResponse(writer, 400, new { success = false, message = $"Invalid phase '{phaseName.Trim()}'. Valid: Dawn, Day, Dusk, Night" });
+                    return;
+                }
+            }
+
+            phases = parsed.ToArray();
+        }
+
+        _commandQueue.Enqueue(new AutonomyAddRuleCommand(id, name, traitType, priority, phases));
+        await SendJsonResponse(writer, 200, new { success = true, message = $"Add rule '{id}' queued" });
+    }
+
+    // POST /player/autonomy/remove?rule=ID
+    private async Task HandleAutonomyRemove(StreamWriter writer, Dictionary<string, string> queryParams)
+    {
+        if (!queryParams.TryGetValue("rule", out var ruleId) || string.IsNullOrEmpty(ruleId))
+        {
+            await SendJsonResponse(writer, 400, new { success = false, message = "Missing 'rule' parameter" });
+            return;
+        }
+
+        _commandQueue.Enqueue(new AutonomyRemoveRuleCommand(ruleId));
+        await SendJsonResponse(writer, 200, new { success = true, message = $"Remove rule '{ruleId}' queued" });
+    }
+
+    // POST /player/autonomy/reapply
+    private Task HandleAutonomyReapply(StreamWriter writer)
+    {
+        _commandQueue.Enqueue(new AutonomyReapplyCommand());
+        return SendJsonResponse(writer, 200, new { success = true, message = "Reapply autonomy queued" });
     }
 
     private static Task SendResponse(StreamWriter writer, int statusCode, string contentType, string body)

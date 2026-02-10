@@ -23,6 +23,11 @@ public sealed class TaskTracker : IDisposable
 
     public int TimeoutMs { get; set; } = 500;
 
+    /// <summary>
+    /// Gets or sets number of ticks to skip stuck-task detection at startup while the thread pool warms up.
+    /// </summary>
+    public ulong WarmupTicks { get; set; } = 7;
+
     private sealed class TrackedTaskInfo
     {
         public required string Name { get; init; }
@@ -94,6 +99,12 @@ public sealed class TaskTracker : IDisposable
     /// <returns>Number of stuck tasks found.</returns>
     public int CheckAndKillStuck(ulong currentTick)
     {
+        // Skip detection during warmup while the thread pool is cold
+        if (currentTick <= WarmupTicks)
+        {
+            return 0;
+        }
+
         var stuckTasks = _tasks.Values
             .Where(t => !t.Task.IsCompleted && t.ElapsedMs > TimeoutMs && t.ManagedThreadId != -1)
             .ToList();

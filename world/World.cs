@@ -166,6 +166,8 @@ public partial class World : Node2D
         InitializePlayer();
     }
 
+    public Player? Player => _player;
+
     public SensorySystem? GetSensorySystem() => _sensorySystem;
     public EventSystem? GetEventSystem() => _eventSystem;
 

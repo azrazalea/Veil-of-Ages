@@ -104,6 +104,7 @@ State snapshot models for JSON serialization:
 - `ItemSnapshot` - Inventory item (id, name, quantity)
 - `GridSnapshot` - Grid visualization with `ToAscii()` method
 - `BuildingSnapshot` - Building info (name, type, position, size)
+- `AutonomyRuleSnapshot` - Autonomy rule state (id, displayName, traitType, priority, enabled, activeDuringPhases)
 
 ### DebugCommand.cs
 Command classes for server control:
@@ -111,6 +112,14 @@ Command classes for server control:
 - `PauseCommand` - Pause simulation
 - `ResumeCommand` - Resume simulation
 - `StepCommand` - Step N ticks (requires paused state)
+- `PlayerMoveToCommand` - Move player to grid position
+- `PlayerFollowCommand` - Make player follow entity
+- `PlayerCancelCommand` - Cancel player command
+- `AutonomySetEnabledCommand` - Enable/disable autonomy rule
+- `AutonomyReorderCommand` - Change rule priority
+- `AutonomyAddRuleCommand` - Add new autonomy rule
+- `AutonomyRemoveRuleCommand` - Remove autonomy rule
+- `AutonomyReapplyCommand` - Force reapply all rules
 
 ## HTTP API
 
@@ -124,6 +133,7 @@ Command classes for server control:
 | `/entity/{name}` | Detailed info for specific entity (URL-encode spaces as %20) |
 | `/grid` | ASCII grid visualization (plain text) |
 | `/events` | Recent game events (not yet implemented) |
+| `/player/autonomy` | Get all player autonomy rules (JSON) |
 
 ### Write Endpoints (POST)
 
@@ -134,6 +144,15 @@ Command classes for server control:
 | `/step?ticks=N` | Step N ticks (1-100, default 1, requires paused) |
 | `/restart` | Reload current scene (server stays up, tick counter persists) |
 | `/quit` | Quit the game cleanly |
+| `/player/move?x=N&y=N` | Move player to grid position |
+| `/player/follow?entity=NAME` | Make player follow named entity (URL-encode name) |
+| `/player/cancel` | Cancel player's current command |
+| `/player/autonomy/enable?rule=ID` | Enable an autonomy rule and reapply |
+| `/player/autonomy/disable?rule=ID` | Disable an autonomy rule and reapply |
+| `/player/autonomy/reorder?rule=ID&priority=N` | Change rule priority and reapply |
+| `/player/autonomy/add?id=ID&name=NAME&trait=TYPE&priority=N&phases=Dawn,Day` | Add new rule (phases optional) and reapply |
+| `/player/autonomy/remove?rule=ID` | Remove a rule and reapply |
+| `/player/autonomy/reapply` | Force reapply all autonomy rules |
 
 ### Entity Snapshot Fields
 
@@ -156,6 +175,7 @@ Command classes for server control:
 | `isMoving` | bool | Currently moving |
 | `isInQueue` | bool | Waiting in a queue |
 | `isHidden` | bool | Entity is hidden/dormant |
+| `autonomyRules` | array? | Autonomy rule snapshots (player only): id, displayName, traitType, priority, enabled, activeDuringPhases |
 
 ### Example Usage
 
@@ -211,6 +231,30 @@ curl -s -X POST http://localhost:8765/restart
 
 # Quit the game
 curl -s -X POST http://localhost:8765/quit
+
+# View player autonomy rules
+curl -s http://localhost:8765/player/autonomy | jq .
+
+# Move player to position
+curl -s -X POST "http://localhost:8765/player/move?x=50&y=50"
+
+# Follow an entity
+curl -s -X POST "http://localhost:8765/player/follow?entity=Aelar%20Vossian"
+
+# Cancel current command
+curl -s -X POST http://localhost:8765/player/cancel
+
+# Disable necromancy study
+curl -s -X POST "http://localhost:8765/player/autonomy/disable?rule=study_necromancy"
+
+# Enable necromancy study
+curl -s -X POST "http://localhost:8765/player/autonomy/enable?rule=study_necromancy"
+
+# Force reapply all autonomy rules
+curl -s -X POST http://localhost:8765/player/autonomy/reapply
+
+# Check player entity snapshot includes autonomy
+curl -s "http://localhost:8765/entity/Lilith%20Galonadel" | jq '.autonomyRules'
 ```
 
 ### ASCII Grid Characters
@@ -238,6 +282,15 @@ curl -s -X POST http://localhost:8765/quit
 | `EntitySnapshot` | Entity state (position, activity, needs, skills, attributes, health, inventory, traits) |
 | `GridSnapshot` | Grid with ASCII rendering |
 | `BuildingSnapshot` | Building information |
+| `AutonomyRuleSnapshot` | Autonomy rule state for serialization |
+| `PlayerMoveToCommand` | Move player to grid position |
+| `PlayerFollowCommand` | Make player follow entity |
+| `PlayerCancelCommand` | Cancel player's current command |
+| `AutonomySetEnabledCommand` | Enable/disable autonomy rule |
+| `AutonomyReorderCommand` | Change autonomy rule priority |
+| `AutonomyAddRuleCommand` | Add new autonomy rule |
+| `AutonomyRemoveRuleCommand` | Remove autonomy rule |
+| `AutonomyReapplyCommand` | Force reapply all rules |
 
 ## Important Notes
 
