@@ -1,0 +1,7 @@
+{
+    "Id": "bed",
+    "Name": "Bed",
+    "AtlasSource": "house_props",
+    "AtlasCoords": [22, 14],
+    "TileSize": [2, 2]
+}

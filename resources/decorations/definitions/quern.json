@@ -1,0 +1,7 @@
+{
+    "Id": "quern",
+    "Name": "Quern",
+    "AtlasSource": "medicine_icons",
+    "AtlasCoords": [1, 7],
+    "TileSize": [1, 1]
+}

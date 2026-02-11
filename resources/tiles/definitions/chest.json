@@ -4,11 +4,12 @@
     "Type": "Decoration",
     "IsWalkable": false,
     "BaseDurability": 150,
-    "AtlasSource": "chest",
+    "AtlasSource": "house_props",
     "Properties": { "BuildCost": "Wood:2", "Purpose": "Storage" },
     "Variants": {
         "wood": {
-            "Default": { "AtlasCoords": [0, 0] }
+            "Row0_Col0": { "AtlasCoords": [34, 8] },
+            "Row1_Col0": { "AtlasCoords": [34, 9] }
         }
     }
 }

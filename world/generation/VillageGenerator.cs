@@ -128,8 +128,8 @@ public class VillageGenerator
         // Generate road network with lots
         _roadNetwork = new RoadNetwork(
             villageCenter,
-            villageSquareRadius: 3,  // 7x7 central square
-            roadWidth: 2,
+            villageSquareRadius: 5,  // 11x11 central square
+            roadWidth: 3,
             lotSize: optimalLotSize,
             lotsPerSide: 4);           // More lots for bigger village
         _roadNetwork.GenerateLayout();

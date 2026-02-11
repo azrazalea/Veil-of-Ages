@@ -1,0 +1,7 @@
+{
+    "Id": "chest",
+    "Name": "Chest",
+    "AtlasSource": "house_props",
+    "AtlasCoords": [34, 8],
+    "TileSize": [1, 2]
+}

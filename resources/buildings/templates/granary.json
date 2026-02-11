@@ -9,7 +9,7 @@
     "Facilities": [
         {
             "Id": "storage",
-            "Position": [4, 4],
+            "Positions": [[4, 4]],
             "Storage": {
                 "VolumeCapacity": 10.0,
                 "WeightCapacity": -1,

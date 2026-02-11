@@ -12,15 +12,15 @@ namespace VeilOfAges.Entities;
 public class Facility
 {
     public string Id { get; }
-    public Vector2I Position { get; }
+    public List<Vector2I> Positions { get; }
     public bool RequireAdjacent { get; }
     public Building Owner { get; }
     public List<Trait> Traits { get; } = new ();
 
-    public Facility(string id, Vector2I position, bool requireAdjacent, Building owner)
+    public Facility(string id, List<Vector2I> positions, bool requireAdjacent, Building owner)
     {
         Id = id;
-        Position = position;
+        Positions = positions;
         RequireAdjacent = requireAdjacent;
         Owner = owner;
     }
@@ -56,11 +56,12 @@ public class Facility
     }
 
     /// <summary>
-    /// Get the absolute grid position of this facility.
+    /// Get all absolute grid positions of this facility.
     /// </summary>
-    /// <returns>The absolute grid position (building position + facility position).</returns>
-    public Vector2I GetAbsolutePosition()
+    /// <returns>The absolute grid positions (building position + each facility position).</returns>
+    public List<Vector2I> GetAbsolutePositions()
     {
-        return Owner.GetCurrentGridPosition() + Position;
+        var buildingPos = Owner.GetCurrentGridPosition();
+        return Positions.Select(p => buildingPos + p).ToList();
     }
 }

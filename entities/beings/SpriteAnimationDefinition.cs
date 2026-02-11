@@ -146,8 +146,8 @@ public class SpriteAnimationDefinition
 
                 // Calculate the region for this frame
                 int column = animData.StartColumn + i;
-                float x = column * animData.FrameWidth;
-                float y = animData.FrameRow * animData.FrameHeight;
+                float x = column * (animData.FrameWidth + animData.Separation);
+                float y = animData.FrameRow * (animData.FrameHeight + animData.Separation);
 
                 atlasTexture.Region = new Rect2(x, y, animData.FrameWidth, animData.FrameHeight);
 
@@ -204,6 +204,11 @@ public class SpriteAnimationDefinition
         /// Gets or sets a value indicating whether whether the animation should loop.
         /// </summary>
         public bool Loop { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets the pixel gap between frames in the spritesheet. Default 0.
+        /// </summary>
+        public int Separation { get; set; }
 
         /// <summary>
         /// Validate that all required fields are present and valid.

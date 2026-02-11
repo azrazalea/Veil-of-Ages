@@ -31,7 +31,7 @@ public partial class World : Node2D
     private Player? _player;
 
     [Export]
-    public Vector2I WorldSizeInTiles = new (100, 100);
+    public Vector2I WorldSizeInTiles = new (200, 200);
 
     public override void _Ready()
     {
@@ -82,7 +82,7 @@ public partial class World : Node2D
         }
 
         var gameController = GetNode<GameController>("GameController");
-        var requestedPosition = new Vector2I(50, 50);
+        var requestedPosition = new Vector2I(WorldSizeInTiles.X / 2, WorldSizeInTiles.Y / 2);
 
         // Find a walkable position, starting from the requested position
         var playerPosition = FindNearestWalkablePosition(requestedPosition);

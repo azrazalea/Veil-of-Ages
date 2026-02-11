@@ -23,6 +23,8 @@ public partial class TileResourceManager : Node
     private Dictionary<string, TileMaterialDefinition> _materials = new ();
     private readonly Dictionary<string, TileDefinition> _tileDefinitions = new ();
     private Dictionary<string, TileAtlasSourceDefinition> _atlasSources = new ();
+    private Dictionary<string, DecorationDefinition> _decorationDefinitions = new ();
+    private Dictionary<string, Beings.SpriteAnimationDefinition> _decorationAnimations = new ();
 
     // Atlas source ID to tileset source ID mapping
     private readonly Dictionary<string, int> _tilesetSourceIds = new ();
@@ -37,8 +39,10 @@ public partial class TileResourceManager : Node
         LoadAllMaterials();
         LoadAllAtlasSources();
         LoadAllTileDefinitions();
+        LoadAllDecorationDefinitions();
+        LoadAllDecorationAnimations();
 
-        Log.Print($"TileResourceManager initialized with {_materials.Count} materials, {_atlasSources.Count} atlas sources, and {_tileDefinitions.Count} tile definitions");
+        Log.Print($"TileResourceManager initialized with {_materials.Count} materials, {_atlasSources.Count} atlas sources, {_tileDefinitions.Count} tile definitions, and {_decorationDefinitions.Count} decoration definitions");
     }
 
     /// <summary>
@@ -160,6 +164,65 @@ public partial class TileResourceManager : Node
                 Log.Error($"Tile definition has neither categories nor a legacy atlas source: {tileDefinition.Id}");
             }
         }
+    }
+
+    private void LoadAllDecorationDefinitions()
+    {
+        _decorationDefinitions = JsonResourceLoader.LoadAllFromDirectory<DecorationDefinition>(
+            "res://resources/decorations/definitions",
+            d => d.Id,
+            d => d.Validate(),
+            JsonOptions.WithGodotTypes);
+    }
+
+    private void LoadAllDecorationAnimations()
+    {
+        _decorationAnimations = JsonResourceLoader.LoadAllFromDirectory<Beings.SpriteAnimationDefinition>(
+            "res://resources/decorations/animations",
+            a => a.Id,
+            validate: null,
+            JsonOptions.Default);
+    }
+
+    /// <summary>
+    /// Get a decoration definition by ID.
+    /// </summary>
+    public DecorationDefinition? GetDecorationDefinition(string id)
+    {
+        return _decorationDefinitions.TryGetValue(id, out var def) ? def : null;
+    }
+
+    /// <summary>
+    /// Get a decoration animation definition by ID.
+    /// </summary>
+    public Beings.SpriteAnimationDefinition? GetDecorationAnimation(string id)
+    {
+        return _decorationAnimations.TryGetValue(id, out var anim) ? anim : null;
+    }
+
+    /// <summary>
+    /// Get atlas texture and metadata for building Sprite2D decorations.
+    /// </summary>
+    public (Texture2D Texture, Vector2I TileSize, Vector2I Margin, Vector2I Separation)? GetAtlasInfo(string atlasSourceId)
+    {
+        if (!_atlasSources.TryGetValue(atlasSourceId, out var atlasDef))
+        {
+            return null;
+        }
+
+        if (!_loadedTextures.TryGetValue(atlasDef.TexturePath, out var texture))
+        {
+            // Try loading it
+            texture = ResourceLoader.Load<Texture2D>(atlasDef.TexturePath);
+            if (texture == null)
+            {
+                return null;
+            }
+
+            _loadedTextures[atlasDef.TexturePath] = texture;
+        }
+
+        return (texture, atlasDef.TileSize, atlasDef.Margin, atlasDef.Separation);
     }
 
     /// <summary>

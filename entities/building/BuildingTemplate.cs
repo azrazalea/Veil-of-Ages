@@ -46,6 +46,7 @@ public class BuildingTemplate
     public int Capacity { get; set; }
     public StorageConfig? Storage { get; set; }
     public List<FacilityData> Facilities { get; set; } = new ();
+    public List<DecorationPlacement> Decorations { get; set; } = new ();
     public Dictionary<string, string> Metadata { get; set; } = new ();
 
     /// <summary>
@@ -208,7 +209,7 @@ public class RoomData
 public class FacilityData
 {
     public string Id { get; set; } = string.Empty;
-    public Vector2I Position { get; set; }
+    public List<Vector2I> Positions { get; set; } = new ();
 
     /// <summary>
     /// Gets or sets a value indicating whether entities must be adjacent to this facility's position
@@ -278,6 +279,17 @@ public class StorageConfig
     /// 0 means instant (default). Example: A well might have 8 ticks to simulate drawing water.
     /// </summary>
     public uint FetchDuration { get; set; }
+}
+
+/// <summary>
+/// Data structure for a decoration placement in a building template.
+/// Decorations are purely visual sprites, divorced from the tile/walkability system.
+/// </summary>
+public class DecorationPlacement
+{
+    public string Id { get; set; } = string.Empty;
+    public Vector2I Position { get; set; }
+    public Vector2I PixelOffset { get; set; } = new (0, 0);
 }
 
 /// <summary>

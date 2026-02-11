@@ -1,0 +1,21 @@
+{
+  "Id": "oven_idle",
+  "Name": "Oven Fire Animation",
+  "SpriteSize": [
+    19,
+    22
+  ],
+  "Animations": {
+    "idle": {
+      "TexturePath": "res://assets/minifantasy/buildings/house/oven_animated.png",
+      "FrameWidth": 11,
+      "FrameHeight": 22,
+      "FrameCount": 8,
+      "FrameRow": 0,
+      "StartColumn": 0,
+      "Speed": 5.0,
+      "Separation": 1,
+      "Loop": true
+    }
+  }
+}

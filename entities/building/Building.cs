@@ -28,13 +28,14 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
     public SortedSet<Trait> Traits { get; private set; } = [];
     private TileMapLayer? _tileMap;
     private TileMapLayer? _groundTileMap;
-    private TileMapLayer? _decorationTileMap;
     public Dictionary<SenseType, float> DetectionDifficulties { get; protected set; } = [];
 
     // Dictionary mapping relative grid positions to building tiles
     private readonly Dictionary<Vector2I, BuildingTile> _tiles = [];
     private readonly Dictionary<Vector2I, BuildingTile> _groundTiles = [];
-    private readonly Dictionary<Vector2I, BuildingTile> _decorationTiles = [];
+
+    // Decoration sprites (purely visual, divorced from tile system)
+    private readonly List<Decoration> _decorations = [];
 
     // List of entrance positions (relative to building origin)
     private List<Vector2I> _entrancePositions = [];
@@ -58,8 +59,8 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
     private int _regenerationMaxQuantity;
     private float _regenerationProgress;
 
-    private const int HORIZONTALPIXELOFFSET = -4;
-    private const int VERTICALPIXELOFFSET = -4;
+    public const int HORIZONTALPIXELOFFSET = -4;
+    public const int VERTICALPIXELOFFSET = -4;
 
     public override void _Ready()
     {
@@ -94,7 +95,7 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
                 // Create Facility instance from template data
                 var facility = new Facility(
                     facilityData.Id,
-                    facilityData.Position,
+                    facilityData.Positions,
                     facilityData.RequireAdjacent,
                     this);
 
@@ -145,6 +146,23 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
 
             // Initialize and setup TileMap
             InitializeTileMaps(template);
+
+            // Create decoration sprites from template
+            foreach (var decorationPlacement in template.Decorations)
+            {
+                var decorationDef = TileResourceManager.Instance.GetDecorationDefinition(decorationPlacement.Id);
+                if (decorationDef == null)
+                {
+                    Log.Warn($"Building {template.Name}: Decoration definition '{decorationPlacement.Id}' not found");
+                    continue;
+                }
+
+                var decoration = new Decoration();
+                decoration.Initialize(decorationDef, decorationPlacement.Position, decorationPlacement.PixelOffset);
+                decoration.ZIndex = 1; // Above floor tiles
+                AddChild(decoration);
+                _decorations.Add(decoration);
+            }
         }
 
         ZIndex = 2;
@@ -182,22 +200,9 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
             _groundTileMap.ZAsRelative = true;
         }
 
-        if (_decorationTileMap == null)
-        {
-            _decorationTileMap = new TileMapLayer
-            {
-                Visible = true
-            };
-            AddChild(_decorationTileMap);
-            _decorationTileMap.Position = new Vector2(HORIZONTALPIXELOFFSET, VERTICALPIXELOFFSET);
-            _decorationTileMap.ZIndex = _tileMap.ZIndex + 1;
-            _decorationTileMap.ZAsRelative = true;
-        }
-
         // Setup the TileSet with all required atlas sources
         TileResourceManager.Instance.SetupTileSet(_tileMap);
         TileResourceManager.Instance.SetupTileSet(_groundTileMap);
-        TileResourceManager.Instance.SetupTileSet(_decorationTileMap);
         Log.Print($"Tile set {_tileMap.TileSet}");
 
         Log.Print($"Building grid position Initialize: {_gridPosition}");
@@ -256,7 +261,7 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
     // Create building tiles from a template
     private void CreateTilesFromTemplate(BuildingTemplate template, Vector2I gridPos)
     {
-        if (_tileMap == null || _groundTileMap == null || _decorationTileMap == null)
+        if (_tileMap == null || _groundTileMap == null)
         {
             return;
         }
@@ -322,14 +327,6 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
                     source.CreateTile(buildingTile.AtlasCoords);
                 }
             }
-            else if (buildingTile.Type is TileType.Decoration or TileType.Furniture)
-            {
-                var source = (TileSetAtlasSource)_decorationTileMap.TileSet.GetSource(buildingTile.SourceId);
-                if (source.GetTileAtCoords(buildingTile.AtlasCoords) == new Vector2I(-1, -1))
-                {
-                    source.CreateTile(buildingTile.AtlasCoords);
-                }
-            }
             else
             {
                 var source = (TileSetAtlasSource)_tileMap.TileSet.GetSource(buildingTile.SourceId);
@@ -346,11 +343,6 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
             {
                 _groundTiles[tileData.Position] = buildingTile;
                 _groundTileMap.SetCell(tileData.Position, buildingTile.SourceId, buildingTile.AtlasCoords);
-            }
-            else if (buildingTile.Type is TileType.Decoration or TileType.Furniture)
-            {
-                _decorationTiles[tileData.Position] = buildingTile;
-                _decorationTileMap.SetCell(tileData.Position, buildingTile.SourceId, buildingTile.AtlasCoords);
             }
             else
             {
@@ -463,7 +455,7 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
     private void UpdateBuildingVisual()
     {
         // Ensure TileMap exists
-        if (_tileMap == null || _groundTileMap == null || _decorationTileMap == null)
+        if (_tileMap == null || _groundTileMap == null)
         {
             return;
         }
@@ -471,7 +463,6 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
         // Clear existing cells
         _tileMap.Clear();
         _groundTileMap.Clear();
-        _decorationTileMap.Clear();
 
         // Add each tile to the TileMap
         foreach (var tile in _tiles)
@@ -483,11 +474,6 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
         {
             _groundTileMap.SetCell(tile.Key, tile.Value.SourceId, tile.Value.AtlasCoords);
         }
-
-        foreach (var tile in _decorationTiles)
-        {
-            _decorationTileMap.SetCell(tile.Key, tile.Value.SourceId, tile.Value.AtlasCoords);
-        }
     }
 
     // Get a building tile at the specified relative position
@@ -496,11 +482,6 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
         if (_tiles.TryGetValue(relativePos, out var tile))
         {
             return tile;
-        }
-
-        if (_decorationTiles.TryGetValue(relativePos, out var decorationTile))
-        {
-            return decorationTile;
         }
 
         if (_groundTiles.TryGetValue(relativePos, out var groundTile))
@@ -624,14 +605,6 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
             }
         }
 
-        foreach (var tile in _decorationTiles)
-        {
-            if (tile.Value.Type == type)
-            {
-                result.Add((tile.Key, tile.Value));
-            }
-        }
-
         return result;
     }
 
@@ -653,16 +626,6 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
 
         // Include all tile positions (walls, doors, etc.)
         foreach (var tile in _tiles)
-        {
-            if (!_entrancePositions.Contains(tile.Key) &&
-                !entranceAdjacentPositions.Contains(tile.Key))
-            {
-                result.Add(tile.Key);
-            }
-        }
-
-        // Include all decoration tile positions (furniture, decorations)
-        foreach (var tile in _decorationTiles)
         {
             if (!_entrancePositions.Contains(tile.Key) &&
                 !entranceAdjacentPositions.Contains(tile.Key))
@@ -902,7 +865,7 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
     {
         if (_facilities.TryGetValue(facilityId, out var facilityList))
         {
-            return facilityList.Select(f => f.Position).ToList();
+            return facilityList.SelectMany(f => f.Positions).ToList();
         }
 
         return new List<Vector2I>();
@@ -943,11 +906,14 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
             // Find a storage facility position that has an adjacent walkable tile
             foreach (var facility in storageFacilities)
             {
-                Vector2I? adjacentPos = GetAdjacentWalkablePosition(facility.Position);
-                if (adjacentPos.HasValue)
+                foreach (var pos in facility.Positions)
                 {
-                    // Return absolute position
-                    return _gridPosition + adjacentPos.Value;
+                    Vector2I? adjacentPos = GetAdjacentWalkablePosition(pos);
+                    if (adjacentPos.HasValue)
+                    {
+                        // Return absolute position
+                        return _gridPosition + adjacentPos.Value;
+                    }
                 }
             }
 
@@ -1054,12 +1020,6 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
 
             // Check if this position has a walkable tile in our building
             if (_tiles.TryGetValue(adjacentPos, out var tile) && tile.IsWalkable)
-            {
-                return adjacentPos;
-            }
-
-            // Also check decoration tiles (furniture, decorations)
-            if (_decorationTiles.TryGetValue(adjacentPos, out var decorationTile) && decorationTile.IsWalkable)
             {
                 return adjacentPos;
             }

@@ -45,7 +45,7 @@ public class MovementController
         return (blocker, target);
     }
 
-    public MovementController(Being owner, float movementPointsPerTick = 0.3f)
+    public MovementController(Being owner, float movementPointsPerTick = 0.55f)
     {
         _owner = owner;
         _movementPointsPerTick = movementPointsPerTick;
