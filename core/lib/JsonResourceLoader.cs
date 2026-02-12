@@ -48,6 +48,52 @@ public static class JsonResourceLoader
     }
 
     /// <summary>
+    /// Gets the base directory for external resource files.
+    /// In the editor, this is the project root. In exported builds, this is the
+    /// directory containing the executable (or the directory containing the .app on macOS).
+    /// </summary>
+    public static string GetGameBaseDirectory()
+    {
+        if (OS.HasFeature("editor"))
+        {
+            return ProjectSettings.GlobalizePath("res://");
+        }
+
+        string exePath = OS.GetExecutablePath();
+        string? exeDir = Path.GetDirectoryName(exePath);
+
+        // macOS .app bundle: executable is at Foo.app/Contents/MacOS/Foo
+        // We need the directory containing the .app bundle
+        if (exeDir != null && exeDir.Contains(".app/Contents/MacOS"))
+        {
+            // Walk up from Contents/MacOS to the directory containing the .app
+            var appDir = new DirectoryInfo(exeDir);
+            while (appDir != null && !appDir.Name.EndsWith(".app", StringComparison.Ordinal))
+            {
+                appDir = appDir.Parent;
+            }
+
+            if (appDir?.Parent != null)
+            {
+                return appDir.Parent.FullName;
+            }
+        }
+
+        return exeDir ?? ProjectSettings.GlobalizePath("res://");
+    }
+
+    /// <summary>
+    /// Resolves a res:// path to a filesystem path, using the game base directory
+    /// for exported builds so external resource files (for modding) are found
+    /// next to the executable rather than inside a .pck or .app bundle.
+    /// </summary>
+    private static string ResolveResPath(string resPath)
+    {
+        string relativePath = resPath.Replace("res://", string.Empty);
+        return Path.Combine(GetGameBaseDirectory(), relativePath);
+    }
+
+    /// <summary>
     /// Load all JSON files from a res:// directory and return a dictionary keyed by ID.
     /// </summary>
     /// <typeparam name="T">The type to deserialize each file to.</typeparam>
@@ -66,8 +112,7 @@ public static class JsonResourceLoader
         var result = new Dictionary<string, T>();
         options ??= JsonOptions.Default;
 
-        // Convert res:// path to absolute path
-        string projectPath = ProjectSettings.GlobalizePath(resPath);
+        string projectPath = ResolveResPath(resPath);
 
         if (!Directory.Exists(projectPath))
         {
