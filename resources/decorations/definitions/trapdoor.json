@@ -1,0 +1,7 @@
+{
+    "Id": "trapdoor",
+    "Name": "Trapdoor",
+    "AtlasSource": "trapdoor",
+    "AtlasCoords": [0, 0],
+    "TileSize": [2, 2]
+}

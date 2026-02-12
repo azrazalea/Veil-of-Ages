@@ -1,0 +1,9 @@
+{
+    "Id": "trapdoor",
+    "Name": "Trapdoor Atlas",
+    "Description": "Dungeon trapdoor sprite",
+    "TexturePath": "res://assets/minifantasy/buildings/house/Trapdoor.png",
+    "TileSize": [8, 8],
+    "Separation": [0, 0],
+    "Margin": [0, 0]
+}

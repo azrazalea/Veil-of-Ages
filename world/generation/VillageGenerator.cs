@@ -404,7 +404,7 @@ public class VillageGenerator
             .First();
 
         // Place the player's house (skip entity spawning - player lives alone)
-        PlaceBuildingInLot("Simple House", nearestLot, skipEntitySpawn: true);
+        PlaceBuildingInLot("Scholar's House", nearestLot, skipEntitySpawn: true);
 
         // Get the player's house directly from the lot (not from _placedHouses since we skipped entity spawning)
         _playerHouse = nearestLot.OccupyingBuilding;
