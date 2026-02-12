@@ -86,6 +86,19 @@ jobs:
         run: |
           godot --headless --export-release "${{ matrix.platform }}" build/${{ matrix.export_name }}/"${EXPORT_NAME}${{ matrix.extension }}"
 
+      - name: Unpack macOS app bundle
+        if: matrix.export_name == 'macos'
+        run: |
+          cd build/${{ matrix.export_name }}
+          unzip "${EXPORT_NAME}.zip"
+          rm "${EXPORT_NAME}.zip"
+
+      - name: Ad-hoc sign macOS app
+        if: matrix.export_name == 'macos'
+        uses: indygreg/apple-code-sign-action@v1
+        with:
+          input_path: build/${{ matrix.export_name }}/${{ env.EXPORT_NAME }}.app
+
       - name: Copy resources for modding
         run: |
           mkdir -p build/${{ matrix.export_name }}/resources
