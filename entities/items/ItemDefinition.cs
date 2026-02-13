@@ -23,7 +23,7 @@ public enum ItemCategory
 /// <summary>
 /// JSON-serializable item template that defines the properties of an item type.
 /// </summary>
-public class ItemDefinition
+public class ItemDefinition : IResourceDefinition
 {
     /// <summary>
     /// Gets or sets unique identifier for this item type.

@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.IO;
-using Godot;
 using VeilOfAges.Core.Lib;
 
 namespace VeilOfAges.Entities.Items;
@@ -10,93 +7,9 @@ namespace VeilOfAges.Entities.Items;
 /// Autoload singleton manager for loading and creating items from JSON definitions.
 /// Register as an autoload in project.godot.
 /// </summary>
-public partial class ItemResourceManager : Node
+public partial class ItemResourceManager : ResourceManager<ItemResourceManager, ItemDefinition>
 {
-    // Singleton instance
-    private static ItemResourceManager? _instance;
-
-    public static ItemResourceManager Instance => _instance
-        ?? throw new InvalidOperationException("ItemResourceManager not initialized. Ensure it's registered as an autoload in project.godot");
-
-    // Item definition collection
-    private readonly Dictionary<string, ItemDefinition> _definitions = new ();
-
-    public override void _Ready()
-    {
-        _instance = this;
-        LoadAllDefinitions();
-        Log.Print($"ItemResourceManager initialized with {_definitions.Count} item definitions");
-    }
-
-    /// <summary>
-    /// Load all item definitions from the resources folder.
-    /// </summary>
-    private void LoadAllDefinitions()
-    {
-        string itemsPath = "res://resources/items";
-        string projectPath = ProjectSettings.GlobalizePath(itemsPath);
-
-        if (!Directory.Exists(projectPath))
-        {
-            Log.Warn($"Items directory not found: {projectPath} - creating empty directory");
-            Directory.CreateDirectory(projectPath);
-            return;
-        }
-
-        // Load all JSON files in the items directory
-        foreach (var file in Directory.GetFiles(projectPath, "*.json"))
-        {
-            var definition = ItemDefinition.LoadFromJson(file);
-            if (definition != null && definition.Validate())
-            {
-                if (definition.Id != null)
-                {
-                    _definitions[definition.Id] = definition;
-                    Log.Print($"Loaded item definition: {definition.Id}");
-                }
-            }
-            else
-            {
-                Log.Error($"Failed to load item definition from: {file}");
-            }
-        }
-
-        // Also load from subdirectories for organization
-        foreach (var directory in Directory.GetDirectories(projectPath))
-        {
-            foreach (var file in Directory.GetFiles(directory, "*.json"))
-            {
-                var definition = ItemDefinition.LoadFromJson(file);
-                if (definition != null && definition.Validate())
-                {
-                    if (definition.Id != null)
-                    {
-                        _definitions[definition.Id] = definition;
-                        Log.Print($"Loaded item definition: {definition.Id}");
-                    }
-                }
-                else
-                {
-                    Log.Error($"Failed to load item definition from: {file}");
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Get an item definition by ID.
-    /// </summary>
-    /// <param name="id">The item definition ID.</param>
-    /// <returns>The item definition or null if not found.</returns>
-    public ItemDefinition? GetDefinition(string id)
-    {
-        if (_definitions.TryGetValue(id, out var definition))
-        {
-            return definition;
-        }
-
-        return null;
-    }
+    protected override string ResourcePath => "res://resources/items";
 
     /// <summary>
     /// Create a new item instance from a definition ID.
@@ -114,15 +27,6 @@ public partial class ItemResourceManager : Node
         }
 
         return new Item(definition, quantity);
-    }
-
-    /// <summary>
-    /// Get all loaded item definitions.
-    /// </summary>
-    /// <returns>Enumerable of all item definitions.</returns>
-    public IEnumerable<ItemDefinition> GetAllDefinitions()
-    {
-        return _definitions.Values;
     }
 
     /// <summary>
@@ -155,15 +59,5 @@ public partial class ItemResourceManager : Node
                 yield return definition;
             }
         }
-    }
-
-    /// <summary>
-    /// Check if a definition with the given ID exists.
-    /// </summary>
-    /// <param name="id">The item definition ID.</param>
-    /// <returns>True if the definition exists, false otherwise.</returns>
-    public bool HasDefinition(string id)
-    {
-        return _definitions.ContainsKey(id);
     }
 }

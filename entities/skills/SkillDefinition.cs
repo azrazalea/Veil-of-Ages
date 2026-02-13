@@ -23,7 +23,7 @@ public enum SkillCategory
 /// <summary>
 /// JSON-serializable skill template that defines the properties of a skill type.
 /// </summary>
-public class SkillDefinition
+public class SkillDefinition : IResourceDefinition
 {
     /// <summary>
     /// Gets or sets unique identifier for this skill type.

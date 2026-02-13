@@ -87,7 +87,7 @@ public static class JsonResourceLoader
     /// for exported builds so external resource files (for modding) are found
     /// next to the executable rather than inside a .pck or .app bundle.
     /// </summary>
-    private static string ResolveResPath(string resPath)
+    public static string ResolveResPath(string resPath)
     {
         string relativePath = resPath.Replace("res://", string.Empty);
         return Path.Combine(GetGameBaseDirectory(), relativePath);
@@ -106,7 +106,8 @@ public static class JsonResourceLoader
         string resPath,
         Func<T, string?> getId,
         Func<T, bool>? validate = null,
-        JsonSerializerOptions? options = null)
+        JsonSerializerOptions? options = null,
+        bool includeSubdirectories = false)
         where T : class
     {
         var result = new Dictionary<string, T>();
@@ -120,7 +121,29 @@ public static class JsonResourceLoader
             return result;
         }
 
-        foreach (var file in Directory.GetFiles(projectPath, "*.json"))
+        LoadJsonFilesFromDirectory(projectPath, result, getId, validate, options);
+
+        if (includeSubdirectories)
+        {
+            foreach (var subDir in Directory.GetDirectories(projectPath))
+            {
+                LoadJsonFilesFromDirectory(subDir, result, getId, validate, options);
+            }
+        }
+
+        Log.Print($"JsonResourceLoader: Loaded {result.Count} {typeof(T).Name} items from {resPath}");
+        return result;
+    }
+
+    private static void LoadJsonFilesFromDirectory<T>(
+        string directoryPath,
+        Dictionary<string, T> result,
+        Func<T, string?> getId,
+        Func<T, bool>? validate,
+        JsonSerializerOptions options)
+        where T : class
+    {
+        foreach (var file in Directory.GetFiles(directoryPath, "*.json"))
         {
             try
             {
@@ -133,7 +156,6 @@ public static class JsonResourceLoader
                     continue;
                 }
 
-                // Get the ID
                 string? id = getId(item);
                 if (string.IsNullOrEmpty(id))
                 {
@@ -141,7 +163,6 @@ public static class JsonResourceLoader
                     continue;
                 }
 
-                // Validate if a validator was provided
                 if (validate != null && !validate(item))
                 {
                     Log.Error($"JsonResourceLoader: Validation failed for: {file}");
@@ -160,8 +181,5 @@ public static class JsonResourceLoader
                 Log.Error($"JsonResourceLoader: Error loading {file}: {e.Message}");
             }
         }
-
-        Log.Print($"JsonResourceLoader: Loaded {result.Count} {typeof(T).Name} items from {resPath}");
-        return result;
     }
 }

@@ -12,7 +12,7 @@ namespace VeilOfAges.Entities.Beings;
 /// JSON-serializable class representing animation definitions for entities.
 /// Used to create Godot SpriteFrames resources at runtime.
 /// </summary>
-public class SpriteAnimationDefinition
+public class SpriteAnimationDefinition : IResourceDefinition
 {
     /// <summary>
     /// Gets or sets unique identifier for this animation definition.

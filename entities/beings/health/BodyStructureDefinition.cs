@@ -8,7 +8,7 @@ namespace VeilOfAges.Entities.Beings.Health;
 /// <summary>
 /// JSON-serializable body structure definition.
 /// </summary>
-public class BodyStructureDefinition
+public class BodyStructureDefinition : IResourceDefinition
 {
     public string? Id { get; set; }
     public string? Name { get; set; }
@@ -32,7 +32,21 @@ public class BodyStructureDefinition
         return definition;
     }
 
-    public void Validate()
+    public bool Validate()
+    {
+        try
+        {
+            ValidateStrict();
+            return true;
+        }
+        catch (System.InvalidOperationException e)
+        {
+            Log.Error(e.Message);
+            return false;
+        }
+    }
+
+    public void ValidateStrict()
     {
         if (string.IsNullOrEmpty(Id))
         {

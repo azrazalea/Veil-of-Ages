@@ -12,7 +12,7 @@ namespace VeilOfAges.Entities.Beings;
 /// <summary>
 /// JSON-serializable being template that defines the properties of an entity type.
 /// </summary>
-public class BeingDefinition
+public class BeingDefinition : IResourceDefinition
 {
     /// <summary>
     /// Gets or sets unique identifier for this being type.

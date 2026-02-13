@@ -1,7 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.IO;
-using Godot;
 using VeilOfAges.Core.Lib;
 
 namespace VeilOfAges.Entities.Reactions;
@@ -10,99 +7,9 @@ namespace VeilOfAges.Entities.Reactions;
 /// Singleton manager for loading and accessing reaction definitions.
 /// Registered as a Godot autoload for automatic initialization.
 /// </summary>
-public partial class ReactionResourceManager : Node
+public partial class ReactionResourceManager : ResourceManager<ReactionResourceManager, ReactionDefinition>
 {
-    // Singleton instance
-    private static ReactionResourceManager? _instance;
-
-    public static ReactionResourceManager Instance => _instance
-        ?? throw new InvalidOperationException("ReactionResourceManager not initialized. Ensure it's registered as an autoload in project.godot");
-
-    // Reaction definition collection
-    private readonly Dictionary<string, ReactionDefinition> _definitions = new ();
-
-    public override void _Ready()
-    {
-        _instance = this;
-        LoadAllDefinitions();
-        Log.Print($"ReactionResourceManager initialized with {_definitions.Count} reaction definitions");
-    }
-
-    /// <summary>
-    /// Load all reaction definitions from the resources folder.
-    /// </summary>
-    private void LoadAllDefinitions()
-    {
-        string reactionsPath = "res://resources/reactions";
-        string projectPath = ProjectSettings.GlobalizePath(reactionsPath);
-
-        if (!Directory.Exists(projectPath))
-        {
-            Log.Warn($"Reactions directory not found: {projectPath} - creating empty directory");
-            Directory.CreateDirectory(projectPath);
-            return;
-        }
-
-        // Load all JSON files in the reactions directory
-        foreach (var file in Directory.GetFiles(projectPath, "*.json"))
-        {
-            LoadDefinitionFromFile(file);
-        }
-
-        // Also load from subdirectories for organization
-        foreach (var directory in Directory.GetDirectories(projectPath))
-        {
-            foreach (var file in Directory.GetFiles(directory, "*.json"))
-            {
-                LoadDefinitionFromFile(file);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Load a single definition from a JSON file.
-    /// </summary>
-    /// <param name="file">The path to the JSON file.</param>
-    private void LoadDefinitionFromFile(string file)
-    {
-        var definition = ReactionDefinition.LoadFromJson(file);
-        if (definition != null && definition.Validate())
-        {
-            if (definition.Id != null)
-            {
-                _definitions[definition.Id] = definition;
-                Log.Print($"Loaded reaction definition: {definition.Id}");
-            }
-        }
-        else
-        {
-            Log.Error($"Failed to load reaction definition from: {file}");
-        }
-    }
-
-    /// <summary>
-    /// Get a reaction definition by ID.
-    /// </summary>
-    /// <param name="id">The reaction definition ID.</param>
-    /// <returns>The reaction definition or null if not found.</returns>
-    public ReactionDefinition? GetDefinition(string id)
-    {
-        if (_definitions.TryGetValue(id, out var definition))
-        {
-            return definition;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Get all loaded reaction definitions.
-    /// </summary>
-    /// <returns>Enumerable of all reaction definitions.</returns>
-    public IEnumerable<ReactionDefinition> GetAllDefinitions()
-    {
-        return _definitions.Values;
-    }
+    protected override string ResourcePath => "res://resources/reactions";
 
     /// <summary>
     /// Get all reaction definitions that have a specific tag.
@@ -150,15 +57,5 @@ public partial class ReactionResourceManager : Node
                 yield return definition;
             }
         }
-    }
-
-    /// <summary>
-    /// Check if a definition with the given ID exists.
-    /// </summary>
-    /// <param name="id">The reaction definition ID.</param>
-    /// <returns>True if the definition exists, false otherwise.</returns>
-    public bool HasDefinition(string id)
-    {
-        return _definitions.ContainsKey(id);
     }
 }

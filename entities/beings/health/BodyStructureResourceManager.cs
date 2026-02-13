@@ -9,35 +9,20 @@ namespace VeilOfAges.Entities.Beings.Health;
 /// <summary>
 /// Singleton manager for loading body structure definitions from JSON.
 /// Registered as a Godot autoload for global access.
+/// Uses strict loading: throws on missing directory, zero definitions, validation failures, or duplicates.
 /// </summary>
-public partial class BodyStructureResourceManager : Node
+public partial class BodyStructureResourceManager : ResourceManager<BodyStructureResourceManager, BodyStructureDefinition>
 {
-    // Singleton instance
-    private static BodyStructureResourceManager? _instance;
+    protected override string ResourcePath => "res://resources/entities/body_structures";
 
     /// <summary>
-    /// Gets the singleton instance. Set by _Ready() when registered as autoload.
+    /// Strict loading override: throws if the directory is missing, if zero definitions are found,
+    /// or if any definition fails ValidateStrict(). Uses BodyStructureDefinition.LoadFromJson()
+    /// for per-file deserialization.
     /// </summary>
-    public static BodyStructureResourceManager Instance => _instance
-        ?? throw new InvalidOperationException("BodyStructureResourceManager not initialized. Ensure it's registered as an autoload in project.godot");
-
-    // Body structure definition collection
-    private readonly Dictionary<string, BodyStructureDefinition> _definitions = new ();
-
-    public override void _Ready()
+    protected override void LoadDefinitions()
     {
-        _instance = this;
-        LoadAllDefinitions();
-        Log.Print($"BodyStructureResourceManager: Initialized as autoload with {_definitions.Count} body structure definitions");
-    }
-
-    /// <summary>
-    /// Load all body structure definitions from the resources folder.
-    /// </summary>
-    private void LoadAllDefinitions()
-    {
-        string definitionsPath = "res://resources/entities/body_structures";
-        string projectPath = ProjectSettings.GlobalizePath(definitionsPath);
+        string projectPath = JsonResourceLoader.ResolveResPath(ResourcePath);
 
         if (!Directory.Exists(projectPath))
         {
@@ -73,7 +58,7 @@ public partial class BodyStructureResourceManager : Node
     private void LoadDefinitionFromFile(string file)
     {
         var definition = BodyStructureDefinition.LoadFromJson(file);
-        definition.Validate();
+        definition.ValidateStrict();
 
         if (definition.Id == null)
         {
@@ -91,12 +76,12 @@ public partial class BodyStructureResourceManager : Node
 
     /// <summary>
     /// Gets a body structure definition by ID.
-    /// Throws if definition is not found.
+    /// Throws if definition is not found (non-nullable return).
     /// </summary>
     /// <param name="id">The body structure definition ID.</param>
     /// <returns>The body structure definition.</returns>
     /// <exception cref="InvalidOperationException">Thrown if the definition is not found.</exception>
-    public BodyStructureDefinition GetDefinition(string id)
+    public new BodyStructureDefinition GetDefinition(string id)
     {
         if (_definitions.TryGetValue(id, out var definition))
         {
@@ -105,24 +90,5 @@ public partial class BodyStructureResourceManager : Node
 
         throw new InvalidOperationException($"BodyStructureResourceManager: Body structure definition '{id}' not found. " +
             $"Available definitions: [{string.Join(", ", _definitions.Keys)}]");
-    }
-
-    /// <summary>
-    /// Check if a definition with the given ID exists.
-    /// </summary>
-    /// <param name="id">The body structure definition ID.</param>
-    /// <returns>True if the definition exists, false otherwise.</returns>
-    public bool HasDefinition(string id)
-    {
-        return _definitions.ContainsKey(id);
-    }
-
-    /// <summary>
-    /// Get all loaded body structure definitions.
-    /// </summary>
-    /// <returns>Enumerable of all body structure definitions.</returns>
-    public IEnumerable<BodyStructureDefinition> GetAllDefinitions()
-    {
-        return _definitions.Values;
     }
 }

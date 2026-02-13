@@ -75,7 +75,7 @@ public partial class TileResourceManager : Node
     private void LoadAllTileDefinitions()
     {
         string tilesPath = "res://resources/tiles/definitions";
-        string projectPath = ProjectSettings.GlobalizePath(tilesPath);
+        string projectPath = JsonResourceLoader.ResolveResPath(tilesPath);
 
         if (!Directory.Exists(projectPath))
         {
@@ -294,6 +294,19 @@ public partial class TileResourceManager : Node
                 Log.Error($"Error adding atlas source {atlasSource.Id}: {e.Message}");
             }
         }
+    }
+
+    /// <summary>
+    /// Create and return a standalone TileSet with all atlas sources configured.
+    /// Used for programmatic areas (e.g., cellars) that don't have a scene-defined TileMapLayer.
+    /// </summary>
+    public TileSet GetTileSet()
+    {
+        var tempLayer = new TileMapLayer();
+        SetupTileSet(tempLayer);
+        var tileSet = tempLayer.TileSet!;
+        tempLayer.QueueFree();
+        return tileSet;
     }
 
     /// <summary>

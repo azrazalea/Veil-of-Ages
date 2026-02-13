@@ -12,7 +12,7 @@ namespace VeilOfAges.Entities.Reactions;
 /// JSON-serializable reaction template that defines a transformation of items.
 /// Reactions convert input items into output items over a duration.
 /// </summary>
-public class ReactionDefinition
+public class ReactionDefinition : IResourceDefinition
 {
     /// <summary>
     /// Gets or sets unique identifier for this reaction type.
