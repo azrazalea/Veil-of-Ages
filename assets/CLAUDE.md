@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Contains all game assets including sprites, fonts, and textures. The primary visual assets come from three open/free-license atlas packs. All three atlases have been upscaled to provide crisp 32x32 pixel tiles for the game's grid system.
+Contains all game assets including sprites, fonts, and textures. Visual assets come from open/free-license atlas packs plus original custom pixel art, all providing 32x32 pixel tiles for the game's grid system.
 
 ## Structure
 
@@ -13,8 +13,7 @@ assets/
 ├── kenney/                           # Kenney 1-Bit Colored Pack
 │   ├── colored-transparent_packed.png        # Original 16x16
 │   ├── colored-transparent_packed_2x.png     # 2x upscaled (32x32) - USED BY GAME
-│   ├── kenney_atlas_index.json              # Row/col position reference
-│   └── kenney_groups/                       # Pre-sliced category images
+│   └── kenney_atlas_index.json              # Row/col position reference
 ├── dcss/                             # DCSS ProjectUtumno (TWO atlases)
 │   ├── ProjectUtumno_full.png               # Main 32x32 atlas - USED BY GAME
 │   ├── supplemental_atlas.png               # Supplemental 32x32 atlas - USED BY GAME
@@ -34,9 +33,16 @@ assets/
 │       └── ...
 ├── urizen/                           # Urizen OneBit V2
 │   ├── urizen_onebit_tileset__v2d0.png      # Original 12x12
+│   ├── urizen_onebit_tileset__v2d0_2x.png   # 2x upscaled (24x24)
 │   ├── urizen_onebit_tileset__v2d0_32x32.png # Upscaled to 32x32 - USED BY GAME
-│   └── urizen_atlas_index.json              # Row/col position reference
-├── pixabay/                          # Free assets from Pixabay
+│   ├── urizen_atlas_index.json              # Row/col position reference
+│   └── LICENSE.md                           # CC0 license
+├── custom/                           # Original pixel art for Veil of Ages
+│   ├── custom_atlas.png                     # Custom atlas - USED BY GAME
+│   ├── custom_atlas_index.json              # Row/col position reference
+│   └── LICENSE.md                           # CC0 license
+├── pixabay/                          # Free audio assets from Pixabay
+│   └── LICENSE.md                           # Pixabay Content License
 └── README.md                         # Asset documentation
 ```
 
@@ -47,7 +53,6 @@ assets/
 - **Original**: 16x16 pixel tiles, no margin/separation
 - **Used Version**: 2x upscaled to 32x32 pixels
 - **Index File**: `kenney_atlas_index.json` maps descriptive names to {row, col}
-- **Visual Reference**: `kenney_groups/` contains pre-sliced sections by category
 - **Atlas Definition**: `resources/tiles/atlases/kenney_1bit.json` (ID: `kenney`)
 - **Usage**: Primary atlas for building tiles, terrain, and entity placeholders
 
@@ -83,6 +88,14 @@ assets/
 - **Atlas Definition**: `resources/tiles/atlases/urizen_onebit.json` (ID: `urizen`)
 - **Usage**: Additional tileset for UI elements and small props
 
+### Custom Assets
+- **Game Path**: `res://assets/custom/custom_atlas.png`
+- **Native Size**: 32x32 pixel tiles, no margin/separation
+- **Index File**: `custom_atlas_index.json` maps names to {row, col}
+- **Atlas Definition**: `resources/tiles/atlases/custom.json` (ID: `custom`)
+- **Source Files**: Each sprite has a subdirectory with `grid.txt` and `palette.txt` for editing via `scripts/pixelart.py`
+- **Usage**: Original pixel art created specifically for Veil of Ages (e.g., quern)
+
 ## Atlas Index Files
 
 Each atlas includes a `*_atlas_index.json` file that maps descriptive names to atlas positions:
@@ -100,11 +113,12 @@ These are developer reference files, not loaded by the game engine. Use them to 
 
 ## Important Notes
 
-### Upscaling Strategy
+### Tile Size Strategy
 All atlases provide consistent 32x32 pixel tiles:
 - Kenney: 16x16 → 32x32 (2x upscaled)
 - DCSS: Native 32x32 (no upscaling needed)
 - Urizen: 12x12 → 32x32 (upscaled to native 32x32, no margin/separation)
+- Custom: Native 32x32
 
 This ensures crisp rendering at the game's grid scale.
 
@@ -114,6 +128,7 @@ The game loads atlases from JSON files in `/resources/tiles/atlases/`:
 - `dcss_utumno.json` - ID: `dcss`, references `ProjectUtumno_full.png`
 - `dcss_supplemental.json` - ID: `dcss_supplemental`, references `supplemental_atlas.png`
 - `urizen_onebit.json` - ID: `urizen`, references `urizen_onebit_tileset__v2d0_32x32.png`
+- `custom.json` - ID: `custom`, references `custom_atlas.png`
 
 ### Finding Tiles
 1. Look up the tile name in the appropriate `*_atlas_index.json` file

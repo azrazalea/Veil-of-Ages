@@ -1,14 +1,14 @@
 {
   "_meta": {
-    "description": "Visual index of the Urizen OneBit V2 tileset (2x upscaled version)",
-    "atlas_file": "urizen_onebit_tileset__v2d0_2x.png",
-    "tile_size": 24,
-    "margin": 2,
-    "separation": 2,
-    "pixel_formula": "Tile at (col, row) starts at pixel (2 + col*26, 2 + row*26)",
+    "description": "Visual index of the Urizen OneBit V2 tileset (32x32 upscaled version)",
+    "atlas_file": "urizen_onebit_tileset__v2d0_32x32.png",
+    "tile_size": 32,
+    "margin": 0,
+    "separation": 0,
+    "pixel_formula": "Tile at (col, row) starts at pixel (col*32, row*32)",
     "accuracy": "APPROXIMATE - Created by visual inspection of the full atlas at reduced zoom. Row/col positions are best-effort guesses based on visible tile colors, shapes, and the known Urizen OneBit v2.0 tileset layout. Positions MUST be verified before use in production tile definitions. The atlas has ~120 columns and ~43 rows separated into sections by magenta divider columns.",
     "sections": "The atlas is divided into major sections by magenta divider columns. Rough layout: Section 1 (cols 0-16) terrain/nature/items, Section 2 (cols ~18-29) buildings/structures, Section 3 (cols ~31-43) items/vegetation/crafting, Section 4 (cols ~45-56) dungeon walls/UI/fonts, Section 5 (cols ~58+) character races and professions in color-coded rows",
-    "verification_tip": "To verify a position, calculate pixel coords with the formula above, then check the atlas image at those coords. The 1x version (urizen_onebit_tileset__v2d0.png) uses formula: 1 + col*13, 1 + row*13"
+    "verification_tip": "To verify a position, calculate pixel coords with the formula above, then check the 32x32 atlas image at those coords."
   },
 
   "terrain/grass_light": { "row": 0, "col": 0 },

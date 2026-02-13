@@ -4,8 +4,10 @@ All assets in this directory are original creations for the Veil of Ages project
 
 ## License
 
-These assets are licensed under the same terms as the main project:
-Modified AGPLv3 with Commercial Platform Exception (see project root LICENSE).
+These assets are released under CC0 1.0 Universal (Public Domain).
+http://creativecommons.org/publicdomain/zero/1.0/
+
+You can use these assets freely in any project. No attribution is required.
 
 ## Attribution
 

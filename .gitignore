@@ -29,6 +29,5 @@ nul
 # Log files
 *.log
 
-assets/minifantasy
-!assets/README.md
+
 .serena/cache/csharp/document_symbols_cache_v20-05-25.pkl

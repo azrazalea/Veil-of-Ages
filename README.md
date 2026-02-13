@@ -84,7 +84,7 @@ Veil of Ages is in **early development**. Current focus areas:
 ## 📜 License
 
 - **Code**: Licensed under [Modified GNU AGPL-3.0](LICENSE.code.md) with an exception allowing distribution on commercial game platforms including integration code with them without having to distribute the code of those platforms. All contributors are **required** to release their code contributions under the same license with the exception but are not required to assign copyright to the project owner.
-- **Assets**: The Minifantasy assets are licensed separately and are not redistributable.
+- **Assets**: Visual assets use CC0 (Public Domain) licensed atlas packs (Kenney, DCSS ProjectUtumno, Urizen).
 
 ## 🤝 Contributing
 
@@ -92,6 +92,8 @@ Contributions are welcome! Please see our [contributing guidelines](CONTRIBUTING
 
 ## 🙏 Acknowledgments
 
-- Krishna Palacio for the Minifantasy asset packs used in development
+- Kenney (kenney.nl) for the 1-Bit Colored Pack
+- Chris Hamons, MedicineStorm, and the many DCSS contributing artists for the ProjectUtumno tileset
+- Vurmux for the Urizen OneBit V2 tileset
 - The Godot Engine community for their invaluable resources and support
-- Inspiration from games like KeeperRL, RimWorld, Dwarf Fortress, Oxygen not Included, Heroes of Might and Magic, Age of Wonders, and Cultist Simulator
+- Inspiration from games like KeeperRL, RimWorld, Dwarf Fortress, Oxygen not Included, Heroes of Might and Magic, Age of Wonders, Cultist Simulator, Faster Than Light, and Battlezone 2

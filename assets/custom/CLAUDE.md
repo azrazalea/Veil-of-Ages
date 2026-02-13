@@ -33,4 +33,4 @@ Hand quern (grain grinding stone). Two stacked circular stone discs with a woode
 
 ## License
 
-See LICENSE.md in this directory. All custom assets are original works under the project license.
+See LICENSE.md in this directory. All custom assets are original works released under CC0 (Public Domain).

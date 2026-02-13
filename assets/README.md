@@ -4,7 +4,7 @@ This directory holds game assets used by Veil of Ages, including sprites, fonts,
 
 ## Atlas Packs
 
-The game uses three open/free-license atlas packs for sprites and tiles. All atlases have been upscaled to provide consistent 32x32 pixel tiles.
+The game uses open/free-license atlas packs plus original custom pixel art. All atlases provide consistent 32x32 pixel tiles.
 
 ### Kenney 1-Bit Colored Pack
 - **Used File**: `kenney/colored-transparent_packed_2x.png`
@@ -17,7 +17,6 @@ The game uses three open/free-license atlas packs for sprites and tiles. All atl
 
 The Kenney pack includes:
 - **Atlas Index**: `kenney_atlas_index.json` - Maps descriptive names to {row, col} positions
-- **Visual Reference**: `kenney_groups/` folder contains pre-sliced category images (floors_and_terrain, buildings_and_roofs, characters_and_faces, etc.) for easier tile discovery
 
 ### DCSS ProjectUtumno
 - **Used File**: `dcss/ProjectUtumno_full.png`
@@ -27,9 +26,10 @@ The Kenney pack includes:
 - **Source**: Dungeon Crawl Stone Soup tileset by ProjectUtumno
 - **Usage**: Supplementary tileset for dungeon, environmental, and decorative tiles
 
-The DCSS pack includes:
-- **Atlas Indexes**: `dcss_atlas_index.json` and `dcss_supplemental_index.json` - Map sprite names to {row, col} positions
-- **Extracted Sprites**: `dcss/dungeon/` folder contains individual PNGs organized by category (floor/, wall/, gateways/, shops/, statues/, traps/, trees/, vaults/)
+The DCSS pack includes two atlases:
+- **Main Atlas**: `ProjectUtumno_full.png` — indexed by `dcss_utumno_index.json`
+- **Supplemental Atlas**: `supplemental_atlas.png` — indexed by `dcss_supplemental_index.json`
+- **Reference PNGs**: Subdirectories contain individual PNGs for visual inspection (NOT loaded by the game)
 
 ### Urizen OneBit V2
 - **Used File**: `urizen/urizen_onebit_tileset__v2d0_32x32.png`
@@ -41,6 +41,23 @@ The DCSS pack includes:
 
 The Urizen pack includes:
 - **Atlas Index**: `urizen_atlas_index.json` - Maps descriptive names to {row, col} positions
+
+### Custom Assets
+- **Used File**: `custom/custom_atlas.png`
+- **Native Size**: 32x32 pixel tiles
+- **Margin/Separation**: None
+- **License**: CC0 (Public Domain)
+- **Usage**: Original pixel art created for Veil of Ages
+
+The custom pack includes:
+- **Atlas Index**: `custom_atlas_index.json` - Maps names to {row, col} positions
+- **Source Files**: Each sprite subdirectory has `grid.txt` + `palette.txt` for editing
+
+## Audio Assets
+
+### Pixabay
+- **License**: Pixabay Content License (free to use, no attribution required; see `pixabay/LICENSE.md`)
+- **Contents**: Sound effects
 
 ## Using Atlas Indexes
 
@@ -69,39 +86,45 @@ assets/
 ├── kenney/                           # Kenney 1-Bit Colored Pack
 │   ├── colored-transparent_packed.png        # Original 16x16
 │   ├── colored-transparent_packed_2x.png     # 2x upscaled - USED BY GAME
-│   ├── kenney_atlas_index.json
-│   └── kenney_groups/                       # Pre-sliced reference images
-├── dcss/                             # DCSS ProjectUtumno
-│   ├── ProjectUtumno_full.png               # USED BY GAME
-│   ├── dcss_atlas_index.json
+│   └── kenney_atlas_index.json
+├── dcss/                             # DCSS ProjectUtumno (TWO atlases)
+│   ├── ProjectUtumno_full.png               # Main atlas - USED BY GAME
+│   ├── supplemental_atlas.png               # Supplemental atlas - USED BY GAME
+│   ├── dcss_utumno_index.json
 │   ├── dcss_supplemental_index.json
 │   ├── LICENSE.txt
-│   └── dungeon/                             # Extracted sprites
+│   └── (subdirectories)                     # Individual PNGs (REFERENCE ONLY)
 ├── urizen/                           # Urizen OneBit V2
-│   ├── urizen_onebit_tileset__v2d0.png      # Original 12x12
+│   ├── urizen_onebit_tileset__v2d0.png      # Original 12x12 (not used by game)
+│   ├── urizen_onebit_tileset__v2d0_2x.png   # 2x upscaled 24x24 (not used by game)
 │   ├── urizen_onebit_tileset__v2d0_32x32.png # Upscaled to 32x32 - USED BY GAME
 │   └── urizen_atlas_index.json
-└── pixabay/                          # Free assets from Pixabay
+├── custom/                           # Original pixel art for Veil of Ages
+│   ├── custom_atlas.png                     # USED BY GAME
+│   └── custom_atlas_index.json
+└── pixabay/                          # Audio assets (Pixabay Content License)
 ```
 
 ## Technical Notes
 
-### Upscaling Strategy
-All atlases have been upscaled 2x to ensure crisp rendering:
-- Kenney: 16x16 → 32x32
+### Tile Size Strategy
+All atlases provide consistent 32x32 pixel tiles:
+- Kenney: 16x16 → 32x32 (2x upscaled)
 - DCSS: Native 32x32 (no upscaling)
 - Urizen: 12x12 → 32x32 (upscaled to native 32x32)
+- Custom: Native 32x32
 
 ### Atlas Definitions
 Atlas JSON definitions are located in `/resources/tiles/atlases/`:
-- `kenney_1bit.json` - ID: `kenney`, references the 2x upscaled Kenney atlas
-- `dcss_utumno.json` - ID: `dcss`, references the DCSS full atlas
-- `dcss_supplemental.json` - ID: `dcss_supplemental`, references the DCSS supplemental atlas
-- `urizen_onebit.json` - ID: `urizen`, references the 32x32 upscaled Urizen atlas
-
-### Urizen Tiles
-Urizen tiles have been upscaled from the original 12x12 to native 32x32 pixels with no margin or separation, matching the game's grid size.
+- `kenney_1bit.json` - ID: `kenney`
+- `dcss_utumno.json` - ID: `dcss`
+- `dcss_supplemental.json` - ID: `dcss_supplemental`
+- `urizen_onebit.json` - ID: `urizen`
+- `custom.json` - ID: `custom`
 
 ## License Summary
 
-All three atlas packs use CC0 (Public Domain) licenses and are included in this repository. The game code is licensed separately under Modified AGPLv3.
+- **Visual atlas packs** (Kenney, DCSS, Urizen): CC0 (Public Domain)
+- **Custom assets**: CC0 (Public Domain)
+- **Audio** (Pixabay): Pixabay Content License (free, no attribution required)
+- **Code**: Licensed separately under Modified AGPLv3

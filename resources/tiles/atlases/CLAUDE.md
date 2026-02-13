@@ -12,6 +12,7 @@ Contains JSON definitions for sprite atlas sources. Each file defines a texture 
 | `dcss_utumno.json` | `dcss` | Dungeon and environmental tiles | DCSS ProjectUtumno |
 | `dcss_supplemental.json` | `dcss_supplemental` | Player doll overlays, extra sprites | DCSS Supplemental Atlas |
 | `urizen_onebit.json` | `urizen` | UI elements and small props | Urizen OneBit V2 (upscaled to 32x32) |
+| `custom.json` | `custom` | Original pixel art for Veil of Ages | Custom atlas (native 32x32) |
 
 ## Atlas Pack Details
 
@@ -21,7 +22,6 @@ Contains JSON definitions for sprite atlas sources. Each file defines a texture 
 - **Used Texture**: `colored-transparent_packed_2x.png` (32x32 tiles)
 - **Margin/Separation**: None
 - **Index File**: `assets/kenney/kenney_atlas_index.json`
-- **Visual Reference**: `assets/kenney/kenney_groups/` contains pre-sliced category images
 
 ### DCSS ProjectUtumno (Main Atlas)
 - **Atlas ID**: `dcss`
@@ -43,6 +43,13 @@ Contains JSON definitions for sprite atlas sources. Each file defines a texture 
 - **Original**: `urizen_onebit_tileset__v2d0.png` (12x12 tiles, 1px margin/separation)
 - **Used Texture**: `urizen_onebit_tileset__v2d0_32x32.png` (32x32 tiles, no margin/separation)
 - **Index File**: `assets/urizen/urizen_atlas_index.json`
+
+### Custom Assets
+- **Atlas ID**: `custom`
+- **Texture**: `custom_atlas.png` (native 32x32 tiles)
+- **Margin/Separation**: None
+- **Index File**: `assets/custom/custom_atlas_index.json`
+- **Source Files**: Individual sprite subdirectories with `grid.txt` + `palette.txt` for editing
 
 ## JSON Schema
 
@@ -123,6 +130,12 @@ These are developer reference files, NOT loaded by the game engine. Workflow:
 - **Separation**: `[0, 0]`
 - **Margin**: `[0, 0]`
 - **Upscaling**: From 12x12 original to native 32x32
+
+### Custom
+- **TileSize**: `[32, 32]`
+- **Separation**: `[0, 0]`
+- **Margin**: `[0, 0]`
+- **Native**: Original 32x32 pixel art
 
 ## Dependencies
 
