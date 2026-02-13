@@ -1,0 +1,7 @@
+{
+    "Id": "water",
+    "AtlasSource": "kenney",
+    "AtlasCoords": [8, 5],
+    "IsWalkable": false,
+    "WalkDifficulty": 0
+}

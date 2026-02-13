@@ -25,6 +25,7 @@ public partial class TileResourceManager : Node
     private Dictionary<string, TileAtlasSourceDefinition> _atlasSources = new ();
     private Dictionary<string, DecorationDefinition> _decorationDefinitions = new ();
     private Dictionary<string, Beings.SpriteAnimationDefinition> _decorationAnimations = new ();
+    private Dictionary<string, TerrainTileDefinition> _terrainDefinitions = new ();
 
     // Atlas source ID to tileset source ID mapping
     private readonly Dictionary<string, int> _tilesetSourceIds = new ();
@@ -41,8 +42,9 @@ public partial class TileResourceManager : Node
         LoadAllTileDefinitions();
         LoadAllDecorationDefinitions();
         LoadAllDecorationAnimations();
+        LoadAllTerrainDefinitions();
 
-        Log.Print($"TileResourceManager initialized with {_materials.Count} materials, {_atlasSources.Count} atlas sources, {_tileDefinitions.Count} tile definitions, and {_decorationDefinitions.Count} decoration definitions");
+        Log.Print($"TileResourceManager initialized with {_materials.Count} materials, {_atlasSources.Count} atlas sources, {_tileDefinitions.Count} tile definitions, {_decorationDefinitions.Count} decoration definitions, and {_terrainDefinitions.Count} terrain definitions");
     }
 
     /// <summary>
@@ -185,6 +187,41 @@ public partial class TileResourceManager : Node
     }
 
     /// <summary>
+    /// Load all terrain tile definitions from the resources folder.
+    /// </summary>
+    private void LoadAllTerrainDefinitions()
+    {
+        _terrainDefinitions = JsonResourceLoader.LoadAllFromDirectory<TerrainTileDefinition>(
+            "res://resources/tiles/terrain",
+            t => t.Id,
+            t => t.Validate(),
+            JsonOptions.WithVector2I);
+    }
+
+    /// <summary>
+    /// Get a terrain tile by ID, resolving the atlas source ID at runtime.
+    /// Returns null if the terrain definition or atlas source is not found.
+    /// Note: Requires SetupTileSet() to have been called first to populate source IDs.
+    /// </summary>
+    public Grid.Tile? GetTerrainTile(string id)
+    {
+        if (!_terrainDefinitions.TryGetValue(id, out var def))
+        {
+            Log.Error($"Terrain tile definition not found: {id}");
+            return null;
+        }
+
+        int sourceId = GetTileSetSourceId(def.AtlasSource);
+        if (sourceId == -1)
+        {
+            Log.Error($"Atlas source not found for terrain tile '{id}': {def.AtlasSource}");
+            return null;
+        }
+
+        return new Grid.Tile(sourceId, def.AtlasCoords, def.IsWalkable, def.WalkDifficulty);
+    }
+
+    /// <summary>
     /// Get a decoration definition by ID.
     /// </summary>
     public DecorationDefinition? GetDecorationDefinition(string id)
@@ -234,20 +271,21 @@ public partial class TileResourceManager : Node
         // Create a new TileSet if needed
         tileMap.TileSet ??= new TileSet
         {
-            TileSize = new Vector2I(8, 8)
+            TileSize = new Vector2I((int)Grid.Utils.TileSize, (int)Grid.Utils.TileSize)
         };
 
-        // Clear existing sources
-        // Careful: This could break existing references
-        // tileMap.TileSet.Clear();
-        _tilesetSourceIds.Clear();
-
         // Add each atlas source
-        int sourceId = 0;
         foreach (var atlasSource in _atlasSources.Values)
         {
             try
             {
+                // Get or assign a stable source ID for this atlas
+                if (!_tilesetSourceIds.TryGetValue(atlasSource.Id, out int sourceId))
+                {
+                    sourceId = _tilesetSourceIds.Count;
+                    _tilesetSourceIds[atlasSource.Id] = sourceId;
+                }
+
                 // Load the texture
                 Texture2D? texture;
                 if (!_loadedTextures.TryGetValue(atlasSource.TexturePath, out texture))
@@ -280,14 +318,16 @@ public partial class TileResourceManager : Node
                     ResourceName = atlasSource.Id
                 };
 
+                // Center smaller tiles within 32x32 cells if any atlas uses sub-32 tiles
+                if (atlasSource.TileSize.X < (int)Grid.Utils.TileSize || atlasSource.TileSize.Y < (int)Grid.Utils.TileSize)
+                {
+                    tileSetAtlasSource.UseTexturePadding = true;
+                }
+
                 // Add the source to the tileset
                 tileMap.TileSet.AddSource(tileSetAtlasSource, sourceId);
 
-                // Store the mapping
-                _tilesetSourceIds[atlasSource.Id] = sourceId;
-
-                Log.Print($"Added atlas source {atlasSource.Id} as source ID {sourceId} with texture ${texture.GetSize()}");
-                sourceId++;
+                Log.Print($"Added atlas source {atlasSource.Id} as source ID {sourceId} with texture {texture.GetSize()}");
             }
             catch (Exception e)
             {
@@ -305,7 +345,7 @@ public partial class TileResourceManager : Node
         var tempLayer = new TileMapLayer();
         SetupTileSet(tempLayer);
         var tileSet = tempLayer.TileSet!;
-        tempLayer.QueueFree();
+        tempLayer.Free();
         return tileSet;
     }
 
@@ -383,7 +423,8 @@ public partial class TileResourceManager : Node
         var result = new Dictionary<string, object?>
         {
             ["AtlasSource"] = tileDef.AtlasSource,
-            ["AtlasCoords"] = tileDef.AtlasCoords
+            ["AtlasCoords"] = tileDef.AtlasCoords,
+            ["Tint"] = (string?)null
         };
 
         // If no category system is used, return legacy values
@@ -424,6 +465,11 @@ public partial class TileResourceManager : Node
                 {
                     result["AtlasCoords"] = globalDefault.AtlasCoords;
                 }
+
+                if (!string.IsNullOrEmpty(globalDefault?.Tint))
+                {
+                    result["Tint"] = globalDefault.Tint;
+                }
             }
         }
 
@@ -440,6 +486,11 @@ public partial class TileResourceManager : Node
                 if (materialDefault?.AtlasCoords != null)
                 {
                     result["AtlasCoords"] = materialDefault.AtlasCoords;
+                }
+
+                if (!string.IsNullOrEmpty(materialDefault?.Tint))
+                {
+                    result["Tint"] = materialDefault.Tint;
                 }
             }
         }
@@ -458,6 +509,11 @@ public partial class TileResourceManager : Node
                 if (specificVariant?.AtlasCoords != null)
                 {
                     result["AtlasCoords"] = specificVariant.AtlasCoords;
+                }
+
+                if (!string.IsNullOrEmpty(specificVariant?.Tint))
+                {
+                    result["Tint"] = specificVariant.Tint;
                 }
             }
         }
@@ -567,6 +623,11 @@ public partial class TileResourceManager : Node
 
             tile.DetectionDifficulties[senseType] = baseDifficulty * materialModifier;
         }
+
+        // Populate tint cascade data from tile definition and variant
+        tile.DefinitionDefaultTint = tileDef.DefaultTint;
+        var resolvedVariantTint = (string?)processedVariant.GetValueOrDefault("Tint");
+        tile.VariantTint = resolvedVariantTint;
 
         return tile;
     }

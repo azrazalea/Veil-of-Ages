@@ -5,22 +5,16 @@ The code for Veil of Ages: Whispers of Kalixoria is licensed under the GNU Affer
 
 The full text of the AGPL-3.0 license can be found in the LICENSE.code.md file.
 
-## Assets License
-The Minifantasy assets used in this project are licensed separately and are NOT covered by the AGPL-3.0 license.
+## Visual Assets License
+The visual assets used in this project come from open/free-license atlas packs, all licensed under CC0 (Public Domain):
+- **Kenney 1-Bit Colored Pack** by Kenney (kenney.nl) — CC0 (see assets/kenney/License.txt)
+- **DCSS ProjectUtumno Tileset** — CC0, collaborative effort from many artists, maintained by Chris Hamons, consolidated by MedicineStorm (see assets/dcss/LICENSE.txt)
+- **Urizen OneBit V2** by Vurmux — CC0 (see assets/urizen/LICENSE.md)
 
-These assets are licensed under the Minifantasy Commercial License by Krishna Palacio and are not redistributable.
+Custom visual and audio assets created for this project are released under CC0 (Public Domain).
 
-### Minifantasy Commercial License Summary:
-1) You are allowed to:
-   a) Use the assets in your own non-commercial or commercial videogame or audio-visual digital project an unlimited number of times.
-   b) Edit and alter the assets with the purpose of including them in your own non-commercial or commercial video game or audio-visual digital project.
-
-2) You are NOT allowed to:
-   a) Re-distribute or re-sell any of the assets, or any altered versions of them, as games assets, images or NFTs.
-
-3) You must:
-   a) Credit Krishna Palacio in your video game or audio-visual digital project credits.
-   b) Send Krishna Palacio a link to the project upon completion.
+## Audio Assets License
+- **Pixabay sound effects** — Pixabay Content License (free to use, no attribution required; see assets/pixabay/LICENSE.md)
 
 ## Other Third-Party Assets
 Any other third-party assets used in this project are subject to their respective licenses.

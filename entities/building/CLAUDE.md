@@ -196,10 +196,10 @@ Tiles affect perception based on type:
 Materials modify these values (stone blocks more sound, metal less smell).
 
 ### Pixel Offsets
-Building tiles use constant offsets for alignment:
+Building tiles use constant offsets for alignment (zeroed out for 32x32 tiles):
 ```csharp
-const int HORIZONTAL_PIXEL_OFFSET = -4;
-const int VERTICAL_PIXEL_OFFSET = 1;
+const int HORIZONTAL_PIXEL_OFFSET = 0;
+const int VERTICAL_PIXEL_OFFSET = 0;
 ```
 
 ## Dependencies

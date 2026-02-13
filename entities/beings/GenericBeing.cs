@@ -210,25 +210,82 @@ public partial class GenericBeing : Being
     }
 
     /// <summary>
-    /// Configures the AnimatedSprite2D with frames from a SpriteAnimationDefinition.
+    /// Configures sprite layers from a SpriteAnimationDefinition.
+    /// Supports both single-layer (backwards compat) and multi-layer animations.
+    /// Layer slot ZIndex values come from the entity definition's SpriteLayers.
     /// </summary>
     /// <param name="animation">The animation definition to use.</param>
     private void ConfigureAnimations(SpriteAnimationDefinition animation)
     {
-        var animatedSprite = GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
-        if (animatedSprite == null)
+        // Get layer slots from definition for ZIndex lookup
+        var definition = BeingResourceManager.Instance.GetDefinition(DefinitionId!);
+        var slotsByName = new Dictionary<string, SpriteLayerSlotDefinition>();
+        if (definition?.SpriteLayers != null)
         {
-            Log.Warn($"GenericBeing: AnimatedSprite2D node not found for definition '{DefinitionId}'");
-            return;
+            foreach (var slot in definition.SpriteLayers)
+            {
+                slotsByName[slot.Name] = slot;
+            }
         }
 
-        var spriteFrames = animation.CreateSpriteFrames();
-        animatedSprite.SpriteFrames = spriteFrames;
+        // Get effective layers from animation (single "body" layer if no Layers defined)
+        var layerFrames = animation.CreateAllLayerSpriteFrames();
 
-        // Play idle animation if available
-        if (spriteFrames.HasAnimation("idle"))
+        // Get the existing AnimatedSprite2D child node (from the scene)
+        var existingSprite = GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
+
+        bool firstLayer = true;
+        foreach (var (layerName, spriteFrames) in layerFrames)
         {
-            animatedSprite.Play("idle");
+            AnimatedSprite2D sprite;
+
+            if (firstLayer && existingSprite != null)
+            {
+                // Reuse existing scene node for first layer (backwards compat)
+                sprite = existingSprite;
+                firstLayer = false;
+            }
+            else
+            {
+                // Create new AnimatedSprite2D for additional layers
+                sprite = new AnimatedSprite2D
+                {
+                    Name = $"SpriteLayer_{layerName}"
+                };
+                AddChild(sprite);
+                firstLayer = false;
+            }
+
+            sprite.SpriteFrames = spriteFrames;
+
+            // Set ZIndex from definition slot if available
+            if (slotsByName.TryGetValue(layerName, out var slot))
+            {
+                sprite.ZIndex = slot.ZIndex;
+                sprite.ZAsRelative = true;
+            }
+
+            // Play idle animation if available
+            if (spriteFrames.HasAnimation("idle"))
+            {
+                sprite.Play("idle");
+            }
+
+            SpriteLayers.Add(sprite);
+        }
+
+        if (SpriteLayers.Count == 0 && existingSprite != null)
+        {
+            // Fallback: no layers matched, use existing sprite as-is
+            Log.Warn($"GenericBeing '{DefinitionId}': No sprite layers created, falling back to existing AnimatedSprite2D");
+            var fallbackFrames = animation.CreateSpriteFrames();
+            existingSprite.SpriteFrames = fallbackFrames;
+            if (fallbackFrames.HasAnimation("idle"))
+            {
+                existingSprite.Play("idle");
+            }
+
+            SpriteLayers.Add(existingSprite);
         }
     }
 

@@ -75,6 +75,10 @@ Position names:
 4. Ensure entrance positions point to walkable tiles (doors, gates)
 5. Validate the template by loading it in-game
 
+## Important Notes
+
+- Pixel offsets for building tile alignment are zeroed out for 32x32 tiles (no manual offset needed)
+
 ## Dependencies
 
 - **BuildingTemplate**: `entities/building/BuildingTemplate.cs`

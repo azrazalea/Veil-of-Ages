@@ -1,0 +1,9 @@
+{
+  "Id": "dcss",
+  "Name": "DCSS ProjectUtumno Full Atlas",
+  "Description": "Dungeon Crawl Stone Soup tiles from ProjectUtumno",
+  "TexturePath": "res://assets/dcss/ProjectUtumno_full.png",
+  "TileSize": [32, 32],
+  "Separation": [0, 0],
+  "Margin": [0, 0]
+}

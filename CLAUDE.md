@@ -46,8 +46,10 @@ Always read the relevant directory's CLAUDE.md before modifying code in that are
 
 ## Development Commands
 
+**Only rebuild when C# code changes.** JSON, asset, and resource-only changes do NOT require a build — Godot loads those at runtime.
+
 ```bash
-# Build the C# solution
+# Build the C# solution (only needed for C# changes)
 dotnet build
 ```
 
@@ -67,7 +69,7 @@ dotnet build
    - Multi-threaded entity thinking via `EntityThinkingSystem`
 
 2. **World Management** (`/world/`)
-   - Grid-based tile system with 8x8 pixel tiles
+   - Grid-based tile system with 32x32 pixel tiles
    - Procedural village generation with buildings and entities
    - `GridArea` manages discrete world regions with pathfinding
 
@@ -132,7 +134,6 @@ dotnet build
 - No automated tests are currently configured
 - Follow established C# conventions and Godot best practices
 - License: Modified AGPLv3 with Commercial Platform Exception (code only)
-- Minifantasy assets are separately licensed and not redistributable
 
 ## Project Context
 

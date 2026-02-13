@@ -1,5 +1,6 @@
 {
   "Id": "living_base",
+  "ParentId": "being_base",
   "Abstract": true,
   "Name": "Living Being",
   "Description": "Base definition for all living entities with standard biological needs",

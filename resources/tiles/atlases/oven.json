@@ -1,9 +1,0 @@
-{
-    "Id": "oven",
-    "Name": "Kitchen Working Atlas",
-    "Description": "Crafting and professions kitchen working spritesheet with fireplace",
-    "TexturePath": "res://assets/minifantasy/buildings/house/Minifantasy_CraftingAndProfessions2KitchenWorking.png",
-    "TileSize": [8, 8],
-    "Separation": [0, 0],
-    "Margin": [4, 0]
-}

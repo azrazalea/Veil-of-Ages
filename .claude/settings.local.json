@@ -15,7 +15,9 @@
       "Bash(git add:*)",
       "Bash(dotnet-trace:*)",
       "Bash(dotnet.exe build:*)",
-      "Bash(git status:*)"
+      "Bash(git status:*)",
+      "Bash(grep:*)",
+      "Bash(wc:*)"
     ],
     "deny": []
   }

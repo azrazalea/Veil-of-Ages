@@ -5,8 +5,8 @@
     "Type": "Well",
     "IsWalkable": false,
     "BaseDurability": 80,
-    "AtlasSource": "well",
-    "AtlasCoords": [0, 0],
+    "AtlasSource": "dcss",
+    "AtlasCoords": [3, 0],
     "DefaultSensoryDifficulties": {
         "Sight": 0.9,
         "Hearing": 0.4,
@@ -15,45 +15,5 @@
     "Properties": {
         "BuildCost": "Material:3",
         "Interactable": "true"
-    },
-    "Variants": {
-        "stone": {
-            "Row0_Col0": {
-                "AtlasCoords": [0, 0]
-            },
-            "Row0_Col1": {
-                "AtlasCoords": [1, 0]
-            },
-            "Row0_Col2": {
-                "AtlasCoords": [2, 0]
-            },
-            "Row1_Col0": {
-                "AtlasCoords": [0, 1]
-            },
-            "Row1_Col1": {
-                "AtlasCoords": [1, 1]
-            },
-            "Row1_Col2": {
-                "AtlasCoords": [2, 1]
-            },
-            "Row2_Col0": {
-                "AtlasCoords": [0, 2]
-            },
-            "Row2_Col1": {
-                "AtlasCoords": [1, 2]
-            },
-            "Row2_Col2": {
-                "AtlasCoords": [2, 2]
-            },
-            "Row3_Col0": {
-                "AtlasCoords": [0, 3]
-            },
-            "Row3_Col1": {
-                "AtlasCoords": [1, 3]
-            },
-            "Row3_Col2": {
-                "AtlasCoords": [2, 3]
-            }
-        }
     }
 }

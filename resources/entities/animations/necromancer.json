@@ -2,26 +2,131 @@
   "Id": "necromancer",
   "Name": "Necromancer Animations",
   "SpriteSize": [32, 32],
-  "Animations": {
-    "idle": {
-      "TexturePath": "res://assets/minifantasy/entities/necromancer/Necromancer_Idle.png",
-      "FrameWidth": 32,
-      "FrameHeight": 32,
-      "FrameCount": 8,
-      "FrameRow": 0,
-      "StartColumn": 0,
-      "Speed": 5.0,
-      "Loop": true
+  "Layers": [
+    {
+      "Name": "body",
+      "Animations": {
+        "idle": {
+          "TexturePath": "res://assets/dcss/ProjectUtumno_full.png",
+          "FrameWidth": 32,
+          "FrameHeight": 32,
+          "FrameCount": 1,
+          "FrameRow": 80,
+          "StartColumn": 8,
+          "Speed": 5.0,
+          "Loop": true
+        },
+        "walk": {
+          "TexturePath": "res://assets/dcss/ProjectUtumno_full.png",
+          "FrameWidth": 32,
+          "FrameHeight": 32,
+          "FrameCount": 1,
+          "FrameRow": 80,
+          "StartColumn": 8,
+          "Speed": 5.0,
+          "Loop": true
+        }
+      }
     },
-    "walk": {
-      "TexturePath": "res://assets/minifantasy/entities/necromancer/Necromancer_Walk.png",
-      "FrameWidth": 32,
-      "FrameHeight": 32,
-      "FrameCount": 4,
-      "FrameRow": 0,
-      "StartColumn": 0,
-      "Speed": 5.0,
-      "Loop": true
+    {
+      "Name": "clothing_outer",
+      "Animations": {
+        "idle": {
+          "TexturePath": "res://assets/dcss/ProjectUtumno_full.png",
+          "FrameWidth": 32,
+          "FrameHeight": 32,
+          "FrameCount": 1,
+          "FrameRow": 82,
+          "StartColumn": 60,
+          "Speed": 5.0,
+          "Loop": true
+        },
+        "walk": {
+          "TexturePath": "res://assets/dcss/ProjectUtumno_full.png",
+          "FrameWidth": 32,
+          "FrameHeight": 32,
+          "FrameCount": 1,
+          "FrameRow": 82,
+          "StartColumn": 60,
+          "Speed": 5.0,
+          "Loop": true
+        }
+      }
+    },
+    {
+      "Name": "hair",
+      "Animations": {
+        "idle": {
+          "TexturePath": "res://assets/dcss/ProjectUtumno_full.png",
+          "FrameWidth": 32,
+          "FrameHeight": 32,
+          "FrameCount": 1,
+          "FrameRow": 85,
+          "StartColumn": 23,
+          "Speed": 5.0,
+          "Loop": true
+        },
+        "walk": {
+          "TexturePath": "res://assets/dcss/ProjectUtumno_full.png",
+          "FrameWidth": 32,
+          "FrameHeight": 32,
+          "FrameCount": 1,
+          "FrameRow": 85,
+          "StartColumn": 23,
+          "Speed": 5.0,
+          "Loop": true
+        }
+      }
+    },
+    {
+      "Name": "headwear",
+      "Animations": {
+        "idle": {
+          "TexturePath": "res://assets/dcss/ProjectUtumno_full.png",
+          "FrameWidth": 32,
+          "FrameHeight": 32,
+          "FrameCount": 1,
+          "FrameRow": 92,
+          "StartColumn": 41,
+          "Speed": 5.0,
+          "Loop": true
+        },
+        "walk": {
+          "TexturePath": "res://assets/dcss/ProjectUtumno_full.png",
+          "FrameWidth": 32,
+          "FrameHeight": 32,
+          "FrameCount": 1,
+          "FrameRow": 92,
+          "StartColumn": 41,
+          "Speed": 5.0,
+          "Loop": true
+        }
+      }
+    },
+    {
+      "Name": "held_item",
+      "Animations": {
+        "idle": {
+          "TexturePath": "res://assets/dcss/ProjectUtumno_full.png",
+          "FrameWidth": 32,
+          "FrameHeight": 32,
+          "FrameCount": 1,
+          "FrameRow": 90,
+          "StartColumn": 10,
+          "Speed": 5.0,
+          "Loop": true
+        },
+        "walk": {
+          "TexturePath": "res://assets/dcss/ProjectUtumno_full.png",
+          "FrameWidth": 32,
+          "FrameHeight": 32,
+          "FrameCount": 1,
+          "FrameRow": 90,
+          "StartColumn": 10,
+          "Speed": 5.0,
+          "Loop": true
+        }
+      }
     }
-  }
+  ]
 }

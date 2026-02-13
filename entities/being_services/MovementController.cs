@@ -9,7 +9,6 @@ namespace VeilOfAges.Entities.BeingServices;
 public class MovementController
 {
     private readonly Being _owner;
-    private readonly AnimatedSprite2D? _animatedSprite;
 
     // Movement state
     private Vector2 _targetPosition;
@@ -49,9 +48,6 @@ public class MovementController
     {
         _owner = owner;
         _movementPointsPerTick = movementPointsPerTick;
-
-        // Get the animated sprite reference from the owner
-        _animatedSprite = _owner.GetNode<AnimatedSprite2D>("AnimatedSprite2D");
     }
 
     public void Initialize(Vector2I startGridPos)
@@ -199,25 +195,44 @@ public class MovementController
     // Update the animation based on movement state
     private void UpdateAnimation()
     {
-        if (_animatedSprite != null)
+        var sprites = _owner.SpriteLayers;
+
+        // Fallback if SpriteLayers not populated yet
+        if (sprites.Count == 0)
         {
-            if (_direction.X > 0)
+            var fallback = _owner.GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
+            if (fallback != null)
             {
-                _animatedSprite.FlipH = false;
-            }
-            else if (_direction.X < 0)
-            {
-                _animatedSprite.FlipH = true;
+                UpdateSingleSprite(fallback);
             }
 
-            if (_isMoving)
-            {
-                _animatedSprite.CallDeferred("play", "walk");
-            }
-            else
-            {
-                _animatedSprite.CallDeferred("play", "idle");
-            }
+            return;
+        }
+
+        foreach (var sprite in sprites)
+        {
+            UpdateSingleSprite(sprite);
+        }
+    }
+
+    private void UpdateSingleSprite(AnimatedSprite2D sprite)
+    {
+        if (_direction.X > 0)
+        {
+            sprite.FlipH = false;
+        }
+        else if (_direction.X < 0)
+        {
+            sprite.FlipH = true;
+        }
+
+        if (_isMoving)
+        {
+            sprite.CallDeferred("play", "walk");
+        }
+        else
+        {
+            sprite.CallDeferred("play", "idle");
         }
     }
 
@@ -274,14 +289,16 @@ public class MovementController
     // Get facing direction for interaction
     public Vector2I GetFacingDirection()
     {
-        // Determine facing direction based on sprite orientation
-        if (_animatedSprite?.FlipH == true)
+        // Use first sprite layer for facing direction
+        AnimatedSprite2D? sprite = _owner.SpriteLayers.Count > 0
+            ? _owner.SpriteLayers[0]
+            : _owner.GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
+
+        if (sprite?.FlipH == true)
         {
             return new Vector2I(-1, 0); // Facing left
         }
-        else
-        {
-            return new Vector2I(1, 0);  // Facing right
-        }
+
+        return new Vector2I(1, 0); // Facing right (default)
     }
 }

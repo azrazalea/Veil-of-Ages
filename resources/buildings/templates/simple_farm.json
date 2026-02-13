@@ -2,97 +2,30 @@
     "Name": "Simple Farm",
     "Description": "A basic small human farm",
     "BuildingType": "Farm",
-    "Size": [
-        8,
-        6
-    ],
+    "Size": [8, 6],
     "Culture": "Human",
     "Style": "Rural",
     "Capacity": 4,
     "Facilities": [
-        {
-            "Id": "crop",
-            "Positions": [
-                [
-                    2,
-                    1
-                ]
-            ]
-        },
-        {
-            "Id": "crop",
-            "Positions": [
-                [
-                    3,
-                    1
-                ]
-            ]
-        },
-        {
-            "Id": "crop",
-            "Positions": [
-                [
-                    5,
-                    1
-                ]
-            ]
-        },
-        {
-            "Id": "crop",
-            "Positions": [
-                [
-                    2,
-                    3
-                ]
-            ]
-        },
-        {
-            "Id": "crop",
-            "Positions": [
-                [
-                    3,
-                    3
-                ]
-            ]
-        },
-        {
-            "Id": "crop",
-            "Positions": [
-                [
-                    5,
-                    3
-                ]
-            ]
-        },
+        {"Id": "crop", "Positions": [[2, 1]]},
+        {"Id": "crop", "Positions": [[3, 1]]},
+        {"Id": "crop", "Positions": [[5, 1]]},
+        {"Id": "crop", "Positions": [[2, 3]]},
+        {"Id": "crop", "Positions": [[3, 3]]},
+        {"Id": "crop", "Positions": [[5, 3]]},
         {
             "Id": "storage",
-            "Positions": [
-                [
-                    0,
-                    0
-                ]
-            ],
+            "Positions": [[0, 0]],
             "RequireAdjacent": false,
             "Storage": {
                 "VolumeCapacity": 10.0,
                 "WeightCapacity": -1,
                 "DecayRateModifier": 1.0,
-                "Tags": [
-                    "grain"
-                ]
+                "Tags": ["grain"]
             }
         }
     ],
-    "EntrancePositions": [
-        [
-            4,
-            5
-        ],
-        [
-            4,
-            0
-        ]
-    ],
+    "EntrancePositions": [[4, 5], [4, 0]],
     "Metadata": {
         "ConstructionTime": "3d",
         "RequiredMaterials": "Wood:30,Glass:1",
@@ -102,14 +35,8 @@
         {
             "Name": "Main Field",
             "Purpose": "Farming",
-            "TopLeft": [
-                1,
-                1
-            ],
-            "Size": [
-                6,
-                4
-            ],
+            "TopLeft": [1, 1],
+            "Size": [6, 4],
             "Properties": {
                 "Quality": "Basic",
                 "Comfort": "Low"
@@ -117,707 +44,88 @@
         }
     ],
     "Tiles": [
-        {
-            "Position": [
-                0,
-                0
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "CornerTopLeft"
-        },
-        {
-            "Position": [
-                0,
-                0
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                1,
-                0
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "HorizontalTop"
-        },
-        {
-            "Position": [
-                1,
-                0
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                2,
-                0
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "HorizontalTop"
-        },
-        {
-            "Position": [
-                2,
-                0
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                3,
-                0
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "HorizontalTop"
-        },
-        {
-            "Position": [
-                3,
-                0
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                4,
-                0
-            ],
-            "Material": "Wood",
-            "Type": "Gate",
-            "Variant": "FenceTop"
-        },
-        {
-            "Position": [
-                4,
-                0
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                5,
-                0
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "HorizontalTop"
-        },
-        {
-            "Position": [
-                5,
-                0
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                6,
-                0
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "HorizontalTop"
-        },
-        {
-            "Position": [
-                6,
-                0
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                7,
-                0
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "CornerTopRight"
-        },
-        {
-            "Position": [
-                7,
-                0
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                0,
-                1
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "VerticalLeft"
-        },
-        {
-            "Position": [
-                0,
-                1
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                1,
-                1
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                2,
-                1
-            ],
-            "Material": "Plant",
-            "Type": "Crop",
-            "Variant": "Rice"
-        },
-        {
-            "Position": [
-                2,
-                1
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                3,
-                1
-            ],
-            "Material": "Plant",
-            "Type": "Crop",
-            "Variant": "Rice"
-        },
-        {
-            "Position": [
-                3,
-                1
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                4,
-                1
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                5,
-                1
-            ],
-            "Material": "Plant",
-            "Type": "Crop",
-            "Variant": "Rice"
-        },
-        {
-            "Position": [
-                5,
-                1
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                6,
-                1
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                7,
-                1
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "VerticalRight"
-        },
-        {
-            "Position": [
-                7,
-                1
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                0,
-                2
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "VerticalLeft"
-        },
-        {
-            "Position": [
-                0,
-                2
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                1,
-                2
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                2,
-                2
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                3,
-                2
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                4,
-                2
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                5,
-                2
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                6,
-                2
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                7,
-                2
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "VerticalRight"
-        },
-        {
-            "Position": [
-                7,
-                2
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                0,
-                3
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "VerticalLeft"
-        },
-        {
-            "Position": [
-                0,
-                3
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                1,
-                3
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                2,
-                3
-            ],
-            "Material": "Plant",
-            "Type": "Crop",
-            "Variant": "Rice"
-        },
-        {
-            "Position": [
-                2,
-                3
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                3,
-                3
-            ],
-            "Material": "Plant",
-            "Type": "Crop",
-            "Variant": "Rice"
-        },
-        {
-            "Position": [
-                3,
-                3
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                4,
-                3
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                5,
-                3
-            ],
-            "Material": "Plant",
-            "Type": "Crop",
-            "Variant": "Rice"
-        },
-        {
-            "Position": [
-                5,
-                3
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                6,
-                3
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                7,
-                3
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "VerticalRight"
-        },
-        {
-            "Position": [
-                7,
-                3
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                0,
-                4
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "VerticalLeft"
-        },
-        {
-            "Position": [
-                0,
-                4
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                1,
-                4
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                2,
-                4
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                3,
-                4
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                4,
-                4
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                5,
-                4
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                6,
-                4
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                7,
-                4
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "VerticalRight"
-        },
-        {
-            "Position": [
-                7,
-                4
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                0,
-                5
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "CornerBottomLeft"
-        },
-        {
-            "Position": [
-                0,
-                5
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                1,
-                5
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "HorizontalBottom"
-        },
-        {
-            "Position": [
-                1,
-                5
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                2,
-                5
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "HorizontalBottom"
-        },
-        {
-            "Position": [
-                2,
-                5
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                3,
-                5
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "HorizontalBottom"
-        },
-        {
-            "Position": [
-                3,
-                5
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                4,
-                5
-            ],
-            "Material": "Wood",
-            "Type": "Gate",
-            "Variant": "FenceBottom"
-        },
-        {
-            "Position": [
-                4,
-                5
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                5,
-                5
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "HorizontalBottom"
-        },
-        {
-            "Position": [
-                5,
-                5
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                6,
-                5
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "HorizontalBottom"
-        },
-        {
-            "Position": [
-                6,
-                5
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        },
-        {
-            "Position": [
-                7,
-                5
-            ],
-            "Material": "Wood",
-            "Type": "Fence",
-            "Variant": "CornerBottomRight"
-        },
-        {
-            "Position": [
-                7,
-                5
-            ],
-            "Material": "Dirt",
-            "Type": "Floor",
-            "Variant": "Farm"
-        }
+        {"Position": [0, 0], "Type": "Fence", "Material": "Wood"},
+        {"Position": [0, 0], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [1, 0], "Type": "Fence", "Material": "Wood"},
+        {"Position": [1, 0], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [2, 0], "Type": "Fence", "Material": "Wood"},
+        {"Position": [2, 0], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [3, 0], "Type": "Fence", "Material": "Wood"},
+        {"Position": [3, 0], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [4, 0], "Type": "Gate", "Material": "Wood"},
+        {"Position": [4, 0], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [5, 0], "Type": "Fence", "Material": "Wood"},
+        {"Position": [5, 0], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [6, 0], "Type": "Fence", "Material": "Wood"},
+        {"Position": [6, 0], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [7, 0], "Type": "Fence", "Material": "Wood"},
+        {"Position": [7, 0], "Type": "Floor", "Material": "Dirt"},
+
+        {"Position": [0, 1], "Type": "Fence", "Material": "Wood"},
+        {"Position": [0, 1], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [1, 1], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [2, 1], "Type": "Crop", "Material": "Plant"},
+        {"Position": [2, 1], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [3, 1], "Type": "Crop", "Material": "Plant"},
+        {"Position": [3, 1], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [4, 1], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [5, 1], "Type": "Crop", "Material": "Plant"},
+        {"Position": [5, 1], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [6, 1], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [7, 1], "Type": "Fence", "Material": "Wood"},
+        {"Position": [7, 1], "Type": "Floor", "Material": "Dirt"},
+
+        {"Position": [0, 2], "Type": "Fence", "Material": "Wood"},
+        {"Position": [0, 2], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [1, 2], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [2, 2], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [3, 2], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [4, 2], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [5, 2], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [6, 2], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [7, 2], "Type": "Fence", "Material": "Wood"},
+        {"Position": [7, 2], "Type": "Floor", "Material": "Dirt"},
+
+        {"Position": [0, 3], "Type": "Fence", "Material": "Wood"},
+        {"Position": [0, 3], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [1, 3], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [2, 3], "Type": "Crop", "Material": "Plant"},
+        {"Position": [2, 3], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [3, 3], "Type": "Crop", "Material": "Plant"},
+        {"Position": [3, 3], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [4, 3], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [5, 3], "Type": "Crop", "Material": "Plant"},
+        {"Position": [5, 3], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [6, 3], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [7, 3], "Type": "Fence", "Material": "Wood"},
+        {"Position": [7, 3], "Type": "Floor", "Material": "Dirt"},
+
+        {"Position": [0, 4], "Type": "Fence", "Material": "Wood"},
+        {"Position": [0, 4], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [1, 4], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [2, 4], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [3, 4], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [4, 4], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [5, 4], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [6, 4], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [7, 4], "Type": "Fence", "Material": "Wood"},
+        {"Position": [7, 4], "Type": "Floor", "Material": "Dirt"},
+
+        {"Position": [0, 5], "Type": "Fence", "Material": "Wood"},
+        {"Position": [0, 5], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [1, 5], "Type": "Fence", "Material": "Wood"},
+        {"Position": [1, 5], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [2, 5], "Type": "Fence", "Material": "Wood"},
+        {"Position": [2, 5], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [3, 5], "Type": "Fence", "Material": "Wood"},
+        {"Position": [3, 5], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [4, 5], "Type": "Gate", "Material": "Wood"},
+        {"Position": [4, 5], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [5, 5], "Type": "Fence", "Material": "Wood"},
+        {"Position": [5, 5], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [6, 5], "Type": "Fence", "Material": "Wood"},
+        {"Position": [6, 5], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [7, 5], "Type": "Fence", "Material": "Wood"},
+        {"Position": [7, 5], "Type": "Floor", "Material": "Dirt"}
     ]
 }

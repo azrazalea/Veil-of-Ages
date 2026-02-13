@@ -1,7 +1,7 @@
 {
     "Id": "chest",
     "Name": "Chest",
-    "AtlasSource": "house_props",
-    "AtlasCoords": [34, 8],
-    "TileSize": [1, 2]
+    "AtlasSource": "urizen",
+    "AtlasCoords": [30, 19],
+    "TileSize": [1, 1]
 }

@@ -194,8 +194,10 @@ public partial class BuildingPlacementTool : Node
             return;
         }
 
-        // Move preview to grid position
-        _previewTileMap.Position = Utils.GridToWorld(_currentGridPosition);
+        // Move preview to grid position — top-left aligned to match Building positioning
+        _previewTileMap.Position = new Vector2(
+            _currentGridPosition.X * Utils.TileSize,
+            _currentGridPosition.Y * Utils.TileSize);
 
         // Check if placement is valid
         _isValidPlacement = _gridArea != null && BuildingManager.CanPlaceBuildingAt(_currentTemplate, _currentGridPosition, _gridArea);

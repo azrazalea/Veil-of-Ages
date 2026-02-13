@@ -33,6 +33,9 @@ public class TileVariantDefinition
 
     // Additional properties specific to this variant
     public Dictionary<string, string> Properties { get; set; } = new ();
+
+    // Optional tint color for this specific variant (hex format, e.g., "#AAAACC")
+    public string? Tint { get; set; }
 }
 
 /// <summary>
@@ -75,6 +78,9 @@ public class TileDefinition
 
     // Additional properties specific to this tile type
     public Dictionary<string, string> Properties { get; set; } = new ();
+
+    // Default tint color for this tile type (hex format, e.g., "#AAAACC")
+    public string? DefaultTint { get; set; }
 
     // Categories of variants (e.g., "Default", "Tombstone", "Statue")
     public Dictionary<string, TileCategory> Categories { get; set; } = new ();
@@ -161,6 +167,12 @@ public class TileDefinition
             {
                 definition.Properties = JsonSerializer.Deserialize<Dictionary<string, string>>(
                     propsElement.GetRawText()) ?? new Dictionary<string, string>();
+            }
+
+            // Handle DefaultTint
+            if (root.TryGetProperty(nameof(DefaultTint), out var defaultTintElement))
+            {
+                definition.DefaultTint = defaultTintElement.GetString();
             }
 
             // Handle Categories/Variants conversion

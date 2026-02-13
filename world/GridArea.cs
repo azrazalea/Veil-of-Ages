@@ -40,28 +40,23 @@ public partial class Area(Vector2I worldSize): Node2D
     private uint _beingNum;
     public List<Node2D> Entities { get; private set; } = [];
 
-    public static readonly Tile WaterTile = new (
-        1,
-        new (3, 16),
-        false);
+    // Terrain tiles loaded from JSON via TileResourceManager at runtime.
+    // Definitions live in resources/tiles/terrain/*.json.
+    private static Tile? _waterTile;
+    public static Tile WaterTile => _waterTile ??= TileResourceManager.Instance.GetTerrainTile("water")
+        ?? throw new InvalidOperationException("Terrain tile definition 'water' not found");
 
-    public static readonly Tile GrassTile = new (
-        0,
-        new (1, 3),
-        true,
-        1.0f);
+    private static Tile? _grassTile;
+    public static Tile GrassTile => _grassTile ??= TileResourceManager.Instance.GetTerrainTile("grass")
+        ?? throw new InvalidOperationException("Terrain tile definition 'grass' not found");
 
-    public static readonly Tile DirtTile = new (
-        0,
-        new (5, 3),
-        true,
-        0.8f);
+    private static Tile? _dirtTile;
+    public static Tile DirtTile => _dirtTile ??= TileResourceManager.Instance.GetTerrainTile("dirt")
+        ?? throw new InvalidOperationException("Terrain tile definition 'dirt' not found");
 
-    public static readonly Tile PathTile = new (
-        0,
-        new (6, 21),
-        true,
-        0.5f);
+    private static Tile? _pathTile;
+    public static Tile PathTile => _pathTile ??= TileResourceManager.Instance.GetTerrainTile("path")
+        ?? throw new InvalidOperationException("Terrain tile definition 'path' not found");
 
     private World? _gameWorld;
 
@@ -90,7 +85,10 @@ public partial class Area(Vector2I worldSize): Node2D
         {
             TileSet = tileSet
         };
-        _objectsLayer = new TileMapLayer();
+        _objectsLayer = new TileMapLayer
+        {
+            ZIndex = 5
+        };
         AStarGrid = PathFinder.CreateNewAStarGrid(this);
     }
 
@@ -145,6 +143,13 @@ public partial class Area(Vector2I worldSize): Node2D
 
         if (_groundLayer?.Enabled == true)
         {
+            // Godot requires tiles be explicitly created in the atlas source before use
+            var source = (TileSetAtlasSource)_groundLayer.TileSet.GetSource(tile.SourceId);
+            if (source.GetTileAtCoords(tile.AtlasCoords) == new Vector2I(-1, -1))
+            {
+                source.CreateTile(tile.AtlasCoords);
+            }
+
             _groundLayer.SetCell(groundPos, tile.SourceId, tile.AtlasCoords);
         }
     }

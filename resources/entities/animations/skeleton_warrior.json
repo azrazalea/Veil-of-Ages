@@ -4,22 +4,22 @@
   "SpriteSize": [32, 32],
   "Animations": {
     "idle": {
-      "TexturePath": "res://assets/minifantasy/entities/undead/skeleton-warrior/Idle_Activation_Deactivation.png",
+      "TexturePath": "res://assets/dcss/ProjectUtumno_full.png",
       "FrameWidth": 32,
       "FrameHeight": 32,
-      "FrameCount": 3,
-      "FrameRow": 1,
-      "StartColumn": 2,
+      "FrameCount": 1,
+      "FrameRow": 74,
+      "StartColumn": 62,
       "Speed": 3.0,
       "Loop": true
     },
     "walk": {
-      "TexturePath": "res://assets/minifantasy/entities/undead/skeleton-warrior/Walk.png",
+      "TexturePath": "res://assets/dcss/ProjectUtumno_full.png",
       "FrameWidth": 32,
       "FrameHeight": 32,
-      "FrameCount": 3,
-      "FrameRow": 0,
-      "StartColumn": 0,
+      "FrameCount": 1,
+      "FrameRow": 74,
+      "StartColumn": 62,
       "Speed": 5.0,
       "Loop": true
     }

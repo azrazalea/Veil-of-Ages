@@ -12,9 +12,6 @@ namespace VeilOfAges.WorldGeneration;
 public partial class GridGenerator : Node
 {
     [Export]
-    public PackedScene? TreeScene;
-
-    [Export]
     public PackedScene? BuildingScene;
 
     [Export]
@@ -84,13 +81,8 @@ public partial class GridGenerator : Node
         }
 
         // Then add trees in unoccupied spaces
-        if (TreeScene != null)
-        {
-            GenerateTrees();
-        }
+        GenerateTrees();
 
-        // // Add some decorative elements
-        // GenerateDecorations();
         Log.Print("Done generating!");
     }
 
@@ -143,7 +135,7 @@ public partial class GridGenerator : Node
 
     private void GenerateTrees()
     {
-        if (_activeGridArea == null || TreeScene == null || _entitiesContainer == null)
+        if (_activeGridArea == null || _entitiesContainer == null)
         {
             return;
         }
@@ -151,74 +143,35 @@ public partial class GridGenerator : Node
         // Collect all building entrance positions to avoid blocking them
         var entrancePositions = GetAllBuildingEntrancePositions();
 
+        // Tree is 1x1 tile
+        Vector2I treeSize = new (1, 1);
+
         // Try to place the requested number of trees
         int treesPlaced = 0;
-        int maxAttempts = NumberOfTrees * 3; // Allow some failed attempts
+        int maxAttempts = NumberOfTrees * 3;
         int attempts = 0;
 
         while (treesPlaced < NumberOfTrees && attempts < maxAttempts)
         {
             attempts++;
 
-            // Generate random grid position
             Vector2I gridPos = new (
-                _rng.RandiRange(0, _activeGridArea.GridSize.X - 5), // Reduced by tree width
-                _rng.RandiRange(0, _activeGridArea.GridSize.Y - 6)); // Reduced by tree height
+                _rng.RandiRange(0, _activeGridArea.GridSize.X - 1),
+                _rng.RandiRange(0, _activeGridArea.GridSize.Y - 1));
 
-            // Create a "temporary" tree to get its size
-            Node2D tempTree = TreeScene.Instantiate<Node2D>();
-            Vector2I treeSize = new (1, 1); // Default size
-
-            if (tempTree is Entities.Terrain.Tree typedTree)
+            if (!_activeGridArea.IsCellWalkable(gridPos))
             {
-                treeSize = typedTree.GridSize;
+                continue;
             }
 
-            tempTree.QueueFree(); // Clean up the temporary instance
-
-            // Check if the entire area needed for the tree is free
-            bool areaIsFree = true;
-            for (int x = 0; x < treeSize.X && areaIsFree; x++)
-            {
-                for (int y = 0; y < treeSize.Y && areaIsFree; y++)
-                {
-                    Vector2I checkPos = new (gridPos.X + x, gridPos.Y + y);
-
-                    // Check for occupied cells or water
-                    if (!_activeGridArea.IsCellWalkable(checkPos))
-                    {
-                        areaIsFree = false;
-                        break;
-                    }
-                }
-            }
-
-            if (!areaIsFree)
-            {
-                continue; // Skip to next attempt if area isn't free
-            }
-
-            // Check if tree placement would be too close to any building entrance
             if (IsTooCloseToEntrance(gridPos, treeSize, entrancePositions, 2))
             {
-                continue; // Skip to next attempt if too close to entrance
+                continue;
             }
 
-            // Place tree at grid position by instancing the scene
-            Node2D tree = TreeScene.Instantiate<Node2D>();
+            var tree = new Entities.Terrain.Tree();
             _entitiesContainer.AddChild(tree);
-
-            // Initialize the tree at this position
-            if (tree is Entities.Terrain.Tree typedTree2)
-            {
-                typedTree2.Initialize(_activeGridArea, gridPos);
-            }
-            else
-            {
-                // If for some reason it's not our Tree type, just position it
-                tree.GlobalPosition = VeilOfAges.Grid.Utils.GridToWorld(gridPos);
-            }
-
+            tree.Initialize(_activeGridArea, gridPos);
             _activeGridArea.AddEntity(gridPos, tree, treeSize);
 
             treesPlaced++;
@@ -290,41 +243,5 @@ public partial class GridGenerator : Node
         }
 
         return false;
-    }
-
-    private void GenerateDecorations()
-    {
-        if (_activeGridArea == null)
-        {
-            return;
-        }
-
-        // Add some small decorations to the decoration layer
-        // This could be flowers, small rocks, etc.
-        // For now, we'll just add placeholder decorations
-        int numDecorations = _rng.RandiRange(30, 50);
-
-        // Set source and atlas IDs based on your actual decoration tiles
-        // int decorationSourceId = 0; // This would be your decoration tileset ID
-        Vector2I[] decorationTiles = [new (0, 0), new (1, 0), new (2, 0)]; // Example atlas coords
-
-        for (int i = 0; i < numDecorations; i++)
-        {
-            Vector2I gridPos = new (
-                _rng.RandiRange(0, _activeGridArea.GridSize.X - 1),
-                _rng.RandiRange(0, _activeGridArea.GridSize.Y - 1));
-
-            // Skip if cell is occupied by entities or is water
-            if (!_activeGridArea.IsCellWalkable(gridPos))
-            {
-                continue;
-            }
-
-            // Choose a random decoration tile
-            _ = decorationTiles[_rng.RandiRange(0, decorationTiles.Length - 1)];
-
-            // Place decoration
-            // _objectsLayer.SetCell(gridPos, decorationSourceId, tileCoords);
-        }
     }
 }

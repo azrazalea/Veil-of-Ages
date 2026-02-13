@@ -1,0 +1,14 @@
+{
+  "Id": "being_base",
+  "Abstract": true,
+  "Name": "Being Base",
+  "Description": "Root base definition for all entities — defines default sprite layer slots",
+  "SpriteLayers": [
+    { "Name": "body", "ZIndex": 0 },
+    { "Name": "clothing_inner", "ZIndex": 1 },
+    { "Name": "clothing_outer", "ZIndex": 2 },
+    { "Name": "hair", "ZIndex": 3 },
+    { "Name": "headwear", "ZIndex": 4 },
+    { "Name": "held_item", "ZIndex": 5 }
+  ]
+}

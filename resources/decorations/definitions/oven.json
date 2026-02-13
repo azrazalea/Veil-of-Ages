@@ -1,5 +1,7 @@
 {
     "Id": "oven",
     "Name": "Oven",
-    "AnimationId": "oven_idle"
+    "AtlasSource": "urizen",
+    "AtlasCoords": [1, 42],
+    "TileSize": [1, 1]
 }

@@ -45,8 +45,8 @@ Static utility class for coordinate conversion between world and grid space.
 
 - **Namespace**: `VeilOfAges.Grid`
 - **Constants**:
-  - `TileSize`: 8 pixels per tile
-  - `WorldOffset`: 5 pixel visual offset correction
+  - `TileSize`: 32 pixels per tile
+  - `WorldOffset`: 0 pixel visual offset correction
   - `WaterAtlasCoords`: Default water tile coordinates
 - **Key Methods**:
   - `WorldToGrid()` / `GridToWorld()`: Coordinate conversion
@@ -104,8 +104,8 @@ Represents a village settlement with shared knowledge about buildings and landma
 ## Important Notes
 
 ### Coordinate System
-- **Tile Size**: 8x8 pixels
-- **Visual Offset**: A 5-pixel Y offset exists between visual and logical positions. The `Utils` class handles this automatically.
+- **Tile Size**: 32x32 pixels
+- **Visual Offset**: No visual offset is needed for 32x32 tiles. The `Utils` class handles coordinate conversion.
 - **Grid Origin**: Top-left corner (0,0)
 
 ### Pathfinding Integration

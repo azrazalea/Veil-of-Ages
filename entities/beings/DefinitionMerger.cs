@@ -29,7 +29,8 @@ public static class DefinitionMerger
     private static readonly HashSet<string> _smartMergeProperties = new (StringComparer.OrdinalIgnoreCase)
     {
         "Needs",  // Merge by Id - child overrides parent's needs with same Id
-        "Traits" // Merge by TraitType - child overrides parent's traits with same TraitType
+        "Traits", // Merge by TraitType - child overrides parent's traits with same TraitType
+        "SpriteLayers" // Merge by Name - child overrides parent's sprite layers with same Name
     };
 
     /// <summary>
@@ -227,6 +228,7 @@ public static class DefinitionMerger
         {
             "Needs" => "Id",
             "Traits" => "TraitType",
+            "SpriteLayers" => "Name",
             _ => "Id" // Default fallback
         };
 

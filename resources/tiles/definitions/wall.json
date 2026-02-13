@@ -3,13 +3,11 @@
     "Name": "Wall",
     "Description": "A basic wall structure.",
     "Type": "Wall",
+    "DefaultTint": "#8888AA",
     "IsWalkable": false,
     "BaseDurability": 100,
-    "AtlasSource": "buildings_main",
-    "AtlasCoords": [
-        14,
-        9
-    ],
+    "AtlasSource": "urizen",
+    "AtlasCoords": [26, 0],
     "DefaultSensoryDifficulties": {
         "Sight": 1.0,
         "Hearing": 0.5,
@@ -17,93 +15,5 @@
     },
     "Properties": {
         "BuildCost": "Material:2"
-    },
-    "Variants": {
-        "wood": {
-            "CornerTopLeft_Top": {
-                "AtlasCoords": [
-                    4,
-                    1
-                ]
-            },
-            "CornerTopLeft_Bottom": {
-                "AtlasCoords": [
-                    4,
-                    2
-                ]
-            },
-            "CornerTopRight_Top": {
-                "AtlasCoords": [
-                    6,
-                    1
-                ]
-            },
-            "CornerTopRight_Bottom": {
-                "AtlasCoords": [
-                    6,
-                    2
-                ]
-            },
-            "CornerBottomLeft_Top": {
-                "AtlasCoords": [
-                    4,
-                    4
-                ]
-            },
-            "CornerBottomLeft_Bottom": {
-                "AtlasCoords": [
-                    4,
-                    5
-                ]
-            },
-            "CornerBottomRight_Top": {
-                "AtlasCoords": [
-                    6,
-                    4
-                ]
-            },
-            "CornerBottomRight_Bottom": {
-                "AtlasCoords": [
-                    6,
-                    5
-                ]
-            },
-            "HorizontalTop_Top": {
-                "AtlasCoords": [
-                    5,
-                    1
-                ]
-            },
-            "HorizontalTop_Bottom": {
-                "AtlasCoords": [
-                    5,
-                    2
-                ]
-            },
-            "HorizontalBottom_Top": {
-                "AtlasCoords": [
-                    5,
-                    4
-                ]
-            },
-            "HorizontalBottom_Bottom": {
-                "AtlasCoords": [
-                    5,
-                    5
-                ]
-            },
-            "VerticalLeft": {
-                "AtlasCoords": [
-                    4,
-                    3
-                ]
-            },
-            "VerticalRight": {
-                "AtlasCoords": [
-                    6,
-                    3
-                ]
-            }
-        }
     }
 }
