@@ -1,6 +1,6 @@
 {
     "Id": "path",
-    "AtlasSource": "dcss_utumno",
+    "AtlasSource": "dcss",
     "AtlasCoords": [20, 7],
     "IsWalkable": true,
     "WalkDifficulty": 0.5

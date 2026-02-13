@@ -318,7 +318,7 @@ public partial class TileResourceManager : Node
                     ResourceName = atlasSource.Id
                 };
 
-                // Center smaller tiles (e.g., Urizen 24x24) within 32x32 cells
+                // Center smaller tiles within 32x32 cells if any atlas uses sub-32 tiles
                 if (atlasSource.TileSize.X < (int)Grid.Utils.TileSize || atlasSource.TileSize.Y < (int)Grid.Utils.TileSize)
                 {
                     tileSetAtlasSource.UseTexturePadding = true;
@@ -423,7 +423,8 @@ public partial class TileResourceManager : Node
         var result = new Dictionary<string, object?>
         {
             ["AtlasSource"] = tileDef.AtlasSource,
-            ["AtlasCoords"] = tileDef.AtlasCoords
+            ["AtlasCoords"] = tileDef.AtlasCoords,
+            ["Tint"] = (string?)null
         };
 
         // If no category system is used, return legacy values
@@ -464,6 +465,11 @@ public partial class TileResourceManager : Node
                 {
                     result["AtlasCoords"] = globalDefault.AtlasCoords;
                 }
+
+                if (!string.IsNullOrEmpty(globalDefault?.Tint))
+                {
+                    result["Tint"] = globalDefault.Tint;
+                }
             }
         }
 
@@ -480,6 +486,11 @@ public partial class TileResourceManager : Node
                 if (materialDefault?.AtlasCoords != null)
                 {
                     result["AtlasCoords"] = materialDefault.AtlasCoords;
+                }
+
+                if (!string.IsNullOrEmpty(materialDefault?.Tint))
+                {
+                    result["Tint"] = materialDefault.Tint;
                 }
             }
         }
@@ -498,6 +509,11 @@ public partial class TileResourceManager : Node
                 if (specificVariant?.AtlasCoords != null)
                 {
                     result["AtlasCoords"] = specificVariant.AtlasCoords;
+                }
+
+                if (!string.IsNullOrEmpty(specificVariant?.Tint))
+                {
+                    result["Tint"] = specificVariant.Tint;
                 }
             }
         }
@@ -607,6 +623,11 @@ public partial class TileResourceManager : Node
 
             tile.DetectionDifficulties[senseType] = baseDifficulty * materialModifier;
         }
+
+        // Populate tint cascade data from tile definition and variant
+        tile.DefinitionDefaultTint = tileDef.DefaultTint;
+        var resolvedVariantTint = (string?)processedVariant.GetValueOrDefault("Tint");
+        tile.VariantTint = resolvedVariantTint;
 
         return tile;
     }

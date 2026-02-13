@@ -5,7 +5,7 @@
     "Type": "Fence",
     "IsWalkable": false,
     "BaseDurability": 100,
-    "AtlasSource": "kenney_1bit",
+    "AtlasSource": "kenney",
     "AtlasCoords": [2, 3],
     "DefaultSensoryDifficulties": {
         "Sight": 0.3,

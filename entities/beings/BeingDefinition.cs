@@ -95,6 +95,13 @@ public class BeingDefinition : IResourceDefinition
     public List<string> Tags { get; set; } = [];
 
     /// <summary>
+    /// Gets or sets the sprite layer slots for this being type.
+    /// Defines available layers for multi-layer sprite rendering.
+    /// Inherited from parent definitions and merged by Name.
+    /// </summary>
+    public List<SpriteLayerSlotDefinition> SpriteLayers { get; set; } = [];
+
+    /// <summary>
     /// Load a being definition from a JSON file.
     /// </summary>
     /// <param name="path">Path to the JSON file.</param>
@@ -360,4 +367,22 @@ public class SkillStartDefinition
     /// Gets or sets the starting XP within the current level (default 0).
     /// </summary>
     public float Xp { get; set; }
+}
+
+/// <summary>
+/// JSON-serializable sprite layer slot definition for being definitions.
+/// Defines a named sprite layer with a Z-index for visual layering.
+/// </summary>
+public class SpriteLayerSlotDefinition
+{
+    /// <summary>
+    /// Gets or sets the name of the sprite layer slot (e.g., "body", "clothing_outer").
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the Z-index for this layer relative to the entity's base.
+    /// Higher values render on top of lower values.
+    /// </summary>
+    public int ZIndex { get; set; }
 }

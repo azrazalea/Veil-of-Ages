@@ -30,6 +30,10 @@ public class BuildingTile
     public string? Name { get; set; }
     public Dictionary<SenseType, float> DetectionDifficulties { get; private set; } = [];
 
+    // Tint cascade properties (set by TileResourceManager, consumed by Building.ResolveTileTint)
+    public string? VariantTint { get; set; }
+    public string? DefinitionDefaultTint { get; set; }
+
     public BuildingTile(
         TileType type,
         string material,

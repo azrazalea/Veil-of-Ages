@@ -32,10 +32,9 @@ The DCSS pack includes:
 - **Extracted Sprites**: `dcss/dungeon/` folder contains individual PNGs organized by category (floor/, wall/, gateways/, shops/, statues/, traps/, trees/, vaults/)
 
 ### Urizen OneBit V2
-- **Used File**: `urizen/urizen_onebit_tileset__v2d0_2x.png`
+- **Used File**: `urizen/urizen_onebit_tileset__v2d0_32x32.png`
 - **Original**: `urizen_onebit_tileset__v2d0.png` (12x12 tiles with 1px margin/separation)
-- **Upscaling**: 2x to 24x24 pixels with 2px margin/separation
-- **Special Handling**: Tiles are centered within 32x32 grid cells using texture padding
+- **Upscaling**: To native 32x32 pixels, no margin/separation
 - **License**: CC0 (Public Domain)
 - **Source**: [vurmux on itch.io](https://vurmux.itch.io/urizen-onebit-tileset)
 - **Usage**: Additional tileset for UI elements and small props
@@ -80,7 +79,7 @@ assets/
 │   └── dungeon/                             # Extracted sprites
 ├── urizen/                           # Urizen OneBit V2
 │   ├── urizen_onebit_tileset__v2d0.png      # Original 12x12
-│   ├── urizen_onebit_tileset__v2d0_2x.png   # 2x upscaled - USED BY GAME
+│   ├── urizen_onebit_tileset__v2d0_32x32.png # Upscaled to 32x32 - USED BY GAME
 │   └── urizen_atlas_index.json
 └── pixabay/                          # Free assets from Pixabay
 ```
@@ -91,16 +90,17 @@ assets/
 All atlases have been upscaled 2x to ensure crisp rendering:
 - Kenney: 16x16 → 32x32
 - DCSS: Native 32x32 (no upscaling)
-- Urizen: 12x12 → 24x24 (then centered in 32x32 cells)
+- Urizen: 12x12 → 32x32 (upscaled to native 32x32)
 
 ### Atlas Definitions
 Atlas JSON definitions are located in `/resources/tiles/atlases/`:
-- `kenney_1bit.json` - References the 2x upscaled Kenney atlas
-- `dcss_utumno.json` - References the DCSS full atlas
-- `urizen_onebit.json` - References the 2x upscaled Urizen atlas
+- `kenney_1bit.json` - ID: `kenney`, references the 2x upscaled Kenney atlas
+- `dcss_utumno.json` - ID: `dcss`, references the DCSS full atlas
+- `dcss_supplemental.json` - ID: `dcss_supplemental`, references the DCSS supplemental atlas
+- `urizen_onebit.json` - ID: `urizen`, references the 32x32 upscaled Urizen atlas
 
-### Urizen Centering
-Because Urizen tiles are 24x24, the TileResourceManager automatically enables texture padding to center them within 32x32 grid cells. No manual adjustment is needed.
+### Urizen Tiles
+Urizen tiles have been upscaled from the original 12x12 to native 32x32 pixels with no margin or separation, matching the game's grid size.
 
 ## License Summary
 

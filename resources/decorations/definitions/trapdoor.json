@@ -1,7 +1,7 @@
 {
     "Id": "trapdoor",
     "Name": "Trapdoor",
-    "AtlasSource": "urizen_onebit",
+    "AtlasSource": "urizen",
     "AtlasCoords": [1, 40],
     "TileSize": [1, 1]
 }

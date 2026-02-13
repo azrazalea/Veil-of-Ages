@@ -26,13 +26,15 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
     private Vector2I _gridPosition;
     public VeilOfAges.Grid.Area? GridArea { get; private set; }
     public SortedSet<Trait> Traits { get; private set; } = [];
-    private TileMapLayer? _tileMap;
-    private TileMapLayer? _groundTileMap;
+    private TintableTileMapLayer? _tileMap;
+    private TintableTileMapLayer? _groundTileMap;
+    private TintableTileMapLayer? _groundBaseTileMap;
     public Dictionary<SenseType, float> DetectionDifficulties { get; protected set; } = [];
 
     // Dictionary mapping relative grid positions to building tiles
     private readonly Dictionary<Vector2I, BuildingTile> _tiles = [];
     private readonly Dictionary<Vector2I, BuildingTile> _groundTiles = [];
+    private readonly Dictionary<Vector2I, BuildingTile> _groundBaseTiles = [];
 
     // Decoration sprites (purely visual, divorced from tile system)
     private readonly List<Decoration> _decorations = [];
@@ -165,7 +167,7 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
             }
         }
 
-        ZIndex = 2;
+        ZIndex = 3;
 
         Log.Print($"Building grid position Initialize: {_gridPosition}");
 
@@ -175,13 +177,13 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
             _gridPosition.Y * VeilOfAges.Grid.Utils.TileSize);
     }
 
-    // Initialize and set up the TileMap
+    // Initialize and set up the TileMap layers
     private void InitializeTileMaps(BuildingTemplate template)
     {
-        // If no TileMap was found, create a new one
+        // Structure layer (walls, doors, etc.) — relative ZIndex 0 (effective 3)
         if (_tileMap == null)
         {
-            _tileMap = new TileMapLayer
+            _tileMap = new TintableTileMapLayer
             {
                 Visible = true
             };
@@ -189,20 +191,34 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
             _tileMap.ZAsRelative = true;
         }
 
+        // Floor layer — relative ZIndex -1 (effective 2)
         if (_groundTileMap == null)
         {
-            _groundTileMap = new TileMapLayer
+            _groundTileMap = new TintableTileMapLayer
             {
                 Visible = true
             };
             AddChild(_groundTileMap);
-            _groundTileMap.ZIndex = _tileMap.ZIndex - 1;
+            _groundTileMap.ZIndex = -1;
             _groundTileMap.ZAsRelative = true;
+        }
+
+        // Ground base layer — relative ZIndex -2 (effective 1, above terrain)
+        if (_groundBaseTileMap == null)
+        {
+            _groundBaseTileMap = new TintableTileMapLayer
+            {
+                Visible = true
+            };
+            AddChild(_groundBaseTileMap);
+            _groundBaseTileMap.ZIndex = -2;
+            _groundBaseTileMap.ZAsRelative = true;
         }
 
         // Setup the TileSet with all required atlas sources
         TileResourceManager.Instance.SetupTileSet(_tileMap);
         TileResourceManager.Instance.SetupTileSet(_groundTileMap);
+        TileResourceManager.Instance.SetupTileSet(_groundBaseTileMap);
         Log.Print($"Tile set {_tileMap.TileSet}");
 
         Log.Print($"Building grid position Initialize: {_gridPosition}");
@@ -215,7 +231,6 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
         // Create individual tiles from template if provided
         if (template != null)
         {
-            // Create individual tiles from template
             CreateTilesFromTemplate(template, _gridPosition);
         }
     }
@@ -236,7 +251,7 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
         {
             // For walkable tiles, we don't block the grid cell but may affect movement cost
             // Uses a distinctive DCSS tile so it's obvious when this fallback path fires
-            int sourceId = TileResourceManager.Instance.GetTileSetSourceId("dcss_utumno");
+            int sourceId = TileResourceManager.Instance.GetTileSetSourceId("dcss");
             GridArea.SetGroundCell(absolutePos, new VeilOfAges.Grid.Tile(
                 sourceId,
                 new Vector2I(39, 50),
@@ -264,7 +279,7 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
     // Create building tiles from a template
     private void CreateTilesFromTemplate(BuildingTemplate template, Vector2I gridPos)
     {
-        if (_tileMap == null || _groundTileMap == null)
+        if (_tileMap == null || _groundTileMap == null || _groundBaseTileMap == null)
         {
             return;
         }
@@ -272,9 +287,6 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
         // Process each tile in the template
         foreach (var tileData in template.Tiles)
         {
-            // Create a tile using the new resource system
-            // In the old system, we have Type (string) and Material (string)
-            // We'll use these to determine which tile definition and material to use
             if (tileData.Type == null || tileData.Material == null)
             {
                 continue;
@@ -286,19 +298,9 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
                 ? tileData.Category.ToLowerInvariant()
                 : tileData.Type.ToLowerInvariant();
 
-            // For the material, we'll use the Material field
-            string materialId = tileData.Material.ToLowerInvariant(); // Use lowercase to match our resource IDs
+            string materialId = tileData.Material.ToLowerInvariant();
+            string variantName = string.IsNullOrEmpty(tileData.Variant) ? "Default" : tileData.Variant;
 
-            // Get the variant name if specified
-            string? variantName = tileData.Variant;
-
-            // If no variant is specified, use "Default"
-            if (string.IsNullOrEmpty(variantName))
-            {
-                variantName = "Default";
-            }
-
-            // Calculate the absolute grid position
             Vector2I absoluteGridPos = gridPos + tileData.Position;
 
             // Create the building tile using the resource manager
@@ -310,51 +312,120 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
                 materialId,
                 variantName);
 
-            // No fallback - if the tile creation fails, we'll get a null result
-            // and the game should crash or handle the error at a higher level
             if (buildingTile == null)
             {
-                // Log the error and throw an exception
                 var errorMessage = $"Critical Error: Failed to create building tile at position {tileData.Position} with type '{tileDefId}' and material '{materialId}' variant '{variantName}'";
                 Log.Error(errorMessage);
                 throw new System.InvalidOperationException(errorMessage);
             }
 
+            // Determine target layer based on explicit Layer field or default routing
+            RouteTileToLayer(tileData, buildingTile);
+
             // Register with grid system
             RegisterTileWithGrid(tileData.Position, buildingTile);
-            if (buildingTile.Type == TileType.Floor)
-            {
-                var source = (TileSetAtlasSource)_groundTileMap.TileSet.GetSource(buildingTile.SourceId);
-                if (source.GetTileAtCoords(buildingTile.AtlasCoords) == new Vector2I(-1, -1))
-                {
-                    source.CreateTile(buildingTile.AtlasCoords);
-                }
-            }
-            else
-            {
-                var source = (TileSetAtlasSource)_tileMap.TileSet.GetSource(buildingTile.SourceId);
-                if (source.GetTileAtCoords(buildingTile.AtlasCoords) == new Vector2I(-1, -1))
-                {
-                    source.CreateTile(buildingTile.AtlasCoords);
-                }
-            }
 
             Log.Print($"{tileDefId} {tileData.Position} tile with source {buildingTile.SourceId} and coords {buildingTile.AtlasCoords}");
+        }
+    }
 
-            // Add to tile dictionary (using relative position)
-            if (buildingTile.Type == TileType.Floor)
-            {
-                _groundTiles[tileData.Position] = buildingTile;
-                _groundTileMap.SetCell(tileData.Position, buildingTile.SourceId, buildingTile.AtlasCoords);
-            }
-            else
-            {
-                _tiles[tileData.Position] = buildingTile;
-                _tileMap.SetCell(tileData.Position, buildingTile.SourceId, buildingTile.AtlasCoords);
-            }
+    /// <summary>
+    /// Routes a tile to the appropriate layer and applies tint if configured.
+    /// </summary>
+    private void RouteTileToLayer(BuildingTileData tileData, BuildingTile buildingTile)
+    {
+        // Determine which layer this tile belongs to
+        TintableTileMapLayer targetLayer;
+        Dictionary<Vector2I, BuildingTile> targetDict;
 
-            // Set the tile in the tilemap for visualization
-            Log.Print($"Confirm cell {tileData.Position} atlas source {_tileMap.GetCellSourceId(tileData.Position)} {_tileMap.GetCellAtlasCoords(tileData.Position)}");
+        string? explicitLayer = tileData.Layer;
+
+        if (string.Equals(explicitLayer, "Ground", System.StringComparison.OrdinalIgnoreCase))
+        {
+            targetLayer = _groundBaseTileMap!;
+            targetDict = _groundBaseTiles;
+        }
+        else if (string.Equals(explicitLayer, "Floor", System.StringComparison.OrdinalIgnoreCase)
+                 || (explicitLayer == null && buildingTile.Type == TileType.Floor))
+        {
+            targetLayer = _groundTileMap!;
+            targetDict = _groundTiles;
+        }
+        else
+        {
+            // "Structure" or default for non-Floor types
+            targetLayer = _tileMap!;
+            targetDict = _tiles;
+        }
+
+        // Ensure the atlas tile exists
+        var source = (TileSetAtlasSource)targetLayer.TileSet.GetSource(buildingTile.SourceId);
+        if (source.GetTileAtCoords(buildingTile.AtlasCoords) == new Vector2I(-1, -1))
+        {
+            source.CreateTile(buildingTile.AtlasCoords);
+        }
+
+        // Add to tile dictionary and set in TileMapLayer
+        targetDict[tileData.Position] = buildingTile;
+        targetLayer.SetCell(tileData.Position, buildingTile.SourceId, buildingTile.AtlasCoords);
+
+        // Resolve and apply tint cascade: BuildingTileData.Tint > variant Tint > TileDefinition.DefaultTint
+        var tintColor = ResolveTileTint(tileData, buildingTile);
+        if (tintColor.HasValue)
+        {
+            targetLayer.SetTileTint(tileData.Position, tintColor.Value);
+        }
+    }
+
+    /// <summary>
+    /// Resolves the tint color for a tile using the cascade:
+    /// BuildingTileData.Tint > variant Tint > TileDefinition.DefaultTint > no tint.
+    /// </summary>
+    private static Color? ResolveTileTint(BuildingTileData tileData, BuildingTile buildingTile)
+    {
+        // 1. Per-tile template override (highest priority)
+        var color = ParseHexColor(tileData.Tint);
+        if (color.HasValue)
+        {
+            return color;
+        }
+
+        // 2. Variant-level tint
+        color = ParseHexColor(buildingTile.VariantTint);
+        if (color.HasValue)
+        {
+            return color;
+        }
+
+        // 3. Tile definition default tint
+        color = ParseHexColor(buildingTile.DefinitionDefaultTint);
+        if (color.HasValue)
+        {
+            return color;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Parses a hex color string (e.g., "#AAAACC") into a Godot Color.
+    /// Returns null if the string is null, empty, or invalid.
+    /// </summary>
+    private static Color? ParseHexColor(string? hex)
+    {
+        if (string.IsNullOrEmpty(hex))
+        {
+            return null;
+        }
+
+        try
+        {
+            return new Color(hex);
+        }
+        catch
+        {
+            Log.Warn($"Building: Failed to parse hex color '{hex}'");
+            return null;
         }
     }
 
@@ -363,12 +434,15 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
         // When the building is removed, unregister all tiles
         if (GridArea != null)
         {
-            foreach (var tile in _tiles)
+            foreach (var tileDict in new[] { _tiles, _groundTiles, _groundBaseTiles })
             {
-                Vector2I absolutePos = _gridPosition + tile.Key;
-                if (!tile.Value.IsWalkable)
+                foreach (var tile in tileDict)
                 {
-                    GridArea.RemoveEntity(absolutePos);
+                    Vector2I absolutePos = _gridPosition + tile.Key;
+                    if (!tile.Value.IsWalkable)
+                    {
+                        GridArea.RemoveEntity(absolutePos);
+                    }
                 }
             }
         }
@@ -458,7 +532,7 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
     private void UpdateBuildingVisual()
     {
         // Ensure TileMap exists
-        if (_tileMap == null || _groundTileMap == null)
+        if (_tileMap == null || _groundTileMap == null || _groundBaseTileMap == null)
         {
             return;
         }
@@ -466,6 +540,7 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
         // Clear existing cells
         _tileMap.Clear();
         _groundTileMap.Clear();
+        _groundBaseTileMap.Clear();
 
         // Add each tile to the TileMap
         foreach (var tile in _tiles)
@@ -476,6 +551,11 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
         foreach (var tile in _groundTiles)
         {
             _groundTileMap.SetCell(tile.Key, tile.Value.SourceId, tile.Value.AtlasCoords);
+        }
+
+        foreach (var tile in _groundBaseTiles)
+        {
+            _groundBaseTileMap.SetCell(tile.Key, tile.Value.SourceId, tile.Value.AtlasCoords);
         }
     }
 
@@ -490,6 +570,11 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
         if (_groundTiles.TryGetValue(relativePos, out var groundTile))
         {
             return groundTile;
+        }
+
+        if (_groundBaseTiles.TryGetValue(relativePos, out var groundBaseTile))
+        {
+            return groundBaseTile;
         }
 
         return null;
@@ -639,6 +724,16 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
 
         // Include all ground tile positions (floors)
         foreach (var tile in _groundTiles)
+        {
+            if (!_entrancePositions.Contains(tile.Key) &&
+                !entranceAdjacentPositions.Contains(tile.Key))
+            {
+                result.Add(tile.Key);
+            }
+        }
+
+        // Include all ground base tile positions
+        foreach (var tile in _groundBaseTiles)
         {
             if (!_entrancePositions.Contains(tile.Key) &&
                 !entranceAdjacentPositions.Contains(tile.Key))
@@ -1029,6 +1124,12 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
 
             // Also check ground tiles (floors are typically in _groundTiles)
             if (_groundTiles.TryGetValue(adjacentPos, out var groundTile) && groundTile.IsWalkable)
+            {
+                return adjacentPos;
+            }
+
+            // Also check ground base tiles
+            if (_groundBaseTiles.TryGetValue(adjacentPos, out var groundBaseTile) && groundBaseTile.IsWalkable)
             {
                 return adjacentPos;
             }

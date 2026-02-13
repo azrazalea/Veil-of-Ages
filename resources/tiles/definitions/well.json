@@ -5,7 +5,7 @@
     "Type": "Well",
     "IsWalkable": false,
     "BaseDurability": 80,
-    "AtlasSource": "dcss_utumno",
+    "AtlasSource": "dcss",
     "AtlasCoords": [3, 0],
     "DefaultSensoryDifficulties": {
         "Sight": 0.9,

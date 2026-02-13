@@ -1,7 +1,7 @@
 {
     "Id": "tombstone",
     "Name": "Tombstone",
-    "AtlasSource": "dcss_utumno",
+    "AtlasSource": "dcss",
     "AtlasCoords": [13, 12],
     "TileSize": [1, 1]
 }

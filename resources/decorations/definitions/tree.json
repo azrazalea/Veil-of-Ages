@@ -1,7 +1,7 @@
 {
     "Id": "tree",
     "Name": "Tree",
-    "AtlasSource": "dcss_utumno",
+    "AtlasSource": "dcss",
     "AtlasCoords": [14, 13],
     "TileSize": [1, 1]
 }

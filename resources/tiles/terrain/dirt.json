@@ -1,6 +1,6 @@
 {
     "Id": "dirt",
-    "AtlasSource": "dcss_utumno",
+    "AtlasSource": "dcss",
     "AtlasCoords": [19, 3],
     "IsWalkable": true,
     "WalkDifficulty": 0.8

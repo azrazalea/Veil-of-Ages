@@ -5,7 +5,7 @@
     "Type": "Floor",
     "IsWalkable": true,
     "BaseDurability": 50,
-    "AtlasSource": "urizen_onebit",
+    "AtlasSource": "urizen",
     "AtlasCoords": [10, 4],
     "DefaultSensoryDifficulties": {
         "Sight": 0.0,
@@ -20,7 +20,7 @@
             "Default": { "AtlasCoords": [10, 4] }
         },
         "dirt": {
-            "Default": { "AtlasSource": "dcss_utumno", "AtlasCoords": [19, 3] }
+            "Default": { "AtlasSource": "dcss", "AtlasCoords": [19, 3] }
         }
     }
 }

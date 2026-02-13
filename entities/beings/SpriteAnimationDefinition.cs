@@ -37,14 +37,16 @@ public class SpriteAnimationDefinition : IResourceDefinition
     public Dictionary<string, AnimationData>? Animations { get; set; }
 
     /// <summary>
-    /// Load a SpriteAnimationDefinition from a JSON file.
+    /// Gets or sets optional layer-based animation definitions.
+    /// When present, each layer references a named slot from the entity definition's SpriteLayers.
+    /// When absent, the top-level Animations are treated as a single "body" layer.
     /// </summary>
-    /// <param name="path">Path to the JSON file (res:// or absolute path).</param>
-    /// <returns>The loaded definition, or null if loading failed.</returns>
+    public List<SpriteLayerDefinition>? Layers { get; set; }
+
     /// <summary>
     /// Load a SpriteAnimationDefinition from a JSON file.
     /// </summary>
-    /// <param name="path">Path to the JSON file.</param>
+    /// <param name="path">Path to the JSON file (res:// or absolute path).</param>
     /// <returns>The loaded definition, or null if loading failed.</returns>
     public static SpriteAnimationDefinition? LoadFromJson(string path)
     {
@@ -78,17 +80,47 @@ public class SpriteAnimationDefinition : IResourceDefinition
             return false;
         }
 
-        if (Animations == null || Animations.Count == 0)
+        bool hasTopLevelAnims = Animations != null && Animations.Count > 0;
+        bool hasLayers = Layers != null && Layers.Count > 0;
+
+        if (!hasTopLevelAnims && !hasLayers)
         {
-            Log.Error($"SpriteAnimationDefinition '{Id}': Missing or empty 'animations' dictionary");
+            Log.Error($"SpriteAnimationDefinition '{Id}': Must have either 'Animations' or 'Layers'");
             return false;
         }
 
-        foreach (var (animName, animData) in Animations)
+        if (hasTopLevelAnims)
         {
-            if (!animData.Validate(Id, animName))
+            foreach (var (animName, animData) in Animations!)
             {
-                return false;
+                if (!animData.Validate(Id, animName))
+                {
+                    return false;
+                }
+            }
+        }
+
+        // Validate layer definitions if present
+        if (Layers != null)
+        {
+            foreach (var layer in Layers)
+            {
+                if (string.IsNullOrEmpty(layer.Name))
+                {
+                    Log.Error($"SpriteAnimationDefinition '{Id}': Layer has empty Name");
+                    return false;
+                }
+
+                if (layer.Animations != null)
+                {
+                    foreach (var (animName, animData) in layer.Animations)
+                    {
+                        if (!animData.Validate(Id, $"{layer.Name}/{animName}"))
+                        {
+                            return false;
+                        }
+                    }
+                }
             }
         }
 
@@ -101,21 +133,74 @@ public class SpriteAnimationDefinition : IResourceDefinition
     /// <returns>A new SpriteFrames resource with all animations configured.</returns>
     public SpriteFrames CreateSpriteFrames()
     {
+        if (Animations == null)
+        {
+            Log.Error($"SpriteAnimationDefinition '{Id}': Cannot create SpriteFrames - no animations defined");
+            return new SpriteFrames();
+        }
+
+        return CreateSpriteFramesFromAnimations(Animations);
+    }
+
+    /// <summary>
+    /// Returns the effective layer list. If Layers is defined, returns it directly.
+    /// Otherwise, wraps the top-level Animations as a single "body" layer for backwards compatibility.
+    /// </summary>
+    public List<SpriteLayerDefinition> GetEffectiveLayers()
+    {
+        if (Layers != null && Layers.Count > 0)
+        {
+            return Layers;
+        }
+
+        // Wrap top-level Animations as single "body" layer
+        return
+        [
+            new SpriteLayerDefinition
+            {
+                Name = "body",
+                Animations = Animations
+            }
+
+        ];
+    }
+
+    /// <summary>
+    /// Creates SpriteFrames for all effective layers.
+    /// Returns a list of (layerName, spriteFrames) tuples.
+    /// </summary>
+    public List<(string Name, SpriteFrames Frames)> CreateAllLayerSpriteFrames()
+    {
+        var result = new List<(string Name, SpriteFrames Frames)>();
+
+        foreach (var layer in GetEffectiveLayers())
+        {
+            if (layer.Animations == null || layer.Animations.Count == 0)
+            {
+                continue;
+            }
+
+            var spriteFrames = CreateSpriteFramesFromAnimations(layer.Animations);
+            result.Add((layer.Name, spriteFrames));
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a SpriteFrames resource from an animations dictionary.
+    /// Shared logic used by both CreateSpriteFrames() and CreateAllLayerSpriteFrames().
+    /// </summary>
+    private SpriteFrames CreateSpriteFramesFromAnimations(Dictionary<string, AnimationData> animations)
+    {
         var spriteFrames = new SpriteFrames();
 
-        // Remove the default animation that SpriteFrames creates automatically
         if (spriteFrames.HasAnimation("default"))
         {
             spriteFrames.RemoveAnimation("default");
         }
 
-        if (Animations == null)
-        {
-            Log.Error($"SpriteAnimationDefinition '{Id}': Cannot create SpriteFrames - no animations defined");
-            return spriteFrames;
-        }
-
-        foreach (var (animName, animData) in Animations)
+        foreach (var (animName, animData) in animations)
         {
             if (string.IsNullOrEmpty(animData.TexturePath))
             {
@@ -123,7 +208,6 @@ public class SpriteAnimationDefinition : IResourceDefinition
                 continue;
             }
 
-            // Load the texture
             var texture = ResourceLoader.Load<Texture2D>(animData.TexturePath);
             if (texture == null)
             {
@@ -131,12 +215,10 @@ public class SpriteAnimationDefinition : IResourceDefinition
                 continue;
             }
 
-            // Add the animation
             spriteFrames.AddAnimation(animName);
             spriteFrames.SetAnimationSpeed(animName, animData.Speed);
             spriteFrames.SetAnimationLoop(animName, animData.Loop);
 
-            // Create and add frames
             for (int i = 0; i < animData.FrameCount; i++)
             {
                 var atlasTexture = new AtlasTexture
@@ -144,7 +226,6 @@ public class SpriteAnimationDefinition : IResourceDefinition
                     Atlas = texture
                 };
 
-                // Calculate the region for this frame
                 int column = animData.StartColumn + i;
                 float x = column * (animData.FrameWidth + animData.Separation);
                 float y = animData.FrameRow * (animData.FrameHeight + animData.Separation);
@@ -262,5 +343,22 @@ public class SpriteAnimationDefinition : IResourceDefinition
 
             return true;
         }
+    }
+
+    /// <summary>
+    /// Defines animation data for a single sprite layer.
+    /// The Name references a slot from BeingDefinition.SpriteLayers.
+    /// </summary>
+    public class SpriteLayerDefinition
+    {
+        /// <summary>
+        /// Gets or sets the layer slot name (must match a SpriteLayers slot name from the entity definition).
+        /// </summary>
+        public string Name { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the animations for this layer (same structure as top-level Animations).
+        /// </summary>
+        public Dictionary<string, AnimationData>? Animations { get; set; }
     }
 }

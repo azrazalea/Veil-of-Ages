@@ -85,7 +85,10 @@ public partial class Area(Vector2I worldSize): Node2D
         {
             TileSet = tileSet
         };
-        _objectsLayer = new TileMapLayer();
+        _objectsLayer = new TileMapLayer
+        {
+            ZIndex = 5
+        };
         AStarGrid = PathFinder.CreateNewAStarGrid(this);
     }
 

@@ -19,7 +19,7 @@ Static tree entity for world decoration and resources.
 - `_ExitTree()` - Unregisters from grid area
 
 **Sprite Creation:**
-Uses `TileResourceManager.Instance.GetAtlasInfo("kenney_1bit")` to get the atlas texture, then creates an `AtlasTexture` region and adds a `Sprite2D` child. Currently uses a placeholder region at (0, 0) — pick an actual tree sprite from `kenney_atlas_index.json` later.
+Uses `TileResourceManager.Instance.GetAtlasInfo("kenney")` to get the atlas texture, then creates an `AtlasTexture` region and adds a `Sprite2D` child. Currently uses a placeholder region at (0, 0) — pick an actual tree sprite from `kenney_atlas_index.json` later.
 
 **Key Methods:**
 - `Interact()` - Static placeholder for player interaction (future: resource gathering)

@@ -1,6 +1,6 @@
 {
     "Id": "water",
-    "AtlasSource": "kenney_1bit",
+    "AtlasSource": "kenney",
     "AtlasCoords": [8, 5],
     "IsWalkable": false,
     "WalkDifficulty": 0

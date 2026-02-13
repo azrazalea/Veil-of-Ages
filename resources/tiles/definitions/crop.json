@@ -5,7 +5,7 @@
     "Type": "Crop",
     "IsWalkable": false,
     "BaseDurability": 50,
-    "AtlasSource": "kenney_1bit",
+    "AtlasSource": "kenney",
     "AtlasCoords": [0, 2],
     "DefaultSensoryDifficulties": {
         "Sight": 0.1,

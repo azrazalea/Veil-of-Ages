@@ -33,7 +33,7 @@ Building Template references: Type="Wall", Material="Wood", Variant="CornerTopLe
     ↓
 Tile Definition (wall.json): Finds variant "CornerTopLeft_Top" under "wood" material
     ↓
-Atlas Source (kenney_1bit): Provides the actual sprite at AtlasCoords [4, 1]
+Atlas Source (kenney): Provides the actual sprite at AtlasCoords [4, 1]
     ↓
 Material (wood.json): Applies DurabilityModifier=1.0, SensoryModifiers, etc.
 ```

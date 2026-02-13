@@ -1,7 +1,7 @@
 {
     "Id": "chest",
     "Name": "Chest",
-    "AtlasSource": "urizen_onebit",
+    "AtlasSource": "urizen",
     "AtlasCoords": [30, 19],
     "TileSize": [1, 1]
 }

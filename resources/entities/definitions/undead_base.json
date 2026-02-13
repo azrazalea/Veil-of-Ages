@@ -1,5 +1,6 @@
 {
   "Id": "undead_base",
+  "ParentId": "being_base",
   "Abstract": true,
   "Name": "Undead Being",
   "Description": "Base definition for all undead entities",

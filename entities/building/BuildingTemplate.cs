@@ -187,6 +187,19 @@ public class BuildingTileData
     public Vector2I AtlasCoords { get; set; }
     public int SourceId { get; set; }
     public Dictionary<string, string> Properties { get; set; } = new ();
+
+    /// <summary>
+    /// Gets or sets the target tile layer for this tile.
+    /// Values: "Ground" (base layer below floor), "Floor", "Structure".
+    /// Null means default routing: Floor type → Floor layer, everything else → Structure layer.
+    /// </summary>
+    public string? Layer { get; set; }
+
+    /// <summary>
+    /// Gets or sets an optional hex color tint for this tile (e.g., "#AAAACC").
+    /// Overrides the tile definition's default tint.
+    /// </summary>
+    public string? Tint { get; set; }
 }
 
 /// <summary>

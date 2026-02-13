@@ -66,7 +66,7 @@ Variants allow different appearances based on material and style:
     "CornerTopLeft_Bottom": { "AtlasCoords": [4, 2] }
   },
   "stone": {
-    "CornerTopLeft_Top": { "AtlasSource": "kenney_1bit", "AtlasCoords": [1, 8] }
+    "CornerTopLeft_Top": { "AtlasSource": "kenney", "AtlasCoords": [1, 8] }
   }
 }
 ```

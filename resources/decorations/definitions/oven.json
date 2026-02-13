@@ -1,7 +1,7 @@
 {
     "Id": "oven",
     "Name": "Oven",
-    "AtlasSource": "urizen_onebit",
+    "AtlasSource": "urizen",
     "AtlasCoords": [1, 42],
     "TileSize": [1, 1]
 }

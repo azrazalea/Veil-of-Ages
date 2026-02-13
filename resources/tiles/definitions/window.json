@@ -5,7 +5,7 @@
     "Type": "Window",
     "IsWalkable": false,
     "BaseDurability": 100,
-    "AtlasSource": "urizen_onebit",
+    "AtlasSource": "urizen",
     "AtlasCoords": [14, 4],
     "DefaultSensoryDifficulties": {
         "Sight": 1.0,

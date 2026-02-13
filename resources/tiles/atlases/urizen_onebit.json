@@ -1,5 +1,5 @@
 {
-  "Id": "urizen_onebit",
+  "Id": "urizen",
   "Name": "Urizen OneBit V2 (32x32)",
   "Description": "Urizen 1-bit tileset v2.0 upscaled from 12x12 to 32x32, no margin/sep",
   "TexturePath": "res://assets/urizen/urizen_onebit_tileset__v2d0_32x32.png",

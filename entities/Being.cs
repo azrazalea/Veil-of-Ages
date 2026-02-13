@@ -216,6 +216,13 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     public BeingSkillSystem? SkillSystem { get; protected set; }
 
     /// <summary>
+    /// Gets the list of animated sprite layers for multi-layer rendering.
+    /// Populated by GenericBeing.ConfigureAnimations(). Non-GenericBeing entities
+    /// will have this populated from the default AnimatedSprite2D in _Ready().
+    /// </summary>
+    public List<AnimatedSprite2D> SpriteLayers { get; } = new ();
+
+    /// <summary>
     /// Gets or sets personal memory for this entity's observations.
     /// </summary>
     public PersonalMemory? Memory { get; protected set; }
@@ -667,9 +674,27 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
 
     public override void _Ready()
     {
-        // MovementController handles it from here
-        var animatedSprite = GetNode<AnimatedSprite2D>("AnimatedSprite2D");
-        animatedSprite.Play("idle");
+        // Play idle on all sprite layers (populated by GenericBeing.ConfigureAnimations)
+        if (SpriteLayers.Count > 0)
+        {
+            foreach (var sprite in SpriteLayers)
+            {
+                if (sprite.SpriteFrames?.HasAnimation("idle") == true)
+                {
+                    sprite.Play("idle");
+                }
+            }
+        }
+        else
+        {
+            // Fallback for non-GenericBeing entities (e.g., Player scene)
+            var animatedSprite = GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
+            if (animatedSprite != null)
+            {
+                SpriteLayers.Add(animatedSprite);
+                animatedSprite.Play("idle");
+            }
+        }
 
         // Create initialization queue
         var initQueue = new Queue<BeingTrait>();
