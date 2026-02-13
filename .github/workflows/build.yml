@@ -104,6 +104,11 @@ jobs:
           mkdir -p build/${{ matrix.export_name }}/resources
           find resources -name "*.json" -exec cp --parents {} build/${{ matrix.export_name }}/ \;
 
+      - name: Embed resources in app bundle (macOS App Translocation fallback)
+        if: matrix.export_name == 'macos'
+        run: |
+          find resources -name "*.json" -exec cp --parents {} "build/${{ matrix.export_name }}/${EXPORT_NAME}.app/Contents/Resources/" \;
+
       - name: Set version string
         id: version
         shell: bash

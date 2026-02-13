@@ -83,14 +83,39 @@ public static class JsonResourceLoader
     }
 
     /// <summary>
-    /// Resolves a res:// path to a filesystem path, using the game base directory
-    /// for exported builds so external resource files (for modding) are found
-    /// next to the executable rather than inside a .pck or .app bundle.
+    /// Resolves a res:// path to a filesystem path. Checks the external game base
+    /// directory first (for modding), then falls back to inside the .app bundle
+    /// on macOS to handle App Translocation (where macOS runs downloaded apps
+    /// from a randomized temp directory, separating them from adjacent files).
     /// </summary>
     public static string ResolveResPath(string resPath)
     {
         string relativePath = resPath.Replace("res://", string.Empty);
-        return Path.Combine(GetGameBaseDirectory(), relativePath);
+        string primaryPath = Path.Combine(GetGameBaseDirectory(), relativePath);
+
+        if (Directory.Exists(primaryPath) || File.Exists(primaryPath))
+        {
+            return primaryPath;
+        }
+
+        // Fallback: check inside the .app bundle (Contents/Resources/)
+        // This handles macOS App Translocation, where the .app is copied to a
+        // temp directory but external files (resources/) are left behind.
+        if (!OS.HasFeature("editor"))
+        {
+            string exePath = OS.GetExecutablePath();
+            string? exeDir = Path.GetDirectoryName(exePath);
+            if (exeDir != null)
+            {
+                string bundlePath = Path.GetFullPath(Path.Combine(exeDir, "..", "Resources", relativePath));
+                if (Directory.Exists(bundlePath) || File.Exists(bundlePath))
+                {
+                    return bundlePath;
+                }
+            }
+        }
+
+        return primaryPath;
     }
 
     /// <summary>
