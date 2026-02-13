@@ -1,9 +1,9 @@
 {
   "Id": "urizen_onebit",
-  "Name": "Urizen OneBit V2 (2x)",
-  "Description": "Urizen 1-bit tileset v2.0 upscaled to 24x24 with 2px margin/sep",
-  "TexturePath": "res://assets/urizen/urizen_onebit_tileset__v2d0_2x.png",
-  "TileSize": [24, 24],
-  "Separation": [2, 2],
-  "Margin": [2, 2]
+  "Name": "Urizen OneBit V2 (32x32)",
+  "Description": "Urizen 1-bit tileset v2.0 upscaled from 12x12 to 32x32, no margin/sep",
+  "TexturePath": "res://assets/urizen/urizen_onebit_tileset__v2d0_32x32.png",
+  "TileSize": [32, 32],
+  "Separation": [0, 0],
+  "Margin": [0, 0]
 }
