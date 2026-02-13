@@ -49,7 +49,7 @@ Contains JSON definitions for sprite atlas sources. Each file defines a texture 
 - **Texture**: `custom_atlas.png` (native 32x32 tiles)
 - **Margin/Separation**: None
 - **Index File**: `assets/custom/custom_atlas_index.json`
-- **Source Files**: Individual sprite subdirectories with `grid.txt` + `palette.txt` for editing
+- **Source Files**: Individual sprite subdirectories with `grid.txt` + `palette.txt` for editing using [gridfab](https://github.com/azrazalea/gridfab)
 
 ## JSON Schema
 

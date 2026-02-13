@@ -13,17 +13,7 @@ Each asset has its own subdirectory containing:
 
 ## Creating/Editing Assets
 
-Use the tools in `scripts/`:
-- `python scripts/pixelart.py` — CLI tool for grid manipulation
-- `python scripts/pixelart_gui.py <asset_dir>` — GUI editor with palette, save, render, refresh
-
-### Workflow
-1. Create a working directory in `scripts/` (e.g., `scripts/my_sprite/`)
-2. `python scripts/pixelart.py init` to create grid.txt and palette.txt
-3. Edit with GUI: `python scripts/pixelart_gui.py scripts/my_sprite/`
-4. When done, export: `python scripts/pixelart.py export`
-5. Copy `output.png`, `grid.txt`, and `palette.txt` to `assets/custom/<name>/`
-6. Rename `output.png` to `<name>.png`
+Custom sprites are created and managed using [gridfab](https://github.com/azrazalea/gridfab), an open-source pixel art tool. See its documentation for usage instructions.
 
 ## Current Assets
 

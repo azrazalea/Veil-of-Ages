@@ -51,7 +51,7 @@ The Urizen pack includes:
 
 The custom pack includes:
 - **Atlas Index**: `custom_atlas_index.json` - Maps names to {row, col} positions
-- **Source Files**: Each sprite subdirectory has `grid.txt` + `palette.txt` for editing
+- **Source Files**: Each sprite subdirectory has `grid.txt` + `palette.txt` for editing using [gridfab](https://github.com/azrazalea/gridfab)
 
 ## Audio Assets
 

@@ -17,5 +17,5 @@ Created by the Veil of Ages development team with assistance from Claude (Anthro
 
 Each subdirectory contains one asset with:
 - `*.png` — Final 32x32 sprite with transparency (used by the game)
-- `grid.txt` — Source pixel grid (editable with `scripts/pixelart.py` and `scripts/pixelart_gui.py`)
+- `grid.txt` — Source pixel grid (editable using [gridfab](https://github.com/azrazalea/gridfab))
 - `palette.txt` — Color palette definitions

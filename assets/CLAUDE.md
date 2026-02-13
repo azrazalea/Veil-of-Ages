@@ -93,7 +93,7 @@ assets/
 - **Native Size**: 32x32 pixel tiles, no margin/separation
 - **Index File**: `custom_atlas_index.json` maps names to {row, col}
 - **Atlas Definition**: `resources/tiles/atlases/custom.json` (ID: `custom`)
-- **Source Files**: Each sprite has a subdirectory with `grid.txt` and `palette.txt` for editing via `scripts/pixelart.py`
+- **Source Files**: Each sprite has a subdirectory with `grid.txt` and `palette.txt` for editing using [gridfab](https://github.com/azrazalea/gridfab)
 - **Usage**: Original pixel art created specifically for Veil of Ages (e.g., quern)
 
 ## Atlas Index Files

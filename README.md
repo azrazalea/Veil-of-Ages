@@ -95,5 +95,6 @@ Contributions are welcome! Please see our [contributing guidelines](CONTRIBUTING
 - Kenney (kenney.nl) for the 1-Bit Colored Pack
 - Chris Hamons, MedicineStorm, and the many DCSS contributing artists for the ProjectUtumno tileset
 - Vurmux for the Urizen OneBit V2 tileset
+- [gridfab](https://github.com/azrazalea/gridfab) for custom pixel art creation and atlas building
 - The Godot Engine community for their invaluable resources and support
 - Inspiration from games like KeeperRL, RimWorld, Dwarf Fortress, Oxygen not Included, Heroes of Might and Magic, Age of Wonders, Cultist Simulator, Faster Than Light, and Battlezone 2
