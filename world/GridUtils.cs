@@ -4,9 +4,8 @@ namespace VeilOfAges.Grid;
 
 public class Utils
 {
-    public const uint TileSize = 8;
+    public const uint TileSize = 32;
     public const uint WorldOffset = 0; // Fix visual difference with grid
-    public static readonly Vector2I WaterAtlasCoords = new (3, 16);
     public Vector2I GridSize = new (100, 100);
 
     public static bool WithinProximityRangeOf(Vector2I currentPos, Vector2I targetPos, float proximityRange = 1)

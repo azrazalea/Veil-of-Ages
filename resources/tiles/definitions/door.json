@@ -5,11 +5,8 @@
     "Type": "Door",
     "IsWalkable": true,
     "BaseDurability": 50,
-    "AtlasSource": "buildings_main",
-    "AtlasCoords": [
-        2,
-        15
-    ],
+    "AtlasSource": "urizen_onebit",
+    "AtlasCoords": [4, 1],
     "DefaultSensoryDifficulties": {
         "Sight": 0.9,
         "Hearing": 0.3,
@@ -18,21 +15,5 @@
     "Properties": {
         "BuildCost": "Material:2",
         "Interactable": "true"
-    },
-    "Variants": {
-        "wood": {
-            "Top": {
-                "AtlasCoords": [
-                    5,
-                    26
-                ]
-            },
-            "Bottom": {
-                "AtlasCoords": [
-                    5,
-                    27
-                ]
-            }
-        }
     }
 }

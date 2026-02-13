@@ -1,171 +1,52 @@
 {
-  "Name": "Well",
-  "Description": "A simple water well for drawing water",
-  "BuildingType": "Well",
-  "Size": [
-    3,
-    4
-  ],
-  "Culture": "Human",
-  "Style": "Rural",
-  "Capacity": 0,
-  "Facilities": [
-    {
-      "Id": "storage",
-      "RequireAdjacent": false,
-      "Positions": [
-        [
-          0,
-          0
-        ]
-      ],
-      "Storage": {
-        "VolumeCapacity": 500.0,
-        "WeightCapacity": -1,
-        "DecayRateModifier": 0.5,
-        "RegenerationItem": "water",
-        "RegenerationRate": 5.0,
-        "RegenerationMaxQuantity": 500,
-        "RegenerationInitialQuantity": 500,
-        "FetchDuration": 8,
-        "Tags": [
-          "water"
-        ]
-      }
-    }
-  ],
-  "EntrancePositions": [],
-  "Metadata": {
-    "ConstructionTime": "1d",
-    "RequiredMaterials": "Stone:15,Wood:5",
-    "Value": "80"
-  },
-  "Rooms": [
-    {
-      "Name": "Well",
-      "Purpose": "Water Source",
-      "TopLeft": [
-        0,
-        0
-      ],
-      "Size": [
-        3,
-        4
-      ],
-      "Properties": {
-        "Quality": "Basic",
-        "Utility": "High"
-      }
-    }
-  ],
-  "Tiles": [
-    {
-      "Position": [
-        0,
-        0
-      ],
-      "Type": "Well",
-      "Material": "Stone",
-      "Variant": "Row0_Col0"
+    "Name": "Well",
+    "Description": "A simple water well for drawing water",
+    "BuildingType": "Well",
+    "Size": [1, 1],
+    "Culture": "Human",
+    "Style": "Rural",
+    "Capacity": 0,
+    "Facilities": [
+        {
+            "Id": "storage",
+            "RequireAdjacent": false,
+            "Positions": [[0, 0]],
+            "Storage": {
+                "VolumeCapacity": 500.0,
+                "WeightCapacity": -1,
+                "DecayRateModifier": 0.5,
+                "RegenerationItem": "water",
+                "RegenerationRate": 5.0,
+                "RegenerationMaxQuantity": 500,
+                "RegenerationInitialQuantity": 500,
+                "FetchDuration": 8,
+                "Tags": ["water"]
+            }
+        }
+    ],
+    "EntrancePositions": [],
+    "Metadata": {
+        "ConstructionTime": "1d",
+        "RequiredMaterials": "Stone:15,Wood:5",
+        "Value": "80"
     },
-    {
-      "Position": [
-        1,
-        0
-      ],
-      "Type": "Well",
-      "Material": "Stone",
-      "Variant": "Row0_Col1"
-    },
-    {
-      "Position": [
-        2,
-        0
-      ],
-      "Type": "Well",
-      "Material": "Stone",
-      "Variant": "Row0_Col2"
-    },
-    {
-      "Position": [
-        0,
-        1
-      ],
-      "Type": "Well",
-      "Material": "Stone",
-      "Variant": "Row1_Col0"
-    },
-    {
-      "Position": [
-        1,
-        1
-      ],
-      "Type": "Well",
-      "Material": "Stone",
-      "Variant": "Row1_Col1"
-    },
-    {
-      "Position": [
-        2,
-        1
-      ],
-      "Type": "Well",
-      "Material": "Stone",
-      "Variant": "Row1_Col2"
-    },
-    {
-      "Position": [
-        0,
-        2
-      ],
-      "Type": "Well",
-      "Material": "Stone",
-      "Variant": "Row2_Col0"
-    },
-    {
-      "Position": [
-        1,
-        2
-      ],
-      "Type": "Well",
-      "Material": "Stone",
-      "Variant": "Row2_Col1"
-    },
-    {
-      "Position": [
-        2,
-        2
-      ],
-      "Type": "Well",
-      "Material": "Stone",
-      "Variant": "Row2_Col2"
-    },
-    {
-      "Position": [
-        0,
-        3
-      ],
-      "Type": "Well",
-      "Material": "Stone",
-      "Variant": "Row3_Col0"
-    },
-    {
-      "Position": [
-        1,
-        3
-      ],
-      "Type": "Well",
-      "Material": "Stone",
-      "Variant": "Row3_Col1"
-    },
-    {
-      "Position": [
-        2,
-        3
-      ],
-      "Type": "Well",
-      "Material": "Stone",
-      "Variant": "Row3_Col2"
-    }
-  ]
+    "Rooms": [
+        {
+            "Name": "Well",
+            "Purpose": "Water Source",
+            "TopLeft": [0, 0],
+            "Size": [1, 1],
+            "Properties": {
+                "Quality": "Basic",
+                "Utility": "High"
+            }
+        }
+    ],
+    "Tiles": [
+        {
+            "Position": [0, 0],
+            "Type": "Well",
+            "Material": "Stone"
+        }
+    ]
 }

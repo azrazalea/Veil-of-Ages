@@ -67,7 +67,7 @@ dotnet build
    - Multi-threaded entity thinking via `EntityThinkingSystem`
 
 2. **World Management** (`/world/`)
-   - Grid-based tile system with 8x8 pixel tiles
+   - Grid-based tile system with 32x32 pixel tiles
    - Procedural village generation with buildings and entities
    - `GridArea` manages discrete world regions with pathfinding
 
@@ -132,7 +132,6 @@ dotnet build
 - No automated tests are currently configured
 - Follow established C# conventions and Godot best practices
 - License: Modified AGPLv3 with Commercial Platform Exception (code only)
-- Minifantasy assets are separately licensed and not redistributable
 
 ## Project Context
 

@@ -1,7 +1,7 @@
 {
     "Id": "bed",
     "Name": "Bed",
-    "AtlasSource": "house_props",
-    "AtlasCoords": [22, 14],
-    "TileSize": [2, 2]
+    "AtlasSource": "urizen_onebit",
+    "AtlasCoords": [1, 36],
+    "TileSize": [1, 1]
 }

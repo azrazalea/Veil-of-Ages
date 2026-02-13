@@ -60,8 +60,8 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
     private int _regenerationMaxQuantity;
     private float _regenerationProgress;
 
-    public const int HORIZONTALPIXELOFFSET = -4;
-    public const int VERTICALPIXELOFFSET = -4;
+    public const int HORIZONTALPIXELOFFSET = 0;
+    public const int VERTICALPIXELOFFSET = 0;
 
     public override void _Ready()
     {

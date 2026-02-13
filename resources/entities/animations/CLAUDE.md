@@ -10,26 +10,26 @@ Contains JSON files that define sprite animations for entities. Animation defini
 Animations for human villagers.
 - Sprite Size: 32x32
 - Animations: idle (6 frames), walk (6 frames)
-- Source: Minifantasy human sprites
+- Sprites now use Kenney atlas as single-frame placeholders
 
 ### skeleton_warrior.json
 Animations for skeleton entities.
 - Sprite Size: 32x32
 - Animations: idle (7 frames from row 2, starting at column 2), walk (3 frames)
-- Source: Minifantasy undead skeleton-warrior sprites
 - Note: Idle animation uses specific row/column offsets
+- Sprites now use Kenney atlas as single-frame placeholders
 
 ### zombie.json
 Animations for zombie entities.
 - Sprite Size: 32x32
 - Animations: idle (5 frames), walk (4 frames)
-- Source: Minifantasy undead zombie sprites
+- Sprites now use Kenney atlas as single-frame placeholders
 
 ### necromancer.json
 Animations for the player necromancer.
 - Sprite Size: 32x32
 - Animations: idle (8 frames), walk (4 frames)
-- Source: Minifantasy necromancer sprites
+- Sprites now use Kenney atlas as single-frame placeholders
 
 ## Animation Data Format
 

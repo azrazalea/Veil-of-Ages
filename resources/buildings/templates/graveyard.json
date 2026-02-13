@@ -1,350 +1,71 @@
 {
-  "Name": "Graveyard",
-  "Description": "A small cemetery with stone walls and several graves",
-  "BuildingType": "Graveyard",
-  "Size": [
-    6,
-    5
-  ],
-  "Culture": "Human",
-  "Style": "Rural",
-  "Capacity": 3,
-  "Facilities": [
-    {
-      "Id": "storage",
-      "Positions": [[2, 2]],
-      "Storage": {
-        "VolumeCapacity": 5.0,
-        "WeightCapacity": -1,
-        "DecayRateModifier": 0.5,
-        "Tags": ["zombie_food"]
-      }
-    }
-  ],
-  "EntrancePositions": [
-    [
-      2,
-      4
+    "Name": "Graveyard",
+    "Description": "A small cemetery with stone walls and several graves",
+    "BuildingType": "Graveyard",
+    "Size": [6, 4],
+    "Culture": "Human",
+    "Style": "Rural",
+    "Capacity": 3,
+    "Facilities": [
+        {
+            "Id": "storage",
+            "Positions": [[2, 1]],
+            "Storage": {
+                "VolumeCapacity": 5.0,
+                "WeightCapacity": -1,
+                "DecayRateModifier": 0.5,
+                "Tags": ["zombie_food"]
+            }
+        }
     ],
-    [
-      3,
-      4
+    "EntrancePositions": [[2, 3], [3, 3]],
+    "Metadata": {
+        "ConstructionTime": "3d",
+        "RequiredMaterials": "Stone:10",
+        "Value": "150"
+    },
+    "Rooms": [
+        {
+            "Name": "Cemetery Grounds",
+            "Purpose": "Burial",
+            "TopLeft": [1, 1],
+            "Size": [4, 2],
+            "Properties": {
+                "Quality": "Basic",
+                "Atmosphere": "Somber"
+            }
+        }
+    ],
+    "Tiles": [
+        {"Position": [0, 0], "Type": "Fence", "Material": "Stone"},
+        {"Position": [1, 0], "Type": "Fence", "Material": "Stone"},
+        {"Position": [2, 0], "Type": "Fence", "Material": "Stone"},
+        {"Position": [3, 0], "Type": "Fence", "Material": "Stone"},
+        {"Position": [4, 0], "Type": "Fence", "Material": "Stone"},
+        {"Position": [5, 0], "Type": "Fence", "Material": "Stone"},
+
+        {"Position": [0, 1], "Type": "Fence", "Material": "Stone"},
+        {"Position": [1, 1], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [1, 1], "Type": "Decoration", "Category": "Tombstone", "Material": "Stone"},
+        {"Position": [2, 1], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [3, 1], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [3, 1], "Type": "Decoration", "Category": "Tombstone", "Material": "Stone"},
+        {"Position": [4, 1], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [5, 1], "Type": "Fence", "Material": "Stone"},
+
+        {"Position": [0, 2], "Type": "Fence", "Material": "Stone"},
+        {"Position": [1, 2], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [2, 2], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [3, 2], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [4, 2], "Type": "Floor", "Material": "Dirt"},
+        {"Position": [4, 2], "Type": "Decoration", "Category": "Tombstone", "Material": "Stone"},
+        {"Position": [5, 2], "Type": "Fence", "Material": "Stone"},
+
+        {"Position": [0, 3], "Type": "Fence", "Material": "Stone"},
+        {"Position": [1, 3], "Type": "Fence", "Material": "Stone"},
+        {"Position": [2, 3], "Type": "Gate", "Material": "Stone"},
+        {"Position": [3, 3], "Type": "Gate", "Material": "Stone"},
+        {"Position": [4, 3], "Type": "Fence", "Material": "Stone"},
+        {"Position": [5, 3], "Type": "Fence", "Material": "Stone"}
     ]
-  ],
-  "Metadata": {
-    "ConstructionTime": "3d",
-    "RequiredMaterials": "Stone:10",
-    "Value": "150"
-  },
-  "Rooms": [
-    {
-      "Name": "Cemetery Grounds",
-      "Purpose": "Burial",
-      "TopLeft": [
-        1,
-        1
-      ],
-      "Size": [
-        4,
-        2
-      ],
-      "Properties": {
-        "Quality": "Basic",
-        "Atmosphere": "Somber"
-      }
-    }
-  ],
-  "Tiles": [
-    {
-      "Position": [
-        0,
-        0
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "CornerTopLeft_Top"
-    },
-    {
-      "Position": [
-        0,
-        1
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "CornerTopLeft_Bottom"
-    },
-    {
-      "Position": [
-        1,
-        0
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "HorizontalTop_Top"
-    },
-    {
-      "Position": [
-        1,
-        1
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "HorizontalTop_Bottom"
-    },
-    {
-      "Position": [
-        2,
-        0
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "HorizontalTop_Top"
-    },
-    {
-      "Position": [
-        2,
-        1
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "HorizontalTop_Bottom"
-    },
-    {
-      "Position": [
-        3,
-        0
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "HorizontalTop_Top"
-    },
-    {
-      "Position": [
-        3,
-        1
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "HorizontalTop_Bottom"
-    },
-    {
-      "Position": [
-        4,
-        0
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "HorizontalTop_Top"
-    },
-    {
-      "Position": [
-        4,
-        1
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "HorizontalTop_Bottom"
-    },
-    {
-      "Position": [
-        5,
-        0
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "CornerTopRight_Top"
-    },
-    {
-      "Position": [
-        5,
-        1
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "CornerTopRight_Bottom"
-    },
-    {
-      "Position": [
-        0,
-        2
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "VerticalLeft"
-    },
-    {
-      "Position": [
-        5,
-        2
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "VerticalRight"
-    },
-    {
-      "Position": [
-        0,
-        3
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "CornerBottomLeft_Top"
-    },
-    {
-      "Position": [
-        1,
-        3
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "HorizontalBottom_Top"
-    },
-    {
-      "Position": [
-        2,
-        3
-      ],
-      "Type": "Gate",
-      "Material": "Stone",
-      "Variant": "TopLeft"
-    },
-    {
-      "Position": [
-        3,
-        3
-      ],
-      "Type": "Gate",
-      "Material": "Stone",
-      "Variant": "TopRight"
-    },
-    {
-      "Position": [
-        4,
-        3
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "HorizontalBottom_Top"
-    },
-    {
-      "Position": [
-        5,
-        3
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "CornerBottomRight_Top"
-    },
-    {
-      "Position": [
-        1,
-        1
-      ],
-      "Type": "Decoration",
-      "Category": "Tombstone",
-      "Material": "Stone",
-      "Variant": "Plain"
-    },
-    {
-      "Position": [
-        3,
-        1
-      ],
-      "Type": "Decoration",
-      "Category": "Tombstone",
-      "Material": "Stone",
-      "Variant": "Cross"
-    },
-    {
-      "Position": [
-        4,
-        2
-      ],
-      "Type": "Decoration",
-      "Category": "Tombstone",
-      "Material": "Wood",
-      "Variant": "Cross"
-    },
-    {
-      "Position": [
-        1,
-        2
-      ],
-      "Type": "Floor",
-      "Material": "Dirt",
-      "Variant": "Graveyard"
-    },
-    {
-      "Position": [
-        2,
-        2
-      ],
-      "Type": "Floor",
-      "Material": "Dirt",
-      "Variant": "Graveyard"
-    },
-    {
-      "Position": [
-        3,
-        2
-      ],
-      "Type": "Floor",
-      "Material": "Dirt",
-      "Variant": "Graveyard"
-    },
-    {
-      "Position": [
-        0,
-        4
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "CornerBottomLeft_Bottom"
-    },
-    {
-      "Position": [
-        1,
-        4
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "HorizontalBottom_Bottom"
-    },
-    {
-      "Position": [
-        2,
-        4
-      ],
-      "Type": "Gate",
-      "Material": "Stone",
-      "Variant": "BottomLeft"
-    },
-    {
-      "Position": [
-        3,
-        4
-      ],
-      "Type": "Gate",
-      "Material": "Stone",
-      "Variant": "BottomRight"
-    },
-    {
-      "Position": [
-        4,
-        4
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "HorizontalBottom_Bottom"
-    },
-    {
-      "Position": [
-        5,
-        4
-      ],
-      "Type": "Fence",
-      "Material": "Stone",
-      "Variant": "CornerBottomRight_Bottom"
-    }
-  ]
 }

@@ -5,11 +5,8 @@
     "Type": "Gate",
     "IsWalkable": true,
     "BaseDurability": 50,
-    "AtlasSource": "farm_main",
-    "AtlasCoords": [
-        60,
-        19
-    ],
+    "AtlasSource": "kenney_1bit",
+    "AtlasCoords": [3, 3],
     "DefaultSensoryDifficulties": {
         "Sight": 0.9,
         "Hearing": 0.3,
@@ -18,51 +15,5 @@
     "Properties": {
         "BuildCost": "Material:2",
         "Interactable": "true"
-    },
-    "Variants": {
-        "wood": {
-            "FenceTop": {
-                "AtlasCoords": [
-                    60,
-                    15
-                ]
-            },
-            "FenceBottom": {
-                "AtlasCoords": [
-                    60,
-                    19
-                ]
-            }
-        },
-        "stone": {
-            "TopLeft": {
-                "AtlasCoords": [
-                    8,
-                    11
-                ],
-                "AtlasSource": "graveyard_main"
-            },
-            "TopRight": {
-                "AtlasCoords": [
-                    9,
-                    11
-                ],
-                "AtlasSource": "graveyard_main"
-            },
-            "BottomLeft": {
-                "AtlasCoords": [
-                    8,
-                    12
-                ],
-                "AtlasSource": "graveyard_main"
-            },
-            "BottomRight": {
-                "AtlasCoords": [
-                    9,
-                    12
-                ],
-                "AtlasSource": "graveyard_main"
-            }
-        }
     }
 }

@@ -4,11 +4,11 @@
     "Type": "Decoration",
     "IsWalkable": false,
     "BaseDurability": 200,
-    "AtlasSource": "medicine_icons",
+    "AtlasSource": "urizen_onebit",
     "Properties": { "BuildCost": "Stone:2", "Purpose": "Grinding" },
     "Variants": {
         "stone": {
-            "Default": { "AtlasCoords": [1, 7] }
+            "Default": { "AtlasCoords": [47, 7] }
         }
     }
 }

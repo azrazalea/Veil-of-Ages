@@ -4,12 +4,12 @@
     "Type": "Decoration",
     "IsWalkable": false,
     "BaseDurability": 150,
-    "AtlasSource": "house_props",
+    "AtlasSource": "urizen_onebit",
     "Properties": { "BuildCost": "Wood:2", "Purpose": "Storage" },
     "Variants": {
         "wood": {
-            "Row0_Col0": { "AtlasCoords": [34, 8] },
-            "Row1_Col0": { "AtlasCoords": [34, 9] }
+            "Row0_Col0": { "AtlasCoords": [19, 30] },
+            "Row1_Col0": { "AtlasCoords": [19, 30] }
         }
     }
 }

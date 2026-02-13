@@ -4,22 +4,22 @@
   "SpriteSize": [32, 32],
   "Animations": {
     "idle": {
-      "TexturePath": "res://assets/minifantasy/entities/human/HumanTownsfolkIdle.png",
+      "TexturePath": "res://assets/dcss/supplemental_atlas.png",
       "FrameWidth": 32,
       "FrameHeight": 32,
-      "FrameCount": 8,
-      "FrameRow": 0,
-      "StartColumn": 0,
+      "FrameCount": 1,
+      "FrameRow": 16,
+      "StartColumn": 59,
       "Speed": 5.0,
       "Loop": true
     },
     "walk": {
-      "TexturePath": "res://assets/minifantasy/entities/human/HumanTownsfolkWalk.png",
+      "TexturePath": "res://assets/dcss/supplemental_atlas.png",
       "FrameWidth": 32,
       "FrameHeight": 32,
-      "FrameCount": 4,
-      "FrameRow": 0,
-      "StartColumn": 0,
+      "FrameCount": 1,
+      "FrameRow": 16,
+      "StartColumn": 59,
       "Speed": 5.0,
       "Loop": true
     }

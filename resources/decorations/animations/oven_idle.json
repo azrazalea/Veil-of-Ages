@@ -1,21 +1,17 @@
 {
   "Id": "oven_idle",
-  "Name": "Oven Fire Animation",
-  "SpriteSize": [
-    19,
-    22
-  ],
+  "Name": "Oven Idle (Static Placeholder)",
+  "SpriteSize": [32, 32],
   "Animations": {
     "idle": {
-      "TexturePath": "res://assets/minifantasy/buildings/house/oven_animated.png",
-      "FrameWidth": 11,
-      "FrameHeight": 22,
-      "FrameCount": 8,
-      "FrameRow": 0,
-      "StartColumn": 0,
-      "Speed": 5.0,
-      "Separation": 1,
-      "Loop": true
+      "TexturePath": "res://assets/kenney/colored-transparent_packed_2x.png",
+      "FrameWidth": 32,
+      "FrameHeight": 32,
+      "FrameCount": 1,
+      "FrameRow": 6,
+      "StartColumn": 6,
+      "Speed": 1.0,
+      "Loop": false
     }
   }
 }

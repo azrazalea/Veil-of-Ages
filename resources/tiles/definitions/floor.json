@@ -5,11 +5,8 @@
     "Type": "Floor",
     "IsWalkable": true,
     "BaseDurability": 50,
-    "AtlasSource": "buildings_main",
-    "AtlasCoords": [
-        5,
-        3
-    ],
+    "AtlasSource": "urizen_onebit",
+    "AtlasCoords": [10, 4],
     "DefaultSensoryDifficulties": {
         "Sight": 0.0,
         "Hearing": 0.1,
@@ -19,30 +16,11 @@
         "BuildCost": "Material:1"
     },
     "Variants": {
-        "dirt": {
-            "Farm": {
-                "AtlasSource": "farm_main",
-                "AtlasCoords": [
-                    6,
-                    6
-                ]
-            },
-            "Graveyard": {
-                "AtlasSource": "graveyard_main",
-                "AtlasCoords": [
-                    1,
-                    2
-                ]
-            }
+        "wood": {
+            "Default": { "AtlasCoords": [10, 4] }
         },
-        "stone": {
-            "Path": {
-                "AtlasSource": "graveyard_main",
-                "AtlasCoords": [
-                    2,
-                    2
-                ]
-            }
+        "dirt": {
+            "Default": { "AtlasSource": "dcss_utumno", "AtlasCoords": [19, 3] }
         }
     }
 }

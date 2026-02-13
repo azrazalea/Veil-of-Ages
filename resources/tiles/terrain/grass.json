@@ -1,0 +1,7 @@
+{
+    "Id": "grass",
+    "AtlasSource": "dcss_utumno",
+    "AtlasCoords": [14, 9],
+    "IsWalkable": true,
+    "WalkDifficulty": 1.0
+}

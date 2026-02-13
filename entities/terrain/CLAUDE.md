@@ -7,7 +7,7 @@ This directory contains terrain entity implementations. Terrain entities are sta
 ## Subdirectories
 
 ### /tree
-Contains the Tree entity implementation for forest vegetation.
+Contains the Tree entity implementation for forest vegetation. Note: Tree no longer uses a dedicated scene file - it creates its sprite programmatically from the Kenney atlas.
 
 ## Architecture Notes
 
@@ -17,6 +17,7 @@ Terrain entities differ from buildings in several ways:
 - Often single-purpose (resource node, obstacle)
 - No occupancy or entrance system
 - May be harvestable/destructible
+- Create sprites programmatically rather than from scenes
 
 ### Grid Integration
 Terrain entities:
@@ -25,12 +26,20 @@ Terrain entities:
 - Unregister on removal (`_ExitTree`)
 - Block pathfinding through occupied cells
 
+### Sprite Creation
+Terrain entities create their visual representation programmatically:
+- No PackedScene required
+- Sprites loaded from atlas definitions at runtime
+- Uses TileResourceManager to access atlas textures
+- GridGenerator creates instances directly without scene files
+
 ## Dependencies
 
 ### Depends On
 - `VeilOfAges.Grid` - Area, Utils
-- Godot Node2D
+- `VeilOfAges.Entities.Building.TileResourceManager` - Atlas access for sprite creation
+- Godot Node2D and Sprite2D
 
 ### Depended On By
-- World generation systems
+- World generation systems (`/world/generation/GridGenerator.cs`)
 - Resource gathering systems (future)

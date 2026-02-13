@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This directory contains the Tree entity implementation. Trees are static terrain objects that occupy grid space and can be interacted with (future: harvesting for wood).
+This directory contains the Tree entity implementation. Trees are static terrain objects that occupy grid space and block pathfinding. They create their sprite programmatically — no scene file needed.
 
 ## Files
 
@@ -10,73 +10,40 @@ This directory contains the Tree entity implementation. Trees are static terrain
 Static tree entity for world decoration and resources.
 
 **Configuration:**
-- `GridSize`: Vector2I(5, 6) - Default size in tiles
-- `ZIndex`: 1 - Rendering layer
-
-**Key Properties:**
-- `_gridPosition` - Position in grid coordinates
-- `GridArea` - Reference to the containing area
+- `GridSize`: Vector2I(1, 1)
+- `ZIndex`: 1 (set in Initialize)
+- **Atlas Source**: Kenney 1-Bit Colored Pack (placeholder sprite at 0,0)
 
 **Lifecycle:**
-- `Initialize(gridArea, gridPos)` - Set position and register
-- `_Ready()` - Snap to grid position
-- `_ExitTree()` - Unregister from grid
+- `Initialize(gridArea, gridPos)` - Sets position, creates Sprite2D from atlas, registers with grid
+- `_ExitTree()` - Unregisters from grid area
+
+**Sprite Creation:**
+Uses `TileResourceManager.Instance.GetAtlasInfo("kenney_1bit")` to get the atlas texture, then creates an `AtlasTexture` region and adds a `Sprite2D` child. Currently uses a placeholder region at (0, 0) — pick an actual tree sprite from `kenney_atlas_index.json` later.
 
 **Key Methods:**
-- `Interact()` - Placeholder for player interaction
-  - Currently just prints a message
-  - Future: resource gathering, cutting
-
-## Key Classes
-
-| Class | Description |
-|-------|-------------|
-| `Tree` | Static vegetation terrain entity |
+- `Interact()` - Static placeholder for player interaction (future: resource gathering)
 
 ## Important Notes
 
-### Grid Registration
-Trees block their occupied cells:
+### No Scene File
+GridGenerator creates Tree instances directly:
 ```csharp
-public override void _ExitTree()
-{
-    GridArea?.RemoveEntity(_gridPosition, GridSize);
-}
-```
-Uses multi-cell removal based on GridSize.
-
-### Positioning
-World position is calculated from grid position:
-```csharp
-Position = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
+var tree = new Entities.Terrain.Tree();
+entitiesContainer.AddChild(tree);
+tree.Initialize(gridArea, gridPos);
 ```
 
-### Future Features
-The `Interact()` method is a placeholder for:
-- Wood harvesting
-- Fruit gathering
-- Hiding/cover mechanics
-- Environmental effects
-
-### World Group Dependency
-Ready method looks for World node:
-```csharp
-if (GetTree().GetFirstNodeInGroup("World") is not World world)
-{
-    GD.PrintErr("...");
-    return;
-}
-```
-Requires World to be in "World" group.
+### Implements IBlocksPathfinding
+Trees block A* pathfinding through their occupied cells.
 
 ## Dependencies
 
 ### Depends On
 - `VeilOfAges.Grid.Area` - Grid registration
 - `VeilOfAges.Grid.Utils` - Coordinate conversion
-- World node (via group lookup)
+- `VeilOfAges.Entities.TileResourceManager` - Atlas texture access via `GetAtlasInfo()`
 
 ### Depended On By
-- World generation systems
+- `/world/generation/GridGenerator.cs` - Creates tree instances
 - Pathfinding (blocked cells)
-- Future: Resource gathering systems

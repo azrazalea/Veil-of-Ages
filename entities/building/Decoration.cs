@@ -39,10 +39,10 @@ public partial class Decoration : Sprite2D
         }
 
         // Position relative to parent Building node
-        // gridPos * 8 (tile size) + building layer offset + pixel offset
+        // gridPos * TileSize + building layer offset + pixel offset
         Position = new Vector2(
-            (gridPosition.X * 8) + Building.HORIZONTALPIXELOFFSET + pixelOffset.X,
-            (gridPosition.Y * 8) + Building.VERTICALPIXELOFFSET + pixelOffset.Y);
+            (gridPosition.X * VeilOfAges.Grid.Utils.TileSize) + Building.HORIZONTALPIXELOFFSET + pixelOffset.X,
+            (gridPosition.Y * VeilOfAges.Grid.Utils.TileSize) + Building.VERTICALPIXELOFFSET + pixelOffset.Y);
     }
 
     private void SetupStatic(DecorationDefinition definition)

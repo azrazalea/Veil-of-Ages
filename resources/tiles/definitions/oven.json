@@ -4,16 +4,16 @@
     "Type": "Decoration",
     "IsWalkable": false,
     "BaseDurability": 250,
-    "AtlasSource": "oven",
+    "AtlasSource": "urizen_onebit",
     "Properties": { "BuildCost": "Stone:3", "Purpose": "Cooking" },
     "Variants": {
         "stone": {
-            "Row0_Col0": { "AtlasCoords": [27, 0] },
-            "Row0_Col1": { "AtlasCoords": [28, 0] },
-            "Row1_Col0": { "AtlasCoords": [27, 1] },
-            "Row1_Col1": { "AtlasCoords": [28, 1] },
-            "Row2_Col0": { "AtlasCoords": [27, 2] },
-            "Row2_Col1": { "AtlasCoords": [28, 2] }
+            "Row0_Col0": { "AtlasCoords": [42, 1] },
+            "Row0_Col1": { "AtlasCoords": [42, 1] },
+            "Row1_Col0": { "AtlasCoords": [42, 1] },
+            "Row1_Col1": { "AtlasCoords": [42, 1] },
+            "Row2_Col0": { "AtlasCoords": [42, 1] },
+            "Row2_Col1": { "AtlasCoords": [42, 1] }
         }
     }
 }

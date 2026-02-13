@@ -4,16 +4,16 @@
     "Type": "Decoration",
     "IsWalkable": false,
     "BaseDurability": 100,
-    "AtlasSource": "house_props",
+    "AtlasSource": "urizen_onebit",
     "Properties": { "BuildCost": "Wood:3", "Purpose": "Sleeping" },
     "Variants": {
         "wood": {
-            "SingleLeft": { "AtlasCoords": [44, 15] },
-            "SingleRight": { "AtlasCoords": [45, 15] },
-            "DoubleTopLeft": { "AtlasCoords": [22, 14] },
-            "DoubleTopRight": { "AtlasCoords": [23, 14] },
-            "DoubleBottomLeft": { "AtlasCoords": [22, 15] },
-            "DoubleBottomRight": { "AtlasCoords": [23, 15] }
+            "SingleLeft": { "AtlasCoords": [36, 1] },
+            "SingleRight": { "AtlasCoords": [36, 1] },
+            "DoubleTopLeft": { "AtlasCoords": [36, 1] },
+            "DoubleTopRight": { "AtlasCoords": [36, 1] },
+            "DoubleBottomLeft": { "AtlasCoords": [36, 1] },
+            "DoubleBottomRight": { "AtlasCoords": [36, 1] }
         }
     }
 }

@@ -5,11 +5,8 @@
     "Type": "Crop",
     "IsWalkable": false,
     "BaseDurability": 50,
-    "AtlasSource": "farm_seeds_crops",
-    "AtlasCoords": [
-        16,
-        7
-    ],
+    "AtlasSource": "kenney_1bit",
+    "AtlasCoords": [0, 2],
     "DefaultSensoryDifficulties": {
         "Sight": 0.1,
         "Hearing": 0.0,
@@ -18,15 +15,5 @@
     "Properties": {
         "BuildCost": "Material:2",
         "Interactable": "true"
-    },
-    "Variants": {
-        "plant": {
-            "Rice": {
-                "AtlasCoords": [
-                    16,
-                    7
-                ]
-            }
-        }
     }
 }
