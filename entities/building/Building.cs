@@ -36,6 +36,7 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
 
     // Decoration sprites (purely visual, divorced from tile system)
     private readonly List<Decoration> _decorations = [];
+    public IReadOnlyList<Decoration> Decorations => _decorations;
 
     // List of entrance positions (relative to building origin)
     private List<Vector2I> _entrancePositions = [];

@@ -1404,6 +1404,24 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         return GridArea;
     }
 
+    /// <summary>
+    /// Set this entity's grid area. Used during area transitions.
+    /// Must be called on the main thread.
+    /// </summary>
+    public void SetGridArea(Area newArea)
+    {
+        GridArea = newArea;
+    }
+
+    /// <summary>
+    /// Teleport this entity to a new grid position. Used during area transitions.
+    /// Must be called on the main thread.
+    /// </summary>
+    public void SetGridPosition(Vector2I newPos)
+    {
+        Movement?.SetGridPositionDirect(newPos);
+    }
+
     // Activity and command management
     public Activity? GetCurrentActivity() => _currentActivity;
     public EntityCommand? GetCurrentCommand() => _currentCommand;

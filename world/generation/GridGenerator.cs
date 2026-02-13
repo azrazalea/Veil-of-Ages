@@ -77,6 +77,12 @@ public partial class GridGenerator : Node
         // Store the player's house reference (already assigned to player in VillageGenerator)
         PlayerHouse = villageGenerator.PlayerHouse;
 
+        // Generate cellar beneath player's house if it was placed
+        if (PlayerHouse != null)
+        {
+            CellarGenerator.CreateCellar(world, PlayerHouse);
+        }
+
         // Then add trees in unoccupied spaces
         if (TreeScene != null)
         {

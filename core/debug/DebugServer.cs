@@ -735,6 +735,9 @@ public partial class DebugServer : Node
             case "/player/autonomy/reapply":
                 await HandleAutonomyReapply(writer);
                 break;
+            case "/player/use_transition":
+                await HandlePlayerUseTransition(writer);
+                break;
             default:
                 await SendResponse(writer, 404, "text/plain", "Not Found");
                 break;
@@ -891,6 +894,13 @@ public partial class DebugServer : Node
     {
         _commandQueue.Enqueue(new AutonomyReapplyCommand());
         return SendJsonResponse(writer, 200, new { success = true, message = "Reapply autonomy queued" });
+    }
+
+    // POST /player/use_transition
+    private Task HandlePlayerUseTransition(StreamWriter writer)
+    {
+        _commandQueue.Enqueue(new PlayerUseTransitionCommand());
+        return SendJsonResponse(writer, 200, new { success = true, message = "Use transition queued" });
     }
 
     private static Task SendResponse(StreamWriter writer, int statusCode, string contentType, string body)

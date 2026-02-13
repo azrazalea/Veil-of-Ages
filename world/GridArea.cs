@@ -65,6 +65,15 @@ public partial class Area(Vector2I worldSize): Node2D
 
     private World? _gameWorld;
 
+    // Transition points in this area
+    private readonly List<TransitionPoint> _transitionPoints = [];
+    public IReadOnlyList<TransitionPoint> TransitionPoints => _transitionPoints;
+
+    public void AddTransitionPoint(TransitionPoint point) => _transitionPoints.Add(point);
+
+    public TransitionPoint? GetTransitionPointAt(Vector2I position)
+        => _transitionPoints.FirstOrDefault(tp => tp.SourcePosition == position);
+
     public void SetActive()
     {
         _isActive = true;
@@ -74,8 +83,9 @@ public partial class Area(Vector2I worldSize): Node2D
     {
         base._Ready();
 
-        // TODO: Update to not be hard coded in this way
-        var tileSet = GetNode<TileMapLayer>("/root/World/GroundLayer").TileSet;
+        // Get TileSet from the main ground layer, or from TileResourceManager for programmatic areas
+        var worldGroundLayer = GetNodeOrNull<TileMapLayer>("/root/World/GroundLayer");
+        var tileSet = worldGroundLayer?.TileSet ?? TileResourceManager.Instance?.GetTileSet();
         _groundLayer = new TileMapLayer
         {
             TileSet = tileSet

@@ -4,6 +4,7 @@ using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
+using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Autonomy;
 using VeilOfAges.UI;
 using VeilOfAges.UI.Commands;
@@ -292,6 +293,39 @@ public class AutonomyReapplyCommand : DebugCommand
         }
 
         player.ReapplyAutonomy();
+        return true;
+    }
+}
+
+/// <summary>
+/// Command to use a transition point at the player's current position.
+/// Checks if the player is standing on a TransitionPoint and queues a ChangeAreaAction.
+/// </summary>
+public class PlayerUseTransitionCommand : DebugCommand
+{
+    public override string Description => "Use transition at player position";
+
+    public override bool Execute(GameController controller)
+    {
+        var world = controller.GetTree().GetFirstNodeInGroup("World") as World;
+        var player = world?.Player;
+        if (player == null || player.GridArea == null)
+        {
+            return false;
+        }
+
+        var playerPos = player.GetCurrentGridPosition();
+        var transitionPoint = world!.GetTransitionPointAt(player.GridArea, playerPos);
+
+        if (transitionPoint?.LinkedPoint == null)
+        {
+            Log.Warn($"DebugServer: No transition point at player position {playerPos}");
+            return false;
+        }
+
+        // Queue a ChangeAreaAction to execute on next tick
+        var action = new ChangeAreaAction(player, this, transitionPoint.LinkedPoint, priority: 0);
+        action.Execute();
         return true;
     }
 }

@@ -221,6 +221,20 @@ public class MovementController
         }
     }
 
+    /// <summary>
+    /// Directly set the grid position without animation or movement cost.
+    /// Used for area transitions (teleporting between areas).
+    /// </summary>
+    public void SetGridPositionDirect(Vector2I newPos)
+    {
+        _currentGridPos = newPos;
+        _targetPosition = Utils.GridToWorld(newPos);
+        _startPosition = _targetPosition;
+        _owner.Position = _targetPosition;
+        _isMoving = false;
+        _movementPointsAccumulator = 0;
+    }
+
     public PathFinder GetPathfinder()
     {
         return MyPathfinder;

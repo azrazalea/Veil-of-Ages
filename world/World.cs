@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
@@ -26,6 +27,9 @@ public partial class World : Node2D
     private GridGenerator? _gridGenerator;
     private SensorySystem? _sensorySystem;
     private EventSystem? _eventSystem;
+
+    // Transition registry: maps (area, position) to TransitionPoint
+    private readonly Dictionary<(Grid.Area, Vector2I), TransitionPoint> _transitionRegistry = new ();
 
     // References
     private Player? _player;
@@ -170,6 +174,88 @@ public partial class World : Node2D
 
     public SensorySystem? GetSensorySystem() => _sensorySystem;
     public EventSystem? GetEventSystem() => _eventSystem;
+
+    /// <summary>
+    /// Register a transition point in the global lookup.
+    /// </summary>
+    public void RegisterTransitionPoint(TransitionPoint point)
+        => _transitionRegistry[(point.SourceArea, point.SourcePosition)] = point;
+
+    /// <summary>
+    /// Get a transition point at a specific area and position.
+    /// </summary>
+    public TransitionPoint? GetTransitionPointAt(Grid.Area area, Vector2I position)
+        => _transitionRegistry.GetValueOrDefault((area, position));
+
+    /// <summary>
+    /// Register a grid area with the world (for areas created after initialization).
+    /// </summary>
+    public void RegisterGridArea(Grid.Area area)
+    {
+        if (!_gridAreas.Contains(area))
+        {
+            _gridAreas.Add(area);
+        }
+    }
+
+    /// <summary>
+    /// Transition an entity from its current area to a destination transition point.
+    /// Must be called on the main thread.
+    /// </summary>
+    public void TransitionEntity(Being entity, TransitionPoint destination)
+    {
+        var oldArea = entity.GridArea;
+        var newArea = destination.SourceArea;
+        var destPos = destination.SourcePosition;
+
+        if (oldArea == null || newArea == oldArea)
+        {
+            Log.Warn("TransitionEntity: Invalid transition (null area or same area)");
+            return;
+        }
+
+        Log.Print($"TransitionEntity: {entity.Name} from {oldArea.AreaName} to {newArea.AreaName} at {destPos}");
+
+        // 1. Remove entity from old area's grid
+        oldArea.RemoveEntity(entity.GetCurrentGridPosition());
+
+        // 2. Update entity's area reference
+        entity.SetGridArea(newArea);
+
+        // 3. Set entity's position in new area
+        entity.SetGridPosition(destPos);
+
+        // 4. Add entity to new area's grid
+        newArea.AddEntity(destPos, entity);
+
+        // 5. If this is the player, switch rendering
+        if (entity is Player player)
+        {
+            ActiveGridArea = newArea;
+            newArea.MakePlayerArea(player, destPos);
+
+            // Toggle entity visibility based on which area the player is in
+            UpdateEntityVisibility(newArea);
+        }
+    }
+
+    /// <summary>
+    /// Update visibility of all entities based on the player's current area.
+    /// Entities not in the active area are hidden; entities in the active area are shown.
+    /// </summary>
+    private void UpdateEntityVisibility(Grid.Area playerArea)
+    {
+        foreach (var being in GetBeings())
+        {
+            // Don't change visibility of hidden entities (they handle their own state)
+            if (being.IsHidden)
+            {
+                continue;
+            }
+
+            being.Visible = being.GridArea == playerArea;
+        }
+    }
 
     public void PrepareForTick()
     {

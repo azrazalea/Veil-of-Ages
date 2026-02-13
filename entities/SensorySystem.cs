@@ -3,21 +3,23 @@ using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Beings;
 using VeilOfAges.Entities.Traits;
+using VeilOfAges.Grid;
 
 namespace VeilOfAges.Entities.Sensory;
 
 public class SensorySystem
 {
     private readonly World _world;
-    private readonly SpatialPartitioning _spatialHash;
 
-    // Cache observation data per frame to avoid recalculating
-    private readonly Dictionary<Vector2I, ObservationGrid> _observationCache = new ();
+    // Per-area spatial hashes to prevent cross-area perception
+    private readonly Dictionary<Area, SpatialPartitioning> _areaSpatialHashes = new ();
+
+    // Cache observation data per frame - keyed by (area, position) to prevent cross-area cache hits
+    private readonly Dictionary<(Area, Vector2I), ObservationGrid> _observationCache = new ();
 
     public SensorySystem(World world)
     {
         _world = world;
-        _spatialHash = new SpatialPartitioning();
     }
 
     // Get sensory data for a specific entity's position
@@ -25,9 +27,10 @@ public class SensorySystem
     {
         Vector2I position = entity.GetCurrentGridPosition();
         uint senseRange = entity.MaxSenseRange;
+        var area = entity.GridArea;
 
-        // Get observation grid for this position and range
-        var grid = GetObservationGrid(position, senseRange);
+        // Get observation grid for this position, range, and area
+        var grid = GetObservationGrid(area, position, senseRange);
 
         // Get relevant events in range
         var events = _world?.GetEventSystem()?.GetEventsInRange(position, senseRange) ?? [];
@@ -36,10 +39,13 @@ public class SensorySystem
         return new ObservationData(grid, events);
     }
 
-    private ObservationGrid GetObservationGrid(Vector2I center, uint range)
+    private ObservationGrid GetObservationGrid(Area? area, Vector2I center, uint range)
     {
+        // Use a default key for null area (shouldn't happen, but defensive)
+        var cacheKey = (area!, center);
+
         // Return cached grid if available
-        if (_observationCache.TryGetValue(center, out var cachedGrid))
+        if (area != null && _observationCache.TryGetValue(cacheKey, out var cachedGrid))
         {
             return cachedGrid;
         }
@@ -47,18 +53,26 @@ public class SensorySystem
         // Create new grid
         var grid = new ObservationGrid(center, (int)range);
 
-        // Fill grid from spatial hash
-        foreach (var pos in grid.GetCoveredPositions())
+        // Get the spatial hash for this area
+        if (area != null && _areaSpatialHashes.TryGetValue(area, out var spatialHash))
         {
-            var sensables = _spatialHash.GetAtPosition(pos);
-            foreach (var sensable in sensables)
+            // Fill grid from area-specific spatial hash
+            foreach (var pos in grid.GetCoveredPositions())
             {
-                grid.AddSensable(pos, sensable);
+                var sensables = spatialHash.GetAtPosition(pos);
+                foreach (var sensable in sensables)
+                {
+                    grid.AddSensable(pos, sensable);
+                }
             }
         }
 
         // Cache grid
-        _observationCache[center] = grid;
+        if (area != null)
+        {
+            _observationCache[cacheKey] = grid;
+        }
+
         return grid;
     }
 
@@ -68,8 +82,12 @@ public class SensorySystem
         // Clear last frame's cache
         _observationCache.Clear();
 
-        // Update spatial partitioning
-        _spatialHash.Clear();
+        // Clear and rebuild per-area spatial partitioning
+        foreach (var hash in _areaSpatialHashes.Values)
+        {
+            hash.Clear();
+        }
+
         foreach (var sensable in _world.GetBeings())
         {
             // Skip hidden entities - they can't be perceived
@@ -78,7 +96,19 @@ public class SensorySystem
                 continue;
             }
 
-            _spatialHash.Add(sensable);
+            var area = sensable.GridArea;
+            if (area == null)
+            {
+                continue;
+            }
+
+            if (!_areaSpatialHashes.TryGetValue(area, out var spatialHash))
+            {
+                spatialHash = new SpatialPartitioning();
+                _areaSpatialHashes[area] = spatialHash;
+            }
+
+            spatialHash.Add(sensable);
         }
     }
 }
