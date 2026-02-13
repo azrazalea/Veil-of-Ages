@@ -60,15 +60,14 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
     private int _regenerationMaxQuantity;
     private float _regenerationProgress;
 
-    public const int HORIZONTALPIXELOFFSET = 0;
-    public const int VERTICALPIXELOFFSET = 0;
-
     public override void _Ready()
     {
         Log.Print($"Building grid position _Ready: {_gridPosition}");
 
-        // Snap to grid
-        Position = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
+        // Snap to grid — use top-left alignment (not center) so child TileMapLayers render correctly
+        Position = new Vector2(
+            _gridPosition.X * VeilOfAges.Grid.Utils.TileSize,
+            _gridPosition.Y * VeilOfAges.Grid.Utils.TileSize);
 
         Log.Print($"{BuildingType} registered at grid position {_gridPosition}");
     }
@@ -170,8 +169,10 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
 
         Log.Print($"Building grid position Initialize: {_gridPosition}");
 
-        // Update the actual position
-        Position = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
+        // Update the actual position — top-left aligned for TileMapLayer children
+        Position = new Vector2(
+            _gridPosition.X * VeilOfAges.Grid.Utils.TileSize,
+            _gridPosition.Y * VeilOfAges.Grid.Utils.TileSize);
     }
 
     // Initialize and set up the TileMap
@@ -185,7 +186,6 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
                 Visible = true
             };
             AddChild(_tileMap);
-            _tileMap.Position = new Vector2(HORIZONTALPIXELOFFSET, VERTICALPIXELOFFSET);
             _tileMap.ZAsRelative = true;
         }
 
@@ -196,7 +196,6 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
                 Visible = true
             };
             AddChild(_groundTileMap);
-            _groundTileMap.Position = new Vector2(HORIZONTALPIXELOFFSET, VERTICALPIXELOFFSET);
             _groundTileMap.ZIndex = _tileMap.ZIndex - 1;
             _groundTileMap.ZAsRelative = true;
         }
@@ -208,8 +207,10 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
 
         Log.Print($"Building grid position Initialize: {_gridPosition}");
 
-        // Update the actual position
-        Position = VeilOfAges.Grid.Utils.GridToWorld(_gridPosition);
+        // Update the actual position — top-left aligned for TileMapLayer children
+        Position = new Vector2(
+            _gridPosition.X * VeilOfAges.Grid.Utils.TileSize,
+            _gridPosition.Y * VeilOfAges.Grid.Utils.TileSize);
 
         // Create individual tiles from template if provided
         if (template != null)
