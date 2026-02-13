@@ -234,10 +234,11 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
         if (tile.IsWalkable)
         {
             // For walkable tiles, we don't block the grid cell but may affect movement cost
-            // This is a hack as it sets the ground cell to a potentially random graphic.
+            // Uses a distinctive DCSS tile so it's obvious when this fallback path fires
+            int sourceId = TileResourceManager.Instance.GetTileSetSourceId("dcss_utumno");
             GridArea.SetGroundCell(absolutePos, new VeilOfAges.Grid.Tile(
-                0,
-                new Vector2I(0, 0),
+                sourceId,
+                new Vector2I(39, 50),
                 true, // Walkable
                 1.0f)); // Standard movement cost
         }

@@ -1,7 +1,7 @@
 {
     "Id": "quern",
     "Name": "Quern",
-    "AtlasSource": "urizen_onebit",
-    "AtlasCoords": [7, 47],
+    "AtlasSource": "custom",
+    "AtlasCoords": [0, 0],
     "TileSize": [1, 1]
 }

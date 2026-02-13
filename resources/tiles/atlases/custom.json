@@ -1,0 +1,9 @@
+{
+  "Id": "custom",
+  "Name": "Custom Assets",
+  "Description": "Original pixel art created for Veil of Ages",
+  "TexturePath": "res://assets/custom/custom_atlas.png",
+  "TileSize": [32, 32],
+  "Separation": [0, 0],
+  "Margin": [0, 0]
+}

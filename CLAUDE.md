@@ -46,8 +46,10 @@ Always read the relevant directory's CLAUDE.md before modifying code in that are
 
 ## Development Commands
 
+**Only rebuild when C# code changes.** JSON, asset, and resource-only changes do NOT require a build — Godot loads those at runtime.
+
 ```bash
-# Build the C# solution
+# Build the C# solution (only needed for C# changes)
 dotnet build
 ```
 

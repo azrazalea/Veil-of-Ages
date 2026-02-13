@@ -83,8 +83,6 @@ public partial class GridGenerator : Node
         // Then add trees in unoccupied spaces
         GenerateTrees();
 
-        // // Add some decorative elements
-        // GenerateDecorations();
         Log.Print("Done generating!");
     }
 
@@ -245,41 +243,5 @@ public partial class GridGenerator : Node
         }
 
         return false;
-    }
-
-    private void GenerateDecorations()
-    {
-        if (_activeGridArea == null)
-        {
-            return;
-        }
-
-        // Add some small decorations to the decoration layer
-        // This could be flowers, small rocks, etc.
-        // For now, we'll just add placeholder decorations
-        int numDecorations = _rng.RandiRange(30, 50);
-
-        // Set source and atlas IDs based on your actual decoration tiles
-        // int decorationSourceId = 0; // This would be your decoration tileset ID
-        Vector2I[] decorationTiles = [new (0, 0), new (1, 0), new (2, 0)]; // Example atlas coords
-
-        for (int i = 0; i < numDecorations; i++)
-        {
-            Vector2I gridPos = new (
-                _rng.RandiRange(0, _activeGridArea.GridSize.X - 1),
-                _rng.RandiRange(0, _activeGridArea.GridSize.Y - 1));
-
-            // Skip if cell is occupied by entities or is water
-            if (!_activeGridArea.IsCellWalkable(gridPos))
-            {
-                continue;
-            }
-
-            // Choose a random decoration tile
-            _ = decorationTiles[_rng.RandiRange(0, decorationTiles.Length - 1)];
-
-            // Place decoration
-            // _objectsLayer.SetCell(gridPos, decorationSourceId, tileCoords);
-        }
     }
 }

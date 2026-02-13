@@ -18,6 +18,11 @@
             }
         }
     ],
+    "Decorations": [
+        {"Id": "tombstone", "Position": [1, 1]},
+        {"Id": "tombstone", "Position": [3, 1]},
+        {"Id": "tombstone", "Position": [4, 2]}
+    ],
     "EntrancePositions": [[2, 3], [3, 3]],
     "Metadata": {
         "ConstructionTime": "3d",
@@ -46,10 +51,8 @@
 
         {"Position": [0, 1], "Type": "Fence", "Material": "Stone"},
         {"Position": [1, 1], "Type": "Floor", "Material": "Dirt"},
-        {"Position": [1, 1], "Type": "Decoration", "Category": "Tombstone", "Material": "Stone"},
         {"Position": [2, 1], "Type": "Floor", "Material": "Dirt"},
         {"Position": [3, 1], "Type": "Floor", "Material": "Dirt"},
-        {"Position": [3, 1], "Type": "Decoration", "Category": "Tombstone", "Material": "Stone"},
         {"Position": [4, 1], "Type": "Floor", "Material": "Dirt"},
         {"Position": [5, 1], "Type": "Fence", "Material": "Stone"},
 
@@ -58,7 +61,6 @@
         {"Position": [2, 2], "Type": "Floor", "Material": "Dirt"},
         {"Position": [3, 2], "Type": "Floor", "Material": "Dirt"},
         {"Position": [4, 2], "Type": "Floor", "Material": "Dirt"},
-        {"Position": [4, 2], "Type": "Decoration", "Category": "Tombstone", "Material": "Stone"},
         {"Position": [5, 2], "Type": "Fence", "Material": "Stone"},
 
         {"Position": [0, 3], "Type": "Fence", "Material": "Stone"},
