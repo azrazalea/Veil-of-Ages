@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Veil of Ages: Whispers of Kalixoria** - A 2D necromancy kingdom simulation game built with Godot 4.4 and C#. The player controls a necromancer who rises from outcast to ruler, managing both living and undead beings in a complex simulation.
+**Veil of Ages: Whispers of Kalixoria** - A 2D necromancy kingdom simulation game built with Godot 4.6 and C#. The player controls a necromancer who rises from outcast to ruler, managing both living and undead beings in a complex simulation.
 
 ## Documentation Structure
 
@@ -108,7 +108,7 @@ dotnet build
 - **Language**: C# 12.0 with nullable reference types enabled
 - **Framework**: .NET 8.0
 - **Namespace**: `VeilOfAges`
-- **Godot SDK**: 4.4.1
+- **Godot SDK**: 4.6.0
 
 ### Naming Conventions
 

@@ -9,6 +9,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 env:
   GODOT_VERSION: "4.6"
   EXPORT_NAME: "Veil of Ages"
@@ -74,6 +77,12 @@ jobs:
           mkdir -p build/${{ matrix.export_name }}/resources
           find resources -name "*.json" -exec cp --parents {} build/${{ matrix.export_name }}/ \;
 
+      - name: Copy documentation
+        run: |
+          for f in CHANGELOG.md README.md LICENSE.md LICENSE.code.md; do
+            cp "$f" build/${{ matrix.export_name }}/ 2>/dev/null || true
+          done
+
       - name: Embed resources in app bundle (macOS App Translocation fallback)
         if: matrix.export_name == 'macos'
         run: |
@@ -90,15 +99,15 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            echo "value=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           else
-            echo "version=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+            echo "value=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
           fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.GAME_NAME }}-${{ steps.version.outputs.version }}-${{ matrix.export_name }}
+          name: ${{ env.GAME_NAME }}-${{ steps.version.outputs.value }}-${{ matrix.export_name }}
           path: build/${{ matrix.export_name }}
           retention-days: 14
 
@@ -108,9 +117,22 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Set version string
         id: version
-        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        run: echo "value=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Extract changelog for this version
+        run: |
+          V="${{ steps.version.outputs.value }}"
+          V="${V#v}"
+          BODY=$(sed -n "/^## \[$V\]/,/^## \[/{/^## \[$V\]/d;/^## \[/d;p}" CHANGELOG.md)
+          if [ -z "$BODY" ]; then
+            BODY=$(sed -n '/^## \[Unreleased\]/,/^## \[/{/^## \[Unreleased\]/d;/^## \[/d;p}' CHANGELOG.md)
+          fi
+          echo "$BODY" > release_notes.md
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -122,12 +144,18 @@ jobs:
           cd artifacts
           for dir in */; do
             name="${dir%/}"
-            zip -r "${name}.zip" "$dir"
+            if echo "$name" | grep -q "linux"; then
+              tar -czf "${name}.tar.gz" "$dir"
+            else
+              zip -r "${name}.zip" "$dir"
+            fi
           done
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/*.zip
-          draft: true
+          files: |
+            artifacts/*.zip
+            artifacts/*.tar.gz
+          body_path: release_notes.md
           generate_release_notes: true

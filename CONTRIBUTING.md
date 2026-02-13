@@ -52,6 +52,29 @@ Feature suggestions are welcome! When suggesting a feature:
 
 ## Development Guidelines
 
+### Building
+
+Only C# code changes require a rebuild. JSON, asset, and resource-only changes are loaded at runtime by Godot and do **not** need a build.
+
+```bash
+dotnet build
+```
+
+### Testing Your Changes
+
+The game includes a debug HTTP server (DEBUG builds only) that lets you inspect game state, control simulation speed, and query entities without using the Godot editor UI. After starting the game, the server listens on `http://localhost:8765`. See [`/core/debug/CLAUDE.md`](core/debug/CLAUDE.md) for full API documentation and usage examples.
+
+Quick test workflow:
+1. Build: `dotnet build`
+2. Run the game from the Godot Editor (F5)
+3. Verify the debug server is up: `curl -s http://localhost:8765/ping`
+4. Inspect game state: `curl -s http://localhost:8765/state | jq .`
+5. Check logs at `%APPDATA%/Godot/app_userdata/Veil of Ages/logs/game.log`
+
+### Documentation Standards
+
+This project uses **directory-level `CLAUDE.md` files** to provide context for AI tools and developers. Each major directory has a `CLAUDE.md` documenting its purpose, files, patterns, and dependencies. When adding new files or modules, update the relevant `CLAUDE.md` to include them.
+
 ### Code Style
 
 - Follow the established code style in the project
@@ -64,10 +87,11 @@ Feature suggestions are welcome! When suggesting a feature:
 - Use clear, descriptive commit messages
 - Reference issue numbers in commit messages when applicable
 - Make small, focused commits rather than large, sweeping changes
+- Update [CHANGELOG.md](CHANGELOG.md) for any user-facing changes
 
 ### Testing
 
-- Write tests plan for new features/bug fixes
+- Write test plans for new features/bug fixes
 - Ensure all test plans pass before submitting a pull request
 - Don't break existing functionality
 

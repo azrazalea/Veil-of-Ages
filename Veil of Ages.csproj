@@ -13,6 +13,13 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <RootNamespace>VeilOfAges</RootNamespace>
 
+    <!-- Package Metadata -->
+    <Version>0.1.0</Version>
+    <Authors>azrazalea</Authors>
+    <Copyright>Copyright © 2025-2026 azrazalea</Copyright>
+    <Description>A 2D necromancy kingdom simulation built with Godot 4.6+ and C#</Description>
+    <RepositoryUrl>https://github.com/azrazalea/Veil-of-Ages</RepositoryUrl>
+
     <!-- Code Quality Settings -->
     <WarningLevel>9999</WarningLevel>
     <AnalysisLevel>latest</AnalysisLevel>
