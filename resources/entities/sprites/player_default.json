@@ -5,9 +5,11 @@
   "SpriteSize": [32, 32],
   "Layers": [
     { "Name": "body", "Row": 80, "Col": 8 },
-    { "Name": "clothing_outer", "Row": 82, "Col": 60 },
-    { "Name": "hair", "Row": 85, "Col": 23 },
-    { "Name": "headwear", "Row": 92, "Col": 41 },
-    { "Name": "held_item", "Row": 90, "Col": 10 }
+    { "Name": "boots", "Row": 84, "Col": 3 },
+    { "Name": "gloves", "Row": 84, "Col": 50 },
+    { "Name": "clothing_outer", "Row": 83, "Col": 13 },
+    { "Name": "hair", "Row": 85, "Col": 21 },
+    { "Name": "headwear", "Row": 93, "Col": 20 },
+    { "Name": "held_item", "Row": 86, "Col": 28 }
   ]
 }
