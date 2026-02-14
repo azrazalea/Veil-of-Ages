@@ -1148,17 +1148,24 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             }
         }
 
-        foreach (var trait in Traits)
-        {
-            if (!trait.IsInitialized)
-            {
-                continue;
-            }
+        // Check if automation is suppressed (manual mode with no critical needs)
+        var automationTrait = SelfAsEntity().GetTrait<AutomationTrait>();
+        bool suppressTraits = automationTrait?.ShouldSuppressTraits() ?? false;
 
-            var suggestedAction = trait.SuggestAction(GetCurrentGridPosition(), currentPerception);
-            if (suggestedAction != null)
+        if (!suppressTraits)
+        {
+            foreach (var trait in Traits)
             {
-                possibleActions.Enqueue(suggestedAction, suggestedAction.Priority);
+                if (!trait.IsInitialized)
+                {
+                    continue;
+                }
+
+                var suggestedAction = trait.SuggestAction(GetCurrentGridPosition(), currentPerception);
+                if (suggestedAction != null)
+                {
+                    possibleActions.Enqueue(suggestedAction, suggestedAction.Priority);
+                }
             }
         }
 
@@ -1801,6 +1808,76 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     public IEnumerable<BuildingReference> GetAllBuildingsOfType(string buildingType)
     {
         return _sharedKnowledge.SelectMany(k => k.GetBuildingsOfType(buildingType));
+    }
+
+    /// <summary>
+    /// Find the nearest facility of a given type, checking SharedKnowledge first then PersonalMemory.
+    /// Returns the facility reference if found, null otherwise.
+    /// </summary>
+    public FacilityReference? FindFacilityOfType(string facilityType)
+    {
+        var currentArea = GridArea;
+        var currentPos = GetCurrentGridPosition();
+
+        // Check SharedKnowledge first (permanent village knowledge)
+        FacilityReference? best = null;
+        float bestDist = float.MaxValue;
+
+        foreach (var knowledge in _sharedKnowledge)
+        {
+            var candidate = knowledge.GetNearestFacilityOfType(facilityType, currentArea, currentPos);
+            if (candidate != null)
+            {
+                float dist = currentPos.DistanceSquaredTo(candidate.Position);
+                if (candidate.Area != currentArea)
+                {
+                    dist += 10000;
+                }
+
+                if (dist < bestDist)
+                {
+                    bestDist = dist;
+                    best = candidate;
+                }
+            }
+        }
+
+        if (best != null)
+        {
+            return best;
+        }
+
+        // Fall back to PersonalMemory (discovered facilities)
+        if (Memory != null)
+        {
+            var recalled = Memory.RecallFacilitiesOfType(facilityType);
+            Memory.FacilityObservation? nearest = null;
+            float nearestDist = float.MaxValue;
+
+            foreach (var obs in recalled)
+            {
+                float dist = currentPos.DistanceSquaredTo(obs.Position);
+                if (obs.Area != currentArea)
+                {
+                    dist += 10000;
+                }
+
+                if (dist < nearestDist)
+                {
+                    nearestDist = dist;
+                    nearest = obs;
+                }
+            }
+
+            if (nearest != null)
+            {
+                // Convert FacilityObservation to FacilityReference for consistent API
+                var buildingRef = new BuildingReference(nearest.Building, nearest.Area);
+                return new FacilityReference(nearest.FacilityType, buildingRef, nearest.Area, nearest.Position);
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
