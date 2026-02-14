@@ -12,6 +12,7 @@
 [ext_resource type="Script" uid="uid://cukk0kycgs03l" path="res://core/DayNightCycle.cs" id="20_cycle"]
 
 [node name="World" type="Node2D" unique_id=636624730 groups=["World"]]
+position = Vector2(0, 3)
 script = ExtResource("1_qt6d3")
 
 [node name="GridGenerator" type="Node" parent="." unique_id=1543928062]

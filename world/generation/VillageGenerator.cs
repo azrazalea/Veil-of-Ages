@@ -656,10 +656,6 @@ public class VillageGenerator
 
                 // Stock graveyard with initial corpses
                 StockGraveyardWithCorpses(building);
-
-                // Spawn undead near the Graveyard using data-driven definitions
-                SpawnUndeadNearBuilding(buildingPos, buildingSize, "mindless_skeleton", building);
-                SpawnUndeadNearBuilding(buildingPos, buildingSize, "mindless_zombie", building);
                 break;
 
             case "Granary":
@@ -992,68 +988,6 @@ public class VillageGenerator
         }
 
         Log.Print($"Stocked {graveyard.BuildingName} with {corpseCount} corpses");
-    }
-
-    /// <summary>
-    /// Spawns an undead near a graveyard and sets it as their home.
-    /// Uses the data-driven BeingResourceManager system for entity creation.
-    /// </summary>
-    /// <param name="buildingPos">Position of the graveyard.</param>
-    /// <param name="buildingSize">Size of the graveyard.</param>
-    /// <param name="definitionId">The being definition ID (e.g., "mindless_skeleton", "mindless_zombie").</param>
-    /// <param name="homeGraveyard">The graveyard building to set as home.</param>
-    private void SpawnUndeadNearBuilding(Vector2I buildingPos, Vector2I buildingSize, string definitionId, Building homeGraveyard)
-    {
-        // Find a position in front of the building
-        Vector2I beingPos = FindPositionInFrontOfBuilding(buildingPos, buildingSize);
-
-        // Ensure the position is valid and not occupied
-        if (beingPos != buildingPos && _gridArea.IsCellWalkable(beingPos))
-        {
-            // Pass home graveyard as runtime parameter for zombie traits
-            var runtimeParams = new Dictionary<string, object?>
-            {
-                { "home", homeGraveyard }
-            };
-
-            var being = SpawnGenericBeing(definitionId, beingPos, runtimeParams);
-            if (being != null)
-            {
-                Log.Print($"Spawned {definitionId} at {beingPos} (home: {homeGraveyard.BuildingName})");
-            }
-        }
-        else
-        {
-            Log.Error($"Could not find valid position to spawn undead near building at {buildingPos}");
-        }
-    }
-
-    /// <summary>
-    /// Spawns a GenericBeing from a definition ID with optional runtime parameters.
-    /// </summary>
-    /// <param name="definitionId">The being definition ID (e.g., "mindless_skeleton", "mindless_zombie", "human_townsfolk").</param>
-    /// <param name="position">The grid position to spawn at.</param>
-    /// <param name="runtimeParams">Optional runtime parameters to pass to traits (e.g., home building).</param>
-    /// <returns>The spawned Being, or null if creation failed.</returns>
-    private Being? SpawnGenericBeing(string definitionId, Vector2I position, Dictionary<string, object?>? runtimeParams = null)
-    {
-        // Create from definition
-        var being = GenericBeing.CreateFromDefinition(definitionId, runtimeParams);
-        if (being == null)
-        {
-            Log.Error($"VillageGenerator: Failed to create being from definition '{definitionId}'");
-            return null;
-        }
-
-        // Initialize
-        being.Initialize(_gridArea, position, _gameController);
-
-        // Add to scene tree (triggers _Ready which loads traits from definition)
-        _gridArea.AddEntity(position, being);
-        _entitiesContainer.AddChild(being);
-        _entityThinkingSystem.RegisterEntity(being);
-
-        return being;
     }
 
     /// <summary>
