@@ -4,6 +4,7 @@ using System.Linq;
 using Godot;
 using VeilOfAges.Core;
 using VeilOfAges.Entities.Items;
+using VeilOfAges.Grid;
 using BuildingEntity = VeilOfAges.Entities.Building;
 
 namespace VeilOfAges.Entities.Memory;
@@ -27,6 +28,9 @@ public class PersonalMemory
 
     // Location memories - places I've been
     private readonly Dictionary<Vector2I, LocationMemory> _locationMemories = new ();
+
+    // Facility observations - facilities I've personally discovered
+    private readonly List<FacilityObservation> _facilityObservations = new ();
 
     /// <summary>
     /// Gets or sets default duration for general memories in ticks (~12 game hours).
@@ -390,6 +394,39 @@ public class PersonalMemory
     }
 
     /// <summary>
+    /// Record an observation of a facility at a specific location.
+    /// Call this when entity discovers or visits a facility.
+    /// </summary>
+    public void ObserveFacility(string facilityType, BuildingEntity building, Area? area, Vector2I position)
+    {
+        uint currentTick = GameController.CurrentTick;
+
+        // Update existing observation if found
+        var existing = _facilityObservations.FirstOrDefault(f =>
+            f.FacilityType == facilityType && f.Building == building);
+        if (existing != null)
+        {
+            existing.Update(currentTick, currentTick + StorageMemoryDuration);
+            return;
+        }
+
+        _facilityObservations.Add(new FacilityObservation(
+            facilityType, building, area, position,
+            currentTick, currentTick + StorageMemoryDuration));
+    }
+
+    /// <summary>
+    /// Recall all remembered facilities of a specific type that are still valid and not expired.
+    /// </summary>
+    public List<FacilityObservation> RecallFacilitiesOfType(string facilityType)
+    {
+        uint currentTick = GameController.CurrentTick;
+        return _facilityObservations
+            .Where(f => f.FacilityType == facilityType && !f.IsExpired(currentTick) && f.IsValid)
+            .ToList();
+    }
+
+    /// <summary>
     /// Remove expired memories to free memory.
     /// Call periodically (e.g., once per game hour or during idle time).
     /// </summary>
@@ -426,6 +463,9 @@ public class PersonalMemory
         {
             _locationMemories.Remove(key);
         }
+
+        // Clean facility observations
+        _facilityObservations.RemoveAll(f => f.IsExpired(currentTick) || !f.IsValid);
     }
 
     /// <summary>
@@ -436,6 +476,7 @@ public class PersonalMemory
         _storageObservations.Clear();
         _entitySightings.Clear();
         _locationMemories.Clear();
+        _facilityObservations.Clear();
     }
 
     /// <summary>
@@ -458,7 +499,8 @@ public class PersonalMemory
     public string GetDebugSummary()
     {
         var (storage, entities, locations) = GetMemoryCounts();
-        return $"PersonalMemory[{_owner.Name}]: {storage} storage obs, {entities} entity sightings, {locations} locations";
+        int facilities = _facilityObservations.Count(f => !f.IsExpired(GameController.CurrentTick) && f.IsValid);
+        return $"PersonalMemory[{_owner.Name}]: {storage} storage obs, {entities} entity sightings, {locations} locations, {facilities} facilities";
     }
 }
 
@@ -697,4 +739,80 @@ public class LocationMemory
     /// <param name="currentTick">The current game tick.</param>
     /// <returns>The number of ticks since this location was visited.</returns>
     public uint GetAge(uint currentTick) => currentTick - VisitedTick;
+}
+
+/// <summary>
+/// A memory of observing a facility at a specific location.
+/// </summary>
+public class FacilityObservation
+{
+    /// <summary>
+    /// Gets the type of facility observed (e.g., "corpse_pit", "altar").
+    /// </summary>
+    public string FacilityType { get; }
+
+    /// <summary>
+    /// Gets the building containing the facility.
+    /// </summary>
+    public BuildingEntity Building { get; }
+
+    /// <summary>
+    /// Gets the area the facility is in.
+    /// </summary>
+    public Area? Area { get; }
+
+    /// <summary>
+    /// Gets the grid position of the facility.
+    /// </summary>
+    public Vector2I Position { get; }
+
+    /// <summary>
+    /// Gets the tick when this observation was made.
+    /// </summary>
+    public uint ObservedTick { get; private set; }
+
+    /// <summary>
+    /// Gets the tick when this memory expires.
+    /// </summary>
+    public uint ExpirationTick { get; private set; }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="FacilityObservation"/> class.
+    /// </summary>
+    public FacilityObservation(
+        string facilityType,
+        BuildingEntity building,
+        Area? area,
+        Vector2I position,
+        uint observedTick,
+        uint expirationTick)
+    {
+        FacilityType = facilityType;
+        Building = building;
+        Area = area;
+        Position = position;
+        ObservedTick = observedTick;
+        ExpirationTick = expirationTick;
+    }
+
+    /// <summary>
+    /// Check if this memory has expired.
+    /// </summary>
+    /// <param name="currentTick">The current game tick.</param>
+    /// <returns>True if the memory has expired.</returns>
+    public bool IsExpired(uint currentTick) => currentTick > ExpirationTick;
+
+    /// <summary>
+    /// Gets a value indicating whether the building reference is still valid (not freed).
+    /// </summary>
+    public bool IsValid => GodotObject.IsInstanceValid(Building);
+
+    /// <summary>
+    /// Update this observation with new timing information.
+    /// </summary>
+    public void Update(uint observedTick, uint expirationTick)
+    {
+        ObservedTick = observedTick;
+        ExpirationTick = expirationTick;
+    }
 }

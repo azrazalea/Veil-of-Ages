@@ -1,6 +1,7 @@
 using System.Globalization;
 using Godot;
 using VeilOfAges.Entities;
+using VeilOfAges.Grid;
 
 namespace VeilOfAges.Entities.Memory;
 
@@ -38,11 +39,17 @@ public class BuildingReference
     /// </summary>
     public bool IsValid => Building != null && GodotObject.IsInstanceValid(Building);
 
-    public BuildingReference(Building building)
+    /// <summary>
+    /// Gets the area this building is in, for cross-area routing.
+    /// </summary>
+    public Area? Area { get; }
+
+    public BuildingReference(Building building, Area? area = null)
     {
         Building = building;
         BuildingType = building.BuildingType;
         BuildingName = building.BuildingName;
+        Area = area;
 
         // Cache the entrance position if available, otherwise use building origin
         var entrances = building.GetEntrancePositions();
@@ -85,6 +92,12 @@ public class SharedKnowledge
     private readonly Dictionary<string, HashSet<string>> _buildingStorageTags = new ();  // buildingId -> tags
     private readonly Dictionary<string, List<BuildingReference>> _buildingsByStorageTag = new ();  // tag -> buildings
 
+    // Facility tracking - facilities by type
+    private readonly Dictionary<string, List<FacilityReference>> _facilities = new ();
+
+    // Transition point tracking
+    private readonly List<TransitionPointReference> _transitionPoints = new ();
+
     // Named landmarks (town square, main gate, etc.)
     private readonly Dictionary<string, Vector2I> _landmarks = new ();
 
@@ -106,9 +119,9 @@ public class SharedKnowledge
     /// Called during world generation or when buildings are constructed.
     /// Main thread only.
     /// </summary>
-    public void RegisterBuilding(Building building)
+    public void RegisterBuilding(Building building, Area? area = null)
     {
-        var reference = new BuildingReference(building);
+        var reference = new BuildingReference(building, area);
 
         if (!_buildings.TryGetValue(building.BuildingType, out var list))
         {
@@ -155,13 +168,13 @@ public class SharedKnowledge
     /// </summary>
     /// <param name="building">The building to register.</param>
     /// <param name="tags">Tags indicating what this building stores (e.g., "food", "grain", "water").</param>
-    public void RegisterBuildingStorageTags(Building building, IEnumerable<string> tags)
+    public void RegisterBuildingStorageTags(Building building, IEnumerable<string> tags, Area? area = null)
     {
         // First ensure the building is registered normally
-        RegisterBuilding(building);
+        RegisterBuilding(building, area);
 
         var buildingId = building.GetInstanceId().ToString(CultureInfo.InvariantCulture);
-        var reference = new BuildingReference(building);
+        var reference = new BuildingReference(building, area);
 
         // Store the tags for this building
         if (!_buildingStorageTags.TryGetValue(buildingId, out var existingTags))
@@ -349,6 +362,106 @@ public class SharedKnowledge
     }
 
     /// <summary>
+    /// Register a facility in this knowledge scope.
+    /// </summary>
+    public void RegisterFacility(string facilityType, Building building, Area? area, Vector2I position)
+    {
+        var buildingRef = new BuildingReference(building, area);
+        var facilityRef = new FacilityReference(facilityType, buildingRef, area, position);
+
+        if (!_facilities.TryGetValue(facilityType, out var list))
+        {
+            list = new List<FacilityReference>();
+            _facilities[facilityType] = list;
+        }
+
+        list.Add(facilityRef);
+    }
+
+    /// <summary>
+    /// Get all valid facilities of a specific type.
+    /// Returns a snapshot copy safe for background thread access.
+    /// </summary>
+    public IReadOnlyList<FacilityReference> GetFacilitiesOfType(string facilityType)
+    {
+        if (_facilities.TryGetValue(facilityType, out var list))
+        {
+            return list.Where(f => f.Building.IsValid).ToList();
+        }
+
+        return Array.Empty<FacilityReference>();
+    }
+
+    /// <summary>
+    /// Find the nearest facility of a type to a position, preferring same-area facilities.
+    /// </summary>
+    public FacilityReference? GetNearestFacilityOfType(string facilityType, Area? currentArea, Vector2I fromPosition)
+    {
+        var facilities = GetFacilitiesOfType(facilityType);
+        FacilityReference? nearest = null;
+        float nearestDist = float.MaxValue;
+
+        foreach (var facility in facilities)
+        {
+            // Prefer same-area facilities (simple distance), cross-area gets a penalty
+            float dist = fromPosition.DistanceSquaredTo(facility.Position);
+            if (facility.Area != currentArea)
+            {
+                dist += 10000; // Cross-area penalty to prefer local facilities
+            }
+
+            if (dist < nearestDist)
+            {
+                nearestDist = dist;
+                nearest = facility;
+            }
+        }
+
+        return nearest;
+    }
+
+    /// <summary>
+    /// Remove all facility registrations for a specific building.
+    /// </summary>
+    public void UnregisterFacilitiesForBuilding(Building building)
+    {
+        foreach (var list in _facilities.Values)
+        {
+            list.RemoveAll(f => f.Building.Building == building);
+        }
+    }
+
+    /// <summary>
+    /// Register a transition point for cross-area routing.
+    /// </summary>
+    public void RegisterTransitionPoint(TransitionPoint point)
+    {
+        // Don't duplicate
+        if (!_transitionPoints.Any(t => t.TransitionPoint == point))
+        {
+            _transitionPoints.Add(new TransitionPointReference(point.SourceArea, point.SourcePosition, point));
+        }
+    }
+
+    /// <summary>
+    /// Get all registered transition points.
+    /// Returns a snapshot copy safe for background thread access.
+    /// </summary>
+    public IReadOnlyList<TransitionPointReference> GetAllTransitionPoints()
+    {
+        return _transitionPoints.ToList();
+    }
+
+    /// <summary>
+    /// Get all transition points in a specific area.
+    /// Returns a snapshot copy safe for background thread access.
+    /// </summary>
+    public IReadOnlyList<TransitionPointReference> GetTransitionPointsInArea(Area area)
+    {
+        return _transitionPoints.Where(t => t.SourceArea == area).ToList();
+    }
+
+    /// <summary>
     /// Clean up invalid building references.
     /// Call periodically on main thread.
     /// </summary>
@@ -391,5 +504,28 @@ public class SharedKnowledge
         {
             list.RemoveAll(r => !r.IsValid);
         }
+
+        // Clean up invalid facility references
+        foreach (var list in _facilities.Values)
+        {
+            list.RemoveAll(f => !f.Building.IsValid);
+        }
     }
 }
+
+/// <summary>
+/// Lightweight reference to a facility within a building.
+/// </summary>
+/// <param name="FacilityType">The type of facility (e.g., "corpse_pit", "altar").</param>
+/// <param name="Building">Reference to the building containing this facility.</param>
+/// <param name="Area">The area this facility is in.</param>
+/// <param name="Position">The grid position of the facility.</param>
+public record FacilityReference(string FacilityType, BuildingReference Building, Area? Area, Vector2I Position);
+
+/// <summary>
+/// Reference to a transition point for cross-area routing.
+/// </summary>
+/// <param name="SourceArea">The area this transition point is in.</param>
+/// <param name="SourcePosition">The grid position within the source area.</param>
+/// <param name="TransitionPoint">The transition point object.</param>
+public record TransitionPointReference(Area SourceArea, Vector2I SourcePosition, TransitionPoint TransitionPoint);
