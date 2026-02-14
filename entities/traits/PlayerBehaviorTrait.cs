@@ -123,15 +123,14 @@ public class PlayerBehaviorTrait : BeingTrait
 
         var currentActivity = _owner.GetCurrentActivity();
         var gameTime = _owner.GameController?.CurrentGameTime ?? new GameTime(0);
-
-        // Check if it's nighttime
-        bool isNight = gameTime.CurrentDayPhase is DayPhaseType.Night;
+        var currentPhase = gameTime.CurrentDayPhase;
 
         // Get energy need to check if tired
         var energyNeed = _owner.NeedsSystem?.GetNeed("energy");
         bool isLowEnergy = energyNeed != null && energyNeed.IsLow();
+        bool isCriticalEnergy = energyNeed != null && energyNeed.IsCritical();
 
-        DebugLog("BEHAVIOR", $"Phase: {gameTime.CurrentDayPhase}, IsNight: {isNight}, LowEnergy: {isLowEnergy}, Activity: {currentActivity?.GetType().Name ?? "none"}");
+        DebugLog("BEHAVIOR", $"Phase: {currentPhase}, LowEnergy: {isLowEnergy}, CriticalEnergy: {isCriticalEnergy}, Activity: {currentActivity?.GetType().Name ?? "none"}");
 
         // If already sleeping, let the activity handle it
         if (currentActivity is SleepActivity)
@@ -140,12 +139,37 @@ public class PlayerBehaviorTrait : BeingTrait
             return null;
         }
 
-        // If nighttime and energy is low, go home and sleep
+        // Sleep triggers:
+        // 1. Dusk + low energy → sleep early (before night work)
+        // 2. Any phase + critical energy → emergency sleep
+        // 3. Night + low energy + no night job working → sleep
         var home = GetHome();
-        if (isNight && isLowEnergy && home != null)
-        {
-            DebugLog("BEHAVIOR", "Night time and low energy, going home to sleep");
+        bool shouldSleep = false;
 
+        if (isCriticalEnergy)
+        {
+            shouldSleep = true;
+            DebugLog("BEHAVIOR", "Critical energy, must sleep");
+        }
+        else if (currentPhase == DayPhaseType.Dusk && isLowEnergy)
+        {
+            shouldSleep = true;
+            DebugLog("BEHAVIOR", "Dusk and low energy, sleeping early");
+        }
+        else if (currentPhase == DayPhaseType.Night && isLowEnergy)
+        {
+            // Only sleep at night if not currently doing night work
+            bool doingNightWork = currentActivity != null &&
+                currentActivity.GetType().Name.Contains("Necromancy", System.StringComparison.Ordinal);
+            if (!doingNightWork)
+            {
+                shouldSleep = true;
+                DebugLog("BEHAVIOR", "Night and low energy, not doing night work, sleeping");
+            }
+        }
+
+        if (shouldSleep && home != null)
+        {
             // Check if already navigating home
             if (currentActivity is GoToBuildingActivity)
             {

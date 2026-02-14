@@ -52,12 +52,25 @@ public class InventoryTrait : BeingTrait, IStorageContainer
     /// </summary>
     public float RemainingWeight => WeightCapacity < 0 ? float.MaxValue : WeightCapacity - UsedWeight;
 
+    /// <summary>
+    /// Gets a value indicating whether the inventory is carrying an item that exceeds
+    /// normal capacity limits (Rimworld-style over-capacity carry).
+    /// </summary>
+    public bool IsOverCapacity => UsedVolume > VolumeCapacity || (WeightCapacity >= 0 && UsedWeight > WeightCapacity);
+
     /// <inheritdoc/>
     public bool CanAdd(Item item)
     {
         if (item == null)
         {
             return false;
+        }
+
+        // Over-capacity carry: if inventory is empty and it's a single item,
+        // allow it regardless of weight/volume (carrying one heavy thing)
+        if (_items.Count == 0 && item.Quantity == 1)
+        {
+            return true;
         }
 
         // Check volume

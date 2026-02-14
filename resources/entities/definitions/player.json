@@ -27,7 +27,9 @@
     { "TraitType": "HomeTrait", "Priority": 2, "Parameters": {} },
     { "TraitType": "ItemConsumptionBehaviorTrait", "Priority": 1, "Parameters": { "foodTag": "food" } },
     { "TraitType": "PlayerBehaviorTrait", "Priority": 0, "Parameters": {} },
-    { "TraitType": "ScholarJobTrait", "Priority": -1, "Parameters": {} }
+    { "TraitType": "ScholarJobTrait", "Priority": -1, "Parameters": {} },
+    { "TraitType": "NecromancyStudyJobTrait", "Priority": -1, "Parameters": {} },
+    { "TraitType": "AutomationTrait", "Priority": 4, "Parameters": {} }
   ],
   "Audio": {
     "Sounds": {}

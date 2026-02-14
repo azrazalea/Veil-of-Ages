@@ -7,19 +7,27 @@ using VeilOfAges.Entities.Sensory;
 namespace VeilOfAges.Entities.Activities;
 
 /// <summary>
-/// Activity for sleeping at home during the night.
-/// Completes automatically when daytime arrives.
-/// Restores energy and reduces hunger decay while sleeping.
+/// Activity for sleeping. Restores energy and reduces hunger decay while sleeping.
+/// Sleep targets 100% energy. Wakes when:
+/// - Energy reaches 100%, OR
+/// - Day phase starts (must wake for daytime regardless of energy), OR
+/// - A night job trait requests waking (via WakeRequested flag)
+/// Can start during Dusk or Night phases. Can continue sleeping through Dawn
+/// if energy hasn't reached 100% yet.
 /// </summary>
 public class SleepActivity : Activity
 {
     // Energy restored per tick while sleeping
     // At 0.025/tick, sleeping for ~4000 ticks fully restores from 0 to 100
-    // Night is ~4700+ ticks depending on season, so villagers reach full
-    // energy closer to dawn rather than early in the night
     private const float ENERGYRESTORERATE = 0.025f;
 
     private Need? _energyNeed;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether something has requested this entity wake up.
+    /// Set by traits (e.g., NecromancyStudyJobTrait) that need the entity to wake for work.
+    /// </summary>
+    public bool WakeRequested { get; set; }
 
     public override string DisplayName => "Sleeping";
 
@@ -60,17 +68,37 @@ public class SleepActivity : Activity
         // Restore energy each tick
         _energyNeed?.Restore(ENERGYRESTORERATE);
 
-        // Check if it's time to wake up (wake at Dawn, sleep only during Night)
         var gameTime = _owner.GameController?.CurrentGameTime ?? new GameTime(0);
-        bool shouldSleep = gameTime.CurrentDayPhase is DayPhaseType.Night;
+        var currentPhase = gameTime.CurrentDayPhase;
+        float currentEnergy = _energyNeed?.Value ?? 100f;
 
-        if (!shouldSleep)
+        // Wake conditions:
+        // 1. Energy fully restored (target 100%)
+        if (currentEnergy >= 100f)
         {
-            Log.Print($"{_owner.Name}: Waking up (energy: {_energyNeed?.Value:F1})");
+            Log.Print($"{_owner.Name}: Waking up - fully rested (energy: {currentEnergy:F1})");
             Complete();
             return null;
         }
 
+        // 2. Day phase starts - must wake regardless of energy
+        if (currentPhase == DayPhaseType.Day)
+        {
+            Log.Print($"{_owner.Name}: Waking up - day started (energy: {currentEnergy:F1})");
+            Complete();
+            return null;
+        }
+
+        // 3. A trait requested waking (e.g., night job starting)
+        if (WakeRequested)
+        {
+            WakeRequested = false;
+            Log.Print($"{_owner.Name}: Waking up - wake requested (energy: {currentEnergy:F1})");
+            Complete();
+            return null;
+        }
+
+        // Continue sleeping during Dusk, Night, or Dawn (until Day or full energy)
         return new IdleAction(_owner, this, Priority);
     }
 }
