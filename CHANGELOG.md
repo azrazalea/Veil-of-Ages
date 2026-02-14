@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Claude Code skills for contributing (`/veilofages-contribute`) and releasing (`/veilofages-release`)
+- Runtime sprite layer API for dynamic equipment visuals (SetSpriteLayer, RemoveSpriteLayer)
+- Updated player default appearance with boots, gloves, and new sprite selections
+
+### Changed
+- Entity sprites now use static Sprite2D + AtlasTexture instead of AnimatedSprite2D + SpriteFrames
+- Entity sprite definitions moved from `resources/entities/animations/` to simpler format in `resources/entities/sprites/`
+- Being.SpriteLayers is now a named dictionary for O(1) layer lookup
+
+### Removed
+- Old entity animation JSON files (replaced by sprite definitions)
+- Unused oven_idle.json decoration animation
 
 ### Fixed
 - Release archives no longer contain a redundant wrapper folder when extracted on Windows
