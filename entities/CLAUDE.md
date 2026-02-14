@@ -15,6 +15,7 @@ The central abstract class for all living and undead entities. Extends Godot's `
 - AI decision-making via `Think()` method with priority queue
 - Dialogue system integration
 - Perception and sensory capabilities
+- Automation trait suppression (manual mode with critical need override)
 
 ### BeingTrait.cs
 Specialized trait base class for Being entities. Provides:
@@ -137,6 +138,9 @@ This is intentional. Entities must physically travel to storage locations to obs
 - `StorageHasItem(building, itemDefId, quantity)` - Check MEMORY for item
 - `StorageHasItemByTag(building, itemTag)` - Check MEMORY for item by tag
 - `GetStorageItemCount(building, itemDefId)` - Get REMEMBERED count (may be stale)
+
+**Facility Lookup:**
+- `FindFacilityOfType(facilityType)` - Find nearest facility of type, checks SharedKnowledge first then PersonalMemory, prefers same-area facilities (cross-area gets distance penalty)
 
 **Combined Item Search (PersonalMemory + SharedKnowledge):**
 - `FindItemLocations(itemTag)` - Find buildings with item, personal memory first

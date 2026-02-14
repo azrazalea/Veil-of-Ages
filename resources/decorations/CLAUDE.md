@@ -26,6 +26,8 @@ Each JSON in `definitions/` defines a decoration type:
 | `tombstone.json` | Graveyard marker |
 | `trapdoor.json` | Grid transition point (e.g., Scholar's House → cellar) |
 | `tree.json` | Environmental decoration |
+| `ladder.json` | Cellar entrance/exit transition point |
+| `necromancy_altar.json` | Necromancy facility for dark rituals and zombie raising |
 
 ## Animations
 

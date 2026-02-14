@@ -68,6 +68,18 @@ See `/entities/traits/CLAUDE.md` "Job Trait Pattern (CRITICAL)" section for the 
 
 ## Files
 
+### ISubActivityRunner.cs
+Shared interface for running sub-activities. Implemented by both `Activity` (for activity composition) and `EntityCommand` (for command-driven activities).
+
+- **Namespace**: `VeilOfAges.Entities.Activities`
+- **Interface**: `ISubActivityRunner`
+- **Key Properties**:
+  - `SubActivityOwner`: The Being that owns this runner
+- **Default Method**: `RunSubActivity(subActivity, position, perception, priority)` — single source of truth for the sub-activity driving pattern. Handles immediate completion, null actions, state transitions, and returns an IdleAction to hold the action slot when needed.
+- **Implementors**:
+  - `Activity` — delegates existing `RunSubActivity(subActivity, position, perception)` to the interface, passing its own `Priority`
+  - `EntityCommand` — adds `RunSubActivity(subActivity, position, perception, priority = -1)` wrapper and `InitializeSubActivity(subActivity)` helper
+
 ### Activity.cs
 Abstract base class for all activities.
 
@@ -206,7 +218,7 @@ new GoToBuildingActivity(homeBuilding, priority: 0, targetStorage: true)
 When `targetStorage=true`, the activity automatically handles buildings with storage that requires facility adjacency. This removes the need for traits to know about storage configuration - they simply set `targetStorage: true` when navigating to access storage.
 
 ### SleepActivity.cs
-Sleeping at home during night. Restores energy, reduces hunger decay.
+Sleeping activity that restores energy. Targets 100% energy with smart wake conditions.
 
 **Usage:**
 ```csharp
@@ -214,17 +226,26 @@ new SleepActivity(priority: 0)
 ```
 
 **Behavior:**
-- Completes automatically when Dawn arrives
-- Restores energy at 0.15/tick (full restore in ~84 seconds)
+- Can start during Dusk or Night phases
+- Can continue sleeping through Dawn if energy hasn't reached 100%
+- Restores energy at 0.025/tick (full restore in ~4000 ticks)
 - Sets energy decay to 0 (no energy loss while sleeping)
 - Sets hunger decay to 0.25x (slow hunger while sleeping)
+
+**Wake Conditions:**
+1. Energy reaches 100% (fully rested)
+2. Day phase starts (must wake regardless of energy)
+3. `WakeRequested` flag set by trait (e.g., night job starting)
 
 **Need Effects:**
 ```csharp
 NeedDecayMultipliers["hunger"] = 0.25f;  // Slow hunger
 NeedDecayMultipliers["energy"] = 0f;      // No energy decay
-// Plus direct restoration: _energyNeed.Restore(0.15f) each tick
+// Plus direct restoration: _energyNeed.Restore(0.025f) each tick
 ```
+
+**Public Properties:**
+- `WakeRequested` - Set by traits to request early wake (e.g., NecromancyStudyJobTrait)
 
 ### WorkFieldActivity.cs
 Multi-phase work activity at a farm/field. Produces wheat, brings harvest home.
@@ -348,6 +369,74 @@ new ProcessReactionActivity(
 - Works with any ReactionDefinition that specifies inputs, outputs, and duration
 - Falls back to direct storage manipulation if workplace is null (legacy behavior)
 
+### GoToWorldPositionActivity.cs
+General-purpose activity that follows a NavigationPlan across area boundaries.
+
+**Usage:**
+```csharp
+var plan = WorldNavigator.NavigateToPosition(entity, currentArea, currentPos, targetArea, targetPos);
+new GoToWorldPositionActivity(plan, priority: 0)
+```
+
+**Behavior:**
+- Executes a NavigationPlan step by step
+- Manages GoToLocationActivity sub-activities for within-area navigation
+- Handles TransitionStep execution via ChangeAreaAction
+- Completes when all steps finished
+- Fails if plan is empty or navigation fails
+- Clears sub-activity on resume (re-creates if needed)
+
+**Integration:**
+Used by FetchResourceActivity, WorkOnOrderActivity, and other cross-area activities.
+
+### StudyNecromancyActivity.cs
+Studying necromancy and dark arts at a necromancy_altar facility.
+
+**Usage:**
+```csharp
+new StudyNecromancyActivity(facilityRef, studyDuration: 400, priority: 0)
+```
+
+**Phases:**
+1. **GoingToStudy** - Navigate to necromancy_altar (cross-area if needed via GoToWorldPositionActivity)
+2. **Studying** - Study dark arts, spend energy, gain necromancy + arcane_theory XP
+
+**Behavior:**
+- Dynamically finds necromancy_altar via FacilityReference (cross-area capable)
+- Uses WorldNavigator for cross-area navigation when altar is in different area
+- Drains energy at 0.015/tick (more taxing than normal study)
+- Grants XP in both "necromancy" and "arcane_theory" skills
+- Completes after study duration or if energy is low
+- Validates facility building exists throughout activity
+
+**Energy Cost:**
+```csharp
+const float ENERGYCOSTPERTICK = 0.015f;  // Necromantic study is demanding
+```
+
+### WorkOnOrderActivity.cs
+Generic activity for working on a facility's active work order.
+
+**Usage:**
+```csharp
+new WorkOnOrderActivity(facilityRef, facility, priority: 0)
+```
+
+**Phases:**
+1. **Navigating** - Travel to facility (cross-area if needed via GoToWorldPositionActivity)
+2. **Working** - Work each tick, advance progress, grant XP, drain energy
+
+**Behavior:**
+- Uses WorldNavigator for cross-area navigation when facility is in different area
+- Falls back to GoToLocationActivity for same-area navigation
+- Calls `workOrder.Advance(worker)` each tick in Working phase (increments progress, grants XP, drains energy)
+- Exits early if energy becomes critical or time phase changes (necromancy is night-only)
+- Completes when work order finishes or conditions no longer met (work order stays on facility)
+- Calls `facility.CompleteWorkOrder()` when work order reaches 100%
+
+**Integration:**
+Used by NecromancyStudyJobTrait when altar has an active work order.
+
 ### FetchResourceActivity.cs
 Fetches resources from one building (source) and brings them to another (destination).
 
@@ -363,13 +452,15 @@ new FetchResourceActivity(
 ```
 
 **Phases:**
-1. **GoingToSource** - Navigate to source building using GoToBuildingActivity with targetStorage: true
+1. **GoingToSource** - Navigate to source building (cross-area if needed via GoToWorldPositionActivity)
 2. **TakingResource** - Take items from source storage into inventory
-3. **GoingToDestination** - Navigate to destination building using GoToBuildingActivity with targetStorage: true
+3. **GoingToDestination** - Navigate to destination building (cross-area if needed via GoToWorldPositionActivity)
 4. **DepositingResource** - Transfer items from inventory to destination storage
 
 **Behavior:**
 - Validates both buildings exist throughout the activity
+- Uses WorldNavigator for cross-area navigation when building is in different area
+- Falls back to GoToBuildingActivity with targetStorage: true for same-area navigation
 - Takes up to desiredQuantity, or all available if less
 - Uses Being wrapper methods for storage access (auto-observes contents)
 - Completes even if destination storage is full (keeps items in inventory)
@@ -377,17 +468,21 @@ new FetchResourceActivity(
 
 **Used By:**
 - BakerJobTrait - Fetches water from Well to Bakery for baking bread
+- FetchCorpseCommand - Fetches corpse from Graveyard to necromancy altar (cross-area, driven as sub-activity from command)
 
 ## Key Classes
 
 | Class | Description |
 |-------|-------------|
+| `ISubActivityRunner` | Interface for shared sub-activity driving |
 | `Activity` | Abstract base with state, lifecycle |
 | `GoToLocationActivity` | Navigate to grid position |
 | `GoToBuildingActivity` | Navigate to building |
+| `GoToWorldPositionActivity` | Navigate across area boundaries using NavigationPlan |
 | `CheckHomeStorageActivity` | Go to building and observe storage to refresh memory |
 | `SleepActivity` | Sleep at night, restore energy |
 | `WorkFieldActivity` | Work at building, produce/transport wheat |
+| `WorkOnOrderActivity` | Work on facility's active work order (cross-area capable) |
 | `ConsumeItemActivity` | Eat food from inventory/home storage |
 | `ProcessReactionActivity` | Craft items via reaction system |
 | `FetchResourceActivity` | Fetch items from one building to another |

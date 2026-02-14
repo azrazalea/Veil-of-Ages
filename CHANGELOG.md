@@ -12,11 +12,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Claude Code skills for contributing (`/veilofages-contribute`) and releasing (`/veilofages-release`)
 - Runtime sprite layer API for dynamic equipment visuals (SetSpriteLayer, RemoveSpriteLayer)
 - Updated player default appearance with boots, gloves, and new sprite selections
+- Cellar building with dirt walls, floors, and ladder decoration
+- Ladder and necromancy altar decoration definitions
+- Dirt wall variant for wall tiles (DCSS stone_2_brown0)
+- ISubActivityRunner interface for shared sub-activity support between activities and commands
 
 ### Changed
 - Entity sprites now use static Sprite2D + AtlasTexture instead of AnimatedSprite2D + SpriteFrames
 - Entity sprite definitions moved from `resources/entities/animations/` to simpler format in `resources/entities/sprites/`
 - Being.SpriteLayers is now a named dictionary for O(1) layer lookup
+- Cellar generation now uses JSON building template instead of programmatic creation
+- FetchResourceActivity now supports cross-area navigation via WorldNavigator
+- FetchCorpseCommand simplified from 7-phase state machine to thin FetchResourceActivity wrapper
+- EntityCommand now supports RunSubActivity pattern for composing activities
 
 ### Removed
 - Old entity animation JSON files (replaced by sprite definitions)

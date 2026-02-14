@@ -29,16 +29,56 @@ Main building entity class that implements `IEntity<Trait>`.
 - `GetWalkableTiles()` - Legacy method returning tiles marked as inherently walkable in their definition. Prefer `GetWalkableInteriorPositions()` for pathfinding.
 
 **Facility Methods:**
+- `AddFacility(facility)` - Programmatically add a facility to this building (used for runtime facility addition)
 - `GetFacilities()` - Returns all facility IDs available in this building (from `_facilityPositions.Keys`). Populated from the building template's `Facilities` array during initialization.
 - `HasFacility(facilityId)` - Check if building has at least one instance of the specified facility.
 - `GetFacilityPositions(facilityId)` - Get all relative positions for a given facility type.
 - `GetAdjacentWalkablePosition(facilityPosition)` - Get a walkable position adjacent to a facility for entity positioning.
+- `ContainsPosition(absolutePos)` - Check if given absolute grid position falls within building bounds
+- `GetInteractableFacilityAt(absolutePos)` - Find interactable facility at given absolute position, returns `IFacilityInteractable` or null
 
 **Storage Methods:**
 - `GetStorage()` - Returns the `StorageTrait` for this building if it has one.
 - `GetStorageAccessPosition()` - Returns the absolute grid position an entity should navigate to for storage access. If `RequireAdjacentToFacility` is true, returns a walkable position adjacent to the storage facility; otherwise returns the building entrance.
 - `RequiresStorageFacilityNavigation()` - Returns true if navigation should target the storage facility position (i.e., storage has `RequireAdjacentToFacility = true` and a storage facility is defined).
 - `IsAdjacentToStorageFacility(entityPosition)` - Check if an entity at the given position is adjacent to the storage facility.
+
+### Facility.cs
+Represents a named facility within a building (e.g., "oven", "storage", "altar").
+
+**Key Properties:**
+- `Id` - Facility type identifier (e.g., "oven", "corpse_pit")
+- `Positions` - List of relative positions within the building
+- `RequireAdjacent` - Whether entities must be adjacent to use this facility
+- `Owner` - Reference to the building containing this facility
+- `Traits` - List of traits attached to this facility
+- `Interactable` - Optional `IFacilityInteractable` for player interaction
+- `ActiveWorkOrder` - Currently active work order on this facility (if any)
+
+**Key Methods:**
+- `GetWorldPositions()` - Get absolute grid positions for all facility tiles
+- `StartWorkOrder(order)` - Start a work order on this facility
+- `CompleteWorkOrder()` - Complete and clear the active work order
+- `CancelWorkOrder()` - Cancel the active work order (progress lost)
+
+### IFacilityInteractable.cs
+Interface for facilities that can be interacted with through dialogue.
+
+**Key Types:**
+- `FacilityDialogueOption`: Single interaction option with label, command, enabled state, and disabled reason
+- `IFacilityInteractable`: Interface with `GetInteractionOptions(Being interactor)` and `FacilityDisplayName`
+
+**Purpose:**
+Facilities implement this to provide context-sensitive dialogue options to the player. Options can be disabled with explanatory tooltips.
+
+**Implementors:**
+- `NecromancyAltarInteraction` - Provides "Get Corpse" and "Raise Zombie" options with smart enabled/disabled logic
+
+### facilities/ subdirectory
+Contains facility interaction implementations.
+
+**Files:**
+- `NecromancyAltarInteraction.cs` - Interaction handler for necromancy_altar facility. Provides context-sensitive "Get Corpse" (checks night phase, altar storage, graveyard memory) and "Raise Zombie" (checks night phase, corpse presence, necromancy skill level, active work orders) options with detailed disabled reasons.
 
 ### BuildingManager.cs
 Singleton manager for building templates and placement.
@@ -163,6 +203,9 @@ Singleton manager for all tile-related resources. Registered as a Godot autoload
 | `TileDefinition` | Tile type definitions |
 | `TileMaterialDefinition` | Material definitions |
 | `TileAtlasSourceDefinition` | Atlas source definitions |
+| `IFacilityInteractable` | Interface for facility dialogue interactions |
+| `FacilityDialogueOption` | Single interaction option with enabled/disabled state |
+| `NecromancyAltarInteraction` | Necromancy altar interaction handler |
 
 ## Important Notes
 

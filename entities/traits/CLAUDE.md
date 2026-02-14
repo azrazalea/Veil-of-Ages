@@ -75,6 +75,7 @@ Personal item storage for beings (living and undead entities).
 
 **Features:**
 - Volume and weight-based capacity limits
+- Over-capacity carry (Rimworld-style: empty inventory can hold 1 item regardless of weight/volume)
 - Stack merging for identical items
 - Item decay processing
 - Encumbrance tracking
@@ -92,6 +93,7 @@ Personal item storage for beings (living and undead entities).
 - `FindItem(itemDefId)` / `FindItemByTag(tag)` - Locate items
 - `GetEncumbranceLevel()` - Returns 0-1 based on most restrictive limit
 - `ProcessDecay()` - Apply decay to all items, remove spoiled
+- `IsOverCapacity` - Property indicating if carrying item that exceeds normal capacity limits
 
 **Usage:**
 ```csharp
@@ -401,6 +403,61 @@ typedBeing.SelfAsEntity().AddTraitToQueue(bakerTrait, priority: -1);
 
 **Priority:** -1 (runs before VillagerTrait at priority 1)
 
+### AutomationTrait.cs
+Trait that allows toggling between automated and manual behavior.
+
+**Features:**
+- `IsAutomated` property - when false, trait SuggestAction() calls are suppressed in Being.Think()
+- Exception: critical needs (<=20) force automated behavior even in manual mode
+- NPC-compatible: any entity can have this trait, not just the player
+- `Toggle()` method to switch modes
+- `HasCriticalNeed()` checks if any need is at or below critical threshold
+- `ShouldSuppressTraits()` returns true when in manual mode AND no critical needs
+
+**Purpose:**
+Player control over entity behavior. When manual mode is active, the entity only executes commands and doesn't act autonomously (unless needs become critical).
+
+### NecromancyStudyJobTrait.cs
+Job trait for necromancer's nighttime study of dark arts.
+**Inherits from JobTrait** - enforces the correct pattern.
+
+**Features:**
+- Studies at nearest necromancy_altar during Night phase only
+- Returns null during Dawn/Day/Dusk (other traits handle daytime behavior)
+- Work order priority: if altar has active work order, creates WorkOnOrderActivity instead of StudyNecromancyActivity
+- Won't start if energy is critical (allows sleep to take over)
+- Dynamically finds necromancy_altar via `Being.FindFacilityOfType()` - no configured workplace
+
+**JobTrait Overrides:**
+- `WorkActivityType`: `StudyNecromancyActivity`
+- `WorkPhases`: Night only
+- `GetWorkplace()`: Returns altar's building (found dynamically)
+
+**Constants:**
+- `WORKDURATION`: 400 ticks (~50 seconds real time)
+
+**Dialogue:**
+- Night: "The veil between worlds grows thin at this hour... I must not be disturbed."
+- Day: "The dark arts demand patience. Night will come soon enough."
+
+### PlayerBehaviorTrait.cs
+Specialized behavior trait for the player character (necromancer).
+
+**Features:**
+- Manages sleep schedule with smart triggering (Dusk + low energy, Night + low energy without night work, or critical energy)
+- Does NOT trigger sleep if currently doing night work (necromancy activities)
+- Starts GoToBuildingActivity to navigate home before sleeping
+- Returns null during daytime (other traits handle day behavior)
+- Context-aware dialogue based on time and energy state
+
+**Sleep Triggers:**
+1. Dusk + low energy → sleep early (before night work)
+2. Any phase + critical energy → emergency sleep
+3. Night + low energy + not doing night work → sleep
+
+**Integration:**
+Works alongside ScholarJobTrait (day) and NecromancyStudyJobTrait (night) to provide the player's full daily cycle.
+
 ### ScholarJobTrait.cs
 Job trait for scholars who study at their home during daytime.
 **Inherits from JobTrait** - enforces the correct pattern.
@@ -470,12 +527,14 @@ Trait (base)
         +-- ConsumptionBehaviorTrait (strategy-based need satisfaction)
         +-- ItemConsumptionBehaviorTrait (item-based need satisfaction)
         +-- InventoryTrait (personal item storage, implements IStorageContainer)
+        +-- AutomationTrait (toggle automated/manual behavior)
         +-- VillagerTrait (village life + sleep)
         +-- HomeTrait (home building reference)
         +-- JobTrait (ABSTRACT - sealed SuggestAction, implements IDesiredResources)
               +-- FarmerJobTrait (farming work, WorkFieldActivity)
               +-- BakerJobTrait (baking work, BakingActivity)
               +-- ScholarJobTrait (studying work, StudyActivity)
+              +-- NecromancyStudyJobTrait (necromancy study, StudyNecromancyActivity/WorkOnOrderActivity)
         +-- UndeadTrait (undead properties)
               +-- UndeadBehaviorTrait (abstract, wandering)
                     +-- SkeletonTrait (territorial)
@@ -496,6 +555,7 @@ Interfaces:
 | `StorageTrait` | Building/entity item storage |
 | `LivingTrait` | Living entity needs (hunger, energy) |
 | `MindlessTrait` | Non-sapient dialogue limits |
+| `AutomationTrait` | Toggle between automated and manual behavior |
 | `UndeadTrait` | Base undead properties |
 | `UndeadBehaviorTrait` | Abstract wandering behavior |
 | `SkeletonTrait` | Territorial skeleton behavior |
@@ -506,6 +566,7 @@ Interfaces:
 | `FarmerJobTrait` | Work at assigned farm during day (extends JobTrait) |
 | `BakerJobTrait` | Work at assigned bakery during day (extends JobTrait) |
 | `ScholarJobTrait` | Study at home during day (extends JobTrait) |
+| `NecromancyStudyJobTrait` | Study necromancy at altar during night (extends JobTrait) |
 | `IDesiredResources` | Interface for traits that specify desired home stockpile levels |
 
 ## Important Notes
