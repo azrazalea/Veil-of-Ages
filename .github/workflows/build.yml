@@ -145,9 +145,9 @@ jobs:
           for dir in */; do
             name="${dir%/}"
             if echo "$name" | grep -q "linux"; then
-              tar -czf "${name}.tar.gz" "$dir"
+              tar -czf "${name}.tar.gz" -C "$dir" .
             else
-              zip -r "${name}.zip" "$dir"
+              (cd "$dir" && zip -r "../${name}.zip" .)
             fi
           done
 

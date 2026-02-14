@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Release archives no longer contain a redundant wrapper folder when extracted on Windows
+
 ## [0.1.0] - 2026-02-13
 
 ### Added
