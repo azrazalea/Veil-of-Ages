@@ -462,18 +462,12 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
     public HashSet<Vector2I> GetEntranceAdjacentPositions()
     {
         var result = new HashSet<Vector2I>();
-        Vector2I[] cardinalDirections = [
-            Vector2I.Up,
-            Vector2I.Down,
-            Vector2I.Left,
-            Vector2I.Right
-        ];
 
         foreach (var entranceRelative in _entrancePositions)
         {
             Vector2I entranceAbsolute = _gridPosition + entranceRelative;
 
-            foreach (var direction in cardinalDirections)
+            foreach (var direction in DirectionUtils.All)
             {
                 Vector2I adjacentPos = entranceAbsolute + direction;
 
@@ -496,16 +490,10 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
     private HashSet<Vector2I> GetEntranceAdjacentRelativePositions()
     {
         var result = new HashSet<Vector2I>();
-        Vector2I[] cardinalDirections = [
-            Vector2I.Up,
-            Vector2I.Down,
-            Vector2I.Left,
-            Vector2I.Right
-        ];
 
         foreach (var entrance in _entrancePositions)
         {
-            foreach (var direction in cardinalDirections)
+            foreach (var direction in DirectionUtils.All)
             {
                 Vector2I adjacentPos = entrance + direction;
 
@@ -1063,16 +1051,7 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
             return true;
         }
 
-        // Cardinal directions for adjacency check
-        Vector2I[] directions =
-        [
-            new Vector2I(0, -1),  // Up
-            new Vector2I(1, 0),   // Right
-            new Vector2I(0, 1),   // Down
-            new Vector2I(-1, 0) // Left
-        ];
-
-        // Check if entity is adjacent to any storage facility
+        // Check if entity is adjacent to any storage facility (including diagonals)
         foreach (var relativeStoragePos in storagePositions)
         {
             Vector2I absoluteStoragePos = _gridPosition + relativeStoragePos;
@@ -1083,7 +1062,7 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
                 return true;
             }
 
-            foreach (var direction in directions)
+            foreach (var direction in DirectionUtils.All)
             {
                 if (entityPosition == absoluteStoragePos + direction)
                 {
@@ -1103,16 +1082,7 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
     /// <returns>A relative position that is walkable and adjacent to the facility, or null if none exists.</returns>
     public Vector2I? GetAdjacentWalkablePosition(Vector2I facilityPosition)
     {
-        // Cardinal directions to check
-        Vector2I[] directions = new[]
-        {
-            new Vector2I(0, -1),  // Up
-            new Vector2I(1, 0),   // Right
-            new Vector2I(0, 1),   // Down
-            new Vector2I(-1, 0) // Left
-        };
-
-        foreach (var direction in directions)
+        foreach (var direction in DirectionUtils.All)
         {
             Vector2I adjacentPos = facilityPosition + direction;
 

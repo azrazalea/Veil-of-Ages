@@ -345,9 +345,8 @@ public class PathFinder
             case PathGoalType.Facility:
                 if (_targetFacilityPosition.HasValue)
                 {
-                    // Check if entity is adjacent to the facility (cardinal directions)
-                    Vector2I diff = entityPos - _targetFacilityPosition.Value;
-                    result = (Math.Abs(diff.X) + Math.Abs(diff.Y)) == 1;
+                    // Check if entity is adjacent to the facility (including diagonals)
+                    result = DirectionUtils.IsAdjacent(entityPos, _targetFacilityPosition.Value);
                 }
 
                 break;
@@ -435,9 +434,8 @@ public class PathFinder
             case PathGoalType.Facility:
                 if (_targetFacilityPosition.HasValue)
                 {
-                    // Cardinal-adjacent positions to the facility
-                    var directions = new[] { Vector2I.Up, Vector2I.Down, Vector2I.Left, Vector2I.Right };
-                    foreach (var dir in directions)
+                    // Adjacent positions to the facility (cardinal + diagonal)
+                    foreach (var dir in DirectionUtils.All)
                     {
                         var pos = _targetFacilityPosition.Value + dir;
                         if (pos != entityPos && gridArea != null && gridArea.IsCellWalkable(pos))
@@ -868,27 +866,38 @@ public class PathFinder
         }
     }
 
-    // Get positions in a ring around a target
+    // Get positions in a ring around a target (all 8 directions — cardinal first)
     private static List<Vector2I> GetPositionsAroundEntity(Vector2I center, int range)
     {
-        var result = new List<Vector2I>
-        {
-            // Add positions in cardinal directions first (more natural movement)
-            new (center.X + 1, center.Y),
-            new (center.X - 1, center.Y),
-            new (center.X, center.Y + 1),
-            new (center.X, center.Y - 1)
-        };
+        var result = new List<Vector2I>();
 
-        // Then add diagonals if needed
+        // Always add all 8 adjacent positions (cardinal first for preference)
+        foreach (var dir in DirectionUtils.All)
+        {
+            result.Add(center + dir);
+        }
+
+        // For larger ranges, add positions at further distances
         if (range > 1)
         {
-            result.AddRange([
-                new Vector2I(center.X + 1, center.Y + 1),
-                new Vector2I(center.X - 1, center.Y + 1),
-                new Vector2I(center.X + 1, center.Y - 1),
-                new Vector2I(center.X - 1, center.Y - 1)
-            ]);
+            for (int dx = -range; dx <= range; dx++)
+            {
+                for (int dy = -range; dy <= range; dy++)
+                {
+                    if (dx == 0 && dy == 0)
+                    {
+                        continue;
+                    }
+
+                    // Skip the inner ring already added
+                    if (Math.Abs(dx) <= 1 && Math.Abs(dy) <= 1)
+                    {
+                        continue;
+                    }
+
+                    result.Add(new Vector2I(center.X + dx, center.Y + dy));
+                }
+            }
         }
 
         return result;
@@ -936,13 +945,13 @@ public class PathFinder
         return false;
     }
 
-    // Get cardinal adjacent positions (4 directions)
-    private static IEnumerable<Vector2I> GetCardinalAdjacentPositions(Vector2I pos)
+    // Get adjacent positions (all 8 directions — cardinal first)
+    private static IEnumerable<Vector2I> GetAdjacentPositions(Vector2I pos)
     {
-        yield return pos + Vector2I.Up;
-        yield return pos + Vector2I.Down;
-        yield return pos + Vector2I.Left;
-        yield return pos + Vector2I.Right;
+        foreach (var dir in DirectionUtils.All)
+        {
+            yield return pos + dir;
+        }
     }
 
     // Get perimeter positions around a building (one tile outside the building bounds)
@@ -1151,7 +1160,7 @@ public class PathFinder
         {
             Vector2I absoluteFacilityPos = buildingPos + relativePos;
 
-            foreach (var adjacentPos in GetCardinalAdjacentPositions(absoluteFacilityPos))
+            foreach (var adjacentPos in GetAdjacentPositions(absoluteFacilityPos))
             {
                 if (!IsValidCandidate(astar, adjacentPos, perceivedBlocked))
                 {
