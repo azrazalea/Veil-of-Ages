@@ -1,0 +1,8 @@
+{
+  "Id": "skeleton_warrior",
+  "Name": "Skeleton Warrior",
+  "TexturePath": "res://assets/dcss/ProjectUtumno_full.png",
+  "SpriteSize": [32, 32],
+  "Row": 74,
+  "Col": 62
+}

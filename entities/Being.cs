@@ -216,11 +216,17 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     public BeingSkillSystem? SkillSystem { get; protected set; }
 
     /// <summary>
-    /// Gets the list of animated sprite layers for multi-layer rendering.
-    /// Populated by GenericBeing.ConfigureAnimations(). Non-GenericBeing entities
-    /// will have this populated from the default AnimatedSprite2D in _Ready().
+    /// Gets the sprite layers keyed by layer name for multi-layer rendering.
+    /// Populated by GenericBeing.ConfigureSprites(). Non-GenericBeing entities
+    /// will have this populated from the default Sprite2D in _Ready().
     /// </summary>
-    public List<AnimatedSprite2D> SpriteLayers { get; } = new ();
+    public Dictionary<string, Sprite2D> SpriteLayers { get; } = new ();
+
+    /// <summary>
+    /// Gets or sets the sprite layer slot configuration from the entity definition.
+    /// Maps layer names to ZIndex values for proper layering order.
+    /// </summary>
+    public Dictionary<string, int> SpriteLayerSlots { get; set; } = new ();
 
     /// <summary>
     /// Gets or sets personal memory for this entity's observations.
@@ -674,25 +680,14 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
 
     public override void _Ready()
     {
-        // Play idle on all sprite layers (populated by GenericBeing.ConfigureAnimations)
-        if (SpriteLayers.Count > 0)
+        // Sprite layers are populated by GenericBeing.ConfigureSprites().
+        // Fallback: if no layers were set up, look for a default Sprite2D child.
+        if (SpriteLayers.Count == 0)
         {
-            foreach (var sprite in SpriteLayers)
+            var sprite = GetNodeOrNull<Sprite2D>("Sprite2D");
+            if (sprite != null)
             {
-                if (sprite.SpriteFrames?.HasAnimation("idle") == true)
-                {
-                    sprite.Play("idle");
-                }
-            }
-        }
-        else
-        {
-            // Fallback for non-GenericBeing entities (e.g., Player scene)
-            var animatedSprite = GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
-            if (animatedSprite != null)
-            {
-                SpriteLayers.Add(animatedSprite);
-                animatedSprite.Play("idle");
+                SpriteLayers["body"] = sprite;
             }
         }
 
@@ -1978,5 +1973,104 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     public void EndDialogue(Being? speaker)
     {
         _isInDialogue = false;
+    }
+
+    // ============================================================================
+    // RUNTIME SPRITE LAYER API
+    // ============================================================================
+    // Allows dynamic sprite layer manipulation at runtime (e.g., equipping items,
+    // changing clothing). Must be called from the main thread.
+    // ============================================================================
+
+    /// <summary>
+    /// Creates or replaces a sprite layer. If the layer already exists, updates its texture.
+    /// If new, creates a Sprite2D node and adds it as a child.
+    /// Must be called from the main thread.
+    /// </summary>
+    /// <param name="layerName">The layer name (e.g., "clothing_outer", "held_item").</param>
+    /// <param name="texturePath">Path to the texture atlas resource.</param>
+    /// <param name="row">Row index in the atlas.</param>
+    /// <param name="col">Column index in the atlas.</param>
+    public void SetSpriteLayer(string layerName, string texturePath, int row, int col)
+    {
+        int width = 32;
+        int height = 32;
+
+        // Try to get sprite size from first existing layer
+        if (SpriteLayers.Count > 0)
+        {
+            foreach (var existing in SpriteLayers.Values)
+            {
+                if (existing.Texture is AtlasTexture existingAtlas)
+                {
+                    width = (int)existingAtlas.Region.Size.X;
+                    height = (int)existingAtlas.Region.Size.Y;
+                    break;
+                }
+            }
+        }
+
+        var atlasTexture = Beings.SpriteDefinition.CreateAtlasTexture(texturePath, row, col, width, height);
+        if (atlasTexture == null)
+        {
+            return;
+        }
+
+        if (SpriteLayers.TryGetValue(layerName, out var sprite))
+        {
+            sprite.Texture = atlasTexture;
+        }
+        else
+        {
+            sprite = new Sprite2D
+            {
+                Name = $"SpriteLayer_{layerName}",
+                Texture = atlasTexture,
+                ZAsRelative = true
+            };
+
+            if (SpriteLayerSlots.TryGetValue(layerName, out int zIndex))
+            {
+                sprite.ZIndex = zIndex;
+            }
+
+            AddChild(sprite);
+            SpriteLayers[layerName] = sprite;
+        }
+    }
+
+    /// <summary>
+    /// Removes a sprite layer by name. Removes the Sprite2D child node and dictionary entry.
+    /// Must be called from the main thread.
+    /// </summary>
+    /// <param name="layerName">The layer name to remove.</param>
+    public void RemoveSpriteLayer(string layerName)
+    {
+        if (SpriteLayers.TryGetValue(layerName, out var sprite))
+        {
+            RemoveChild(sprite);
+            sprite.QueueFree();
+            SpriteLayers.Remove(layerName);
+        }
+    }
+
+    /// <summary>
+    /// Returns the Sprite2D for a layer, or null if the layer doesn't exist.
+    /// </summary>
+    /// <param name="layerName">The layer name to look up.</param>
+    /// <returns>The Sprite2D for the layer, or null.</returns>
+    public Sprite2D? GetSpriteLayer(string layerName)
+    {
+        return SpriteLayers.TryGetValue(layerName, out var sprite) ? sprite : null;
+    }
+
+    /// <summary>
+    /// Check if a sprite layer exists.
+    /// </summary>
+    /// <param name="layerName">The layer name to check.</param>
+    /// <returns>True if the layer exists.</returns>
+    public bool HasSpriteLayer(string layerName)
+    {
+        return SpriteLayers.ContainsKey(layerName);
     }
 }

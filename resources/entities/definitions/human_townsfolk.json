@@ -5,7 +5,7 @@
   "Name": "Human Townsfolk",
   "Description": "A typical villager who lives and works in the village",
   "Category": "Human",
-  "AnimationId": "human_townsfolk",
+  "SpriteId": "human_townsfolk",
   "Attributes": {
     "Strength": 10.0,
     "Dexterity": 10.0,

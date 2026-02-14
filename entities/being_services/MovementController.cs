@@ -166,7 +166,7 @@ public class MovementController
         _direction = (_targetPosition - _startPosition).Normalized();
 
         // Handle animation
-        UpdateAnimation();
+        UpdateSpriteDirection();
 
         // Check if we can complete the move instantly
         if (_movementPointsAccumulator >= _currentMoveCost)
@@ -189,33 +189,32 @@ public class MovementController
         _isMoving = false;
 
         // Update animation
-        UpdateAnimation();
+        UpdateSpriteDirection();
     }
 
-    // Update the animation based on movement state
-    private void UpdateAnimation()
+    // Update sprite facing direction based on movement
+    private void UpdateSpriteDirection()
     {
         var sprites = _owner.SpriteLayers;
 
-        // Fallback if SpriteLayers not populated yet
         if (sprites.Count == 0)
         {
-            var fallback = _owner.GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
+            var fallback = _owner.GetNodeOrNull<Sprite2D>("Sprite2D");
             if (fallback != null)
             {
-                UpdateSingleSprite(fallback);
+                FlipSprite(fallback);
             }
 
             return;
         }
 
-        foreach (var sprite in sprites)
+        foreach (var sprite in sprites.Values)
         {
-            UpdateSingleSprite(sprite);
+            FlipSprite(sprite);
         }
     }
 
-    private void UpdateSingleSprite(AnimatedSprite2D sprite)
+    private void FlipSprite(Sprite2D sprite)
     {
         if (_direction.X > 0)
         {
@@ -224,15 +223,6 @@ public class MovementController
         else if (_direction.X < 0)
         {
             sprite.FlipH = true;
-        }
-
-        if (_isMoving)
-        {
-            sprite.CallDeferred("play", "walk");
-        }
-        else
-        {
-            sprite.CallDeferred("play", "idle");
         }
     }
 
@@ -277,7 +267,7 @@ public class MovementController
     public void SetDirection(Vector2 newDirection)
     {
         _direction = newDirection;
-        UpdateAnimation();
+        UpdateSpriteDirection();
     }
 
     // Check if entity is currently moving
@@ -289,10 +279,19 @@ public class MovementController
     // Get facing direction for interaction
     public Vector2I GetFacingDirection()
     {
-        // Use first sprite layer for facing direction
-        AnimatedSprite2D? sprite = _owner.SpriteLayers.Count > 0
-            ? _owner.SpriteLayers[0]
-            : _owner.GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
+        Sprite2D? sprite = null;
+
+        if (_owner.SpriteLayers.Count > 0)
+        {
+            // Get first sprite from dictionary
+            foreach (var s in _owner.SpriteLayers.Values)
+            {
+                sprite = s;
+                break;
+            }
+        }
+
+        sprite ??= _owner.GetNodeOrNull<Sprite2D>("Sprite2D");
 
         if (sprite?.FlipH == true)
         {

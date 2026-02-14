@@ -22,7 +22,7 @@ Definitions can inherit from a parent using the `ParentId` field:
 
 **Inheritance Rules:**
 - **Identity fields** (Id): Always use child's value
-- **Simple fields** (Name, Description, Category, AnimationId): Child wins if specified, else parent
+- **Simple fields** (Name, Description, Category, SpriteId): Child wins if specified, else parent
 - **Attributes**: Merged field-by-field (child overrides specific attributes)
 - **Movement**: Child wins if specified, else parent
 - **Traits**: **ADDITIVE** - parent traits first, then child traits appended

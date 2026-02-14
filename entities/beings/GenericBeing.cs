@@ -77,7 +77,7 @@ public partial class GenericBeing : Being
             return null;
         }
 
-        // Load scene to get child nodes (AnimatedSprite2D, AudioStreamPlayer2D)
+        // Load scene to get child nodes (Sprite2D, AudioStreamPlayer2D)
         var scene = GD.Load<PackedScene>("res://entities/beings/generic_being.tscn");
         var being = scene.Instantiate<GenericBeing>();
         being.DefinitionId = definitionId;
@@ -111,17 +111,17 @@ public partial class GenericBeing : Being
             return;
         }
 
-        // Configure animations if specified
-        if (!string.IsNullOrEmpty(definition.AnimationId))
+        // Configure sprites if specified
+        if (!string.IsNullOrEmpty(definition.SpriteId))
         {
-            var animation = BeingResourceManager.Instance.GetAnimation(definition.AnimationId);
-            if (animation != null)
+            var spriteDef = BeingResourceManager.Instance.GetSprite(definition.SpriteId);
+            if (spriteDef != null)
             {
-                ConfigureAnimations(animation);
+                ConfigureSprites(spriteDef, definition);
             }
             else
             {
-                Log.Warn($"GenericBeing: Animation '{definition.AnimationId}' not found for definition '{DefinitionId}'");
+                Log.Warn($"GenericBeing: Sprite '{definition.SpriteId}' not found for definition '{DefinitionId}'");
             }
         }
 
@@ -210,45 +210,42 @@ public partial class GenericBeing : Being
     }
 
     /// <summary>
-    /// Configures sprite layers from a SpriteAnimationDefinition.
-    /// Supports both single-layer (backwards compat) and multi-layer animations.
+    /// Configures sprite layers from a SpriteDefinition.
+    /// Supports both single-layer and multi-layer sprites.
     /// Layer slot ZIndex values come from the entity definition's SpriteLayers.
     /// </summary>
-    /// <param name="animation">The animation definition to use.</param>
-    private void ConfigureAnimations(SpriteAnimationDefinition animation)
+    /// <param name="spriteDef">The sprite definition to use.</param>
+    /// <param name="beingDef">The being definition for layer slot ZIndex lookup.</param>
+    private void ConfigureSprites(SpriteDefinition spriteDef, BeingDefinition beingDef)
     {
-        // Get layer slots from definition for ZIndex lookup
-        var definition = BeingResourceManager.Instance.GetDefinition(DefinitionId!);
-        var slotsByName = new Dictionary<string, SpriteLayerSlotDefinition>();
-        if (definition?.SpriteLayers != null)
+        // Build SpriteLayerSlots from definition for ZIndex lookup and runtime API
+        if (beingDef.SpriteLayers != null)
         {
-            foreach (var slot in definition.SpriteLayers)
+            foreach (var slot in beingDef.SpriteLayers)
             {
-                slotsByName[slot.Name] = slot;
+                SpriteLayerSlots[slot.Name] = slot.ZIndex;
             }
         }
 
-        // Get effective layers from animation (single "body" layer if no Layers defined)
-        var layerFrames = animation.CreateAllLayerSpriteFrames();
+        // Create atlas textures for all layers
+        var layerTextures = spriteDef.CreateAtlasTextures();
 
-        // Get the existing AnimatedSprite2D child node (from the scene)
-        var existingSprite = GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
+        // Get the existing Sprite2D child node (from the scene)
+        var existingSprite = GetNodeOrNull<Sprite2D>("Sprite2D");
 
         bool firstLayer = true;
-        foreach (var (layerName, spriteFrames) in layerFrames)
+        foreach (var (layerName, atlasTexture) in layerTextures)
         {
-            AnimatedSprite2D sprite;
+            Sprite2D sprite;
 
             if (firstLayer && existingSprite != null)
             {
-                // Reuse existing scene node for first layer (backwards compat)
                 sprite = existingSprite;
                 firstLayer = false;
             }
             else
             {
-                // Create new AnimatedSprite2D for additional layers
-                sprite = new AnimatedSprite2D
+                sprite = new Sprite2D
                 {
                     Name = $"SpriteLayer_{layerName}"
                 };
@@ -256,36 +253,22 @@ public partial class GenericBeing : Being
                 firstLayer = false;
             }
 
-            sprite.SpriteFrames = spriteFrames;
+            sprite.Texture = atlasTexture;
 
             // Set ZIndex from definition slot if available
-            if (slotsByName.TryGetValue(layerName, out var slot))
+            if (SpriteLayerSlots.TryGetValue(layerName, out int zIndex))
             {
-                sprite.ZIndex = slot.ZIndex;
+                sprite.ZIndex = zIndex;
                 sprite.ZAsRelative = true;
             }
 
-            // Play idle animation if available
-            if (spriteFrames.HasAnimation("idle"))
-            {
-                sprite.Play("idle");
-            }
-
-            SpriteLayers.Add(sprite);
+            SpriteLayers[layerName] = sprite;
         }
 
         if (SpriteLayers.Count == 0 && existingSprite != null)
         {
-            // Fallback: no layers matched, use existing sprite as-is
-            Log.Warn($"GenericBeing '{DefinitionId}': No sprite layers created, falling back to existing AnimatedSprite2D");
-            var fallbackFrames = animation.CreateSpriteFrames();
-            existingSprite.SpriteFrames = fallbackFrames;
-            if (fallbackFrames.HasAnimation("idle"))
-            {
-                existingSprite.Play("idle");
-            }
-
-            SpriteLayers.Add(existingSprite);
+            Log.Warn($"GenericBeing '{DefinitionId}': No sprite layers created, falling back to existing Sprite2D");
+            SpriteLayers["body"] = existingSprite;
         }
     }
 

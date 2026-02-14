@@ -4,7 +4,7 @@
   "Name": "Player",
   "Description": "The player-controlled necromancer, secretly the village scholar",
   "Category": "Human",
-  "AnimationId": "necromancer",
+  "SpriteId": "player_default",
   "Attributes": {
     "Strength": 10.0,
     "Dexterity": 10.0,

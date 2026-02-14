@@ -48,9 +48,18 @@ public class BeingDefinition : IResourceDefinition
     public string? Category { get; set; }
 
     /// <summary>
-    /// Gets or sets reference to SpriteAnimationDefinition for this being's visuals.
+    /// Gets or sets reference to SpriteDefinition for this being's visuals.
     /// </summary>
-    public string? AnimationId { get; set; }
+    public string? SpriteId { get; set; }
+
+    /// <summary>
+    /// Gets or sets legacy animation reference. Mapped to SpriteId for backwards compatibility.
+    /// </summary>
+    public string? AnimationId
+    {
+        get => SpriteId;
+        set => SpriteId ??= value;
+    }
 
     /// <summary>
     /// Gets or sets attribute block defining base stats.

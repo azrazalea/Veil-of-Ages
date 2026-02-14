@@ -1,0 +1,13 @@
+{
+  "Id": "player_default",
+  "Name": "Player Default Sprites",
+  "TexturePath": "res://assets/dcss/ProjectUtumno_full.png",
+  "SpriteSize": [32, 32],
+  "Layers": [
+    { "Name": "body", "Row": 80, "Col": 8 },
+    { "Name": "clothing_outer", "Row": 82, "Col": 60 },
+    { "Name": "hair", "Row": 85, "Col": 23 },
+    { "Name": "headwear", "Row": 92, "Col": 41 },
+    { "Name": "held_item", "Row": 90, "Col": 10 }
+  ]
+}

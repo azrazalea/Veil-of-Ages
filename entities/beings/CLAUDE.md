@@ -135,7 +135,7 @@ public VillagerTrait(Building? initialHome)
 
 2. **Create the Godot scene** (`.tscn`) with:
    - Root node: Your Being class (CharacterBody2D)
-   - Child: `AnimatedSprite2D` named "AnimatedSprite2D" with idle/walk animations
+   - Child: `Sprite2D` node (configured at runtime from sprite definition)
    - Optional: `AudioStreamPlayer2D` for sounds
 
 3. **Basic Being template**:
@@ -238,22 +238,22 @@ The data-driven entity system allows entities to be defined in JSON rather than 
 │                 BeingResourceManager (Singleton)                │
 ├─────────────────────────────────────────────────────────────────┤
 │  Dictionary<string, BeingDefinition> _definitions               │
-│  Dictionary<string, SpriteAnimationDefinition> _animations      │
+│  Dictionary<string, SpriteDefinition> _sprites                  │
 └─────────────────────────────────────────────────────────────────┘
                               │
          ┌────────────────────┴────────────────────┐
          ▼                                         ▼
 ┌─────────────────────┐               ┌─────────────────────────┐
-│ BeingDefinition     │               │ SpriteAnimationDefinition│
-│ - Id, Name, Category│               │ - Id, SpriteSize        │
-│ - Attributes (7)    │───references──│ - Animations{}          │
-│ - Movement speed    │               │   - idle: frames, speed │
-│ - Traits[]          │               │   - walk: frames, speed │
+│ BeingDefinition     │               │ SpriteDefinition        │
+│ - Id, Name, Category│               │ - Id, Name, SpriteSize  │
+│ - Attributes (7)    │───references──│ - TexturePath           │
+│ - Movement speed    │               │ - Layers[] OR Row/Col   │
+│ - Traits[]          │               │ (static sprite)         │
 │ - Body modifications│               └─────────────────────────┘
 │ - Audio config      │                         │
 └─────────────────────┘                         ▼
          │                            ┌─────────────────────────┐
-         ▼                            │ SpriteFrames (Godot)    │
+         ▼                            │ AtlasTexture (Godot)    │
 ┌─────────────────────┐               │ Created at runtime      │
 │ TraitFactory        │               └─────────────────────────┘
 │ - Create traits     │
@@ -267,7 +267,7 @@ The data-driven entity system allows entities to be defined in JSON rather than 
 #### BeingDefinition.cs
 JSON-serializable definition class containing:
 - `Id`, `Name`, `Description`, `Category`
-- `AnimationId` - Reference to animation definition
+- `SpriteId` - Reference to sprite definition (backwards compatible `AnimationId` getter/setter)
 - `Attributes` - The 7 being attributes
 - `Movement` - Movement speed configuration
 - `Traits[]` - List of trait definitions with parameters
@@ -275,31 +275,33 @@ JSON-serializable definition class containing:
 - `Audio` - Sound configuration
 - `Tags[]` - Categorization tags
 
-#### SpriteAnimationDefinition.cs
-JSON-serializable animation definition:
-- `Id`, `Name`, `SpriteSize`
-- `Animations` dictionary with animation states (idle, walk)
-- `CreateSpriteFrames()` - Creates Godot SpriteFrames at runtime
+#### SpriteDefinition.cs
+JSON-serializable sprite definition for static entity sprites:
+- `Id`, `Name`, `TexturePath`, `SpriteSize`
+- Either `Layers[]` array (multi-layer sprites) or top-level `Row`/`Col` (single sprite)
+- Creates `Sprite2D` nodes with `AtlasTexture` at runtime
 
 #### BeingResourceManager.cs
 Singleton manager for loading entity resources:
-- Loads from `res://resources/entities/definitions/` and `animations/`
+- Loads from `res://resources/entities/definitions/` and `sprites/`
 - `GetDefinition(id)` - Get entity definition
-- `GetAnimation(id)` - Get animation definition
+- `GetSprite(id)` - Get sprite definition
 - `GetDefinitionsByTag(tag)` - Filter by tag
 - `GetDefinitionsByCategory(category)` - Filter by category
 
 #### GenericBeing.cs
 Data-driven Being implementation:
 - Factory method: `CreateFromDefinition(definitionId, runtimeParams)`
-- Loads traits, animations, body modifications from definition
+- Loads traits, sprites, body modifications from definition
 - Supports runtime parameters merged with JSON parameters
 - Used instead of specific Being subclasses
+- `ConfigureSprites(SpriteDefinition, BeingDefinition)` creates `Sprite2D` nodes with `AtlasTexture`
+- `SpriteLayers` is `Dictionary<string, Sprite2D>` keyed by layer name
 
 #### generic_being.tscn
 Minimal Godot scene containing:
 - CharacterBody2D root (GenericBeing.cs script)
-- AnimatedSprite2D child (configured at runtime)
+- Sprite2D child (configured at runtime from sprite definition)
 - AudioStreamPlayer2D child (for sounds)
 
 ### Creating Data-Driven Entities

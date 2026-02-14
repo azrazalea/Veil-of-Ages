@@ -38,12 +38,12 @@ Manages the collection of needs for a Being entity.
 - `GetAllNeeds()` - Enumerate all registered needs
 
 ### MovementController.cs
-Handles all movement logic for a Being, including animation.
+Handles all movement logic for a Being, including sprite direction.
 
 **Responsibilities:**
 - Grid-based movement with movement points system
 - Smooth visual interpolation between grid positions
-- Animation state management (idle/walk, flip direction)
+- Sprite direction management (FlipH based on movement direction)
 - Terrain difficulty integration
 - Grid cell registration/deregistration
 
@@ -52,6 +52,7 @@ Handles all movement logic for a Being, including animation.
 - Cardinal moves cost 1.0, diagonal moves cost ~1.414
 - Terrain difficulty multiplies movement cost
 - Grid position updates immediately; visual catches up over time
+- Sprite flipping handled automatically based on movement direction
 
 **Key Methods:**
 - `TryMoveToGridPosition(Vector2I)` - Initiate movement to adjacent cell
@@ -59,6 +60,8 @@ Handles all movement logic for a Being, including animation.
 - `IsMoving()` - Check if movement is in progress
 - `GetCurrentGridPosition()` - Get entity's grid position
 - `GetFacingDirection()` - Get direction entity is facing
+- `UpdateSpriteDirection()` - Update sprite flip based on movement
+- `FlipSprite(Sprite2D)` - Apply horizontal flip to sprite
 
 ## Key Classes/Interfaces
 
@@ -146,11 +149,11 @@ public bool BlocksLOS { get; set; } = true;
 - Trees/vegetation: block LOS or not?
 - Some buildings transparent (fences)?
 
-### Animation Integration
-- Uses `AnimatedSprite2D` child node named "AnimatedSprite2D"
-- Automatically plays "walk" when moving, "idle" when stopped
+### Sprite Integration
+- Uses `Sprite2D` child nodes (single or multiple layers)
 - `FlipH` property set based on movement direction
-- Uses `CallDeferred("play", ...)` for thread safety
+- No animation playback - entities use static sprites
+- Sprite flipping uses `CallDeferred()` for thread safety
 
 ## Dependencies
 

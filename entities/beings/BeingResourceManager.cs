@@ -22,8 +22,8 @@ public partial class BeingResourceManager : ResourceManager<BeingResourceManager
     // Cache for resolved definitions (with inheritance applied)
     private readonly Dictionary<string, BeingDefinition> _resolvedCache = new ();
 
-    // Animation definition collection
-    private readonly Dictionary<string, SpriteAnimationDefinition> _animations = new ();
+    // Sprite definition collection
+    private readonly Dictionary<string, SpriteDefinition> _sprites = new ();
 
     // Autonomy rule definitions (loaded from JSON)
     private Dictionary<string, AutonomyRuleDefinition> _autonomyRules = new ();
@@ -42,11 +42,11 @@ public partial class BeingResourceManager : ResourceManager<BeingResourceManager
 
     /// <summary>
     /// Called after LoadDefinitions() completes. Loads secondary resource types:
-    /// animations and autonomy data.
+    /// sprites and autonomy data.
     /// </summary>
     protected override void OnDefinitionsLoaded()
     {
-        LoadAllAnimations();
+        LoadAllSprites();
         LoadAutonomyData();
     }
 
@@ -55,7 +55,7 @@ public partial class BeingResourceManager : ResourceManager<BeingResourceManager
     /// </summary>
     protected override void LogInitialized()
     {
-        Log.Print($"BeingResourceManager: Initialized as autoload with {_definitions.Count} being definitions, {_animations.Count} animation definitions, {_autonomyRules.Count} autonomy rules, {_autonomyConfigs.Count} autonomy configs");
+        Log.Print($"BeingResourceManager: Initialized as autoload with {_definitions.Count} being definitions, {_sprites.Count} sprite definitions, {_autonomyRules.Count} autonomy rules, {_autonomyConfigs.Count} autonomy configs");
     }
 
     /// <summary>
@@ -156,53 +156,51 @@ public partial class BeingResourceManager : ResourceManager<BeingResourceManager
     }
 
     /// <summary>
-    /// Load all animation definitions from the resources folder.
+    /// Load all sprite definitions from the resources folder.
     /// </summary>
-    private void LoadAllAnimations()
+    private void LoadAllSprites()
     {
-        string animationsPath = "res://resources/entities/animations";
-        string projectPath = JsonResourceLoader.ResolveResPath(animationsPath);
+        string spritesPath = "res://resources/entities/sprites";
+        string projectPath = JsonResourceLoader.ResolveResPath(spritesPath);
 
         if (!Directory.Exists(projectPath))
         {
-            Log.Warn($"Animations directory not found: {projectPath} - creating empty directory");
+            Log.Warn($"Sprites directory not found: {projectPath} - creating empty directory");
             Directory.CreateDirectory(projectPath);
             return;
         }
 
-        // Load all JSON files in the animations directory
         foreach (var file in Directory.GetFiles(projectPath, "*.json"))
         {
-            LoadAnimationFromFile(file);
+            LoadSpriteFromFile(file);
         }
 
-        // Also load from subdirectories for organization
         foreach (var directory in Directory.GetDirectories(projectPath))
         {
             foreach (var file in Directory.GetFiles(directory, "*.json"))
             {
-                LoadAnimationFromFile(file);
+                LoadSpriteFromFile(file);
             }
         }
     }
 
     /// <summary>
-    /// Load a single animation from a file.
+    /// Load a single sprite definition from a file.
     /// </summary>
-    private void LoadAnimationFromFile(string file)
+    private void LoadSpriteFromFile(string file)
     {
-        var animation = SpriteAnimationDefinition.LoadFromJson(file);
-        if (animation != null && animation.Validate())
+        var sprite = SpriteDefinition.LoadFromJson(file);
+        if (sprite != null && sprite.Validate())
         {
-            if (animation.Id != null)
+            if (sprite.Id != null)
             {
-                _animations[animation.Id] = animation;
-                Log.Print($"Loaded animation definition: {animation.Id}");
+                _sprites[sprite.Id] = sprite;
+                Log.Print($"Loaded sprite definition: {sprite.Id}");
             }
         }
         else
         {
-            Log.Error($"Failed to load animation definition from: {file}");
+            Log.Error($"Failed to load sprite definition from: {file}");
         }
     }
 
@@ -237,18 +235,13 @@ public partial class BeingResourceManager : ResourceManager<BeingResourceManager
     }
 
     /// <summary>
-    /// Get an animation definition by ID.
+    /// Get a sprite definition by ID.
     /// </summary>
-    /// <param name="id">The animation definition ID.</param>
-    /// <returns>The animation definition or null if not found.</returns>
-    public SpriteAnimationDefinition? GetAnimation(string id)
+    /// <param name="id">The sprite definition ID.</param>
+    /// <returns>The sprite definition or null if not found.</returns>
+    public SpriteDefinition? GetSprite(string id)
     {
-        if (_animations.TryGetValue(id, out var animation))
-        {
-            return animation;
-        }
-
-        return null;
+        return _sprites.TryGetValue(id, out var sprite) ? sprite : null;
     }
 
     /// <summary>

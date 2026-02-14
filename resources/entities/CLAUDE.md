@@ -13,11 +13,11 @@ resources/entities/
 │   ├── mindless_skeleton.json
 │   ├── mindless_zombie.json
 │   └── player.json
-└── animations/           # Sprite animation definitions
+└── sprites/              # Sprite definitions (static sprites using AtlasTexture)
     ├── human_townsfolk.json
     ├── skeleton_warrior.json
     ├── zombie.json
-    └── necromancer.json
+    └── player_default.json
 ```
 
 ## How Resources Are Loaded
@@ -25,7 +25,7 @@ resources/entities/
 Entity resources are loaded by `BeingResourceManager` (singleton) during initialization:
 
 1. **Definitions** are loaded from `res://resources/entities/definitions/`
-2. **Animations** are loaded from `res://resources/entities/animations/`
+2. **Sprites** are loaded from `res://resources/entities/sprites/`
 
 ## Schema Overview
 
@@ -37,7 +37,7 @@ Entity resources are loaded by `BeingResourceManager` (singleton) during initial
   "Name": "Display Name",
   "Description": "Description text",
   "Category": "Human|Undead",
-  "AnimationId": "reference_to_animation_def",
+  "SpriteId": "reference_to_sprite_def",
   "Attributes": {
     "Strength": 10, "Dexterity": 10, "Constitution": 10,
     "Intelligence": 10, "Willpower": 10, "Wisdom": 10, "Charisma": 10
@@ -61,26 +61,34 @@ Entity resources are loaded by `BeingResourceManager` (singleton) during initial
 }
 ```
 
-### SpriteAnimationDefinition (animations/*.json)
+### SpriteDefinition (sprites/*.json)
 
+Entities now use static sprites (AtlasTexture) instead of animations. The sprite system supports either:
+
+**Multi-layer sprites** (e.g., player with customizable appearance):
 ```json
 {
-  "Id": "animation_id",
+  "Id": "sprite_id",
   "Name": "Display Name",
+  "TexturePath": "res://path/to/atlas.png",
   "SpriteSize": [32, 32],
-  "Animations": {
-    "idle": {
-      "TexturePath": "res://path/to/texture.png",
-      "FrameWidth": 32,
-      "FrameHeight": 32,
-      "FrameCount": 8,
-      "FrameRow": 0,
-      "StartColumn": 0,
-      "Speed": 5.0,
-      "Loop": true
-    },
-    "walk": { ... }
-  }
+  "Layers": [
+    { "Name": "base", "Row": 0, "Col": 0 },
+    { "Name": "body", "Row": 1, "Col": 2 },
+    { "Name": "hair", "Row": 3, "Col": 1 }
+  ]
+}
+```
+
+**Single-sprite entities** (e.g., NPCs, monsters):
+```json
+{
+  "Id": "sprite_id",
+  "Name": "Display Name",
+  "TexturePath": "res://path/to/atlas.png",
+  "SpriteSize": [32, 32],
+  "Row": 5,
+  "Col": 3
 }
 ```
 
@@ -94,7 +102,7 @@ Supported modification types:
 ## Creating New Entity Types
 
 1. Create a new definition JSON in `definitions/`
-2. Create a corresponding animation JSON in `animations/` (or reuse existing)
+2. Create a corresponding sprite JSON in `sprites/` (or reuse existing)
 3. Reference existing traits or create new ones
 4. Use `GenericBeing.CreateFromDefinition(id)` to spawn
 
@@ -102,13 +110,15 @@ Supported modification types:
 
 - **BeingResourceManager**: `entities/beings/BeingResourceManager.cs` - Loads all resources
 - **BeingDefinition**: `entities/beings/BeingDefinition.cs` - Definition data structure
-- **SpriteAnimationDefinition**: `entities/beings/SpriteAnimationDefinition.cs` - Animation data structure
+- **SpriteDefinition**: `entities/beings/SpriteDefinition.cs` - Sprite data structure
 - **GenericBeing**: `entities/beings/GenericBeing.cs` - Runtime entity class
 - **TraitFactory**: `entities/traits/TraitFactory.cs` - Creates traits from definitions
 
 ## Important Notes
 
 - All JSON files use `PropertyNameCaseInsensitive = true` for parsing
-- AnimationId references must match an Id in the animations/ directory
+- SpriteId references must match an Id in the sprites/ directory
 - TraitType must match an existing trait class name exactly
 - Tags are used for filtering/categorization (e.g., "undead", "living", "mindless")
+- Entities use static sprites (Sprite2D + AtlasTexture), not animations
+- Decorations still use the old animation system (AnimatedSprite2D + SpriteAnimationDefinition)
