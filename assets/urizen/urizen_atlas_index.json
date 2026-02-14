@@ -463,7 +463,7 @@
   "buildings/floor_tile": { "row": 26, "col": 7 },
   "buildings/bridge_horizontal": { "row": 26, "col": 8 },
   "buildings/bridge_vertical": { "row": 26, "col": 9 },
-  "buildings/ladder": { "row": 26, "col": 10 },
+  "buildings/green_spring_dress": { "row": 26, "col": 10 },
   "buildings/trapdoor": { "row": 26, "col": 11 },
   "buildings/hay_bale": { "row": 26, "col": 12 },
   "buildings/scarecrow": { "row": 26, "col": 13 },
@@ -691,7 +691,7 @@
   "walls/crystal_wall": { "row": 39, "col": 14 },
   "walls/shadow_wall": { "row": 39, "col": 15 },
 
-  "creatures/skeleton_hound": { "row": 40, "col": 0 },
+  "buildings/ladder": { "row": 40, "col": 0 },
   "creatures/zombie_hound": { "row": 40, "col": 1 },
   "creatures/undead_horse": { "row": 40, "col": 2 },
   "creatures/bone_golem": { "row": 40, "col": 3 },

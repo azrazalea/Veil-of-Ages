@@ -1,6 +1,21 @@
 {
-  "quern": {
-    "row": 0,
-    "col": 0
+  "tile_size": [
+    32,
+    32
+  ],
+  "columns": 2,
+  "sprites": {
+    "quern": {
+      "row": 0,
+      "col": 0,
+      "tiles_x": 1,
+      "tiles_y": 1
+    },
+    "logo": {
+      "row": 0,
+      "col": 1,
+      "tiles_x": 1,
+      "tiles_y": 1
+    }
   }
 }
