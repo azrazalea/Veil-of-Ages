@@ -5,6 +5,8 @@ using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
 using VeilOfAges.Entities.Actions;
+using VeilOfAges.Entities.Activities;
+using VeilOfAges.Entities.Traits;
 using VeilOfAges.Grid;
 using VeilOfAges.UI;
 using VeilOfAges.UI.Commands;
@@ -43,6 +45,8 @@ public partial class PlayerInputController : Node
     private Being? _commandTarget;
     private Vector2I _contextGridPos;
     private bool _awaitingLocationSelection;
+    private TransitionPoint? _contextTransitionPoint;
+    private IFacilityInteractable? _contextFacilityInteractable;
 
     public override void _Ready()
     {
@@ -187,6 +191,13 @@ public partial class PlayerInputController : Node
             _gameController.SetTimeScale(_gameController.TimeScale * 0.5f);
         }
 
+        // Automation toggle
+        else if (@event.IsActionPressed("toggle_automation"))
+        {
+            var automationTrait = _player?.SelfAsEntity().GetTrait<AutomationTrait>();
+            automationTrait?.Toggle();
+        }
+
         // Right-click context menu
         else if (@event.IsActionPressed("context_menu") && @event is InputEventMouseButton contextMouseEvent)
         {
@@ -312,10 +323,13 @@ public partial class PlayerInputController : Node
         }
 
         _contextGridPos = GetCurrentMouseGridPosition();
+        _contextTransitionPoint = null;
+        _contextFacilityInteractable = null;
 
         // Determine what's at the clicked position
         var entity = GetEntityAtPosition(_contextGridPos);
         bool isWalkable = _player?.GetGridArea()?.IsCellWalkable(_contextGridPos) == true;
+        var gridArea = _player?.GetGridArea();
 
         _contextMenu.Position = (Vector2I)@event.Position;
         _contextMenu.Clear();
@@ -327,13 +341,31 @@ public partial class PlayerInputController : Node
             _contextMenu.AddItem("Talk to " + entity.Name);
             _contextMenu.AddItem("Examine " + entity.Name);
         }
-        else if (isWalkable)
+        else
         {
-            // Empty tile options
-            _contextMenu.AddItem("Move here");
+            if (isWalkable)
+            {
+                _contextMenu.AddItem("Move here");
+            }
 
-            // Add build option if appropriate
-            if (IsValidBuildLocation(_contextGridPos))
+            // Check for transition point at this position
+            if (gridArea != null)
+            {
+                _contextTransitionPoint = gridArea.GetTransitionPointAt(_contextGridPos);
+                if (_contextTransitionPoint?.LinkedPoint != null)
+                {
+                    _contextMenu.AddItem($"Enter {_contextTransitionPoint.Label}");
+                }
+            }
+
+            // Check for interactable facility at this position
+            _contextFacilityInteractable = FindInteractableFacilityAtPosition(_contextGridPos);
+            if (_contextFacilityInteractable != null)
+            {
+                _contextMenu.AddItem($"Use {_contextFacilityInteractable.FacilityDisplayName}");
+            }
+
+            if (isWalkable && IsValidBuildLocation(_contextGridPos))
             {
                 _contextMenu.AddItem("Build here");
             }
@@ -343,6 +375,34 @@ public partial class PlayerInputController : Node
         _contextMenu.AddItem("Cancel");
 
         _contextMenu.Visible = true;
+    }
+
+    private IFacilityInteractable? FindInteractableFacilityAtPosition(Vector2I position)
+    {
+        if (GetTree().GetFirstNodeInGroup("World") is not World world)
+        {
+            return null;
+        }
+
+        var entitiesContainer = world.GetNode<Node>("Entities");
+        if (entitiesContainer == null)
+        {
+            return null;
+        }
+
+        foreach (Node child in entitiesContainer.GetChildren())
+        {
+            if (child is Building building && building.ContainsPosition(position))
+            {
+                var interactable = building.GetInteractableFacilityAt(position);
+                if (interactable != null)
+                {
+                    return interactable;
+                }
+            }
+        }
+
+        return null;
     }
 
     private void HandleContextMenuSelection(long itemId)
@@ -406,6 +466,29 @@ public partial class PlayerInputController : Node
             case var s when s.StartsWith("Command ", StringComparison.Ordinal):
                 // Future implementation for command menu
                 Log.Print("Command functionality not yet implemented");
+                break;
+
+            case var s when s.StartsWith("Enter ", StringComparison.Ordinal):
+                if (_contextTransitionPoint != null)
+                {
+                    var transitionActivity = new GoToTransitionActivity(_contextTransitionPoint);
+                    _player.SetCurrentActivity(transitionActivity);
+                    Log.Print($"Heading to {_contextTransitionPoint.Label}");
+                }
+
+                break;
+
+            case var s when s.StartsWith("Use ", StringComparison.Ordinal):
+                if (_contextFacilityInteractable != null && _dialogueUI != null)
+                {
+                    _dialogueUI.ShowFacilityDialogue(_player, _contextFacilityInteractable);
+                    if (_minimap != null && _quickActions != null)
+                    {
+                        _minimap.Visible = false;
+                        _quickActions.Visible = false;
+                    }
+                }
+
                 break;
 
             case var s when s.StartsWith("Examine ", StringComparison.Ordinal):
