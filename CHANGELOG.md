@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Claude Code skills for contributing (`/veilofages-contribute`) and releasing (`/veilofages-release`)
+
 ### Fixed
 - Release archives no longer contain a redundant wrapper folder when extracted on Windows
 
