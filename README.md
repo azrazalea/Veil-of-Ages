@@ -1,5 +1,9 @@
 # Veil of Ages: Whispers of Kalixoria
 
+<p align="center">
+  <img src="assets/custom/logo/output_8x.png" alt="Veil of Ages logo" width="256">
+</p>
+
 ![Code: AGPL-3.0](https://img.shields.io/badge/Code-AGPL--3.0-blue.svg)
 ![Assets: CC0](https://img.shields.io/badge/Assets-CC0-green.svg)
 ![Godot: 4.6](https://img.shields.io/badge/Godot-4.6-blue)

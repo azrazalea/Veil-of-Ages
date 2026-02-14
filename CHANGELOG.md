@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Custom game logo (hourglass with magic energy) as application icon, boot splash, and README branding
 - Claude Code skills for contributing (`/veilofages-contribute`) and releasing (`/veilofages-release`)
 - Runtime sprite layer API for dynamic equipment visuals (SetSpriteLayer, RemoveSpriteLayer)
 - Updated player default appearance with boots, gloves, and new sprite selections

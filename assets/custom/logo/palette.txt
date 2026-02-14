@@ -1,0 +1,12 @@
+# Background gradient (diagonal: black → very dark purple → deep purple)
+BK=#000000
+D1=#1A0A2A
+D2=#2E1548
+# Hourglass gold
+GD=#B8860B
+GL=#DAA520
+GH=#F0C848
+# Green magic energy
+G1=#00FF66
+G2=#00CC44
+G3=#004D1A
