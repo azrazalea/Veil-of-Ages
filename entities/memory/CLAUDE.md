@@ -126,17 +126,23 @@ Contains the `BuildingReference` class and `SharedKnowledge` base class:
 - `Position` - Cached entrance/origin position (thread-safe)
 - `BuildingType` - Cached type for filtering (thread-safe)
 - `BuildingName` - Cached name for display (thread-safe)
+- `Area` - The area this building is in (for cross-area routing)
 - `IsValid` - Whether building still exists
 
 **SharedKnowledge** - Base class for shared knowledge scopes:
 - `Id`, `Name`, `ScopeType` - Identification properties
 - Building location registry (scope-appropriate granularity)
+- Facility registry (facility type -> buildings)
+- Transition point registry (for cross-area routing)
 - Landmark storage (named positions like "town_square")
 - General facts (key-value for flexibility)
 - Query methods (all return thread-safe snapshot copies):
   - `GetBuildingsOfType()`, `GetAllBuildings()` - Building queries
   - `TryGetBuildingOfType()`, `GetNearestBuildingOfType()` - Building lookup
   - `GetKnownBuildingTypes()` - List known building types
+  - `GetFacilitiesOfType(facilityType)` - Get all valid facilities of a type
+  - `GetNearestFacilityOfType(facilityType, currentArea, fromPosition)` - Find nearest facility with same-area preference
+  - `GetAllTransitionPoints()`, `GetTransitionPointsInArea(area)` - Transition point queries
   - `TryGetLandmark()`, `GetAllLandmarkNames()` - Landmark queries
   - `TryGetFact()`, `GetAllFactKeys()` - Fact queries
 - Registration methods: `RegisterBuilding()`, `UnregisterBuilding()` (main thread only)
@@ -150,6 +156,7 @@ Per-entity memory storage with built-in data types:
 - `StorageObservation` - What entity saw in a storage container with expiration
 - `EntitySighting` - Where entity last saw another entity with expiration
 - `LocationMemory` - Memory of visiting a location with expiration
+- `FacilityObservation` - Personally discovered facility with building, area, position, and expiration
 
 **PersonalMemory Class**:
 - Owner reference for context
@@ -169,6 +176,10 @@ Per-entity memory storage with built-in data types:
 - `RecallEntityLocation(entity)` - Get last known location
 - `GetAllEntitySightings()` - Get all valid sightings
 - `GetSightingsOfType<T>()` - Get sightings filtered by entity type
+
+**Facility Observation Methods**:
+- `ObserveFacility(facilityType, building, area, position)` - Record discovering a facility
+- `RecallFacilitiesOfType(facilityType)` - Get remembered facilities of type (valid and not expired)
 
 **Location Memory Methods**:
 - `RememberLocation(position, description)` - Record visiting a place

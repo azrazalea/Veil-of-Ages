@@ -22,7 +22,8 @@
     { "TraitType": "InventoryTrait", "Priority": 3, "Parameters": {} },
     { "TraitType": "HomeTrait", "Priority": 2, "Parameters": {} },
     { "TraitType": "ItemConsumptionBehaviorTrait", "Priority": 1, "Parameters": { "foodTag": "food" } },
-    { "TraitType": "VillagerTrait", "Priority": 0, "Parameters": {} }
+    { "TraitType": "ScheduleTrait", "Priority": 0, "Parameters": { "allowNightWork": false } },
+    { "TraitType": "VillagerTrait", "Priority": 1, "Parameters": {} }
   ],
   "Audio": {
     "Sounds": {}

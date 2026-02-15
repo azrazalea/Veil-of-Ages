@@ -2,18 +2,25 @@ using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
+using VeilOfAges.Entities.Memory;
+using VeilOfAges.Entities.Traits;
 using VeilOfAges.Grid;
 
 namespace VeilOfAges.WorldGeneration;
 
 /// <summary>
 /// Generates cellar areas beneath buildings and links them via transition points.
+/// Places the cellar building from a JSON template and sets up the necromancy altar
+/// interaction handler programmatically.
 /// </summary>
 public static class CellarGenerator
 {
     /// <summary>
     /// Create a cellar area beneath a building, linked by transition points.
     /// Finds the trapdoor decoration automatically from the building's decorations.
+    /// Places the cellar building from template and configures the altar interaction.
+    /// Registers cellar knowledge (transition points, facility) with the player's
+    /// personal SharedKnowledge so the cellar remains secret from the village.
     /// </summary>
     /// <param name="world">The world to register the cellar with.</param>
     /// <param name="building">The building that contains the trapdoor.</param>
@@ -80,7 +87,7 @@ public static class CellarGenerator
         var gridAreasContainer = world.GetNode<Node>("GridAreas");
         gridAreasContainer.AddChild(cellar);
 
-        // Fill cellar with dirt tiles
+        // Fill cellar with dirt tiles (needed for CanPlaceBuildingAt validation)
         for (int x = 0; x < cellarSize.X; x++)
         {
             for (int y = 0; y < cellarSize.Y; y++)
@@ -89,8 +96,8 @@ public static class CellarGenerator
             }
         }
 
-        // Ladder position in cellar (center-top)
-        var ladderPos = new Vector2I(3, 0);
+        // Ladder position in cellar (bottom-left, matches trapdoor above)
+        var ladderPos = new Vector2I(1, 6);
 
         // Create transition points
         var trapdoor = new TransitionPoint(overworldArea, trapdoorAbsPos, "Trapdoor");
@@ -106,6 +113,77 @@ public static class CellarGenerator
         world.RegisterTransitionPoint(ladder);
         world.RegisterGridArea(cellar);
 
+        // Place the cellar building from JSON template
+        var cellarBuilding = BuildingManager.Instance?.PlaceBuilding("Scholar's Cellar", Vector2I.Zero, cellar);
+        if (cellarBuilding == null)
+        {
+            Log.Error("CellarGenerator: Failed to place cellar building from template");
+            return;
+        }
+
+        // Set up the necromancy altar interaction handler programmatically
+        var altarFacility = cellarBuilding.GetFacilities("necromancy_altar").FirstOrDefault();
+        if (altarFacility != null)
+        {
+            altarFacility.Interactable = new NecromancyAltarInteraction(altarFacility, cellarBuilding);
+        }
+        else
+        {
+            Log.Warn("CellarGenerator: Cellar building has no necromancy_altar facility");
+        }
+
+        // Register cellar knowledge with the player's PERSONAL SharedKnowledge.
+        // The cellar is SECRET - village SharedKnowledge must NOT know about it.
+        RegisterCellarWithPlayer(world, cellar, trapdoor, ladder, cellarBuilding);
+
         Log.Print($"CellarGenerator: Created cellar ({cellarSize.X}x{cellarSize.Y}) beneath {building.BuildingName}, transition at {trapdoorAbsPos}");
+    }
+
+    /// <summary>
+    /// Registers cellar transition points and facility with the player's personal
+    /// SharedKnowledge. This keeps the cellar SECRET from the village - only the
+    /// player knows about the trapdoor, ladder, and altar.
+    /// </summary>
+    /// <param name="world">The world node for finding the player.</param>
+    /// <param name="cellar">The cellar area.</param>
+    /// <param name="trapdoor">The trapdoor transition point (overworld side).</param>
+    /// <param name="ladder">The ladder transition point (cellar side).</param>
+    /// <param name="cellarBuilding">The cellar building containing the altar.</param>
+    private static void RegisterCellarWithPlayer(
+        World world,
+        Area cellar,
+        TransitionPoint trapdoor,
+        TransitionPoint ladder,
+        Building cellarBuilding)
+    {
+        var player = world.GetNode<Player>("Entities/Player");
+        if (player == null)
+        {
+            Log.Error("CellarGenerator: Player not found, cannot register cellar knowledge");
+            return;
+        }
+
+        // Create a personal-scope SharedKnowledge for the player's secret cellar knowledge.
+        // This is separate from the village SharedKnowledge so the cellar stays hidden.
+        var cellarKnowledge = new SharedKnowledge(
+            "player_cellar",
+            "Secret Cellar",
+            "personal");
+
+        // Register both transition points so WorldNavigator can plan routes
+        cellarKnowledge.RegisterTransitionPoint(trapdoor);
+        cellarKnowledge.RegisterTransitionPoint(ladder);
+
+        // Register the cellar building so the player knows about it
+        cellarKnowledge.RegisterBuilding(cellarBuilding, cellar);
+
+        // Register the necromancy_altar facility so FindNearestFacilityOfType works
+        var altarPos = cellarBuilding.GetCurrentGridPosition();
+        cellarKnowledge.RegisterFacility("necromancy_altar", cellarBuilding, cellar, altarPos);
+
+        // Give this knowledge to the player (permanent - will persist for the game)
+        player.AddSharedKnowledge(cellarKnowledge);
+
+        Log.Print("CellarGenerator: Registered cellar knowledge with player's personal SharedKnowledge");
     }
 }

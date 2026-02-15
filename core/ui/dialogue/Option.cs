@@ -31,6 +31,21 @@ public class DialogueOption
     /// </summary>
     private readonly bool _isSimpleOption;
 
+    /// <summary>
+    /// Gets the reason this option is disabled, if any. Shown as tooltip text.
+    /// </summary>
+    public string? DisabledReason { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether gets whether this option is explicitly disabled (e.g., facility conditions not met).
+    /// </summary>
+    public bool IsExplicitlyDisabled { get; private set; }
+
+    /// <summary>
+    /// Gets the callback action for facility options that don't use the standard command system.
+    /// </summary>
+    public Action<Being>? FacilityAction { get; private set; }
+
     public DialogueOption(string text, EntityCommand? command = null, string successResponse = "Okay", string failureResponse = "No",
                             bool isSimpleOption = false)
     {
@@ -39,6 +54,21 @@ public class DialogueOption
         _defaultSuccessResponse = successResponse;
         _defaultFailureResponse = failureResponse;
         _isSimpleOption = isSimpleOption;
+    }
+
+    /// <summary>
+    /// Create a dialogue option with explicit disabled state and reason.
+    /// Used for facility interaction options.
+    /// </summary>
+    public static DialogueOption CreateFacilityOption(string text, EntityCommand? command = null,
+        bool enabled = true, string? disabledReason = null, Action<Being>? facilityAction = null)
+    {
+        return new DialogueOption(text, command, isSimpleOption: true)
+        {
+            IsExplicitlyDisabled = !enabled,
+            DisabledReason = disabledReason,
+            FacilityAction = facilityAction
+        };
     }
 
     public bool IsAvailableFor(Being entity)

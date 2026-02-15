@@ -11,6 +11,7 @@ Contains JSON files that define building layouts, including their tiles, rooms, 
 | `simple_house.json` | A 6x6 wooden house with one room, door, and window. Capacity: 2 |
 | `simple_farm.json` | A 6x4 fenced farm with crops (rice). Capacity: 2 |
 | `graveyard.json` | A 6x5 stone-walled cemetery with tombstones and gate. Capacity: 3 |
+| `cellar.json` | A 7x8 underground cellar with dirt walls. Contains ladder entrance and necromancy_altar facility. Capacity: 0 |
 
 ## JSON Schema
 

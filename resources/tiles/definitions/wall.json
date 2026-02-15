@@ -15,5 +15,10 @@
     },
     "Properties": {
         "BuildCost": "Material:2"
+    },
+    "Variants": {
+        "dirt": {
+            "Default": { "AtlasSource": "dcss", "AtlasCoords": [53, 17] }
+        }
     }
 }

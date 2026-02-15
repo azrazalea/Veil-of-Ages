@@ -6,6 +6,21 @@ The `/world/generation` directory contains procedural generation systems for cre
 
 ## Files
 
+### CellarGenerator.cs
+Generates cellar areas beneath buildings and links them via transition points.
+
+- **Namespace**: `VeilOfAges.WorldGeneration`
+- **Class**: `CellarGenerator` (static)
+- **Key Methods**:
+  - `CreateCellar(world, building)`: Creates a cellar area beneath a building with trapdoor transition
+- **Key Features**:
+  - Loads cellar layout from `cellar.json` building template (no programmatic tile placement)
+  - Automatically finds trapdoor decoration in building for transition point placement
+  - Creates bidirectional transition points (trapdoor ↔ ladder)
+  - Registers cellar knowledge with player's personal SharedKnowledge (NOT village knowledge - cellar is SECRET)
+  - Sets up necromancy altar interaction handler programmatically via `NecromancyAltarInteraction`
+  - Handles non-walkable trapdoor positions by finding nearest walkable interior tile
+
 ### GridGenerator.cs
 Main world generation orchestrator. Godot node that coordinates all generation phases.
 
@@ -202,7 +217,7 @@ World._Ready()
 
 ### Building Types Currently Supported
 - `"Simple Farm"` - Workplace for farmers with dual entrance (north and south gates)
-- `"Graveyard"` - Home for undead, stocked with corpses
+- `"Graveyard"` - Stocked with corpses (undead no longer auto-spawned)
 - `"Simple House"` - Home for villagers, spawns farmer + baker
 
 ### Random Number Generation

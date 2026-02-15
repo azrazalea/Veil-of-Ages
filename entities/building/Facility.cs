@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Traits;
+using VeilOfAges.Entities.WorkOrders;
 
 namespace VeilOfAges.Entities;
 
@@ -16,6 +18,11 @@ public class Facility
     public bool RequireAdjacent { get; }
     public Building Owner { get; }
     public List<Trait> Traits { get; } = new ();
+
+    /// <summary>
+    /// Gets or sets the interaction handler for this facility, if any.
+    /// </summary>
+    public IFacilityInteractable? Interactable { get; set; }
 
     public Facility(string id, List<Vector2I> positions, bool requireAdjacent, Building owner)
     {
@@ -63,5 +70,40 @@ public class Facility
     {
         var buildingPos = Owner.GetCurrentGridPosition();
         return Positions.Select(p => buildingPos + p).ToList();
+    }
+
+    /// <summary>
+    /// Gets the currently active work order on this facility, if any.
+    /// </summary>
+    public WorkOrder? ActiveWorkOrder { get; private set; }
+
+    /// <summary>
+    /// Start a work order on this facility.
+    /// </summary>
+    public void StartWorkOrder(WorkOrder order)
+    {
+        if (ActiveWorkOrder != null)
+        {
+            Log.Warn($"Facility {Id}: Cannot start work order - already has active order");
+            return;
+        }
+
+        ActiveWorkOrder = order;
+    }
+
+    /// <summary>
+    /// Complete and clear the active work order.
+    /// </summary>
+    public void CompleteWorkOrder()
+    {
+        ActiveWorkOrder = null;
+    }
+
+    /// <summary>
+    /// Cancel the active work order (progress is lost).
+    /// </summary>
+    public void CancelWorkOrder()
+    {
+        ActiveWorkOrder = null;
     }
 }

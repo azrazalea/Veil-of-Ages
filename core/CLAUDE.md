@@ -32,7 +32,10 @@ Handles all player input including mouse clicks, keyboard shortcuts, and context
   - Location selection mode for commands requiring position input
   - HUD updates (name label, hunger bar, activity display, command queue)
   - Simulation control hotkeys (pause, speed up/down)
-- **Input Actions**: `interact`, `exit`, `toggle_simulation_pause`, `speed_up`, `slow_down`, `context_menu`
+  - Automation toggle (manual/automatic behavior)
+  - Facility interaction (detects and shows facility dialogue)
+  - Transition point interaction (detects and allows entering cellars/other areas)
+- **Input Actions**: `interact`, `exit`, `toggle_simulation_pause`, `speed_up`, `slow_down`, `context_menu`, `toggle_automation`
 - **Important**: Uses `_awaitingLocationSelection` flag for commands that need a target position (like MoveToCommand, GuardCommand).
 
 ## Key Classes/Interfaces

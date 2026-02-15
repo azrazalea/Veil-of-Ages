@@ -18,7 +18,7 @@ namespace VeilOfAges.Entities;
 /// The player-controlled necromancer entity.
 /// Extends GenericBeing to load configuration from player.json definition.
 /// Adds command queue functionality for player-specific input handling.
-/// Features autonomous behavior via PlayerBehaviorTrait when no commands are queued.
+/// Features autonomous behavior via ScheduleTrait (sleep) and job traits when no commands are queued.
 /// Autonomy configuration tracks which traits the player has chosen and applies them.
 /// </summary>
 public partial class Player : GenericBeing

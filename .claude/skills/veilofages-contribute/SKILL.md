@@ -12,6 +12,10 @@ description: Guide for contributing code to Veil of Ages. Use when making change
 3. **Update CHANGELOG.md**: Add entries under `[Unreleased]` using Keep a Changelog categories (Added, Changed, Fixed, Removed). Only for user-facing changes.
 4. **Update CLAUDE.md**: If you added/removed files in a directory, update that directory's CLAUDE.md to reflect the change
 
+## During Implementation
+
+- **Stop on the unexpected**: If you encounter anything unexpected (unforeseen code patterns, missing dependencies, conflicting behavior) or realize you need to make a design decision that wasn't covered in the plan, **stop and ask the user** before proceeding. Do not guess or improvise — surface it and get direction.
+
 ## Architecture Rules
 
 - **Entity Think() on background threads**: Never access Godot scene tree from Think(). Use CallDeferred for main-thread operations.

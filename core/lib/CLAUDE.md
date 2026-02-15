@@ -97,6 +97,24 @@ A generic queue implementation backed by `LinkedList<T>` that supports dynamic r
   - `MoveToBefore/MoveToAfter/MoveToFront/MoveToLast`: Reposition elements
 - **Use Case**: Used for entity command queues where command priority may change.
 
+### WorldNavigator.cs
+Static utility for cross-area route planning using an entity's knowledge (no god knowledge).
+
+- **Namespace**: `VeilOfAges.Core.Lib`
+- **Class**: `WorldNavigator` (static)
+- **Key Data Types**:
+  - `NavigationStep` (abstract record): Base for plan steps
+  - `GoToPositionStep(Area, Vector2I)`: Move within an area
+  - `TransitionStep(TransitionPoint)`: Traverse to another area
+  - `NavigationPlan`: Complete route with steps and target metadata
+- **Key Methods**:
+  - `FindRouteToArea(entity, sourceArea, targetArea)`: BFS pathfinding across area graph using entity's known transitions
+  - `NavigateToPosition(entity, sourceArea, sourcePos, targetArea, targetPos)`: Create navigation plan to reach a position (potentially cross-area)
+  - `NavigateToFacility(entity, facilityType)`: Find and navigate to nearest facility of type from SharedKnowledge/PersonalMemory
+  - `NavigateToBuilding(entity, buildingType)`: Find and navigate to nearest building of type from SharedKnowledge
+- **Design Principle**: NO GOD KNOWLEDGE - only uses entity's SharedKnowledge and PersonalMemory to discover routes. Entities only know what their knowledge sources tell them.
+- **Cross-Area Penalty**: Applies 10000 distance penalty when comparing targets across areas to prefer same-area targets
+
 ### Log.cs
 Logging utility that prefixes messages with the current game tick. Supports both console output and file-based entity debug logging.
 

@@ -36,6 +36,7 @@ Abstract base class for all commands that can be assigned to entities.
 - **Key Properties**:
   - `Parameters`: Dictionary for command-specific data (e.g., target position)
   - `MyPathfinder`: Each command has its own PathFinder instance
+- **ISubActivityRunner**: EntityCommand implements `ISubActivityRunner`, enabling commands to drive sub-activities directly using the same `RunSubActivity` pattern as Activity. Adds `RunSubActivity(subActivity, position, perception, priority = -1)` wrapper and `InitializeSubActivity(subActivity)` helper for lazy sub-activity initialization.
 - **Abstract Method**: `SuggestAction(Vector2I currentGridPos, Perception currentPerception)` - Returns the next action to perform, or null when complete
 
 ### Option.cs
@@ -48,6 +49,11 @@ Represents a single dialogue option with associated command and responses.
   - `Command`: Optional EntityCommand to execute
   - `_defaultSuccessResponse`, `_defaultFailureResponse`: Fallback text
   - `_isSimpleOption`: Skip entity-specific response lookup
+  - `IsExplicitlyDisabled`: Facility options can be explicitly disabled (not based on WillRefuseCommand)
+  - `DisabledReason`: Tooltip text explaining why option is disabled
+  - `FacilityAction`: Callback action for facility options that don't use command system
+- **Factory Method**:
+  - `CreateFacilityOption(text, command, enabled, disabledReason, facilityAction)` - Create facility option with explicit disabled state
 - **Response Resolution**:
   - Simple options use default responses directly
   - Complex options call `entity.GetSuccessResponse(command)` or `entity.GetFailureResponse(command)`
@@ -67,7 +73,8 @@ Commands follow a state machine pattern:
 1. `SuggestAction()` is called each tick while command is active
 2. Command maintains internal state (e.g., path progress)
 3. Returns `EntityAction` to perform, or `null` when complete
-4. Actions use priority system (lower = higher priority):
+4. Commands can drive sub-activities directly via `RunSubActivity()` instead of starting standalone activities
+5. Actions use priority system (lower = higher priority):
    - `-10`: Crucial/emergency commands
    - `-1`: Normal command actions
    - `0`: Default command idle

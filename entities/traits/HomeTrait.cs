@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Beings.Health;
 
@@ -49,6 +50,32 @@ public class HomeTrait : BeingTrait
         {
             SetHome(home);
         }
+    }
+
+    /// <summary>
+    /// Check if the entity is currently inside their home building.
+    /// Returns false if owner or home is null.
+    /// </summary>
+    public bool IsEntityAtHome()
+    {
+        if (_owner == null || _home == null)
+        {
+            return false;
+        }
+
+        Vector2I entityPos = _owner.GetCurrentGridPosition();
+        Vector2I homePos = _home.GetCurrentGridPosition();
+        var interiorPositions = _home.GetInteriorPositions();
+
+        foreach (var relativePos in interiorPositions)
+        {
+            if (entityPos == homePos + relativePos)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

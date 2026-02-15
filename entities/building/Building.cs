@@ -896,6 +896,20 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
         return storage.AddItem(item);
     }
 
+    /// <summary>
+    /// Programmatically add a facility to this building.
+    /// </summary>
+    public void AddFacility(Facility facility)
+    {
+        if (!_facilities.TryGetValue(facility.Id, out var facilityList))
+        {
+            facilityList = new List<Facility>();
+            _facilities[facility.Id] = facilityList;
+        }
+
+        facilityList.Add(facility);
+    }
+
     public IEnumerable<string> GetFacilityIds()
     {
         return _facilities.Keys;
@@ -965,6 +979,36 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
     public bool HasFacility(string facilityId)
     {
         return _facilities.ContainsKey(facilityId) && _facilities[facilityId].Count > 0;
+    }
+
+    /// <summary>
+    /// Check if the given absolute grid position falls within this building's bounds.
+    /// </summary>
+    public bool ContainsPosition(Vector2I absolutePos)
+    {
+        var relativePos = absolutePos - _gridPosition;
+        return relativePos.X >= 0 && relativePos.X < GridSize.X &&
+               relativePos.Y >= 0 && relativePos.Y < GridSize.Y;
+    }
+
+    /// <summary>
+    /// Find an interactable facility at the given absolute position.
+    /// </summary>
+    public IFacilityInteractable? GetInteractableFacilityAt(Vector2I absolutePos)
+    {
+        var relativePos = absolutePos - _gridPosition;
+        foreach (var facilityList in _facilities.Values)
+        {
+            foreach (var facility in facilityList)
+            {
+                if (facility.Interactable != null && facility.Positions.Contains(relativePos))
+                {
+                    return facility.Interactable;
+                }
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

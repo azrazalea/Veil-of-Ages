@@ -75,6 +75,7 @@ Personal item storage for beings (living and undead entities).
 
 **Features:**
 - Volume and weight-based capacity limits
+- Over-capacity carry (Rimworld-style: empty inventory can hold 1 item regardless of weight/volume)
 - Stack merging for identical items
 - Item decay processing
 - Encumbrance tracking
@@ -92,6 +93,7 @@ Personal item storage for beings (living and undead entities).
 - `FindItem(itemDefId)` / `FindItemByTag(tag)` - Locate items
 - `GetEncumbranceLevel()` - Returns 0-1 based on most restrictive limit
 - `ProcessDecay()` - Apply decay to all items, remove spoiled
+- `IsOverCapacity` - Property indicating if carrying item that exceeds normal capacity limits
 
 **Usage:**
 ```csharp
@@ -274,21 +276,20 @@ Hunger-driven behavior for zombie entities.
 - Consumption duration: 365 ticks (messy eaters)
 
 ### VillagerTrait.cs
-Autonomous village life behavior.
+Autonomous village life behavior (non-sleep daily routine).
 
 **Features:**
 - Uses SharedKnowledge for building awareness (via Village)
-- State-based daily routine with sleep schedule
-- LivingTrait + ItemConsumptionBehaviorTrait + InventoryTrait composition
+- State-based daily routine (sleep is handled by ScheduleTrait)
 - Home-based food acquisition
 - Uses GoToBuildingActivity for visiting buildings (home, other buildings)
 - Uses GoToLocationActivity for going to village square
+- Defers to SleepActivity when detected (returns null)
 
 **States:**
-- `IdleAtHome` - At home position, may wander or start sleeping; uses GoToBuildingActivity to navigate home
-- `IdleAtSquare` - At village center, social time; uses GoToLocationActivity to navigate to square
+- `IdleAtHome` - At home position, may wander; uses GoToBuildingActivity to navigate home
+- `IdleAtSquare` - At village center, social time; uses GoToBuildingActivity to navigate to well
 - `VisitingBuilding` - At a specific building; uses GoToBuildingActivity to navigate
-- `Sleeping` - Sleeping at home during Night/Dusk (uses SleepActivity)
 
 **Navigation Pattern:**
 - Uses `GoToBuildingActivity` for building-based navigation (home, visiting buildings)
@@ -401,6 +402,72 @@ typedBeing.SelfAsEntity().AddTraitToQueue(bakerTrait, priority: -1);
 
 **Priority:** -1 (runs before VillagerTrait at priority 1)
 
+### AutomationTrait.cs
+Trait that allows toggling between automated and manual behavior.
+
+**Features:**
+- `IsAutomated` property - when false, trait SuggestAction() calls are suppressed in Being.Think()
+- Exception: critical needs (<=20) force automated behavior even in manual mode
+- NPC-compatible: any entity can have this trait, not just the player
+- `Toggle()` method to switch modes
+- `HasCriticalNeed()` checks if any need is at or below critical threshold
+- `ShouldSuppressTraits()` returns true when in manual mode AND no critical needs
+
+**Purpose:**
+Player control over entity behavior. When manual mode is active, the entity only executes commands and doesn't act autonomously (unless needs become critical).
+
+### NecromancyStudyJobTrait.cs
+Job trait for necromancer's nighttime study of dark arts.
+**Inherits from JobTrait** - enforces the correct pattern.
+
+**Features:**
+- Studies at nearest necromancy_altar during Night phase only
+- Returns null during Dawn/Day/Dusk (other traits handle daytime behavior)
+- Work order priority: if altar has active work order, creates WorkOnOrderActivity instead of StudyNecromancyActivity
+- Won't start if energy is critical (allows sleep to take over)
+- Dynamically finds necromancy_altar via `Being.FindFacilityOfType()` - no configured workplace
+
+**JobTrait Overrides:**
+- `WorkActivityType`: `StudyNecromancyActivity`
+- `WorkPhases`: Night only
+- `GetWorkplace()`: Returns altar's building (found dynamically)
+
+**Constants:**
+- `WORKDURATION`: 400 ticks (~50 seconds real time)
+
+**Dialogue:**
+- Night: "The veil between worlds grows thin at this hour... I must not be disturbed."
+- Day: "The dark arts demand patience. Night will come soon enough."
+
+### ScheduleTrait.cs
+Unified sleep/scheduling trait for all living entities (players and NPCs).
+
+**Features:**
+- Decides when an entity should sleep based on energy level and time of day
+- Tracks sleep state: Awake, GoingHome, Sleeping
+- Min-awake cooldown (200 ticks) prevents sleep oscillation after waking
+- Night work deferral: entities with `allowNightWork` and an active night JobTrait skip sleep during Night
+- Emergency sleep at critical energy regardless of time/location
+- Uses HomeTrait.IsEntityAtHome() for at-home detection
+- Verifies GoToBuildingActivity target matches home (won't confuse other navigation with "going home")
+
+**Sleep Triggers:**
+1. Critical energy (any phase) → emergency sleep, priority -1
+2. Dusk + low energy → sleep early, priority 0
+3. Night + low energy (no night job override) → sleep, priority 0
+
+**Configuration (JSON Parameters):**
+- `allowNightWork` (bool, default false): If true, defers sleep when entity has a night-phase JobTrait
+
+**States:**
+- `Awake` → entity is not sleeping
+- `GoingHome` → navigating to home building for sleep
+- `Sleeping` → SleepActivity is active
+
+**Constants:**
+- `MINAWAKETICKS`: 200 ticks minimum after waking before voluntary re-sleep
+- `FULLENERGYTHRESHOLD`: 95f - don't initiate sleep if energy above this
+
 ### ScholarJobTrait.cs
 Job trait for scholars who study at their home during daytime.
 **Inherits from JobTrait** - enforces the correct pattern.
@@ -408,7 +475,7 @@ Job trait for scholars who study at their home during daytime.
 **Features:**
 - Uses home as workplace (special case - overrides GetWorkplace())
 - Starts StudyActivity during Dawn/Day phases
-- Returns null at night (PlayerBehaviorTrait handles night behavior)
+- Returns null at night (ScheduleTrait/NecromancyStudyJobTrait handle night behavior)
 - Context-aware dialogue based on time of day
 
 **JobTrait Overrides:**
@@ -470,12 +537,15 @@ Trait (base)
         +-- ConsumptionBehaviorTrait (strategy-based need satisfaction)
         +-- ItemConsumptionBehaviorTrait (item-based need satisfaction)
         +-- InventoryTrait (personal item storage, implements IStorageContainer)
-        +-- VillagerTrait (village life + sleep)
-        +-- HomeTrait (home building reference)
+        +-- AutomationTrait (toggle automated/manual behavior)
+        +-- ScheduleTrait (unified sleep/scheduling for all living entities)
+        +-- VillagerTrait (village daily routine, non-sleep)
+        +-- HomeTrait (home building reference + IsEntityAtHome)
         +-- JobTrait (ABSTRACT - sealed SuggestAction, implements IDesiredResources)
               +-- FarmerJobTrait (farming work, WorkFieldActivity)
               +-- BakerJobTrait (baking work, BakingActivity)
               +-- ScholarJobTrait (studying work, StudyActivity)
+              +-- NecromancyStudyJobTrait (necromancy study, StudyNecromancyActivity/WorkOnOrderActivity)
         +-- UndeadTrait (undead properties)
               +-- UndeadBehaviorTrait (abstract, wandering)
                     +-- SkeletonTrait (territorial)
@@ -496,16 +566,19 @@ Interfaces:
 | `StorageTrait` | Building/entity item storage |
 | `LivingTrait` | Living entity needs (hunger, energy) |
 | `MindlessTrait` | Non-sapient dialogue limits |
+| `AutomationTrait` | Toggle between automated and manual behavior |
 | `UndeadTrait` | Base undead properties |
 | `UndeadBehaviorTrait` | Abstract wandering behavior |
 | `SkeletonTrait` | Territorial skeleton behavior |
 | `ZombieTrait` | Hunger-driven zombie behavior |
-| `VillagerTrait` | Village daily routine + sleep |
-| `HomeTrait` | Home building reference for beings |
+| `ScheduleTrait` | Unified sleep/scheduling for all living entities |
+| `VillagerTrait` | Village daily routine (non-sleep) |
+| `HomeTrait` | Home building reference + IsEntityAtHome() |
 | `JobTrait` | **Abstract base for all job traits** - sealed SuggestAction enforces pattern |
 | `FarmerJobTrait` | Work at assigned farm during day (extends JobTrait) |
 | `BakerJobTrait` | Work at assigned bakery during day (extends JobTrait) |
 | `ScholarJobTrait` | Study at home during day (extends JobTrait) |
+| `NecromancyStudyJobTrait` | Study necromancy at altar during night (extends JobTrait) |
 | `IDesiredResources` | Interface for traits that specify desired home stockpile levels |
 
 ## Important Notes

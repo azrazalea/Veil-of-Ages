@@ -7,7 +7,7 @@ namespace VeilOfAges.Entities.Traits;
 /// <summary>
 /// Job trait for the village scholar/wiseperson (player's daytime occupation).
 /// Scholars study at their home/study during daytime (Dawn/Day).
-/// At night, ScholarJobTrait returns null and PlayerBehaviorTrait handles night behavior.
+/// At night, ScholarJobTrait returns null and ScheduleTrait/NecromancyStudyJobTrait handle night behavior.
 ///
 /// Inherits from JobTrait which enforces the pattern:
 /// - Traits DECIDE when to work (via sealed SuggestAction)

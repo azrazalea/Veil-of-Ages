@@ -98,6 +98,7 @@ Variant files can override:
 - `CornerBottomLeft_Top/Bottom`, `CornerBottomRight_Top/Bottom`
 - `HorizontalTop_Top/Bottom`, `HorizontalBottom_Top/Bottom`
 - `VerticalLeft`, `VerticalRight`
+- `Default` - Single-tile wall variant (e.g., dirt wall)
 
 **Doors/Windows**:
 - `Top`, `Bottom`

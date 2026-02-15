@@ -1,0 +1,1258 @@
+{
+  "tile_size": [
+    32,
+    32
+  ],
+  "columns": 49,
+  "sprites": {
+    "dirt_scattered": {
+      "row": 0,
+      "col": 1,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Scattered brown dirt and rock fragments for exterior ground texture.",
+      "tile_type": "floor",
+      "tags": [
+        "dirt",
+        "exterior",
+        "floor",
+        "terrain"
+      ]
+    },
+    "dirt_rocky": {
+      "row": 0,
+      "col": 2,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A patch of dirt with scattered rocks and debris for exterior ground texture.",
+      "tile_type": "floor",
+      "tags": [
+        "dirt",
+        "exterior",
+        "floor",
+        "terrain"
+      ]
+    },
+    "dirt_dense": {
+      "row": 0,
+      "col": 3,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A compact patch of dark brown dirt and stone fragments clustered together for exterior ground texture.",
+      "tile_type": "floor",
+      "tags": [
+        "dirt",
+        "exterior",
+        "floor",
+        "terrain"
+      ]
+    },
+    "dirt_stony": {
+      "row": 0,
+      "col": 4,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A heavily fragmented dirt surface with numerous dark stone chunks and rocky protrusions for exterior ground texture.",
+      "tile_type": "floor",
+      "tags": [
+        "dirt",
+        "exterior",
+        "floor",
+        "terrain"
+      ]
+    },
+    "grass_scattered": {
+      "row": 0,
+      "col": 5,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Sparse green grass and vegetation strands scattered thinly across bare ground for exterior terrain.",
+      "tile_type": "floor",
+      "tags": [
+        "exterior",
+        "floor",
+        "terrain",
+        "vegetation"
+      ]
+    },
+    "grass_dense": {
+      "row": 0,
+      "col": 6,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Dense clusters of small green vegetation patches scattered across bare ground for exterior terrain.",
+      "tile_type": "floor",
+      "tags": [
+        "exterior",
+        "floor",
+        "terrain",
+        "vegetation"
+      ]
+    },
+    "grass_sparse": {
+      "row": 0,
+      "col": 7,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Scattered small green grass fragments and vegetation tufts sparsely distributed across bare ground for exterior terrain.",
+      "tile_type": "floor",
+      "tags": [
+        "exterior",
+        "floor",
+        "terrain",
+        "vegetation"
+      ]
+    },
+    "railroad_tracks": {
+      "row": 0,
+      "col": 8,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Vertical railroad tracks with white wooden ties laid across a maroon ground surface for outdoor pathways.",
+      "tile_type": "path",
+      "tags": [
+        "exterior",
+        "floor",
+        "path"
+      ]
+    },
+    "railroad_corner": {
+      "row": 0,
+      "col": 9,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "An outer L-shaped corner of railroad tracks with white ties and maroon ground for pathway intersections.",
+      "tile_type": "path",
+      "tags": [
+        "exterior",
+        "floor",
+        "path"
+      ]
+    },
+    "railroad_tjunction": {
+      "row": 0,
+      "col": 10,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A T-shaped railroad track intersection with white ties and maroon ground for three-way pathway junctions.",
+      "tile_type": "path",
+      "tags": [
+        "exterior",
+        "floor",
+        "path"
+      ]
+    },
+    "railroad_crossing": {
+      "row": 0,
+      "col": 11,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A four-way railroad track intersection with white ties and maroon ground for crossing pathways.",
+      "tile_type": "path",
+      "tags": [
+        "exterior",
+        "floor",
+        "path"
+      ]
+    },
+    "railroad_end": {
+      "row": 0,
+      "col": 12,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A U-shaped railroad track terminus with white ties and maroon ground for dead-end pathways.",
+      "tile_type": "path",
+      "tags": [
+        "exterior",
+        "floor",
+        "path"
+      ]
+    },
+    "wall_border_vertical_edge": {
+      "row": 0,
+      "col": 13,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A thin vertical maroon line forming a wall edge or boundary on a light background.",
+      "tile_type": "multi",
+      "tags": [
+        "floor",
+        "wall"
+      ]
+    },
+    "wall_border_inner_corner": {
+      "row": 0,
+      "col": 14,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "An inner right-angle corner of a maroon wall forming a recessed junction on a light background.",
+      "tile_type": "exterior",
+      "tags": [
+        "exterior"
+      ]
+    },
+    "wall_border_outer_corner": {
+      "row": 0,
+      "col": 15,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "An outer corner of a maroon wall forming a protruding junction on a light background.",
+      "tile_type": "wall",
+      "tags": [
+        "wall"
+      ]
+    },
+    "floor_border_pattern": {
+      "row": 0,
+      "col": 16,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A decorative maroon floor tile with rectangular blocks arranged in an ornamental grid pattern on a light background.",
+      "tile_type": "floor",
+      "tags": [
+        "floor"
+      ]
+    },
+    "floor_checkerboard_pattern": {
+      "row": 0,
+      "col": 17,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A maroon checkerboard-patterned floor tile with alternating blocks on a light background.",
+      "tile_type": "floor",
+      "tags": [
+        "floor"
+      ]
+    },
+    "stone_wall_corner_top_left": {
+      "row": 0,
+      "col": 18,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A light stone wall tile with rectangular block patterns forming the top-left corner piece of a defensive or decorative stone wall structure.",
+      "tile_type": "wall",
+      "tags": [
+        "stone",
+        "wall"
+      ]
+    },
+    "stone_wall_top_middle": {
+      "row": 0,
+      "col": 19,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A light stone wall tile with rectangular block patterns forming the top-middle edge piece of a stone wall structure.",
+      "tile_type": "wall",
+      "tags": [
+        "stone",
+        "wall"
+      ]
+    },
+    "stone_wall_corner_top_right": {
+      "row": 0,
+      "col": 20,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A light stone wall tile with rectangular block patterns forming the top-right corner piece of a stone wall structure.",
+      "tile_type": "wall",
+      "tags": [
+        "stone",
+        "wall"
+      ]
+    },
+    "wood_ladder_top": {
+      "row": 0,
+      "col": 21,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Top of a wooden ladder with two vertical rails and horizontal rungs for vertical climbing.",
+      "tile_type": "climbable",
+      "tags": [
+        "climbable",
+        "wood"
+      ]
+    },
+    "spike_trap_spikes": {
+      "row": 0,
+      "col": 22,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Jagged tan spikes protruding upward from a spike trap hazard tile.",
+      "tile_type": "equipment",
+      "tags": [
+        "floor",
+        "equipment"
+      ]
+    },
+    "exclamation_mark_icon": {
+      "row": 0,
+      "col": 23,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A decorative UI icon featuring a centered cross with small square ornaments at each corner, resembling a stylized exclamation mark symbol.",
+      "tile_type": "ui",
+      "tags": [
+        "icon",
+        "ui"
+      ]
+    },
+    "robed_human": {
+      "row": 0,
+      "col": 24,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A standing human figure wearing a long robe or cloak, depicted in pixel art form.",
+      "tile_type": "character",
+      "tags": [
+        "character"
+      ]
+    },
+    "human_standing_simple": {
+      "row": 0,
+      "col": 25,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A minimalist beige human figure with a small square head, white pixel eyes, and a large rectangular body in a neutral standing pose.",
+      "tile_type": "character",
+      "tags": [
+        "character"
+      ]
+    },
+    "human_warrior_spear": {
+      "row": 0,
+      "col": 26,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A standing human warrior wielding a spear or polearm weapon in a ready stance.",
+      "tile_type": "character",
+      "tags": [
+        "character"
+      ]
+    },
+    "human_warrior_sword_shield": {
+      "row": 0,
+      "col": 27,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A standing human warrior wielding a sword in one hand and a shield in the other, in a combat-ready stance.",
+      "tile_type": "character",
+      "tags": [
+        "character"
+      ]
+    },
+    "armored_warrior_sword_shield": {
+      "row": 0,
+      "col": 28,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A standing armored warrior wielding a sword and shield in combat-ready stance.",
+      "tile_type": "character",
+      "tags": [
+        "character"
+      ]
+    },
+    "armored_warrior_spear_shield": {
+      "row": 0,
+      "col": 29,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A standing armored warrior wielding a spear and shield in combat-ready stance.",
+      "tile_type": "character",
+      "tags": [
+        "character"
+      ]
+    },
+    "armored_warrior": {
+      "row": 0,
+      "col": 30,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A standing armored warrior in a neutral pose with distinctive squared shoulders and helmet, depicted without weapons or shield.",
+      "tile_type": "character",
+      "tags": [
+        "character"
+      ]
+    },
+    "armored_warrior_horns_sword": {
+      "row": 0,
+      "col": 31,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A standing armored warrior with a horned helmet wielding a sword and shield in combat-ready stance.",
+      "tile_type": "character",
+      "tags": [
+        "character"
+      ]
+    },
+    "helmet_1": {
+      "row": 0,
+      "col": 32,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A basic horned helmet with a distinctive mushroom-like cap and wide brim design.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "helmet_2": {
+      "row": 0,
+      "col": 33,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A flat-topped helmet with a wide rectangular eye opening and protective side plates, designed as headgear for warrior equipment.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "helmet_3": {
+      "row": 0,
+      "col": 34,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A rounded-top helmet with a wide eye opening and protective side plates, featuring a distinct mushroom-like crown design.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "helmet_4": {
+      "row": 0,
+      "col": 35,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A wide-brimmed helmet with a distinctive T-shaped eye opening and protective design.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "helmet_5": {
+      "row": 0,
+      "col": 36,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A spiked helmet with a distinctive cross-shaped eye opening and protective side design.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "space_helmet": {
+      "row": 0,
+      "col": 37,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A rounded futuristic space helmet with a distinctive dome design and large visor opening.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "helmet_6": {
+      "row": 0,
+      "col": 38,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A flat-crowned army-style helmet with a wide brim and protective side plates, featuring a utilitarian military design.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "wings_1": {
+      "row": 0,
+      "col": 39,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A pair of feathered angel wings spread outward as equipment or decorative armor piece.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "wings_2": {
+      "row": 0,
+      "col": 40,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A pair of angular, pointed wings spread outward as equipment or decorative armor piece.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "gauntlets_white_1": {
+      "row": 0,
+      "col": 41,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A pair of white-colored protective gauntlets or hand armor pieces.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "gauntlets_white_2": {
+      "row": 0,
+      "col": 42,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A pair of white-colored protective gauntlets with a structured, blocky design.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "car_white_1": {
+      "row": 0,
+      "col": 43,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A white four-wheeled car viewed from the side, with a boxy rectangular body and defined wheels.",
+      "tile_type": "creature",
+      "tags": [
+        "creature"
+      ]
+    },
+    "car_white_2": {
+      "row": 0,
+      "col": 44,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A white four-wheeled car viewed from the side with a compact, rounded body shape and distinct wheel details.",
+      "tile_type": "creature",
+      "tags": [
+        "creature"
+      ]
+    },
+    "car_white_3": {
+      "row": 0,
+      "col": 45,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A white four-wheeled truck or van viewed from the side with an angular, boxy body design.",
+      "tile_type": "creature",
+      "tags": [
+        "creature"
+      ]
+    },
+    "car_white_topdown_1": {
+      "row": 0,
+      "col": 46,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A white four-wheeled car viewed from above with a rectangular body and white-outlined wheels.",
+      "tile_type": "creature",
+      "tags": [
+        "creature"
+      ]
+    },
+    "rocket_1": {
+      "row": 0,
+      "col": 47,
+      "tiles_x": 1,
+      "tiles_y": 2,
+      "description": "A vertical rocket with a pointed nose cone, main fuselage, and side fins.",
+      "tile_type": "creature",
+      "tags": [
+        "creature"
+      ]
+    },
+    "wheelchair_1": {
+      "row": 0,
+      "col": 48,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A wheelchair viewed from the side with visible wheels and seat structure.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "tree_green_1": {
+      "row": 1,
+      "col": 0,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A bright green coniferous tree with a pyramidal shape and thin trunk.",
+      "tile_type": "vegetation",
+      "tags": [
+        "vegetation"
+      ]
+    },
+    "tree_green_segmented_1": {
+      "row": 1,
+      "col": 1,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A tiered green tree with distinct horizontal striations across its foliage, giving a stylized decorative appearance.",
+      "tile_type": "vegetation",
+      "tags": [
+        "vegetation"
+      ]
+    },
+    "tree_green_rounded_1": {
+      "row": 1,
+      "col": 2,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A bright green tree with a full, rounded canopy and thin rectangular trunk.",
+      "tile_type": "vegetation",
+      "tags": [
+        "vegetation"
+      ]
+    },
+    "tree_green_clustered_1": {
+      "row": 1,
+      "col": 3,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A bright green tree with two rounded foliage clusters separated by a thin trunk section.",
+      "tile_type": "vegetation",
+      "tags": [
+        "vegetation"
+      ]
+    },
+    "tree_green_wide_1": {
+      "row": 1,
+      "col": 4,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A bright green tree with a wide, rounded canopy and thin trunk base.",
+      "tile_type": "vegetation",
+      "tags": [
+        "vegetation"
+      ]
+    },
+    "tree_green_trunk_1": {
+      "row": 1,
+      "col": 5,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A bright green tree with a wide rounded canopy and a thin vertical trunk.",
+      "tile_type": "vegetation",
+      "tags": [
+        "vegetation"
+      ]
+    },
+    "cactus_green_1": {
+      "row": 1,
+      "col": 6,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A bright green cactus with segmented vertical body and multiple protruding arms.",
+      "tile_type": "vegetation",
+      "tags": [
+        "vegetation"
+      ]
+    },
+    "cactus_green_paired_1": {
+      "row": 1,
+      "col": 7,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Two bright green cacti standing side by side with segmented vertical bodies and multiple protruding arms.",
+      "tile_type": "vegetation",
+      "tags": [
+        "vegetation"
+      ]
+    },
+    "dirt_road_patched_1": {
+      "row": 1,
+      "col": 8,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A brown dirt road with scattered light patches of exposed underlying terrain running vertically down the outsides of the tile",
+      "tile_type": "path",
+      "tags": [
+        "dirt",
+        "path"
+      ]
+    },
+    "dirt_road_corner_1": {
+      "row": 1,
+      "col": 9,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A dark brown dirt road corner piece with light patches and jagged edges forming an L-shaped intersection.",
+      "tile_type": "path",
+      "tags": [
+        "dirt",
+        "path"
+      ]
+    },
+    "dirt_road_tjunction_1": {
+      "row": 1,
+      "col": 10,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A dark brown dirt road forming a T-junction with three-way intersection connecting top, left, and bottom paths.",
+      "tile_type": "path",
+      "tags": [
+        "dirt",
+        "path"
+      ]
+    },
+    "dirt_road_intersection_4way": {
+      "row": 1,
+      "col": 11,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A dark brown dirt road forming a four-way intersection with paths connecting all cardinal directions and light patches throughout.",
+      "tile_type": "path",
+      "tags": [
+        "dirt",
+        "path"
+      ]
+    },
+    "dirt_road_dead_end_1": {
+      "row": 1,
+      "col": 12,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A dark brown dirt road with light patches that terminates three-quarters of the way up the tile, extending from the bottom.",
+      "tile_type": "path",
+      "tags": [
+        "dirt",
+        "path"
+      ]
+    },
+    "stepping_stone_vertical": {
+      "row": 1,
+      "col": 13,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Three brown stepping stones arranged vertically, forming a dashed line pattern across the tile.",
+      "tile_type": "terrain",
+      "tags": [
+        "terrain"
+      ]
+    },
+    "stepping_stone_corner_1": {
+      "row": 1,
+      "col": 14,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Brown stepping stones arranged in an L-shaped corner pattern.",
+      "tile_type": "terrain",
+      "tags": [
+        "terrain"
+      ]
+    },
+    "stepping_stone_tjunction_1": {
+      "row": 1,
+      "col": 15,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Brown stepping stones arranged in a T-junction pattern with three paths connecting top, left, and right directions.",
+      "tile_type": "terrain",
+      "tags": [
+        "terrain"
+      ]
+    },
+    "stepping_stone_cross": {
+      "row": 1,
+      "col": 16,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Brown stepping stones arranged in a plus-shaped cross pattern forming a four-way junction.",
+      "tile_type": "terrain",
+      "tags": [
+        "terrain"
+      ]
+    },
+    "stepping_stone_pair": {
+      "row": 1,
+      "col": 17,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Two parallel brown stepping stones arranged vertically to form a dual-path junction.",
+      "tile_type": "terrain",
+      "tags": [
+        "terrain"
+      ]
+    },
+    "stone_wall_left_middle": {
+      "row": 1,
+      "col": 18,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A stone wall section positioned on the left side of the tile, forming the middle portion of a wall structure.",
+      "tile_type": "wall",
+      "tags": [
+        "stone",
+        "wall"
+      ]
+    },
+    "stone_rubble_sparse": {
+      "row": 1,
+      "col": 19,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Scattered fragments of broken stone bricks creating a sparse rubble pattern.",
+      "tile_type": "terrain",
+      "tags": [
+        "stone",
+        "terrain"
+      ]
+    },
+    "stone_wall_right_middle": {
+      "row": 1,
+      "col": 20,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A stone wall section positioned on the right side of the tile, forming the middle portion of a wall structure.",
+      "tile_type": "wall",
+      "tags": [
+        "stone",
+        "wall"
+      ]
+    },
+    "ladder_base": {
+      "row": 1,
+      "col": 21,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "The bottom section of a wooden ladder with four horizontal rungs and vertical side rails, designed to connect with the ladder top above it.",
+      "tile_type": "climbable",
+      "tags": [
+        "climbable"
+      ]
+    },
+    "scaffolding_middle": {
+      "row": 1,
+      "col": 22,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Wooden scaffolding structure with vertical supports and horizontal cross-bracing forming the middle section of a construction frame.",
+      "tile_type": "wall",
+      "tags": [
+        "wall"
+      ]
+    },
+    "exclamation_point_filled": {
+      "row": 1,
+      "col": 23,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A solid-filled exclamation point icon contained within a bordered square frame.",
+      "tile_type": "icon",
+      "tags": [
+        "icon"
+      ]
+    },
+    "robed_mage_staff": {
+      "row": 1,
+      "col": 24,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A robed human character holding a magical staff, depicted in pixel art form.",
+      "tile_type": "character",
+      "tags": [
+        "character"
+      ]
+    },
+    "human_farmer": {
+      "row": 1,
+      "col": 25,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A pixel art farmer character wearing work clothes and a wide-brimmed hat, standing in a neutral pose.",
+      "tile_type": "character",
+      "tags": [
+        "character"
+      ]
+    },
+    "human_femme": {
+      "row": 1,
+      "col": 26,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A female-looking human character in pixel art form, depicted in a neutral standing pose.",
+      "tile_type": "character",
+      "tags": [
+        "character"
+      ]
+    },
+    "human_vest": {
+      "row": 1,
+      "col": 27,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A pixel art human character wearing a brown vest over a light-colored shirt, standing in a neutral pose.",
+      "tile_type": "character",
+      "tags": [
+        "character"
+      ]
+    },
+    "human_sash": {
+      "row": 1,
+      "col": 28,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A pixel art human character wearing a distinctive sash or draped garment across their torso.",
+      "tile_type": "character",
+      "tags": [
+        "character"
+      ]
+    },
+    "undead_zombie": {
+      "row": 1,
+      "col": 29,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A pixel art zombie creature with a hollow, decomposed face and tattered appearance, representing an undead character.",
+      "tile_type": "creature",
+      "tags": [
+        "creature"
+      ]
+    },
+    "undead_robed": {
+      "row": 1,
+      "col": 30,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A skeletal undead character with a skull face wearing robes, depicted in a standing pose with outstretched limbs.",
+      "tile_type": "creature",
+      "tags": [
+        "creature"
+      ]
+    },
+    "undead_robed_staff": {
+      "row": 1,
+      "col": 31,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A skeletal undead character with a skull face wearing robes and wielding a magical staff.",
+      "tile_type": "creature",
+      "tags": [
+        "creature"
+      ]
+    },
+    "breastplate_sleeveless": {
+      "row": 1,
+      "col": 32,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A torso armor piece with shoulder protection but no arm coverage, designed for maximum mobility.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "breastplate_pauldrons": {
+      "row": 1,
+      "col": 33,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A torso armor piece with large shoulder pauldrons and central chest protection.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "half_plate": {
+      "row": 1,
+      "col": 34,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A torso armor piece with integrated shoulder pauldrons and arm coverage, providing more protection than a standard breastplate.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "half_plate_skirt": {
+      "row": 1,
+      "col": 35,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A torso armor piece with shoulder protection and a skirt panel extending downward for lower body coverage.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "full_plate": {
+      "row": 1,
+      "col": 36,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A complete suit of plate armor with full body coverage including helmet and limb protection.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "brown_coat": {
+      "row": 1,
+      "col": 37,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A simple brown cloth coat with long sleeves, providing basic torso coverage for casual wear.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "brown_robe": {
+      "row": 1,
+      "col": 38,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A simple brown cloth robe with long sleeves providing basic torso coverage for casual wear.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "brown_leather_boots": {
+      "row": 1,
+      "col": 39,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Brown leather boots with a sturdy pixelated silhouette, providing basic footwear protection.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment",
+        "fabric"
+      ]
+    },
+    "armored_boots_brown": {
+      "row": 1,
+      "col": 40,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Brown armored boots with protective metal plating, providing sturdy footwear protection.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "brown_gloves": {
+      "row": 1,
+      "col": 41,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Brown cloth or leather gloves providing basic hand coverage and protection.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "brown_gauntlets": {
+      "row": 1,
+      "col": 42,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Brown leather gauntlets with protective plating on the knuckles and fingers.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "white_car_sedan": {
+      "row": 1,
+      "col": 43,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A white boxy sedan viewed from above with visible windows and body panels.",
+      "tile_type": "creature",
+      "tags": [
+        "creature"
+      ]
+    },
+    "white_truck": {
+      "row": 1,
+      "col": 44,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A white truck viewed from above with a cargo bed and cabin, rendered in simple pixelated form.",
+      "tile_type": "creature",
+      "tags": [
+        "creature"
+      ]
+    },
+    "white_truck_no_roof": {
+      "row": 1,
+      "col": 45,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A white truck viewed from above with an open cargo bed and no roof, showing the interior compartment.",
+      "tile_type": "character",
+      "tags": [
+        "character"
+      ]
+    },
+    "white_car_top_2": {
+      "row": 1,
+      "col": 46,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A white boxy sedan viewed from above with visible windows and rectangular body panels.",
+      "tile_type": "creature",
+      "tags": [
+        "creature"
+      ]
+    },
+    "wheelchair_large": {
+      "row": 1,
+      "col": 48,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A larger wheelchair viewed from above with extended seat area and wider frame structure.",
+      "tile_type": "equipment",
+      "tags": [
+        "equipment"
+      ]
+    },
+    "grass_tuft": {
+      "row": 2,
+      "col": 0,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A tall clump of green grass and vegetation rendered as vertical pixelated strands.",
+      "tile_type": "vegetation",
+      "tags": [
+        "vegetation"
+      ]
+    },
+    "shrub_scattered": {
+      "row": 2,
+      "col": 1,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "An irregular green shrub or small bush with scattered, blocky pixelated foliage.",
+      "tile_type": "vegetation",
+      "tags": [
+        "vegetation"
+      ]
+    },
+    "vines": {
+      "row": 2,
+      "col": 2,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A tangled mass of green vines with an organic, climbable structure.",
+      "tile_type": "climbable",
+      "tags": [
+        "climbable",
+        "vegetation"
+      ]
+    },
+    "trees_angular_pair": {
+      "row": 2,
+      "col": 3,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Two pointed pine or conifer trees with angular branching structure viewed from above.",
+      "tile_type": "vegetation",
+      "tags": [
+        "vegetation"
+      ]
+    },
+    "tree_round_trunk": {
+      "row": 2,
+      "col": 4,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A rounded tree with a prominent tall trunk extending downward.",
+      "tile_type": "vegetation",
+      "tags": [
+        "vegetation"
+      ]
+    },
+    "rock": {
+      "row": 2,
+      "col": 5,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A simple gray stone or rock suitable for terrain.",
+      "tile_type": "terrain",
+      "tags": [
+        "stone",
+        "terrain"
+      ]
+    },
+    "tree_dead_stark": {
+      "row": 2,
+      "col": 6,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A bare, gnarled dead tree with an irregular jagged silhouette and no foliage.",
+      "tile_type": "vegetation",
+      "tags": [
+        "vegetation",
+        "wood"
+      ]
+    },
+    "palm_tree_trunk": {
+      "row": 2,
+      "col": 7,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A palm tree with broad spreading fronds at the top and a slender vertical trunk extending downward.",
+      "tile_type": "vegetation",
+      "tags": [
+        "vegetation"
+      ]
+    },
+    "railroad_ties_squared": {
+      "row": 2,
+      "col": 8,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A burgundy railroad track with evenly-spaced white square ties viewed from above, suitable for railroad or track terrain.",
+      "tile_type": "path",
+      "tags": [
+        "path"
+      ]
+    },
+    "railroad_ties_corner_squared": {
+      "row": 2,
+      "col": 9,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A burgundy railroad track with white square ties forming an L-shaped corner bend viewed from above, suitable for connecting horizontal and vertical track segments.",
+      "tile_type": "path",
+      "tags": [
+        "path"
+      ]
+    },
+    "railroad_ties_t_junction": {
+      "row": 2,
+      "col": 10,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A burgundy railroad track with white square ties forming a T-shaped junction viewed from above.",
+      "tile_type": "path",
+      "tags": [
+        "path"
+      ]
+    },
+    "railroad_ties_cross_junction": {
+      "row": 2,
+      "col": 11,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A burgundy railroad track with white square ties forming a cross-shaped 4-way junction viewed from above.",
+      "tile_type": "path",
+      "tags": [
+        "path"
+      ]
+    },
+    "railroad_ties_dead_end": {
+      "row": 2,
+      "col": 12,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "A burgundy railroad track with white square ties forming a dead end where the track terminates.",
+      "tile_type": "path",
+      "tags": [
+        "path"
+      ]
+    }
+  }
+}

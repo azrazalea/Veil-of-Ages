@@ -16,12 +16,14 @@ The main dialogue UI component that displays conversations and command options.
   - Generate and display command options as buttons
   - Process option selections and command execution
   - Handle location selection for position-based commands
+  - Display facility interaction dialogues (non-conversation mode)
 - **Exports**:
   - `_nameLabel`: RichTextLabel for entity name
   - `_dialogueText`: RichTextLabel for dialogue content
   - `_optionsContainer`: GridContainer for option buttons
   - `_minimap`, `_quickActions`: Panels hidden during dialogue
 - **Important**: Checks `Being.WillRefuseCommand()` before showing dialogue and disables buttons for refused commands.
+- **Facility Dialogue**: `ShowFacilityDialogue(speaker, facility)` shows facility interaction options with explicit enabled/disabled states and tooltips.
 
 ## Key Classes/Interfaces
 
@@ -32,12 +34,20 @@ The main dialogue UI component that displays conversations and command options.
 ## Important Notes
 
 ### Dialogue Flow
+
+**Entity Dialogue:**
 1. `ShowDialogue(speaker, target)` is called (typically from PlayerInputController)
 2. Target entity's `WillRefuseCommand(TalkCommand)` is checked
 3. If accepted, `target.BeginDialogue(speaker)` is called
 4. Initial dialogue text generated via `target.GenerateInitialDialogue(speaker)`
 5. Options generated via `DialogueController.GenerateOptionsFor()`
 6. User selects option, command processed, follow-up options generated or dialogue closes
+
+**Facility Dialogue:**
+1. `ShowFacilityDialogue(speaker, facility)` is called (typically from PlayerInputController context menu)
+2. Facility's `GetInteractionOptions(speaker)` is called
+3. Options displayed with explicit enabled/disabled state (not based on WillRefuseCommand)
+4. User selects enabled option, command/callback executed, dialogue closes
 
 ### Option Button States
 - Buttons are disabled if the target would refuse the associated command

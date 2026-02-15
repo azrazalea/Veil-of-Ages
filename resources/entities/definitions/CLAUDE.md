@@ -37,7 +37,7 @@ Definitions can inherit from a parent using the `ParentId` field:
 Base human villager definition. Used as parent for job-specific villagers.
 - Category: Human
 - Movement: 0.33 points/tick (3 ticks per tile)
-- Traits: VillagerTrait (priority 1)
+- Traits: ScheduleTrait (priority 0, allowNightWork: false), VillagerTrait (priority 1)
 - Tags: human, living, villager
 
 ### Job-Specific Villagers (inherit from human_townsfolk)
@@ -85,8 +85,8 @@ Mindless zombie with wandering behavior.
 Player-controlled necromancer.
 - Category: Human
 - Movement: 0.5 points/tick (2 ticks per tile, fastest)
-- Traits: LivingTrait (priority 0)
-- Tags: human, living, player, necromancer
+- Traits: ScheduleTrait (priority 0, allowNightWork: true), ScholarJobTrait (priority -1), NecromancyStudyJobTrait (priority -1), AutomationTrait (priority 4)
+- Tags: human, player, necromancer, scholar
 
 ## Trait Definition Format
 

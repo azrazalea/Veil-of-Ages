@@ -1,0 +1,7 @@
+{
+    "Id": "ladder",
+    "Name": "Ladder",
+    "AtlasSource": "urizen",
+    "AtlasCoords": [0, 40],
+    "TileSize": [1, 1]
+}

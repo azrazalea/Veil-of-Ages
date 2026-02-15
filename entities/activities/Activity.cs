@@ -15,7 +15,7 @@ namespace VeilOfAges.Entities.Activities;
 ///
 /// Traits DECIDE what to do, Activities EXECUTE multi-step behaviors, Actions are ATOMIC.
 /// </summary>
-public abstract class Activity
+public abstract class Activity : ISubActivityRunner
 {
     public enum ActivityState
     {
@@ -256,6 +256,11 @@ public abstract class Activity
     protected Being? _owner;
 
     /// <summary>
+    /// Gets explicit ISubActivityRunner implementation — exposes _owner for the interface's default RunSubActivity.
+    /// </summary>
+    Being? ISubActivityRunner.SubActivityOwner => _owner;
+
+    /// <summary>
     /// Called when the activity is started. Sets up initial state.
     /// </summary>
     public virtual void Initialize(Being owner)
@@ -322,54 +327,7 @@ public abstract class Activity
         Vector2I position,
         Perception perception)
     {
-        // Already failed
-        if (subActivity.State == ActivityState.Failed)
-        {
-            return (SubActivityResult.Failed, null);
-        }
-
-        // Already completed
-        if (subActivity.State == ActivityState.Completed)
-        {
-            return (SubActivityResult.Completed, null);
-        }
-
-        // Propagate entity events to sub-activity (may change state)
-        subActivity.ProcessEntityEvents(perception);
-
-        // Check state after event processing
-        if (subActivity.State == ActivityState.Failed)
-        {
-            return (SubActivityResult.Failed, null);
-        }
-
-        if (subActivity.State == ActivityState.Completed)
-        {
-            return (SubActivityResult.Completed, null);
-        }
-
-        // Try to get next action
-        var action = subActivity.GetNextAction(position, perception);
-
-        // Got an action - sub-activity is running
-        if (action != null)
-        {
-            return (SubActivityResult.Continue, action);
-        }
-
-        // Action was null - state may have changed during GetNextAction
-        if (subActivity.State == ActivityState.Completed)
-        {
-            return (SubActivityResult.Completed, null);
-        }
-
-        if (subActivity.State == ActivityState.Failed)
-        {
-            return (SubActivityResult.Failed, null);
-        }
-
-        // Still running but returned null - return idle to hold our slot
-        return (SubActivityResult.Continue, new IdleAction(_owner!, this, Priority));
+        return ((ISubActivityRunner)this).RunSubActivity(subActivity, position, perception, Priority);
     }
 
     /// <summary>
