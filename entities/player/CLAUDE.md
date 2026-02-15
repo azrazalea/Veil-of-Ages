@@ -17,8 +17,11 @@ The player-controlled necromancer entity.
 - Definition ID: "player" (loaded from `resources/entities/definitions/player.json`)
 
 **Trait Composition:**
-- `PlayerBehaviorTrait` (priority 0) - Autonomous behavior, composes LivingTrait + InventoryTrait + ItemConsumptionBehaviorTrait
+- `ScheduleTrait` (priority 0) - Sleep scheduling with allowNightWork=true
 - `ScholarJobTrait` (priority -1) - Daytime study activity at home
+- `NecromancyStudyJobTrait` (priority -1) - Nighttime necromancy study
+- `ItemConsumptionBehaviorTrait` (priority 1) - Food consumption
+- `AutomationTrait` (priority 4) - Manual/auto toggle
 
 **Home System:**
 - `_home` - Reference to player's house building
@@ -49,14 +52,16 @@ The player-controlled necromancer entity.
 ### Sims-Like Behavior
 When the player has no commands queued, they behave autonomously:
 
-1. **Hunger Satisfaction**: `ItemConsumptionBehaviorTrait` (via `PlayerBehaviorTrait`)
+1. **Hunger Satisfaction**: `ItemConsumptionBehaviorTrait`
    - Checks inventory and home storage for food
    - Critical hunger (priority -2) interrupts commands
    - Uses `ConsumeItemActivity` when food available
    - Uses `CheckHomeStorageActivity` to observe storage when memory empty
 
-2. **Sleep at Night**: `PlayerBehaviorTrait`
-   - During Night phase, if energy is low, sleeps at home
+2. **Sleep Schedule**: `ScheduleTrait`
+   - During Dusk/Night, if energy is low, navigates home and sleeps
+   - Defers to night jobs (NecromancyStudyJobTrait) when `allowNightWork` is true
+   - Critical energy forces sleep regardless of time/jobs
    - Uses `SleepActivity` to restore energy
 
 3. **Scholar Work**: `ScholarJobTrait`
@@ -64,23 +69,24 @@ When the player has no commands queued, they behave autonomously:
    - Uses `StudyActivity` for scholarly work
    - Spends energy while studying (mentally taxing)
 
-4. **Idle Fallback**: `PlayerBehaviorTrait`
-   - When nothing else to do, idles with low priority
-   - Commands always take precedence when queued
+4. **Necromancy Study**: `NecromancyStudyJobTrait`
+   - During Night phase, studies at necromancy altar
+   - ScheduleTrait defers sleep to allow night work
+
+5. **Idle Fallback**: `Being.Think()`
+   - When no trait suggests an action, defaults to IdleAction
+   - Commands always take precedence via priority system
 
 ### Priority System
 The existing action priority system handles interruption:
 - Commands return priority `-1` to `0`
 - `ItemConsumptionBehaviorTrait` returns priority `-2` when hunger is critical
+- `ScheduleTrait` returns priority `-1` for critical energy sleep, `0` for normal sleep
 - Lower priority wins, so critical hunger interrupts commands automatically
 
 ### Deference to Commands
-When the player has commands queued:
-```csharp
-// In PlayerBehaviorTrait.SuggestAction():
-if (player.HasAssignedCommand() || player.GetCommandQueue().Count > 0)
-    return null;  // Let command system handle it
-```
+Commands get priority -1 in the priority queue, so they win over trait suggestions
+at priority 0-1. The priority system makes explicit command-queue checking unnecessary.
 
 ## Important Notes
 
@@ -124,7 +130,7 @@ The player's home is assigned during village generation:
 2. Calls `Player.SetHome()` which:
    - Sets `_home` reference
    - Registers player as resident of the building
-   - Notifies `PlayerBehaviorTrait` and `ScholarJobTrait`
+   - Notifies `ScholarJobTrait`
 3. This happens BEFORE `InitializeGranaryOrders()` so scholar food priority works
 
 ### Scholar Food Priority
@@ -134,7 +140,7 @@ Because the player has `ScholarJobTrait` (can't produce their own food):
 
 ### Living Entity
 Despite being a necromancer, the player is a living entity:
-- Has hunger need (via LivingTrait in PlayerBehaviorTrait)
+- Has hunger need (via LivingTrait, inherited from living_base)
 - Has energy need for sleep (via LivingTrait)
 - Uses standard body systems
 
@@ -142,7 +148,7 @@ Despite being a necromancer, the player is a living entity:
 
 ### Depends On
 - `VeilOfAges.Entities.Being` - Base class
-- `VeilOfAges.Entities.Traits.PlayerBehaviorTrait` - Autonomous behavior
+- `VeilOfAges.Entities.Traits.ScheduleTrait` - Sleep scheduling
 - `VeilOfAges.Entities.Traits.ScholarJobTrait` - Daytime work
 - `VeilOfAges.Entities.Building` - Home building type
 - `VeilOfAges.Core.Lib.ReorderableQueue` - Command queue
