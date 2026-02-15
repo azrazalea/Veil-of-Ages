@@ -56,7 +56,7 @@ public static class WorldNavigator
     /// Cross-area distance penalty applied when comparing facilities/buildings
     /// across different areas to prefer same-area targets.
     /// </summary>
-    private const float CROSSAREAPENALTY = 10000f;
+    public const float CROSSAREAPENALTY = 10000f;
 
     /// <summary>
     /// Find a route from one area to another using known transition points.

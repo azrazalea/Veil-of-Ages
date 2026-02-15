@@ -1,5 +1,6 @@
 using System.Globalization;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
 using VeilOfAges.Grid;
 
@@ -407,7 +408,7 @@ public class SharedKnowledge
             float dist = fromPosition.DistanceSquaredTo(facility.Position);
             if (facility.Area != currentArea)
             {
-                dist += 10000; // Cross-area penalty to prefer local facilities
+                dist += WorldNavigator.CROSSAREAPENALTY;
             }
 
             if (dist < nearestDist)

@@ -1831,7 +1831,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
                 float dist = currentPos.DistanceSquaredTo(candidate.Position);
                 if (candidate.Area != currentArea)
                 {
-                    dist += 10000;
+                    dist += WorldNavigator.CROSSAREAPENALTY;
                 }
 
                 if (dist < bestDist)
@@ -1859,7 +1859,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
                 float dist = currentPos.DistanceSquaredTo(obs.Position);
                 if (obs.Area != currentArea)
                 {
-                    dist += 10000;
+                    dist += WorldNavigator.CROSSAREAPENALTY;
                 }
 
                 if (dist < nearestDist)

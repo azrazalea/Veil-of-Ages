@@ -113,7 +113,11 @@ public class GoToWorldPositionActivity : Activity
     {
         base.OnResume();
 
-        // Clear current navigation sub-activity on resume (will be recreated)
+        // Cross-area navigation plans are positional: each step assumes the entity
+        // is in a specific area at a specific index. If the entity was interrupted
+        // and moved (e.g., pushed to a different area), the step index may be invalid.
+        // The safest approach is to fail so the parent activity re-creates the plan.
         _currentNavigation = null;
+        Fail();
     }
 }
