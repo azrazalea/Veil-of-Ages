@@ -10,8 +10,8 @@ namespace VeilOfAges.Entities.Activities;
 /// Activity for sleeping. Restores energy and reduces hunger decay while sleeping.
 /// Sleep targets 100% energy. Wakes when:
 /// - Energy reaches 100%, OR
-/// - Day phase starts (must wake for daytime regardless of energy), OR
-/// - A night job trait requests waking (via WakeRequested flag)
+/// - A non-energy need reaches critical level (e.g., starvation), OR
+/// - Day phase starts (must wake for daytime regardless of energy)
 /// Can start during Dusk or Night phases. Can continue sleeping through Dawn
 /// if energy hasn't reached 100% yet.
 /// </summary>
@@ -22,12 +22,6 @@ public class SleepActivity : Activity
     private const float ENERGYRESTORERATE = 0.025f;
 
     private Need? _energyNeed;
-
-    /// <summary>
-    /// Gets or sets a value indicating whether something has requested this entity wake up.
-    /// Set by traits (e.g., NecromancyStudyJobTrait) that need the entity to wake for work.
-    /// </summary>
-    public bool WakeRequested { get; set; }
 
     public override string DisplayName => "Sleeping";
 
@@ -81,19 +75,24 @@ public class SleepActivity : Activity
             return null;
         }
 
-        // 2. Day phase starts - must wake regardless of energy
+        // 2. A non-energy need is critical (e.g., starving) - must wake to address it
+        if (_owner.NeedsSystem != null)
+        {
+            foreach (var need in _owner.NeedsSystem.GetAllNeeds())
+            {
+                if (need.Id != "energy" && need.IsCritical())
+                {
+                    Log.Print($"{_owner.Name}: Waking up - {need.DisplayName} is critical (energy: {currentEnergy:F1})");
+                    Complete();
+                    return null;
+                }
+            }
+        }
+
+        // 3. Day phase starts - must wake regardless of energy
         if (currentPhase == DayPhaseType.Day)
         {
             Log.Print($"{_owner.Name}: Waking up - day started (energy: {currentEnergy:F1})");
-            Complete();
-            return null;
-        }
-
-        // 3. A trait requested waking (e.g., night job starting)
-        if (WakeRequested)
-        {
-            WakeRequested = false;
-            Log.Print($"{_owner.Name}: Waking up - wake requested (energy: {currentEnergy:F1})");
             Complete();
             return null;
         }

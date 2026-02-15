@@ -234,8 +234,8 @@ new SleepActivity(priority: 0)
 
 **Wake Conditions:**
 1. Energy reaches 100% (fully rested)
-2. Day phase starts (must wake regardless of energy)
-3. `WakeRequested` flag set by trait (e.g., night job starting)
+2. Any non-energy need reaches critical level (e.g., starvation)
+3. Day phase starts (must wake regardless of energy)
 
 **Need Effects:**
 ```csharp
@@ -243,9 +243,6 @@ NeedDecayMultipliers["hunger"] = 0.25f;  // Slow hunger
 NeedDecayMultipliers["energy"] = 0f;      // No energy decay
 // Plus direct restoration: _energyNeed.Restore(0.025f) each tick
 ```
-
-**Public Properties:**
-- `WakeRequested` - Set by traits to request early wake (e.g., NecromancyStudyJobTrait)
 
 ### WorkFieldActivity.cs
 Multi-phase work activity at a farm/field. Produces wheat, brings harvest home.
