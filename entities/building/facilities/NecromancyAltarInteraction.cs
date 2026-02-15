@@ -3,6 +3,8 @@ using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Memory;
 using VeilOfAges.Entities.Skills;
 using VeilOfAges.Entities.Traits;
+using VeilOfAges.Entities.WorkOrders;
+using VeilOfAges.UI.Commands;
 
 namespace VeilOfAges.Entities;
 
@@ -99,9 +101,13 @@ public class NecromancyAltarInteraction : IFacilityInteractable
             return new FacilityDialogueOption("Get Corpse", null, false, "You remember the graveyard being empty");
         }
 
-        // Enabled - will create FetchCorpseCommand when selected
-        // Command will be created by the dialogue system when this option is chosen
-        return new FacilityDialogueOption("Get Corpse", null, true);
+        // Enabled - create FetchCorpseCommand when selected
+        return new FacilityDialogueOption("Get Corpse", facilityAction: entity =>
+        {
+            var command = new FetchCorpseCommand(entity, entity);
+            command.WithParameter("altarBuilding", _building);
+            entity.AssignCommand(command);
+        });
     }
 
     private FacilityDialogueOption CreateRaiseZombieOption(Being interactor, bool isNight)
@@ -132,7 +138,15 @@ public class NecromancyAltarInteraction : IFacilityInteractable
             return new FacilityDialogueOption("Raise Zombie", null, false, $"Already raising a zombie ({progress})");
         }
 
-        // Enabled
-        return new FacilityDialogueOption("Raise Zombie", null, true);
+        // Enabled - create RaiseZombieWorkOrder and start it on the altar facility
+        return new FacilityDialogueOption("Raise Zombie", facilityAction: entity =>
+        {
+            var workOrder = new RaiseZombieWorkOrder
+            {
+                SpawnFacility = _facility,
+                AltarBuilding = _building
+            };
+            _facility.StartWorkOrder(workOrder);
+        });
     }
 }

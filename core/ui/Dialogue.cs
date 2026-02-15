@@ -101,7 +101,8 @@ public partial class Dialogue : CanvasLayer
                 facilityOption.Label,
                 facilityOption.Command,
                 facilityOption.Enabled,
-                facilityOption.DisabledReason));
+                facilityOption.DisabledReason,
+                facilityOption.FacilityAction));
         }
 
         RefreshOptions();

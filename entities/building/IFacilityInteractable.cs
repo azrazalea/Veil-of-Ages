@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using VeilOfAges.UI;
 
@@ -28,12 +29,20 @@ public class FacilityDialogueOption
     /// </summary>
     public string? DisabledReason { get; }
 
-    public FacilityDialogueOption(string label, EntityCommand? command = null, bool enabled = true, string? disabledReason = null)
+    /// <summary>
+    /// Gets the callback action for facility options that don't use the standard command system.
+    /// Receives the interacting Being as parameter.
+    /// </summary>
+    public Action<Being>? FacilityAction { get; }
+
+    public FacilityDialogueOption(string label, EntityCommand? command = null, bool enabled = true,
+        string? disabledReason = null, Action<Being>? facilityAction = null)
     {
         Label = label;
         Command = command;
         Enabled = enabled;
         DisabledReason = disabledReason;
+        FacilityAction = facilityAction;
     }
 }
 
