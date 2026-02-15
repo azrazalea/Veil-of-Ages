@@ -1,5 +1,6 @@
 using System;
 using Godot;
+using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Activities;
 using VeilOfAges.Entities.Memory;
@@ -21,17 +22,30 @@ namespace VeilOfAges.Entities.Traits;
 ///
 /// Special behaviors:
 /// - Will not start if energy is critical (allows sleep to take over)
-/// - Finds the nearest necromancy_altar via Being.FindFacilityOfType.
+/// - Finds the nearest necromancy_altar via Being.FindFacilityOfType (cached with TTL).
 /// </summary>
 public class NecromancyStudyJobTrait : JobTrait
 {
     private const uint WORKDURATION = 400; // ~50 seconds real time at 8 ticks/sec
+    private const uint FACILITYCACHETTL = 200; // Re-lookup facility every ~25 seconds
+
+    // Cached facility reference to avoid FindFacilityOfType every tick
+    private FacilityReference? _cachedFacilityRef;
+    private uint _facilityCacheTick;
 
     /// <summary>
     /// Gets the activity type for necromancy study work.
-    /// Also checks for WorkOnOrderActivity since that can replace study.
     /// </summary>
     protected override Type WorkActivityType => typeof(StudyNecromancyActivity);
+
+    /// <summary>
+    /// Check if the given activity counts as "working" for this job.
+    /// Necromancy study can produce either StudyNecromancyActivity or WorkOnOrderActivity.
+    /// </summary>
+    protected override bool IsWorkActivity(Activity activity)
+    {
+        return activity is StudyNecromancyActivity or WorkOnOrderActivity;
+    }
 
     /// <summary>
     /// Gets necromancy study happens during Night only (dark arts thrive in deepest darkness).
@@ -39,21 +53,13 @@ public class NecromancyStudyJobTrait : JobTrait
     protected override DayPhaseType[] WorkPhases => [DayPhaseType.Night];
 
     /// <summary>
-    /// Gets necromancy study uses facility lookup, not a configured workplace.
-    /// Config key is kept for compatibility but not required.
-    /// </summary>
-    protected override string WorkplaceConfigKey => "home";
-
-    /// <summary>
-    /// The workplace is dynamically resolved via FindFacilityOfType.
-    /// Returns a dummy non-null value so JobTrait's sealed SuggestAction doesn't bail out
+    /// The workplace is dynamically resolved via FindFacilityOfType (cached).
+    /// Returns a non-null value so JobTrait's sealed SuggestAction doesn't bail out
     /// on the workplace null check. The actual facility is resolved in CreateWorkActivity.
     /// </summary>
     protected override Building? GetWorkplace()
     {
-        // We need to return non-null so JobTrait doesn't short-circuit.
-        // Try to find the altar's building; fall back to null (which skips work).
-        var facilityRef = _owner?.FindFacilityOfType("necromancy_altar");
+        var facilityRef = GetCachedFacilityRef();
         return facilityRef?.Building.Building;
     }
 
@@ -104,18 +110,11 @@ public class NecromancyStudyJobTrait : JobTrait
             return null;
         }
 
-        // Find nearest necromancy_altar facility
-        var facilityRef = _owner.FindFacilityOfType("necromancy_altar");
+        // Use cached facility reference (avoids FindFacilityOfType every tick)
+        var facilityRef = GetCachedFacilityRef();
         if (facilityRef == null)
         {
             DebugLog("NECROMANCYSTUDY", "No necromancy_altar facility found");
-            return null;
-        }
-
-        // Check if already in a WorkOnOrderActivity (in addition to the WorkActivityType check)
-        var currentActivity = _owner.GetCurrentActivity();
-        if (currentActivity is WorkOnOrderActivity)
-        {
             return null;
         }
 
@@ -127,12 +126,28 @@ public class NecromancyStudyJobTrait : JobTrait
             if (facility?.ActiveWorkOrder != null)
             {
                 DebugLog("NECROMANCYSTUDY", $"Active work order found on altar, starting WorkOnOrderActivity", 0);
-                return new WorkOnOrderActivity(facilityRef, facility, priority: 0);
+                return new WorkOnOrderActivity(facilityRef, facility, priority: 0, allowedPhases: [DayPhaseType.Night]);
             }
         }
 
         // No work order — default to necromancy study
         return new StudyNecromancyActivity(facilityRef, WORKDURATION, priority: 0);
+    }
+
+    /// <summary>
+    /// Get the cached facility reference, refreshing if the TTL has expired.
+    /// Avoids calling FindFacilityOfType every tick (GC pressure reduction).
+    /// </summary>
+    private FacilityReference? GetCachedFacilityRef()
+    {
+        uint currentTick = GameController.CurrentTick;
+        if (_cachedFacilityRef == null || (currentTick - _facilityCacheTick) >= FACILITYCACHETTL)
+        {
+            _cachedFacilityRef = _owner?.FindFacilityOfType("necromancy_altar");
+            _facilityCacheTick = currentTick;
+        }
+
+        return _cachedFacilityRef;
     }
 
     // ===== Dialogue Methods (not part of job pattern, kept in subclass) =====

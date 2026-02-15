@@ -1,3 +1,4 @@
+using System;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
@@ -23,15 +24,24 @@ public class WorkOnOrderActivity : Activity
 
     private readonly FacilityReference _facilityRef;
     private readonly Facility _facility;
+    private readonly DayPhaseType[] ? _allowedPhases;
     private Phase _currentPhase = Phase.Navigating;
     private Activity? _navigationActivity;
 
     public override string DisplayName => $"Working on {_facility.ActiveWorkOrder?.Type ?? "order"}";
 
-    public WorkOnOrderActivity(FacilityReference facilityRef, Facility facility, int priority = 0)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="WorkOnOrderActivity"/> class.
+    /// </summary>
+    /// <param name="facilityRef">Reference to the facility to work at.</param>
+    /// <param name="facility">The facility with the active work order.</param>
+    /// <param name="priority">Action priority (default 0).</param>
+    /// <param name="allowedPhases">Day phases when work is allowed. If null, work is allowed at any time.</param>
+    public WorkOnOrderActivity(FacilityReference facilityRef, Facility facility, int priority = 0, DayPhaseType[] ? allowedPhases = null)
     {
         _facilityRef = facilityRef;
         _facility = facility;
+        _allowedPhases = allowedPhases;
         Priority = priority;
     }
 
@@ -137,13 +147,16 @@ public class WorkOnOrderActivity : Activity
             return null;
         }
 
-        // Check time - necromancy is night only
-        var gameTime = _owner.GameController?.CurrentGameTime ?? new GameTime(0);
-        if (gameTime.CurrentDayPhase != DayPhaseType.Night)
+        // Check time restriction if configured
+        if (_allowedPhases != null)
         {
-            DebugLog("WORK_ORDER", "Not night phase, stopping work", 0);
-            Complete();
-            return null;
+            var gameTime = _owner.GameController?.CurrentGameTime ?? new GameTime(0);
+            if (!Array.Exists(_allowedPhases, phase => phase == gameTime.CurrentDayPhase))
+            {
+                DebugLog("WORK_ORDER", $"Current phase {gameTime.CurrentDayPhase} not in allowed phases, stopping work", 0);
+                Complete();
+                return null;
+            }
         }
 
         // Advance the work order

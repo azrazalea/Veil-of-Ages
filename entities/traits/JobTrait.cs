@@ -37,9 +37,20 @@ public abstract class JobTrait : BeingTrait, IDesiredResources
 
     /// <summary>
     /// Gets the activity type that represents "working" for this job.
-    /// Used to check if the entity is already engaged in work.
+    /// Used by the default IsWorkActivity() check.
     /// </summary>
     protected abstract Type WorkActivityType { get; }
+
+    /// <summary>
+    /// Check if the given activity counts as "working" for this job.
+    /// Default checks WorkActivityType. Override for jobs that produce
+    /// multiple activity types (e.g., NecromancyStudyJobTrait can produce
+    /// both StudyNecromancyActivity and WorkOnOrderActivity).
+    /// </summary>
+    protected virtual bool IsWorkActivity(Activity activity)
+    {
+        return WorkActivityType.IsInstanceOfType(activity);
+    }
 
     /// <summary>
     /// Create the work activity for this job. This is the ONLY way to define
@@ -93,7 +104,7 @@ public abstract class JobTrait : BeingTrait, IDesiredResources
 
         // Check if already in work activity
         var currentActivity = _owner.GetCurrentActivity();
-        if (currentActivity != null && WorkActivityType.IsInstanceOfType(currentActivity))
+        if (currentActivity != null && IsWorkActivity(currentActivity))
         {
             return null;
         }
@@ -120,7 +131,7 @@ public abstract class JobTrait : BeingTrait, IDesiredResources
     /// <summary>
     /// Check if the current day phase is a work phase.
     /// </summary>
-    protected bool IsWorkHours(DayPhaseType currentPhase)
+    public bool IsWorkHours(DayPhaseType currentPhase)
     {
         foreach (var phase in WorkPhases)
         {
