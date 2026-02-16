@@ -9,13 +9,28 @@
       "row": 0,
       "col": 0,
       "tiles_x": 1,
-      "tiles_y": 1
+      "tiles_y": 1,
+      "description": "Hand-operated stone grain mill",
+      "tags": ["crafting", "furniture", "medieval"],
+      "tile_type": "prop"
     },
     "logo": {
       "row": 0,
       "col": 1,
       "tiles_x": 1,
-      "tiles_y": 1
+      "tiles_y": 1,
+      "description": "GridFab application logo",
+      "tags": ["ui", "logo"],
+      "tile_type": "icon"
+    },
+    "stone_hearth": {
+      "row": 1,
+      "col": 0,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Traditional stone oven with burning fire and coals",
+      "tags": ["crafting", "furniture", "fire", "medieval"],
+      "tile_type": "prop"
     }
   }
 }
