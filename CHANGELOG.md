@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Urizen black-background atlas variant (`urizen_black`) for solid wall tiles
+- Explicit ground-layer dirt tiles under wood floors in house templates (visible through transparent floor tiles)
 - Custom game logo (hourglass with magic energy) as application icon, boot splash, and README branding
 - Claude Code skills for contributing (`/veilofages-contribute`) and releasing (`/veilofages-release`)
 - Runtime sprite layer API for dynamic equipment visuals (SetSpriteLayer, RemoveSpriteLayer)
@@ -20,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - HomeTrait.IsEntityAtHome() method for centralized at-home detection
 
 ### Changed
+- Wall tiles now use Urizen black-background atlas (`urizen_black`) instead of transparent with blue tint hack
+- Floor tiles now use proper Urizen transparent-background atlas for layered rendering
+- Oven decoration now uses custom stone_hearth sprite instead of Kenney placeholder
 - Entity sprites now use static Sprite2D + AtlasTexture instead of AnimatedSprite2D + SpriteFrames
 - Entity sprite definitions moved from `resources/entities/animations/` to simpler format in `resources/entities/sprites/`
 - Being.SpriteLayers is now a named dictionary for O(1) layer lookup
@@ -35,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - NecromancyStudyJobTrait: cached facility lookup with TTL to reduce GC pressure
 
 ### Removed
+- Blue tint hack (`DefaultTint: #8888AA`) from wall tiles — no longer needed with proper black-bg atlas
 - Old entity animation JSON files (replaced by sprite definitions)
 - Unused oven_idle.json decoration animation
 - Dead code: SleepActivity.WakeRequested property (was never set by anything)

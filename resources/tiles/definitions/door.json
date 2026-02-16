@@ -6,7 +6,10 @@
     "IsWalkable": true,
     "BaseDurability": 50,
     "AtlasSource": "urizen",
-    "AtlasCoords": [4, 1],
+    "AtlasCoords": [
+        4,
+        1
+    ],
     "DefaultSensoryDifficulties": {
         "Sight": 0.9,
         "Hearing": 0.3,

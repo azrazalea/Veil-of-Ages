@@ -11,7 +11,8 @@ Contains JSON definitions for sprite atlas sources. Each file defines a texture 
 | `kenney_1bit.json` | `kenney` | Primary building and terrain tiles | Kenney 1-Bit Colored Pack (2x upscaled) |
 | `dcss_utumno.json` | `dcss` | Dungeon and environmental tiles | DCSS ProjectUtumno |
 | `dcss_supplemental.json` | `dcss_supplemental` | Player doll overlays, extra sprites | DCSS Supplemental Atlas |
-| `urizen_onebit.json` | `urizen` | UI elements and small props | Urizen OneBit V2 (upscaled to 32x32) |
+| `urizen_onebit.json` | `urizen` | Primary Urizen tiles (black bg) | Urizen OneBit V2 Black (upscaled to 32x32) |
+| `urizen_onebit_transparent.json` | `urizen_transparent` | Urizen tiles with transparent bg (unused) | Urizen OneBit V2 Transparent (upscaled to 32x32) |
 | `custom.json` | `custom` | Original pixel art for Veil of Ages | Custom atlas (native 32x32) |
 
 ## Atlas Pack Details
@@ -38,10 +39,19 @@ Contains JSON definitions for sprite atlas sources. Each file defines a texture 
 
 **IMPORTANT**: Every individual PNG file under `assets/dcss/` (dungeon/, player/, etc.) is packed into one of these two atlases. The individual files exist ONLY for visual inspection — the game loads from atlas PNGs only.
 
-### Urizen OneBit V2
+### Urizen OneBit V2 (Two Variants)
+
+The Urizen tileset has two variants sharing the same tile layout but different backgrounds:
+
+**Black Background** (primary — used by all tile definitions):
 - **Atlas ID**: `urizen`
+- **Texture**: `urizen_onebit_tileset__v2d0_32x32.png` (32x32 tiles)
+
+**Transparent Background** (available but currently unused):
+- **Atlas ID**: `urizen_transparent`
+- **Texture**: `urizen_onebit_tileset__v2d0_32x32_transparent.png` (32x32 tiles)
+
 - **Original**: `urizen_onebit_tileset__v2d0.png` (12x12 tiles, 1px margin/separation)
-- **Used Texture**: `urizen_onebit_tileset__v2d0_32x32.png` (32x32 tiles, no margin/separation)
 - **Index File**: `assets/urizen/urizen_atlas_index.json`
 
 ### Custom Assets
@@ -125,11 +135,12 @@ These are developer reference files, NOT loaded by the game engine. Workflow:
 - **Margin**: `[0, 0]`
 - **Upscaling**: None (native 32x32)
 
-### Urizen OneBit
+### Urizen OneBit (Both Variants)
 - **TileSize**: `[32, 32]`
 - **Separation**: `[0, 0]`
 - **Margin**: `[0, 0]`
 - **Upscaling**: From 12x12 original to native 32x32
+- **Variants**: `urizen` (black bg, primary), `urizen_transparent` (transparent bg, unused)
 
 ### Custom
 - **TileSize**: `[32, 32]`
