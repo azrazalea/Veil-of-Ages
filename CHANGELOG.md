@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- GridFab building template format: visual grid-based building layouts replacing coordinate-heavy JSON (all 7 building types converted)
+- Shared palette system for building tile alias definitions with palette inheritance (base → culture-specific)
 - Urizen black-background atlas variant (`urizen_black`) for solid wall tiles
 - Explicit ground-layer dirt tiles under wood floors in house templates (visible through transparent floor tiles)
 - Custom game logo (hourglass with magic energy) as application icon, boot splash, and README branding

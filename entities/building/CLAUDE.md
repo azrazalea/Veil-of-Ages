@@ -80,17 +80,38 @@ Contains facility interaction implementations.
 **Files:**
 - `NecromancyAltarInteraction.cs` - Interaction handler for necromancy_altar facility. Provides context-sensitive "Get Corpse" (checks night phase, altar storage, graveyard memory) and "Raise Zombie" (checks night phase, corpse presence, necromancy skill level, active work orders) options with detailed disabled reasons.
 
+### GridBuildingTemplateLoader.cs
+Static class that loads building templates from the directory-based **GridFab** format. Converts visual grid files into standard `BuildingTemplate` objects consumed by `BuildingManager`.
+
+**Key Method:**
+- `LoadFromDirectory(dirPath, palettesBasePath)` - Reads `building.json`, resolves the palette chain, parses all `*.grid` files, and returns a fully assembled `BuildingTemplate`.
+
+**How It Works:**
+1. Loads `building.json` for metadata (Name, Description, BuildingType, Size, EntrancePositions, etc.)
+2. Loads `palette.json` from the template directory; if it declares `"Inherits"`, recursively loads the named shared palette from `palettesBasePath/` first, then overlays template-local aliases on top
+3. Parses each `*.grid` file: each row of space-separated aliases maps to a tile row (row 0 = top of building); the grid filename (without extension) becomes the layer name (e.g., `structure`, `floor`, `ground`)
+4. Alias `.` is always treated as empty (no tile placed); all other aliases resolve through the palette to `(TileType, Material)` pairs
+5. Assembles all parsed tiles across all layers into the `BuildingTemplate.Tiles` list
+
+**Private Helper Types:**
+- `PaletteFile` — JSON-deserialized shape of a `palette.json` file (`Inherits` string, `Tiles` dictionary)
+- `PaletteEntry` — Single palette mapping (`Type` string, `Material` string)
+
 ### BuildingManager.cs
 Singleton manager for building templates and placement.
 
 **Key Features:**
 - Loads all templates from `res://resources/buildings/templates/`
+- Scans for both subdirectory (GridFab format) and legacy `.json` files; GridFab directories take priority when a name collision occurs
 - Template lookup by name
 - Building placement with validation
 - Space availability checking
 
+**Key Fields:**
+- `_palettesPath` - Path to the shared palettes directory (`res://resources/buildings/palettes/`)
+
 **Key Methods:**
-- `LoadAllTemplates()` - Load JSON templates
+- `LoadAllTemplates()` - Scans for GridFab subdirectories first, then legacy `.json` files; delegates GridFab loading to `GridBuildingTemplateLoader`
 - `PlaceBuilding(templateName, position, area)` - Instantiate building
 - `CanPlaceBuildingAt(template, position, area)` - Validate placement
 

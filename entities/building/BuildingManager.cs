@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using Godot;
 using VeilOfAges.Core.Lib;
 
@@ -20,8 +22,9 @@ public partial class BuildingManager : Node
     private World? _world;
     private VeilOfAges.Grid.Area? _currentArea;
 
-    // Path to templates directory
+    // Paths
     private string _templatesPath = "res://resources/buildings/templates";
+    private string _palettesPath = "res://resources/buildings/palettes";
 
     public override void _Ready()
     {
@@ -44,11 +47,60 @@ public partial class BuildingManager : Node
 
     /// <summary>
     /// Load all building templates from the templates directory.
+    /// Supports both legacy single-JSON files and directory-based GridFab format.
     /// </summary>
     public void LoadAllTemplates()
     {
         _templates.Clear();
 
+        string templatesDir = JsonResourceLoader.ResolveResPath(_templatesPath);
+        string palettesDir = JsonResourceLoader.ResolveResPath(_palettesPath);
+
+        if (!Directory.Exists(templatesDir))
+        {
+            Log.Error($"BuildingManager: Templates directory not found: {templatesDir}");
+            return;
+        }
+
+        // Load directory-based templates (GridFab format)
+        foreach (var subDir in Directory.GetDirectories(templatesDir))
+        {
+            string buildingJsonPath = Path.Combine(subDir, "building.json");
+            if (!File.Exists(buildingJsonPath))
+            {
+                continue;
+            }
+
+            try
+            {
+                var template = GridBuildingTemplateLoader.LoadFromDirectory(subDir, palettesDir);
+                if (template == null)
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(template.Name))
+                {
+                    Log.Error($"BuildingManager: Directory template has no name: {subDir}");
+                    continue;
+                }
+
+                if (!template.Validate())
+                {
+                    Log.Error($"BuildingManager: Validation failed for directory template: {subDir}");
+                    continue;
+                }
+
+                _templates[template.Name] = template;
+                Log.Print($"BuildingManager: Loaded directory template: {template.Name}");
+            }
+            catch (Exception e)
+            {
+                Log.Error($"BuildingManager: Error loading directory template {subDir}: {e.Message}");
+            }
+        }
+
+        // Load legacy single-JSON templates
         var loaded = JsonResourceLoader.LoadAllFromDirectory<BuildingTemplate>(
             _templatesPath,
             t => t.Name,
@@ -57,7 +109,10 @@ public partial class BuildingManager : Node
 
         foreach (var kvp in loaded)
         {
-            _templates[kvp.Key] = kvp.Value;
+            if (!_templates.ContainsKey(kvp.Key))
+            {
+                _templates[kvp.Key] = kvp.Value;
+            }
         }
 
         Log.Print($"BuildingManager: Loaded {_templates.Count} building templates");
