@@ -394,18 +394,14 @@ public partial class PlayerInputController : Node
 
     private IFacilityInteractable? FindInteractableFacilityAtPosition(Vector2I position)
     {
-        if (GetTree().GetFirstNodeInGroup("World") is not World world)
+        var gridArea = _player?.GetGridArea();
+        if (gridArea == null)
         {
             return null;
         }
 
-        var entitiesContainer = world.GetNode<Node>("Entities");
-        if (entitiesContainer == null)
-        {
-            return null;
-        }
-
-        foreach (Node child in entitiesContainer.GetChildren())
+        // Search all buildings in the player's current area
+        foreach (Node child in gridArea.GetChildren())
         {
             if (child is Building building && building.ContainsPosition(position))
             {
@@ -488,12 +484,10 @@ public partial class PlayerInputController : Node
             case ContextAction.UseFacility:
                 if (_contextFacilityInteractable != null && _dialogueUI != null)
                 {
-                    _dialogueUI.ShowFacilityDialogue(_player, _contextFacilityInteractable);
-                    if (_minimap != null && _quickActions != null)
-                    {
-                        _minimap.Visible = false;
-                        _quickActions.Visible = false;
-                    }
+                    var facility = _contextFacilityInteractable.Facility;
+                    var activity = new InteractWithFacilityActivity(
+                        facility.Owner, facility.Id, _contextFacilityInteractable, _dialogueUI);
+                    _player.SetCurrentActivity(activity);
                 }
 
                 break;
@@ -562,7 +556,7 @@ public partial class PlayerInputController : Node
         return gridArea != null && gridArea.IsCellWalkable(position);
     }
 
-    // Cancel the player's current command if any
+    // Cancel the player's current command and activity (when in manual mode)
     private void CancelCurrentPlayerCommand()
     {
         if (_player == null)
@@ -570,8 +564,15 @@ public partial class PlayerInputController : Node
             return;
         }
 
-        // Create and assign a cancel command
         _player.AssignCommand(null);
+
+        // In manual mode, also cancel the current activity so the player stops completely
+        var automationTrait = _player.SelfAsEntity().GetTrait<AutomationTrait>();
+        if (automationTrait != null && !automationTrait.IsAutomated)
+        {
+            _player.SetCurrentActivity(null);
+        }
+
         Log.Print("Canceled current player command");
     }
 

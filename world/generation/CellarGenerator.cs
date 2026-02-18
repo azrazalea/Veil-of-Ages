@@ -3,7 +3,6 @@ using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
 using VeilOfAges.Entities.Memory;
-using VeilOfAges.Entities.Traits;
 using VeilOfAges.Grid;
 
 namespace VeilOfAges.WorldGeneration;
@@ -119,17 +118,6 @@ public static class CellarGenerator
         {
             Log.Error("CellarGenerator: Failed to place cellar building from template");
             return;
-        }
-
-        // Set up the necromancy altar interaction handler programmatically
-        var altarFacility = cellarBuilding.GetFacilities("necromancy_altar").FirstOrDefault();
-        if (altarFacility != null)
-        {
-            altarFacility.Interactable = new NecromancyAltarInteraction(altarFacility, cellarBuilding);
-        }
-        else
-        {
-            Log.Warn("CellarGenerator: Cellar building has no necromancy_altar facility");
         }
 
         // Register cellar knowledge with the player's PERSONAL SharedKnowledge.

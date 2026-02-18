@@ -1112,35 +1112,34 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
     }
 
     /// <summary>
-    /// Check if an entity position is adjacent to the storage facility.
-    /// Used when the storage facility has RequireAdjacent set to true.
+    /// Check if an entity position is adjacent to a facility.
     /// </summary>
+    /// <param name="facilityId">The facility ID to check adjacency against.</param>
     /// <param name="entityPosition">The absolute grid position of the entity.</param>
-    /// <returns>True if the entity is adjacent to any storage facility, false if no storage facility exists or entity is not adjacent.</returns>
-    public bool IsAdjacentToStorageFacility(Vector2I entityPosition)
+    /// <returns>True if the entity is adjacent to any instance of the facility, false if no such facility exists or entity is not adjacent.</returns>
+    public bool IsAdjacentToFacility(string facilityId, Vector2I entityPosition)
     {
-        // Get all storage facility positions
-        var storagePositions = GetFacilityPositions("storage");
-        if (storagePositions.Count == 0)
+        var positions = GetFacilityPositions(facilityId);
+        if (positions.Count == 0)
         {
-            // No storage facility defined - fall back to building adjacency
+            // No facility defined - fall back to building adjacency
             return true;
         }
 
-        // Check if entity is adjacent to any storage facility (including diagonals)
-        foreach (var relativeStoragePos in storagePositions)
+        // Check if entity is adjacent to any facility position (including diagonals)
+        foreach (var relativePos in positions)
         {
-            Vector2I absoluteStoragePos = _gridPosition + relativeStoragePos;
+            Vector2I absolutePos = _gridPosition + relativePos;
 
-            // Check if entity is at the storage position or adjacent to it
-            if (entityPosition == absoluteStoragePos)
+            // Check if entity is at the facility position or adjacent to it
+            if (entityPosition == absolutePos)
             {
                 return true;
             }
 
             foreach (var direction in DirectionUtils.All)
             {
-                if (entityPosition == absoluteStoragePos + direction)
+                if (entityPosition == absolutePos + direction)
                 {
                     return true;
                 }
@@ -1148,6 +1147,17 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Check if an entity position is adjacent to the storage facility.
+    /// Used when the storage facility has RequireAdjacent set to true.
+    /// </summary>
+    /// <param name="entityPosition">The absolute grid position of the entity.</param>
+    /// <returns>True if the entity is adjacent to any storage facility, false if no storage facility exists or entity is not adjacent.</returns>
+    public bool IsAdjacentToStorageFacility(Vector2I entityPosition)
+    {
+        return IsAdjacentToFacility("storage", entityPosition);
     }
 
     /// <summary>

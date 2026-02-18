@@ -1,8 +1,32 @@
 using System;
 using System.Collections.Generic;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.UI;
 
 namespace VeilOfAges.Entities;
+
+/// <summary>
+/// Generic interface for anything an entity can interact with.
+/// The interactable controls what happens on interaction via Interact().
+/// Adjacency is checked via TryInteract before calling Interact.
+/// The Dialogue handle is passed through so interactables can show UI as needed.
+/// </summary>
+public interface IInteractable
+{
+    bool RequiresAdjacency { get; }
+    bool IsInteractorAdjacent(Being interactor);
+    bool Interact(Being interactor, Dialogue dialogue);
+
+    bool TryInteract(Being interactor, Dialogue dialogue)
+    {
+        if (RequiresAdjacency && !IsInteractorAdjacent(interactor))
+        {
+            return false;
+        }
+
+        return Interact(interactor, dialogue);
+    }
+}
 
 /// <summary>
 /// A single interaction option for a facility.
@@ -49,8 +73,10 @@ public class FacilityDialogueOption
 /// <summary>
 /// Interface for facilities that can be interacted with through dialogue.
 /// Facilities implement this to provide context-sensitive options to the player.
+/// Default implementations delegate adjacency to Building.IsAdjacentToFacility
+/// and interaction to Dialogue.ShowFacilityDialogue.
 /// </summary>
-public interface IFacilityInteractable
+public interface IFacilityInteractable : IInteractable
 {
     /// <summary>
     /// Get the interaction options for this facility based on who is interacting.
@@ -59,7 +85,25 @@ public interface IFacilityInteractable
     List<FacilityDialogueOption> GetInteractionOptions(Being interactor);
 
     /// <summary>
-    /// Gets get a display name for this facility.
+    /// Gets a display name for this facility.
     /// </summary>
     string FacilityDisplayName { get; }
+
+    /// <summary>
+    /// Gets the facility this interactable is attached to.
+    /// </summary>
+    Facility Facility { get; }
+
+    bool IInteractable.RequiresAdjacency => Facility.RequireAdjacent;
+
+    bool IInteractable.IsInteractorAdjacent(Being interactor)
+    {
+        return Facility.Owner.IsAdjacentToFacility(Facility.Id, interactor.GetCurrentGridPosition());
+    }
+
+    bool IInteractable.Interact(Being interactor, Dialogue dialogue)
+    {
+        dialogue.ShowFacilityDialogue(interactor, this);
+        return true;
+    }
 }

@@ -19,6 +19,7 @@ public class NecromancyAltarInteraction : IFacilityInteractable
     private readonly Building _building;
 
     public string FacilityDisplayName => "Necromancy Altar";
+    public Facility Facility => _facility;
 
     public NecromancyAltarInteraction(Facility facility, Building building)
     {
