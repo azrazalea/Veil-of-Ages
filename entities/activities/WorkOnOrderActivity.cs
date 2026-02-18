@@ -28,7 +28,7 @@ public class WorkOnOrderActivity : Activity
     private Phase _currentPhase = Phase.Navigating;
     private Activity? _navigationActivity;
 
-    public override string DisplayName => $"Working on {_facility.ActiveWorkOrder?.Type ?? "order"}";
+    public override string DisplayName => L.TrFmt("activity.WORKING_ON_ORDER", _facility.ActiveWorkOrder?.Type ?? L.Tr("activity.ORDER_DEFAULT"));
 
     /// <summary>
     /// Initializes a new instance of the <see cref="WorkOnOrderActivity"/> class.

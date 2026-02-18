@@ -73,12 +73,12 @@ public class FetchResourceActivity : StatefulActivity<FetchResourceActivity.Fetc
 
     public override string DisplayName => _machine.State switch
     {
-        FetchState.GoingToSource => $"Going to get {_itemId}",
-        FetchState.WorkingAtSource => $"Fetching {_itemId}",
-        FetchState.TakingResource => $"Taking {_itemId}",
-        FetchState.GoingToDestination => $"Bringing {_itemId}",
-        FetchState.DepositingResource => $"Storing {_itemId}",
-        _ => $"Fetching {_itemId}"
+        FetchState.GoingToSource => L.TrFmt("activity.GOING_TO_GET", _itemId),
+        FetchState.WorkingAtSource => L.TrFmt("activity.FETCHING", _itemId),
+        FetchState.TakingResource => L.TrFmt("activity.TAKING", _itemId),
+        FetchState.GoingToDestination => L.TrFmt("activity.BRINGING", _itemId),
+        FetchState.DepositingResource => L.TrFmt("activity.STORING", _itemId),
+        _ => L.TrFmt("activity.FETCHING", _itemId)
     };
 
     public override Building? TargetBuilding => _machine.State is FetchState.GoingToSource

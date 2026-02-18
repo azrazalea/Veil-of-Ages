@@ -80,10 +80,10 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
 
     public override string DisplayName => _machine.State switch
     {
-        ReactionState.Processing => $"Processing {_reaction.Name}",
-        ReactionState.GoingToStorageForOutputs => $"Storing {_reaction.Name} outputs",
-        ReactionState.DepositingOutputs => $"Storing {_reaction.Name} outputs",
-        _ => $"Preparing {_reaction.Name}"
+        ReactionState.Processing => L.TrFmt("activity.PROCESSING", _reaction.Name ?? string.Empty),
+        ReactionState.GoingToStorageForOutputs => L.TrFmt("activity.STORING_OUTPUTS", _reaction.Name ?? string.Empty),
+        ReactionState.DepositingOutputs => L.TrFmt("activity.STORING_OUTPUTS", _reaction.Name ?? string.Empty),
+        _ => L.TrFmt("activity.PREPARING", _reaction.Name ?? string.Empty)
     };
 
     public override Building? TargetBuilding => _workplace;

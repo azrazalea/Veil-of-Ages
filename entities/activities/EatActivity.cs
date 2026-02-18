@@ -26,8 +26,8 @@ public class EatActivity : Activity
     private bool _isConsuming;
 
     public override string DisplayName => _isConsuming
-        ? $"Eating at {_target.BuildingType}"
-        : $"Going to {_target.BuildingType} to eat";
+        ? L.TrFmt("activity.EATING_AT", _target.BuildingType)
+        : L.TrFmt("activity.GOING_TO_EAT", _target.BuildingType);
     public override Building? TargetBuilding => _target;
 
     /// <summary>

@@ -132,17 +132,17 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
 
     public override string DisplayName => _machine.State switch
     {
-        DistributionState.GoingToGranary => "Going to granary",
-        DistributionState.ReadingOrders => "Reading delivery orders",
-        DistributionState.CheckingGranaryStock => "Checking granary stock",
-        DistributionState.LoadingDeliveryItems => "Loading items for delivery",
-        DistributionState.GoingToHousehold => "Visiting household",
-        DistributionState.CheckingHousehold => "Checking household stock",
-        DistributionState.ExchangingItems => "Exchanging items",
-        DistributionState.TakingBreak => "Taking a break",
-        DistributionState.ReturningToGranary => "Returning to granary",
-        DistributionState.DepositingCollected => "Depositing collected items",
-        _ => "Distributing"
+        DistributionState.GoingToGranary => L.Tr("activity.GOING_TO_GRANARY"),
+        DistributionState.ReadingOrders => L.Tr("activity.READING_ORDERS"),
+        DistributionState.CheckingGranaryStock => L.Tr("activity.CHECKING_GRANARY"),
+        DistributionState.LoadingDeliveryItems => L.Tr("activity.LOADING_DELIVERY"),
+        DistributionState.GoingToHousehold => L.Tr("activity.VISITING_HOUSEHOLD"),
+        DistributionState.CheckingHousehold => L.Tr("activity.CHECKING_HOUSEHOLD"),
+        DistributionState.ExchangingItems => L.Tr("activity.EXCHANGING_ITEMS"),
+        DistributionState.TakingBreak => L.Tr("activity.TAKING_BREAK"),
+        DistributionState.ReturningToGranary => L.Tr("activity.RETURNING_TO_GRANARY"),
+        DistributionState.DepositingCollected => L.Tr("activity.DEPOSITING_COLLECTED"),
+        _ => L.Tr("activity.DISTRIBUTING")
     };
 
     public override Building? TargetBuilding => _machine.State switch

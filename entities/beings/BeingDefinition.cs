@@ -42,6 +42,9 @@ public class BeingDefinition : IResourceDefinition
     /// </summary>
     public string? Description { get; set; }
 
+    public string LocalizedName => L.Tr($"being.name.{Id!.ToUpperInvariant()}");
+    public string LocalizedDescription => L.Tr($"being.desc.{Id!.ToUpperInvariant()}");
+
     /// <summary>
     /// Gets or sets primary category of this being (e.g., "Human", "Undead").
     /// </summary>

@@ -76,7 +76,7 @@ public class PersonalMemory
         {
             items.Add(new ItemSnapshot(
                 item.Definition.Id ?? string.Empty,
-                item.Definition.Name ?? string.Empty,
+                item.Definition.LocalizedName ?? string.Empty,
                 item.Quantity,
                 new List<string>(item.Definition.Tags)));
         }

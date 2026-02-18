@@ -14,7 +14,7 @@ public class GoToFacilityActivity : NavigationActivity
     private readonly Building _building;
     private readonly string _facilityId;
 
-    public override string DisplayName => $"Going to {_facilityId}";
+    public override string DisplayName => L.TrFmt("activity.GOING_TO_FACILITY", _facilityId);
     public override Building? TargetBuilding => _building;
     public override string? TargetFacilityId => _facilityId;
 

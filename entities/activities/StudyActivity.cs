@@ -36,9 +36,9 @@ public class StudyActivity : Activity
 
     public override string DisplayName => _currentPhase switch
     {
-        StudyPhase.GoingToStudy => "Going to study",
-        StudyPhase.Studying => "Studying",
-        _ => "Studying"
+        StudyPhase.GoingToStudy => L.Tr("activity.GOING_TO_STUDY"),
+        StudyPhase.Studying => L.Tr("activity.STUDYING"),
+        _ => L.Tr("activity.STUDYING")
     };
 
     public override Building? TargetBuilding => _home;

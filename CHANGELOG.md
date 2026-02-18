@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Localization infrastructure with PO/Gettext translation system (`locale/en.po`)
+- Static localization helper `L.cs` for non-Node classes with caching
+- Localized all static UI strings (HUD labels, time descriptions, need status)
+- Localized dialogue system (options, context menu, facility interactions)
+- Localized all activity display names (47 translation keys)
+- Added `LocalizedName`/`LocalizedDescription` to ItemDefinition, SkillDefinition, and BeingDefinition
+- Translation key extraction tool (`tools/generate_pot.py`)
 - GridFab building template format: visual grid-based building layouts replacing coordinate-heavy JSON (all 7 building types converted)
 - Shared palette system for building tile alias definitions with palette inheritance (base → culture-specific)
 - Urizen black-background atlas variant (`urizen_black`) for solid wall tiles

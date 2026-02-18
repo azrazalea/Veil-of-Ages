@@ -90,7 +90,7 @@ public partial class Dialogue : CanvasLayer
 
         if (_dialogueText != null)
         {
-            _dialogueText.Text = $"You examine the {facility.FacilityDisplayName.ToLowerInvariant()}.";
+            _dialogueText.Text = L.TrFmt("ui.dialogue.EXAMINE_FACILITY", facility.FacilityDisplayName);
         }
 
         // Convert facility options to dialogue options
@@ -130,14 +130,14 @@ public partial class Dialogue : CanvasLayer
             if (option.IsExplicitlyDisabled)
             {
                 button.Disabled = true;
-                button.TooltipText = option.DisabledReason ?? "Not available";
+                button.TooltipText = option.DisabledReason ?? Tr("ui.dialogue.NOT_AVAILABLE");
             }
 
             // Disable commands that the entity will refuse
             else if (!_isFacilityDialogue && option.Command != null && _currentTarget?.WillRefuseCommand(option.Command) != false)
             {
                 button.Disabled = true;
-                button.TooltipText = "I will refuse this command.";
+                button.TooltipText = Tr("ui.dialogue.WILL_REFUSE");
             }
 
             button.Pressed += () => OnOptionSelected(option);

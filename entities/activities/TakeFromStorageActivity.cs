@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Sensory;
 
@@ -16,7 +17,7 @@ public class TakeFromStorageActivity : Activity
     private int _currentIndex;
 
     /// <inheritdoc/>
-    public override string DisplayName => $"Taking items from {_sourceBuilding.BuildingName}";
+    public override string DisplayName => L.TrFmt("activity.TAKING_FROM_STORAGE", _sourceBuilding.BuildingName);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TakeFromStorageActivity"/> class.

@@ -85,6 +85,22 @@ return _pathFinder.FollowPath(entity);  // No A* here, just follows
   - Uses `entity.MaxSenseRange` to determine perception radius
   - `CloneAStarGrid(source)`: Helper that deep-clones an AStarGrid2D with all solid/weight states
 
+### L.cs
+Static localization helper for non-Node classes that cannot call `Godot.Object.Tr()` directly.
+
+- **Namespace**: `VeilOfAges.Core.Lib`
+- **Class**: `L` (static)
+- **Caching**: Uses `ConcurrentDictionary` for both translated strings and parsed `CompositeFormat` instances, so repeated lookups are fast.
+- **Key Methods**:
+  - `Tr(key)`: Translate a key via `TranslationServer.Translate()`
+  - `Tr(key, context)`: Translate with a context string
+  - `TrN(singularKey, pluralKey, n)`: Plural-aware translation via `TranslationServer.TranslatePlural()`
+  - `Fmt(translatedFormat, args)`: Format an already-translated string using cached `CompositeFormat`
+  - `TrFmt(key, args)`: Translate then format in one call (`Fmt(Tr(key), args)`)
+  - `ClearCache()`: Clear both caches (e.g., when locale changes)
+- **Thread Safety**: All lookups are thread-safe (ConcurrentDictionary with read-only TranslationServer access). Safe to call from entity think threads.
+- **Usage**: Used by activities, definitions (LocalizedName/LocalizedDescription), and other non-Node code that needs translated strings.
+
 ### ReorderableQueue.cs
 A generic queue implementation backed by `LinkedList<T>` that supports dynamic reordering.
 
@@ -149,6 +165,7 @@ Logging utility that prefixes messages with the current game tick. Supports both
 | `GameTime` | Immutable time value with calendar parsing and formatting |
 | `PathFinder` | A* pathfinding with multiple goal types |
 | `ReorderableQueue<T>` | Dynamic priority queue |
+| `L` | Static localization helper with cached translations |
 | `Log` | Static logging utility with tick prefixes and entity debug file output |
 
 ## Important Notes

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Sensory;
 
@@ -16,7 +17,7 @@ public class DepositToStorageActivity : Activity
     private int _currentIndex;
 
     /// <inheritdoc/>
-    public override string DisplayName => $"Depositing items to {_targetBuilding.BuildingName}";
+    public override string DisplayName => L.TrFmt("activity.DEPOSITING_TO_STORAGE", _targetBuilding.BuildingName);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DepositToStorageActivity"/> class.

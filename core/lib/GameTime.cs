@@ -15,6 +15,14 @@ public enum DayPhaseType
     Night
 }
 
+public enum SeasonType
+{
+    Spring,
+    Summer,
+    Autumn,
+    Winter
+}
+
 /// <summary>
 /// Utility class for managing and converting game time in the Veil of Ages time system.
 /// Game time is stored in centiseconds (1/100th of a second) as a ulong.
@@ -70,13 +78,13 @@ public class GameTime
     ];
 
     // Season mapping
-    private static readonly string[] Seasons = new string[]
-    {
-        "Spring", "Spring", "Spring",
-        "Summer", "Summer", "Summer",
-        "Autumn", "Autumn", "Autumn",
-        "Winter", "Winter", "Winter", "Winter"
-    };
+    private static readonly SeasonType[] Seasons =
+    [
+        SeasonType.Spring, SeasonType.Spring, SeasonType.Spring,
+        SeasonType.Summer, SeasonType.Summer, SeasonType.Summer,
+        SeasonType.Autumn, SeasonType.Autumn, SeasonType.Autumn,
+        SeasonType.Winter, SeasonType.Winter, SeasonType.Winter, SeasonType.Winter
+    ];
 
     // The current game time in centiseconds
     public ulong Value { get; private set; }
@@ -199,14 +207,24 @@ public class GameTime
     public ulong Centisecond => Value % CENTISECONDSPERSECOND;
 
     /// <summary>
-    /// Gets the name of the current month.
+    /// Gets the internal name of the current month (for logging/data).
     /// </summary>
     public string MonthName => MonthNames[Month - 1];
 
     /// <summary>
+    /// Gets the localized name of the current month (for display).
+    /// </summary>
+    public string LocalizedMonthName => L.Tr($"time.month.{MonthName.ToUpperInvariant()}");
+
+    /// <summary>
     /// Gets the current season.
     /// </summary>
-    public string Season => Seasons[Month - 1];
+    public SeasonType Season => Seasons[Month - 1];
+
+    /// <summary>
+    /// Gets the localized season name (for display).
+    /// </summary>
+    public string LocalizedSeason => L.Tr($"time.season.{Season.ToString().ToUpperInvariant()}");
 
     /// <summary>
     /// Gets the total days elapsed since the start of time.
@@ -224,8 +242,8 @@ public class GameTime
     /// </summary>
     public ulong DayHours => Season switch
     {
-        "Summer" => 6,
-        "Winter" => 4,
+        SeasonType.Summer => 6,
+        SeasonType.Winter => 4,
         _ => 5 // Spring, Autumn
     };
 
@@ -235,8 +253,8 @@ public class GameTime
     /// </summary>
     public ulong NightHours => Season switch
     {
-        "Summer" => 6,
-        "Winter" => 8,
+        SeasonType.Summer => 6,
+        SeasonType.Winter => 8,
         _ => 7 // Spring, Autumn
     };
 
@@ -454,7 +472,7 @@ public class GameTime
     /// <returns>A formatted date string.</returns>
     public string ToDateString(bool includeTime = false)
     {
-        string date = $"{Day} {MonthName}, Year {Year}";
+        string date = L.TrFmt("time.format.DATE", Day, LocalizedMonthName, Year);
 
         if (includeTime)
         {
@@ -502,32 +520,32 @@ public class GameTime
 
         if (years > 0)
         {
-            parts.Add($"{years} year{(years != 1 ? "s" : string.Empty)}");
+            parts.Add(L.Fmt(L.TrN("time.duration.YEAR_S", "time.duration.YEAR_P", (int)years), years));
         }
 
         if (months > 0)
         {
-            parts.Add($"{months} month{(months != 1 ? "s" : string.Empty)}");
+            parts.Add(L.Fmt(L.TrN("time.duration.MONTH_S", "time.duration.MONTH_P", (int)months), months));
         }
 
         if (days > 0)
         {
-            parts.Add($"{days} day{(days != 1 ? "s" : string.Empty)}");
+            parts.Add(L.Fmt(L.TrN("time.duration.DAY_S", "time.duration.DAY_P", (int)days), days));
         }
 
         if (hours > 0)
         {
-            parts.Add($"{hours} hour{(hours != 1 ? "s" : string.Empty)}");
+            parts.Add(L.Fmt(L.TrN("time.duration.HOUR_S", "time.duration.HOUR_P", (int)hours), hours));
         }
 
         if (minutes > 0)
         {
-            parts.Add($"{minutes} minute{(minutes != 1 ? "s" : string.Empty)}");
+            parts.Add(L.Fmt(L.TrN("time.duration.MINUTE_S", "time.duration.MINUTE_P", (int)minutes), minutes));
         }
 
         if (seconds > 0 || parts.Count == 0)
         {
-            parts.Add($"{seconds} second{(seconds != 1 ? "s" : string.Empty)}");
+            parts.Add(L.Fmt(L.TrN("time.duration.SECOND_S", "time.duration.SECOND_P", (int)seconds), seconds));
         }
 
         if (parts.Count == 1)
@@ -536,13 +554,13 @@ public class GameTime
         }
         else if (parts.Count == 2)
         {
-            return $"{parts[0]} and {parts[1]}";
+            return L.TrFmt("time.duration.JOIN_TWO", parts[0], parts[1]);
         }
         else
         {
             string lastPart = parts[^1];
             parts.RemoveAt(parts.Count - 1);
-            return $"{string.Join(", ", parts)} and {lastPart}";
+            return L.TrFmt("time.duration.JOIN_MANY", string.Join(", ", parts), lastPart);
         }
     }
 
@@ -567,22 +585,31 @@ public class GameTime
         double seconds = GameToRealTime(gameCentiseconds, timeScale);
         var span = TimeSpan.FromSeconds(seconds);
 
+        string durationPart;
         if (span.TotalDays > 1)
         {
-            return $"about {span.Days} day{(span.Days != 1 ? "s" : string.Empty)} and {span.Hours} hour{(span.Hours != 1 ? "s" : string.Empty)} in real time";
+            string daysPart = L.Fmt(L.TrN("time.duration.DAY_S", "time.duration.DAY_P", span.Days), span.Days);
+            string hoursPart = L.Fmt(L.TrN("time.duration.HOUR_S", "time.duration.HOUR_P", span.Hours), span.Hours);
+            durationPart = L.TrFmt("time.duration.JOIN_TWO", daysPart, hoursPart);
         }
         else if (span.TotalHours > 1)
         {
-            return $"about {span.Hours} hour{(span.Hours != 1 ? "s" : string.Empty)} and {span.Minutes} minute{(span.Minutes != 1 ? "s" : string.Empty)} in real time";
+            string hoursPart = L.Fmt(L.TrN("time.duration.HOUR_S", "time.duration.HOUR_P", span.Hours), span.Hours);
+            string minutesPart = L.Fmt(L.TrN("time.duration.MINUTE_S", "time.duration.MINUTE_P", span.Minutes), span.Minutes);
+            durationPart = L.TrFmt("time.duration.JOIN_TWO", hoursPart, minutesPart);
         }
         else if (span.TotalMinutes > 1)
         {
-            return $"about {span.Minutes} minute{(span.Minutes != 1 ? "s" : string.Empty)} and {span.Seconds} second{(span.Seconds != 1 ? "s" : string.Empty)} in real time";
+            string minutesPart = L.Fmt(L.TrN("time.duration.MINUTE_S", "time.duration.MINUTE_P", span.Minutes), span.Minutes);
+            string secondsPart = L.Fmt(L.TrN("time.duration.SECOND_S", "time.duration.SECOND_P", span.Seconds), span.Seconds);
+            durationPart = L.TrFmt("time.duration.JOIN_TWO", minutesPart, secondsPart);
         }
         else
         {
-            return $"about {span.Seconds} second{(span.Seconds != 1 ? "s" : string.Empty)} in real time";
+            durationPart = L.Fmt(L.TrN("time.duration.SECOND_S", "time.duration.SECOND_P", span.Seconds), span.Seconds);
         }
+
+        return L.TrFmt("time.realtime.ABOUT_IN_REAL_TIME", durationPart);
     }
 
     /// <summary>
@@ -594,16 +621,16 @@ public class GameTime
     {
         string timeOfDay = GetTimeOfDayDescription();
 
-        string dayDescription = Day switch
+        string dayPeriodKey = Day switch
         {
-            1 => "the first day of",
-            <= 7 => "the early days of",
-            <= 14 => "the middle of",
-            <= 21 => "the later part of",
-            _ => "the final days of"
+            1 => "time.day_period.FIRST_DAY",
+            <= 7 => "time.day_period.EARLY_DAYS",
+            <= 14 => "time.day_period.MIDDLE",
+            <= 21 => "time.day_period.LATER_PART",
+            _ => "time.day_period.FINAL_DAYS"
         };
 
-        return $"It is {timeOfDay} on {dayDescription} {MonthName}, Year {Year}";
+        return L.TrFmt("time.desc.FULL_TIME", timeOfDay, L.Tr(dayPeriodKey), LocalizedMonthName, Year);
     }
 
     /// <summary>
@@ -617,13 +644,13 @@ public class GameTime
         // Dawn is always hour 0
         if (hour == DawnStartHour)
         {
-            return "dawn";
+            return L.Tr("time.tod.DAWN");
         }
 
         // Dusk hour varies by season
         if (hour == DuskStartHour)
         {
-            return "dusk";
+            return L.Tr("time.tod.DUSK");
         }
 
         // Day phase descriptions (hours 1 to DuskStartHour-1)
@@ -637,30 +664,30 @@ public class GameTime
 
             if (progressRatio < 0.25f)
             {
-                return "early morning";
+                return L.Tr("time.tod.EARLY_MORNING");
             }
 
             if (progressRatio < 0.4f)
             {
-                return "mid-morning";
+                return L.Tr("time.tod.MID_MORNING");
             }
 
             if (progressRatio < 0.5f)
             {
-                return "late morning";
+                return L.Tr("time.tod.LATE_MORNING");
             }
 
             if (progressRatio < 0.6f)
             {
-                return "midday";
+                return L.Tr("time.tod.MIDDAY");
             }
 
             if (progressRatio < 0.75f)
             {
-                return "afternoon";
+                return L.Tr("time.tod.AFTERNOON");
             }
 
-            return "late afternoon";
+            return L.Tr("time.tod.LATE_AFTERNOON");
         }
 
         // Night phase descriptions (hours NightStartHour to 13)
@@ -674,23 +701,23 @@ public class GameTime
 
             if (progressRatio < 0.25f)
             {
-                return "early night";
+                return L.Tr("time.tod.EARLY_NIGHT");
             }
 
             if (progressRatio < 0.5f)
             {
-                return "night";
+                return L.Tr("time.tod.NIGHT");
             }
 
             if (progressRatio < 0.75f)
             {
-                return "midnight";
+                return L.Tr("time.tod.MIDNIGHT");
             }
 
-            return "late night";
+            return L.Tr("time.tod.LATE_NIGHT");
         }
 
-        return "unknown time";
+        return L.Tr("time.tod.UNKNOWN");
     }
 
     /// <summary>

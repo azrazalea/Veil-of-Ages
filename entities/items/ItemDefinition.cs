@@ -40,6 +40,9 @@ public class ItemDefinition : IResourceDefinition
     /// </summary>
     public string? Description { get; set; }
 
+    public string LocalizedName => L.Tr($"item.name.{Id!.ToUpperInvariant()}");
+    public string LocalizedDescription => L.Tr($"item.desc.{Id!.ToUpperInvariant()}");
+
     /// <summary>
     /// Gets or sets primary category of this item.
     /// </summary>

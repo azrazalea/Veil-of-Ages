@@ -1,4 +1,5 @@
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Sensory;
 
@@ -21,8 +22,8 @@ public class CheckHomeStorageActivity : Activity
     private bool _hasObserved;
 
     public override string DisplayName => _hasObserved
-        ? $"Checked {_targetBuilding.BuildingName}"
-        : $"Going to check {_targetBuilding.BuildingName}";
+        ? L.TrFmt("activity.CHECKED_STORAGE", _targetBuilding.BuildingName)
+        : L.TrFmt("activity.GOING_TO_CHECK_STORAGE", _targetBuilding.BuildingName);
     public override Building? TargetBuilding => _targetBuilding;
 
     /// <summary>

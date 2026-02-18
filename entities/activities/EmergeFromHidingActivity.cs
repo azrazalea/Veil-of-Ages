@@ -1,4 +1,5 @@
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Sensory;
 
@@ -10,7 +11,7 @@ namespace VeilOfAges.Entities.Activities;
 /// </summary>
 public class EmergeFromHidingActivity : Activity
 {
-    public override string DisplayName => "Emerging";
+    public override string DisplayName => L.Tr("activity.EMERGING");
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EmergeFromHidingActivity"/> class.

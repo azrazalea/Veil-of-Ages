@@ -126,7 +126,7 @@ public interface IStorageContainer
                 sb.Append(", ");
             }
 
-            sb.Append(CultureInfo.InvariantCulture, $"{item.Quantity} {item.Definition.Name}");
+            sb.Append(CultureInfo.InvariantCulture, $"{item.Quantity} {item.Definition.LocalizedName}");
         }
 
         return sb.Length > 0 ? sb.ToString() : "empty";

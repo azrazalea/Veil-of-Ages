@@ -932,7 +932,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
 
         if (_currentCommand != null)
         {
-            options.Add(new ("Cancel current orders.", new CancelCommand(this, speaker)));
+            options.Add(new (L.Tr("dialogue.CANCEL_ORDERS"), new CancelCommand(this, speaker)));
         }
     }
 

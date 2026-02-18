@@ -4,7 +4,6 @@ using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
-using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Activities;
 using VeilOfAges.Entities.Traits;
 using VeilOfAges.Grid;
@@ -79,14 +78,12 @@ public partial class PlayerInputController : Node
             var activity = _player?.GetCurrentActivity();
             if (activity != null)
             {
-                // Use activity's display name, falling back to class name
-                _activityLabel.Text = activity.GetType().Name.Replace("Activity", string.Empty);
+                _activityLabel.Text = activity.DisplayName;
             }
             else
             {
-                // No activity - show command if any, otherwise Idle
                 var command = _player?.GetAssignedCommand();
-                _activityLabel.Text = command?.GetType().Name.Replace("Command", string.Empty) ?? "Idle";
+                _activityLabel.Text = command?.DisplayName ?? Tr("ui.hud.IDLE");
             }
         }
 
@@ -122,7 +119,7 @@ public partial class PlayerInputController : Node
         // Update date label (e.g., "Day 5, Seedweave")
         if (_dateLabel != null)
         {
-            _dateLabel.Text = $"Day {gameTime.Day}, {gameTime.MonthName}";
+            _dateLabel.Text = L.TrFmt("ui.hud.DAY_DATE", gameTime.Day, gameTime.LocalizedMonthName);
         }
 
         // Update speed label
@@ -130,7 +127,7 @@ public partial class PlayerInputController : Node
         {
             if (_gameController.SimulationPaused())
             {
-                _speedLabel.Text = "Paused";
+                _speedLabel.Text = Tr("ui.hud.PAUSED");
             }
             else
             {
@@ -315,6 +312,24 @@ public partial class PlayerInputController : Node
     }
 
     // Enhanced context menu with more options
+    private enum ContextAction
+    {
+        TalkTo,
+        Examine,
+        MoveHere,
+        Enter,
+        UseFacility,
+        BuildHere,
+        Cancel
+    }
+
+    private void AddContextItem(string label, ContextAction action)
+    {
+        int idx = _contextMenu!.ItemCount;
+        _contextMenu.AddItem(label);
+        _contextMenu.SetItemMetadata(idx, (int)action);
+    }
+
     public void ShowContextMenu(InputEventMouseButton @event)
     {
         if (_contextMenu == null)
@@ -338,14 +353,14 @@ public partial class PlayerInputController : Node
         if (entity != null && entity != _player)
         {
             // Entity options
-            _contextMenu.AddItem("Talk to " + entity.Name);
-            _contextMenu.AddItem("Examine " + entity.Name);
+            AddContextItem(L.TrFmt("ui.context.TALK_TO", entity.Name), ContextAction.TalkTo);
+            AddContextItem(L.TrFmt("ui.context.EXAMINE", entity.Name), ContextAction.Examine);
         }
         else
         {
             if (isWalkable)
             {
-                _contextMenu.AddItem("Move here");
+                AddContextItem(Tr("ui.context.MOVE_HERE"), ContextAction.MoveHere);
             }
 
             // Check for transition point at this position
@@ -354,7 +369,7 @@ public partial class PlayerInputController : Node
                 _contextTransitionPoint = gridArea.GetTransitionPointAt(_contextGridPos);
                 if (_contextTransitionPoint?.LinkedPoint != null)
                 {
-                    _contextMenu.AddItem($"Enter {_contextTransitionPoint.Label}");
+                    AddContextItem(L.TrFmt("ui.context.ENTER", _contextTransitionPoint.Label), ContextAction.Enter);
                 }
             }
 
@@ -362,17 +377,17 @@ public partial class PlayerInputController : Node
             _contextFacilityInteractable = FindInteractableFacilityAtPosition(_contextGridPos);
             if (_contextFacilityInteractable != null)
             {
-                _contextMenu.AddItem($"Use {_contextFacilityInteractable.FacilityDisplayName}");
+                AddContextItem(L.TrFmt("ui.context.USE", _contextFacilityInteractable.FacilityDisplayName), ContextAction.UseFacility);
             }
 
             if (isWalkable && IsValidBuildLocation(_contextGridPos))
             {
-                _contextMenu.AddItem("Build here");
+                AddContextItem(Tr("ui.context.BUILD_HERE"), ContextAction.BuildHere);
             }
         }
 
         // Always add cancel option
-        _contextMenu.AddItem("Cancel");
+        AddContextItem(Tr("ui.context.CANCEL"), ContextAction.Cancel);
 
         _contextMenu.Visible = true;
     }
@@ -412,15 +427,14 @@ public partial class PlayerInputController : Node
             return;
         }
 
-        string itemText = _contextMenu.GetItemText((int)itemId);
+        var action = (ContextAction)_contextMenu.GetItemMetadata((int)itemId).AsInt32();
         var gridPos = _contextGridPos;
 
-        switch (itemText)
+        switch (action)
         {
-            case "Move here":
+            case ContextAction.MoveHere:
                 if (_player.GetGridArea()?.IsCellWalkable(gridPos) == true)
                 {
-                    // Create and assign a movement command
                     var moveCommand = new MoveToCommand(_player, _player);
                     moveCommand.WithParameter("targetPos", gridPos);
                     _player.QueueCommand(moveCommand);
@@ -429,7 +443,7 @@ public partial class PlayerInputController : Node
 
                 break;
 
-            case var s when s.StartsWith("Talk to ", StringComparison.Ordinal):
+            case ContextAction.TalkTo:
                 var entity = GetEntityAtPosition(gridPos);
                 if (entity != null && entity != _player)
                 {
@@ -439,7 +453,6 @@ public partial class PlayerInputController : Node
 
                     if (isAdjacent)
                     {
-                        // Interact directly
                         var didStartDialogue = _dialogueUI?.ShowDialogue(_player, entity);
                         if (didStartDialogue != true)
                         {
@@ -456,19 +469,13 @@ public partial class PlayerInputController : Node
                     }
                     else
                     {
-                        // Create and assign a command to approach the entity
                         ApproachEntity(entity);
                     }
                 }
 
                 break;
 
-            case var s when s.StartsWith("Command ", StringComparison.Ordinal):
-                // Future implementation for command menu
-                Log.Print("Command functionality not yet implemented");
-                break;
-
-            case var s when s.StartsWith("Enter ", StringComparison.Ordinal):
+            case ContextAction.Enter:
                 if (_contextTransitionPoint != null)
                 {
                     var transitionActivity = new GoToTransitionActivity(_contextTransitionPoint);
@@ -478,7 +485,7 @@ public partial class PlayerInputController : Node
 
                 break;
 
-            case var s when s.StartsWith("Use ", StringComparison.Ordinal):
+            case ContextAction.UseFacility:
                 if (_contextFacilityInteractable != null && _dialogueUI != null)
                 {
                     _dialogueUI.ShowFacilityDialogue(_player, _contextFacilityInteractable);
@@ -491,23 +498,15 @@ public partial class PlayerInputController : Node
 
                 break;
 
-            case var s when s.StartsWith("Examine ", StringComparison.Ordinal):
-                // Future implementation for examine functionality
+            case ContextAction.Examine:
                 Log.Print("Examine functionality not yet implemented");
                 break;
 
-            case "Build here":
-                // Future implementation for building
+            case ContextAction.BuildHere:
                 Log.Print("Building functionality not yet implemented");
                 break;
 
-            case "Direct control":
-                // Future implementation for direct control
-                Log.Print("Direct control functionality not yet implemented");
-                break;
-
-            case "Cancel":
-                // Do nothing, just close the menu
+            case ContextAction.Cancel:
                 break;
         }
 
@@ -594,7 +593,7 @@ public partial class PlayerInputController : Node
         {
             var label = new Label
             {
-                Text = "Empty",
+                Text = Tr("ui.hud.EMPTY"),
             };
             label.AddThemeFontSizeOverride("font_size", 10);
 
@@ -607,7 +606,7 @@ public partial class PlayerInputController : Node
         {
             var label = new Label
             {
-                Text = node?.Value.GetType().ToString().Split('.').Last(),
+                Text = node?.Value.DisplayName ?? string.Empty,
                 TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
                 ClipText = true,
             };

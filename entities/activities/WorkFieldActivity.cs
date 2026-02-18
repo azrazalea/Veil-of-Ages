@@ -95,14 +95,14 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
 
     public override string DisplayName => _machine.State switch
     {
-        WorkState.GoingToWork => "Going to work",
-        WorkState.GoingToCrop => "Going to crops",
-        WorkState.Working => $"Working at {_workplace.BuildingType}",
-        WorkState.TakingBreak => "Taking a break",
-        WorkState.TakingWheat => "Gathering harvest",
-        WorkState.GoingHome => "Bringing harvest home",
-        WorkState.DepositingWheat => "Storing harvest",
-        _ => "Working"
+        WorkState.GoingToWork => L.Tr("activity.GOING_TO_WORK"),
+        WorkState.GoingToCrop => L.Tr("activity.GOING_TO_CROPS"),
+        WorkState.Working => L.TrFmt("activity.WORKING_AT", _workplace.BuildingType),
+        WorkState.TakingBreak => L.Tr("activity.TAKING_BREAK"),
+        WorkState.TakingWheat => L.Tr("activity.GATHERING_HARVEST"),
+        WorkState.GoingHome => L.Tr("activity.BRINGING_HARVEST_HOME"),
+        WorkState.DepositingWheat => L.Tr("activity.STORING_HARVEST"),
+        _ => L.Tr("activity.WORKING")
     };
 
     public override Building? TargetBuilding => _machine.State == WorkState.GoingHome ? _home : _workplace;

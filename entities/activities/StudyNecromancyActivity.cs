@@ -37,9 +37,9 @@ public class StudyNecromancyActivity : Activity
 
     public override string DisplayName => _currentPhase switch
     {
-        StudyPhase.GoingToStudy => "Going to study dark arts",
-        StudyPhase.Studying => "Studying dark arts",
-        _ => "Studying dark arts"
+        StudyPhase.GoingToStudy => L.Tr("activity.GOING_TO_STUDY_DARK_ARTS"),
+        StudyPhase.Studying => L.Tr("activity.STUDYING_DARK_ARTS"),
+        _ => L.Tr("activity.STUDYING_DARK_ARTS")
     };
 
     public override Building? TargetBuilding => _facilityRef.Building.Building;

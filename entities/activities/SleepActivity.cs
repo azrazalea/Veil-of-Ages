@@ -23,7 +23,7 @@ public class SleepActivity : Activity
 
     private Need? _energyNeed;
 
-    public override string DisplayName => "Sleeping";
+    public override string DisplayName => L.Tr("activity.SLEEPING");
 
     public SleepActivity(int priority = -1)
     {

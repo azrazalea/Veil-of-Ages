@@ -296,7 +296,7 @@ public class StorageTrait : Trait, IStorageContainer
                 sb.Append(", ");
             }
 
-            sb.Append(string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0} {1}", item.Quantity, item.Definition.Name));
+            sb.Append(string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0} {1}", item.Quantity, item.Definition.LocalizedName));
         }
 
         return sb.Length > 0 ? sb.ToString() : "empty";

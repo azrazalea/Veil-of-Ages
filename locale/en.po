@@ -1,0 +1,585 @@
+# Veil of Ages - English Translations
+# This file contains all English translation strings.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Veil of Ages\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#
+# === Phase 2: Static UI ===
+#
+
+# Time of day descriptions
+msgid "time.tod.DAWN"
+msgstr "dawn"
+
+msgid "time.tod.DUSK"
+msgstr "dusk"
+
+msgid "time.tod.EARLY_MORNING"
+msgstr "early morning"
+
+msgid "time.tod.MID_MORNING"
+msgstr "mid-morning"
+
+msgid "time.tod.LATE_MORNING"
+msgstr "late morning"
+
+msgid "time.tod.MIDDAY"
+msgstr "midday"
+
+msgid "time.tod.AFTERNOON"
+msgstr "afternoon"
+
+msgid "time.tod.LATE_AFTERNOON"
+msgstr "late afternoon"
+
+msgid "time.tod.EARLY_NIGHT"
+msgstr "early night"
+
+msgid "time.tod.NIGHT"
+msgstr "night"
+
+msgid "time.tod.MIDNIGHT"
+msgstr "midnight"
+
+msgid "time.tod.LATE_NIGHT"
+msgstr "late night"
+
+msgid "time.tod.UNKNOWN"
+msgstr "unknown time"
+
+# Month names (proper nouns — kept identical across locales unless transliterated)
+msgid "time.month.SEEDWEAVE"
+msgstr "Seedweave"
+
+msgid "time.month.MARKETBLOOM"
+msgstr "Marketbloom"
+
+msgid "time.month.TRADEWIND"
+msgstr "Tradewind"
+
+msgid "time.month.GOLDTIDE"
+msgstr "Goldtide"
+
+msgid "time.month.GROWTHSONG"
+msgstr "Growthsong"
+
+msgid "time.month.MARKETFIRE"
+msgstr "Marketfire"
+
+msgid "time.month.TRADEBOUNTY"
+msgstr "Tradebounty"
+
+msgid "time.month.GOLDFALL"
+msgstr "Goldfall"
+
+msgid "time.month.MISTMARKET"
+msgstr "Mistmarket"
+
+msgid "time.month.FROSTFAIR"
+msgstr "Frostfair"
+
+msgid "time.month.DEEPMARKET"
+msgstr "Deepmarket"
+
+msgid "time.month.STARBARTER"
+msgstr "Starbarter"
+
+msgid "time.month.THAWCRAFT"
+msgstr "Thawcraft"
+
+# Season names
+msgid "time.season.SPRING"
+msgstr "Spring"
+
+msgid "time.season.SUMMER"
+msgstr "Summer"
+
+msgid "time.season.AUTUMN"
+msgstr "Autumn"
+
+msgid "time.season.WINTER"
+msgstr "Winter"
+
+# Day period descriptions (used in GetTimeDescription)
+msgid "time.day_period.FIRST_DAY"
+msgstr "the first day of"
+
+msgid "time.day_period.EARLY_DAYS"
+msgstr "the early days of"
+
+msgid "time.day_period.MIDDLE"
+msgstr "the middle of"
+
+msgid "time.day_period.LATER_PART"
+msgstr "the later part of"
+
+msgid "time.day_period.FINAL_DAYS"
+msgstr "the final days of"
+
+# Full time description: {0}=time of day, {1}=day period, {2}=month name, {3}=year
+msgid "time.desc.FULL_TIME"
+msgstr "It is {0} on {1} {2}, Year {3}"
+
+# Date format: {0}=day, {1}=month name, {2}=year
+msgid "time.format.DATE"
+msgstr "{0} {1}, Year {2}"
+
+# Duration plurals (singular/plural format strings with {0} for the number)
+msgid "time.duration.YEAR_S"
+msgid_plural "time.duration.YEAR_P"
+msgstr[0] "{0} year"
+msgstr[1] "{0} years"
+
+msgid "time.duration.MONTH_S"
+msgid_plural "time.duration.MONTH_P"
+msgstr[0] "{0} month"
+msgstr[1] "{0} months"
+
+msgid "time.duration.DAY_S"
+msgid_plural "time.duration.DAY_P"
+msgstr[0] "{0} day"
+msgstr[1] "{0} days"
+
+msgid "time.duration.HOUR_S"
+msgid_plural "time.duration.HOUR_P"
+msgstr[0] "{0} hour"
+msgstr[1] "{0} hours"
+
+msgid "time.duration.MINUTE_S"
+msgid_plural "time.duration.MINUTE_P"
+msgstr[0] "{0} minute"
+msgstr[1] "{0} minutes"
+
+msgid "time.duration.SECOND_S"
+msgid_plural "time.duration.SECOND_P"
+msgstr[0] "{0} second"
+msgstr[1] "{0} seconds"
+
+# Duration join patterns: {0}=first part, {1}=second part
+msgid "time.duration.JOIN_TWO"
+msgstr "{0} and {1}"
+
+# Duration join for 3+: {0}=comma-separated parts, {1}=last part
+msgid "time.duration.JOIN_MANY"
+msgstr "{0} and {1}"
+
+# Real time description: {0}=duration string
+msgid "time.realtime.ABOUT_IN_REAL_TIME"
+msgstr "about {0} in real time"
+
+# Need status
+msgid "need.status.CRITICAL"
+msgstr "Critical"
+
+msgid "need.status.LOW"
+msgstr "Low"
+
+msgid "need.status.NORMAL"
+msgstr "Normal"
+
+msgid "need.status.SATISFIED"
+msgstr "Satisfied"
+
+# HUD labels
+msgid "ui.hud.IDLE"
+msgstr "Idle"
+
+msgid "ui.hud.PAUSED"
+msgstr "Paused"
+
+msgid "ui.hud.EMPTY"
+msgstr "Empty"
+
+# HUD date: {0}=day number, {1}=month name
+msgid "ui.hud.DAY_DATE"
+msgstr "Day {0}, {1}"
+
+# HUD static labels (auto-translated from .tscn)
+msgid "ui.hud.ACTIVITY_LABEL"
+msgstr "Activity:"
+
+msgid "ui.hud.NEEDS_LABEL"
+msgstr "Needs"
+
+msgid "ui.hud.CMD_QUEUE_LABEL"
+msgstr "Cmd Queue"
+
+#
+# === Phase 3: Dialogue System ===
+#
+
+# Dialogue options
+msgid "dialogue.TELL_ABOUT_YOURSELF"
+msgstr "Tell me about yourself."
+
+msgid "dialogue.FOLLOW_ME"
+msgstr "Follow me."
+
+msgid "dialogue.MOVE_TO_LOCATION"
+msgstr "Move to a location."
+
+msgid "dialogue.GUARD_AREA"
+msgstr "Guard an area."
+
+msgid "dialogue.RETURN_HOME"
+msgstr "Return home."
+
+msgid "dialogue.GOODBYE"
+msgstr "Goodbye."
+
+msgid "dialogue.FAREWELL"
+msgstr "Farewell."
+
+msgid "dialogue.CANCEL_ORDERS"
+msgstr "Cancel current orders."
+
+# Dialogue UI
+# {0}=facility name
+msgid "ui.dialogue.EXAMINE_FACILITY"
+msgstr "You examine the {0}."
+
+msgid "ui.dialogue.NOT_AVAILABLE"
+msgstr "Not available"
+
+msgid "ui.dialogue.WILL_REFUSE"
+msgstr "I will refuse this command."
+
+# Context menu: {0}=entity/location name
+msgid "ui.context.TALK_TO"
+msgstr "Talk to {0}"
+
+msgid "ui.context.EXAMINE"
+msgstr "Examine {0}"
+
+msgid "ui.context.MOVE_HERE"
+msgstr "Move here"
+
+msgid "ui.context.ENTER"
+msgstr "Enter {0}"
+
+msgid "ui.context.USE"
+msgstr "Use {0}"
+
+msgid "ui.context.BUILD_HERE"
+msgstr "Build here"
+
+msgid "ui.context.CANCEL"
+msgstr "Cancel"
+
+#
+# === Phase 4: Activity & Command Display Names ===
+#
+
+# --- Sleep & Rest ---
+
+msgid "activity.SLEEPING"
+msgstr "Sleeping"
+
+# --- Eating & Consumption ---
+
+msgid "activity.EATING"
+msgstr "Eating"
+
+msgid "activity.GOING_HOME_TO_EAT"
+msgstr "Going home to eat"
+
+msgid "activity.LOOKING_FOR_FOOD"
+msgstr "Looking for food"
+
+# {0}=building type
+msgid "activity.EATING_AT"
+msgstr "Eating at {0}"
+
+# {0}=building type
+msgid "activity.GOING_TO_EAT"
+msgstr "Going to eat at {0}"
+
+# --- Navigation ---
+
+# {0}=building type
+msgid "activity.GOING_TO_BUILDING"
+msgstr "Going to {0}"
+
+# {0}=facility ID
+msgid "activity.GOING_TO_FACILITY"
+msgstr "Going to {0}"
+
+# {0}=X coordinate, {1}=Y coordinate
+msgid "activity.GOING_TO_LOCATION"
+msgstr "Going to ({0}, {1})"
+
+# {0}=transition point label
+msgid "activity.GOING_TO_TRANSITION"
+msgstr "Going to {0}"
+
+msgid "activity.TRAVELING"
+msgstr "Traveling"
+
+# --- Hiding & Emerging ---
+
+msgid "activity.HIDING"
+msgstr "Hiding"
+
+# {0}=building type
+msgid "activity.RETREATING_TO"
+msgstr "Retreating to {0}"
+
+msgid "activity.EMERGING"
+msgstr "Emerging"
+
+# --- Storage Operations ---
+
+# {0}=building name
+msgid "activity.DEPOSITING_TO_STORAGE"
+msgstr "Depositing to {0}"
+
+# {0}=building name
+msgid "activity.TAKING_FROM_STORAGE"
+msgstr "Taking from {0}"
+
+# {0}=building name
+msgid "activity.CHECKED_STORAGE"
+msgstr "Checked storage at {0}"
+
+# {0}=building name
+msgid "activity.GOING_TO_CHECK_STORAGE"
+msgstr "Going to check storage at {0}"
+
+# --- Field Work ---
+
+msgid "activity.GOING_TO_WORK"
+msgstr "Going to work"
+
+msgid "activity.GOING_TO_CROPS"
+msgstr "Going to crops"
+
+# {0}=building type
+msgid "activity.WORKING_AT"
+msgstr "Working at {0}"
+
+msgid "activity.TAKING_BREAK"
+msgstr "Taking a break"
+
+msgid "activity.GATHERING_HARVEST"
+msgstr "Gathering harvest"
+
+msgid "activity.BRINGING_HARVEST_HOME"
+msgstr "Bringing harvest home"
+
+msgid "activity.STORING_HARVEST"
+msgstr "Storing harvest"
+
+msgid "activity.WORKING"
+msgstr "Working"
+
+# --- Study ---
+
+msgid "activity.GOING_TO_STUDY"
+msgstr "Going to study"
+
+msgid "activity.STUDYING"
+msgstr "Studying"
+
+# --- Necromancy Study ---
+
+msgid "activity.GOING_TO_STUDY_DARK_ARTS"
+msgstr "Going to study dark arts"
+
+msgid "activity.STUDYING_DARK_ARTS"
+msgstr "Studying dark arts"
+
+# --- Fetch Resource ---
+
+# {0}=item ID
+msgid "activity.GOING_TO_GET"
+msgstr "Going to get {0}"
+
+# {0}=item ID
+msgid "activity.FETCHING"
+msgstr "Fetching {0}"
+
+# {0}=item ID
+msgid "activity.TAKING"
+msgstr "Taking {0}"
+
+# {0}=item ID
+msgid "activity.BRINGING"
+msgstr "Bringing {0}"
+
+# {0}=item ID
+msgid "activity.STORING"
+msgstr "Storing {0}"
+
+# --- Crafting / Reactions ---
+
+# {0}=reaction name
+msgid "activity.PROCESSING"
+msgstr "Processing {0}"
+
+# {0}=reaction name
+msgid "activity.STORING_OUTPUTS"
+msgstr "Storing {0} outputs"
+
+# {0}=reaction name
+msgid "activity.PREPARING"
+msgstr "Preparing {0}"
+
+# --- Work Orders ---
+
+# {0}=work order type
+msgid "activity.WORKING_ON_ORDER"
+msgstr "Working on {0}"
+
+msgid "activity.ORDER_DEFAULT"
+msgstr "order"
+
+# --- Distribution Round ---
+
+msgid "activity.GOING_TO_GRANARY"
+msgstr "Going to granary"
+
+msgid "activity.READING_ORDERS"
+msgstr "Reading orders"
+
+msgid "activity.CHECKING_GRANARY"
+msgstr "Checking granary"
+
+msgid "activity.LOADING_DELIVERY"
+msgstr "Loading delivery"
+
+msgid "activity.VISITING_HOUSEHOLD"
+msgstr "Visiting household"
+
+msgid "activity.CHECKING_HOUSEHOLD"
+msgstr "Checking household"
+
+msgid "activity.EXCHANGING_ITEMS"
+msgstr "Exchanging items"
+
+msgid "activity.RETURNING_TO_GRANARY"
+msgstr "Returning to granary"
+
+msgid "activity.DEPOSITING_COLLECTED"
+msgstr "Depositing collected items"
+
+msgid "activity.DISTRIBUTING"
+msgstr "Distributing"
+
+#
+# === Phase 5: JSON Data Localization ===
+#
+
+# --- Item Names ---
+
+msgid "item.name.WHEAT"
+msgstr "Wheat"
+
+msgid "item.name.FLOUR"
+msgstr "Flour"
+
+msgid "item.name.BREAD"
+msgstr "Bread"
+
+msgid "item.name.CORPSE"
+msgstr "Corpse"
+
+msgid "item.name.WATER"
+msgstr "Water"
+
+# --- Item Descriptions ---
+
+msgid "item.desc.WHEAT"
+msgstr "Raw wheat grain, ready for milling"
+
+msgid "item.desc.FLOUR"
+msgstr "Finely ground wheat flour, ready for baking"
+
+msgid "item.desc.BREAD"
+msgstr "A loaf of bread, provides one meal"
+
+msgid "item.desc.CORPSE"
+msgstr "The remains of a once-living creature"
+
+msgid "item.desc.WATER"
+msgstr "Clean drinking water"
+
+# --- Skill Names ---
+
+msgid "skill.name.RESEARCH"
+msgstr "Research"
+
+msgid "skill.name.ARCANE_THEORY"
+msgstr "Arcane Theory"
+
+msgid "skill.name.NECROMANCY"
+msgstr "Necromancy"
+
+msgid "skill.name.FARMING"
+msgstr "Farming"
+
+msgid "skill.name.BAKING"
+msgstr "Baking"
+
+# --- Skill Descriptions ---
+
+msgid "skill.desc.RESEARCH"
+msgstr "The ability to study and discover new knowledge"
+
+msgid "skill.desc.ARCANE_THEORY"
+msgstr "Understanding of magical theory and arcane principles"
+
+msgid "skill.desc.NECROMANCY"
+msgstr "The dark art of raising and commanding the dead"
+
+msgid "skill.desc.FARMING"
+msgstr "Knowledge of agriculture and crop cultivation"
+
+msgid "skill.desc.BAKING"
+msgstr "The craft of turning flour into bread and other baked goods"
+
+# --- Being Names ---
+
+msgid "being.name.VILLAGE_FARMER"
+msgstr "Village Farmer"
+
+msgid "being.name.VILLAGE_BAKER"
+msgstr "Village Baker"
+
+msgid "being.name.VILLAGE_DISTRIBUTOR"
+msgstr "Village Distributor"
+
+msgid "being.name.MINDLESS_SKELETON"
+msgstr "Mindless Skeleton"
+
+msgid "being.name.MINDLESS_ZOMBIE"
+msgstr "Mindless Zombie"
+
+msgid "being.name.PLAYER"
+msgstr "Player"
+
+# --- Being Descriptions ---
+
+msgid "being.desc.VILLAGE_FARMER"
+msgstr "A hardworking farmer who tends the village fields"
+
+msgid "being.desc.VILLAGE_BAKER"
+msgstr "A skilled baker who turns flour into bread"
+
+msgid "being.desc.VILLAGE_DISTRIBUTOR"
+msgstr "A village worker who distributes food to households"
+
+msgid "being.desc.MINDLESS_SKELETON"
+msgstr "A reanimated skeleton, bound to serve"
+
+msgid "being.desc.MINDLESS_ZOMBIE"
+msgstr "A shambling corpse, driven by dark magic"
+
+msgid "being.desc.PLAYER"
+msgstr "A mysterious figure with hidden talents"

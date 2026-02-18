@@ -31,8 +31,8 @@ public class ConsumeItemActivity : Activity
     private string? _foodItemId; // Item ID for inventory consumption (found during validation)
 
     public override string DisplayName => _isConsuming
-        ? "Eating"
-        : _home != null ? $"Going home to eat" : "Looking for food";
+        ? L.Tr("activity.EATING")
+        : _home != null ? L.Tr("activity.GOING_HOME_TO_EAT") : L.Tr("activity.LOOKING_FOR_FOOD");
     public override Building? TargetBuilding => _home;
 
     /// <summary>

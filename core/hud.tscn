@@ -45,7 +45,7 @@ layout_mode = 2
 
 [node name="Activity section label" type="Label" parent="Character Container/Basic Info Container" unique_id=1257235657]
 layout_mode = 2
-text = "Activity:"
+text = "ui.hud.ACTIVITY_LABEL"
 
 [node name="Activity Label" type="Label" parent="Character Container/Basic Info Container" unique_id=1066176189]
 layout_mode = 2
@@ -61,7 +61,7 @@ layout_mode = 2
 
 [node name="Needs Label" type="RichTextLabel" parent="Character Container/Basic Info Container" unique_id=241977826]
 layout_mode = 2
-text = "Needs"
+text = "ui.hud.NEEDS_LABEL"
 fit_content = true
 
 [node name="Needs Container" type="PanelContainer" parent="Character Container/Basic Info Container" unique_id=709883826]
@@ -94,7 +94,7 @@ theme_override_font_sizes/font_size = 7
 
 [node name="Queue Label" type="RichTextLabel" parent="Character Container/Basic Info Container" unique_id=329178253]
 layout_mode = 2
-text = "Cmd Queue"
+text = "ui.hud.CMD_QUEUE_LABEL"
 fit_content = true
 
 [node name="Command Queue Panel Container" type="PanelContainer" parent="Character Container/Basic Info Container" unique_id=41078738]

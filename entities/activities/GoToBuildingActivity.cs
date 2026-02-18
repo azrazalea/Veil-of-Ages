@@ -18,7 +18,7 @@ public class GoToBuildingActivity : NavigationActivity
     private readonly bool _targetStorage;
     private readonly bool _requireInterior;
 
-    public override string DisplayName => $"Going to {_targetBuilding.BuildingType}";
+    public override string DisplayName => L.TrFmt("activity.GOING_TO_BUILDING", _targetBuilding.BuildingType);
     public override Building? TargetBuilding => _targetBuilding;
 
     protected override bool ShouldCheckQueue => true;

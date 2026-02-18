@@ -93,6 +93,10 @@ context_menu={
 ]
 }
 
+[internationalization]
+
+locale/translations=PackedStringArray("res://locale/en.po")
+
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0

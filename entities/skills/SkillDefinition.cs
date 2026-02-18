@@ -40,6 +40,9 @@ public class SkillDefinition : IResourceDefinition
     /// </summary>
     public string? Description { get; set; }
 
+    public string LocalizedName => L.Tr($"skill.name.{Id!.ToUpperInvariant()}");
+    public string LocalizedDescription => L.Tr($"skill.desc.{Id!.ToUpperInvariant()}");
+
     /// <summary>
     /// Gets or sets primary category of this skill.
     /// </summary>

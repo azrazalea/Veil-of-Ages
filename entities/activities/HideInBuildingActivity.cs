@@ -16,8 +16,8 @@ public class HideInBuildingActivity : Activity
     private bool _hasArrived;
 
     public override string DisplayName => _hasArrived
-        ? "Hiding"
-        : $"Retreating to {_targetBuilding.BuildingType}";
+        ? L.Tr("activity.HIDING")
+        : L.TrFmt("activity.RETREATING_TO", _targetBuilding.BuildingType);
 
     public override Building? TargetBuilding => _targetBuilding;
 

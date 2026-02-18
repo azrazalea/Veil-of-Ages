@@ -30,6 +30,8 @@ public abstract class EntityCommand(Being owner, Being commander, bool isComplex
     public bool IsComplex { get; protected set; } = isComplex;
     public PathFinder MyPathfinder = new ();
 
+    public virtual string DisplayName => GetType().Name.Replace("Command", string.Empty);
+
     /// <summary>
     /// Add a parameter to the command.
     /// </summary>

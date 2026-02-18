@@ -1,5 +1,6 @@
 using System;
 using Godot;
+using VeilOfAges.Core.Lib;
 
 namespace VeilOfAges.Entities.Needs;
 
@@ -54,19 +55,19 @@ public class Need
     {
         if (IsCritical())
         {
-            return "Critical";
+            return L.Tr("need.status.CRITICAL");
         }
 
         if (IsLow())
         {
-            return "Low";
+            return L.Tr("need.status.LOW");
         }
 
         if (IsSatisfied())
         {
-            return "Satisfied";
+            return L.Tr("need.status.SATISFIED");
         }
 
-        return "Normal";
+        return L.Tr("need.status.NORMAL");
     }
 }

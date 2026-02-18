@@ -16,7 +16,7 @@ public class GoToWorldPositionActivity : Activity
     private int _currentStepIndex;
     private GoToLocationActivity? _currentNavigation;
 
-    public override string DisplayName => "Traveling";
+    public override string DisplayName => L.Tr("activity.TRAVELING");
 
     public GoToWorldPositionActivity(NavigationPlan plan, int priority = 0)
     {

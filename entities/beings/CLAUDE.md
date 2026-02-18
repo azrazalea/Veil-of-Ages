@@ -268,6 +268,8 @@ The data-driven entity system allows entities to be defined in JSON rather than 
 JSON-serializable definition class containing:
 - `Id`, `Name`, `Description`, `Category`
 - `SpriteId` - Reference to sprite definition (backwards compatible `AnimationId` getter/setter)
+- `LocalizedName` - Computed property returning `L.Tr($"being.{Id}.NAME")`. Display code should use this instead of `Name`.
+- `LocalizedDescription` - Computed property returning `L.Tr($"being.{Id}.DESCRIPTION")`.
 - `Attributes` - The 7 being attributes
 - `Movement` - Movement speed configuration
 - `Traits[]` - List of trait definitions with parameters
