@@ -1,8 +1,7 @@
 {
   "Id": "skeleton_warrior",
   "Name": "Skeleton Warrior",
-  "TexturePath": "res://assets/dcss/dcss_combined_atlas.png",
-  "SpriteSize": [32, 32],
+  "AtlasSource": "dcss",
   "Row": 74,
   "Col": 52
 }

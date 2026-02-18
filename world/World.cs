@@ -39,6 +39,8 @@ public partial class World : Node2D
 
     public override void _Ready()
     {
+        Core.Lib.MemoryProfiler.Checkpoint("World _Ready start");
+
         // Get references to nodes
         _entitiesContainer = GetNode<Node>("Entities");
         _gridGenerator = GetNode<GridGenerator>("GridGenerator");
@@ -59,6 +61,8 @@ public partial class World : Node2D
         {
             Log.Error("Player node not found! Make sure you've instanced Player.tscn as a child of Entities.");
         }
+
+        Core.Lib.MemoryProfiler.Checkpoint("World _Ready after GridArea creation");
 
         if (GenerateOnReady)
         {
@@ -85,6 +89,7 @@ public partial class World : Node2D
             return;
         }
 
+        Core.Lib.MemoryProfiler.Checkpoint("World InitializePlayer start");
         var gameController = GetNode<GameController>("GameController");
         var requestedPosition = new Vector2I(WorldSizeInTiles.X / 2, WorldSizeInTiles.Y / 2);
 
@@ -93,6 +98,7 @@ public partial class World : Node2D
 
         _player.Initialize(ActiveGridArea, playerPosition, gameController);
         ActiveGridArea.MakePlayerArea(_player, playerPosition);
+        Core.Lib.MemoryProfiler.Checkpoint("World InitializePlayer end (after MakePlayerArea)");
     }
 
     /// <summary>

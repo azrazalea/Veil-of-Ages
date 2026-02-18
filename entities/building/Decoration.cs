@@ -46,29 +46,22 @@ public partial class Decoration : Sprite2D
 
     private void SetupStatic(DecorationDefinition definition)
     {
-        var atlasInfo = TileResourceManager.Instance.GetAtlasInfo(definition.AtlasSource!);
-        if (atlasInfo == null)
+        var atlasTexture = TileResourceManager.Instance.GetCachedAtlasTexture(
+            definition.AtlasSource!, definition.AtlasCoords.Y, definition.AtlasCoords.X,
+            definition.TileSize.X, definition.TileSize.Y);
+        if (atlasTexture == null)
         {
-            Log.Error($"Decoration '{definition.Id}': Atlas source '{definition.AtlasSource}' not found");
+            Log.Error($"Decoration '{definition.Id}': Failed to get atlas texture for '{definition.AtlasSource}'");
             return;
         }
-
-        var (texture, tileSize, margin, separation) = atlasInfo.Value;
-
-        var atlasTexture = new AtlasTexture { Atlas = texture };
-        int px = margin.X + (definition.AtlasCoords.X * (tileSize.X + separation.X));
-        int py = margin.Y + (definition.AtlasCoords.Y * (tileSize.Y + separation.Y));
-        int pw = (definition.TileSize.X * tileSize.X) + ((definition.TileSize.X - 1) * separation.X);
-        int ph = (definition.TileSize.Y * tileSize.Y) + ((definition.TileSize.Y - 1) * separation.Y);
-        atlasTexture.Region = new Rect2(px, py, pw, ph);
 
         Texture = atlasTexture;
     }
 
     private void SetupAnimated(string animationId)
     {
-        var animDef = TileResourceManager.Instance.GetDecorationAnimation(animationId);
-        if (animDef == null)
+        var spriteFrames = TileResourceManager.Instance.GetCachedSpriteFrames(animationId);
+        if (spriteFrames == null)
         {
             Log.Error($"Decoration animation '{animationId}' not found");
             return;
@@ -79,7 +72,7 @@ public partial class Decoration : Sprite2D
         var animSprite = new AnimatedSprite2D
         {
             Centered = false,
-            SpriteFrames = animDef.CreateSpriteFrames()
+            SpriteFrames = spriteFrames
         };
 
         if (animSprite.SpriteFrames.HasAnimation("idle"))

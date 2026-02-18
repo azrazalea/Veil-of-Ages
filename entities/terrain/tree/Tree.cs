@@ -33,21 +33,13 @@ public partial class Tree : Node2D, IBlocksPathfinding
 
     private void CreateSprite(DecorationDefinition definition)
     {
-        var atlasInfo = TileResourceManager.Instance.GetAtlasInfo(definition.AtlasSource!);
-        if (atlasInfo == null)
+        var atlasTexture = TileResourceManager.Instance.GetCachedAtlasTexture(
+            definition.AtlasSource!, definition.AtlasCoords.Y, definition.AtlasCoords.X);
+        if (atlasTexture == null)
         {
-            Log.Error($"Tree atlas source '{definition.AtlasSource}' not found");
+            Log.Error($"Tree: Failed to get atlas texture for '{definition.AtlasSource}'");
             return;
         }
-
-        var (texture, tileSize, margin, separation) = atlasInfo.Value;
-        int px = margin.X + (definition.AtlasCoords.X * (tileSize.X + separation.X));
-        int py = margin.Y + (definition.AtlasCoords.Y * (tileSize.Y + separation.Y));
-        var atlasTexture = new AtlasTexture
-        {
-            Atlas = texture,
-            Region = new Rect2(px, py, tileSize.X, tileSize.Y),
-        };
 
         var sprite = new Sprite2D { Texture = atlasTexture };
         AddChild(sprite);

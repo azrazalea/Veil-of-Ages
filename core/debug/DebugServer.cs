@@ -48,8 +48,10 @@ public partial class DebugServer : Node
 
     public override void _Ready()
     {
+        Core.Lib.MemoryProfiler.Checkpoint("DebugServer _Ready start");
         RefreshReferences();
         StartServer();
+        Core.Lib.MemoryProfiler.Checkpoint("DebugServer _Ready end");
     }
 
     private void RefreshReferences()

@@ -27,12 +27,14 @@ public class SpriteDefinition : IResourceDefinition
     public string? Name { get; set; }
 
     /// <summary>
-    /// Gets or sets path to the texture atlas (res://assets/...).
+    /// Gets or sets the atlas source ID (e.g., "dcss", "kenney").
+    /// References an atlas source registered in TileResourceManager.
     /// </summary>
-    public string? TexturePath { get; set; }
+    public string? AtlasSource { get; set; }
 
     /// <summary>
-    /// Gets or sets sprite size as [width, height] (e.g., [32, 32]).
+    /// Gets or sets sprite size in atlas tiles as [width, height].
+    /// Defaults to [1, 1] (single tile). For multi-tile sprites, e.g., [2, 3] for a 2-wide, 3-tall sprite.
     /// </summary>
 #pragma warning disable SA1018 // Nullable type symbol should not be preceded by a space
     public int[] ? SpriteSize { get; set; }
@@ -56,6 +58,16 @@ public class SpriteDefinition : IResourceDefinition
     /// on top of the previous layers.
     /// </summary>
     public List<SpriteLayerData>? Layers { get; set; }
+
+    /// <summary>
+    /// Gets the effective width in tiles (defaults to 1).
+    /// </summary>
+    public int WidthInTiles => SpriteSize is { Length: >= 1 } ? SpriteSize[0] : 1;
+
+    /// <summary>
+    /// Gets the effective height in tiles (defaults to 1).
+    /// </summary>
+    public int HeightInTiles => SpriteSize is { Length: >= 2 } ? SpriteSize[1] : 1;
 
     /// <summary>
     /// Load a SpriteDefinition from a JSON file.
@@ -88,9 +100,9 @@ public class SpriteDefinition : IResourceDefinition
             return false;
         }
 
-        if (SpriteSize == null || SpriteSize.Length != 2)
+        if (string.IsNullOrEmpty(AtlasSource))
         {
-            Log.Error($"SpriteDefinition '{Id}': Invalid or missing 'SpriteSize' (expected [width, height])");
+            Log.Error($"SpriteDefinition '{Id}': Missing required field 'AtlasSource'");
             return false;
         }
 
@@ -138,61 +150,43 @@ public class SpriteDefinition : IResourceDefinition
                 Name = "body",
                 Row = Row ?? 0,
                 Col = Col ?? 0,
-                TexturePath = null
+                AtlasSource = null
             }
 
         ];
     }
 
     /// <summary>
-    /// Creates AtlasTexture resources for all effective layers.
+    /// Creates AtlasTexture resources for all effective layers using the global cache.
     /// Returns a list of (layerName, atlasTexture) tuples ordered by layer definition order.
     /// </summary>
     /// <returns>A list of named atlas textures, one per layer.</returns>
     public List<(string Name, AtlasTexture Texture)> CreateAtlasTextures()
     {
         var result = new List<(string Name, AtlasTexture Texture)>();
-        int width = SpriteSize![0];
-        int height = SpriteSize[1];
-        string defaultTexturePath = TexturePath ?? string.Empty;
+        string defaultAtlasSource = AtlasSource ?? string.Empty;
+        int defaultW = WidthInTiles;
+        int defaultH = HeightInTiles;
 
         foreach (var layer in GetEffectiveLayers())
         {
-            string texturePath = layer.TexturePath ?? defaultTexturePath;
-            var atlasTexture = CreateAtlasTexture(texturePath, layer.Row, layer.Col, width, height);
+            string atlasSourceId = layer.AtlasSource ?? defaultAtlasSource;
+            int w = layer.WidthInTiles ?? defaultW;
+            int h = layer.HeightInTiles ?? defaultH;
+            var atlasTexture = TileResourceManager.Instance.GetCachedAtlasTexture(
+                atlasSourceId, layer.Row, layer.Col, w, h);
 
             if (atlasTexture != null)
             {
                 result.Add((layer.Name, atlasTexture));
             }
+            else
+            {
+                Log.Error($"SpriteDefinition '{Id}': Failed to get atlas texture for layer '{layer.Name}' (source: {atlasSourceId}, row: {layer.Row}, col: {layer.Col})");
+            }
         }
 
         return result;
-    }
-
-    /// <summary>
-    /// Creates a single AtlasTexture from atlas coordinates.
-    /// </summary>
-    /// <param name="texturePath">Path to the texture atlas resource.</param>
-    /// <param name="row">Row index in the atlas (0-indexed).</param>
-    /// <param name="col">Column index in the atlas (0-indexed).</param>
-    /// <param name="width">Width of the sprite region in pixels.</param>
-    /// <param name="height">Height of the sprite region in pixels.</param>
-    /// <returns>The created AtlasTexture, or null if the texture could not be loaded.</returns>
-    public static AtlasTexture? CreateAtlasTexture(string texturePath, int row, int col, int width, int height)
-    {
-        var texture = ResourceLoader.Load<Texture2D>(texturePath);
-        if (texture == null)
-        {
-            Log.Error($"SpriteDefinition: Failed to load texture: {texturePath}");
-            return null;
-        }
-
-        return new AtlasTexture
-        {
-            Atlas = texture,
-            Region = new Rect2(col * width, row * height, width, height)
-        };
     }
 }
 
@@ -219,8 +213,20 @@ public class SpriteLayerData
     public int Col { get; set; }
 
     /// <summary>
-    /// Gets or sets an optional per-layer texture path override.
-    /// When null, the parent <see cref="SpriteDefinition.TexturePath"/> is used.
+    /// Gets or sets an optional per-layer atlas source ID override.
+    /// When null, the parent <see cref="SpriteDefinition.AtlasSource"/> is used.
     /// </summary>
-    public string? TexturePath { get; set; }
+    public string? AtlasSource { get; set; }
+
+    /// <summary>
+    /// Gets or sets optional per-layer width in tiles override.
+    /// When null, the parent <see cref="SpriteDefinition.WidthInTiles"/> is used.
+    /// </summary>
+    public int? WidthInTiles { get; set; }
+
+    /// <summary>
+    /// Gets or sets optional per-layer height in tiles override.
+    /// When null, the parent <see cref="SpriteDefinition.HeightInTiles"/> is used.
+    /// </summary>
+    public int? HeightInTiles { get; set; }
 }

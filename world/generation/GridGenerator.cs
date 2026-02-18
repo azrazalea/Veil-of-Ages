@@ -38,6 +38,7 @@ public partial class GridGenerator : Node
     // Main generation method
     public void Generate(World world)
     {
+        MemoryProfiler.Checkpoint("GridGenerator.Generate start");
         _entityThinkingSystem = GetNode<EntityThinkingSystem>("/root/World/EntityThinkingSystem");
         _gameController = GetNode<GameController>("/root/World/GameController");
         _rng.Randomize();
@@ -58,6 +59,7 @@ public partial class GridGenerator : Node
 
         // Generate terrain
         GenerateTerrain();
+        MemoryProfiler.Checkpoint("GridGenerator after GenerateTerrain");
 
         var villageGenerator = new VillageGenerator(
             _activeGridArea,
@@ -70,6 +72,7 @@ public partial class GridGenerator : Node
         // Generate village at the center of the map
         // Player home is assigned during generation, before granary orders are initialized
         villageGenerator.GenerateVillage();
+        MemoryProfiler.Checkpoint("GridGenerator after GenerateVillage");
 
         // Store the player's house reference (already assigned to player in VillageGenerator)
         PlayerHouse = villageGenerator.PlayerHouse;
@@ -78,11 +81,13 @@ public partial class GridGenerator : Node
         if (PlayerHouse != null)
         {
             CellarGenerator.CreateCellar(world, PlayerHouse);
+            MemoryProfiler.Checkpoint("GridGenerator after CellarGenerator");
         }
 
         // Then add trees in unoccupied spaces
         GenerateTrees();
 
+        MemoryProfiler.Checkpoint("GridGenerator.Generate end");
         Log.Print("Done generating!");
     }
 

@@ -1,8 +1,7 @@
 {
   "Id": "player_default",
   "Name": "Player Default Sprites",
-  "TexturePath": "res://assets/dcss/dcss_combined_atlas.png",
-  "SpriteSize": [32, 32],
+  "AtlasSource": "dcss",
   "Layers": [
     { "Name": "body", "Row": 79, "Col": 62 },
     { "Name": "boots", "Row": 83, "Col": 57 },

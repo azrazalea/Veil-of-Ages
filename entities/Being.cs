@@ -2065,29 +2065,12 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     /// Must be called from the main thread.
     /// </summary>
     /// <param name="layerName">The layer name (e.g., "clothing_outer", "held_item").</param>
-    /// <param name="texturePath">Path to the texture atlas resource.</param>
+    /// <param name="atlasSourceId">Atlas source ID (e.g., "dcss", "kenney").</param>
     /// <param name="row">Row index in the atlas.</param>
     /// <param name="col">Column index in the atlas.</param>
-    public void SetSpriteLayer(string layerName, string texturePath, int row, int col)
+    public void SetSpriteLayer(string layerName, string atlasSourceId, int row, int col)
     {
-        int width = 32;
-        int height = 32;
-
-        // Try to get sprite size from first existing layer
-        if (SpriteLayers.Count > 0)
-        {
-            foreach (var existing in SpriteLayers.Values)
-            {
-                if (existing.Texture is AtlasTexture existingAtlas)
-                {
-                    width = (int)existingAtlas.Region.Size.X;
-                    height = (int)existingAtlas.Region.Size.Y;
-                    break;
-                }
-            }
-        }
-
-        var atlasTexture = Beings.SpriteDefinition.CreateAtlasTexture(texturePath, row, col, width, height);
+        var atlasTexture = TileResourceManager.Instance.GetCachedAtlasTexture(atlasSourceId, row, col);
         if (atlasTexture == null)
         {
             return;
