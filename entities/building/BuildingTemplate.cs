@@ -231,6 +231,12 @@ public class FacilityData
     public bool RequireAdjacent { get; set; }
 
     /// <summary>
+    /// Gets or sets the class name of the IFacilityInteractable implementation for this facility.
+    /// Resolved via reflection at building initialization (e.g., "NecromancyAltarInteraction").
+    /// </summary>
+    public string? InteractableType { get; set; }
+
+    /// <summary>
     /// Gets or sets the storage configuration for this facility.
     /// If set, this facility acts as a storage container with its own capacity and items.
     /// </summary>

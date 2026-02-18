@@ -11,6 +11,7 @@
             "Id": "necromancy_altar",
             "Positions": [[3, 4]],
             "RequireAdjacent": true,
+            "InteractableType": "NecromancyAltarInteraction",
             "Storage": {
                 "VolumeCapacity": 0.5,
                 "WeightCapacity": 400,

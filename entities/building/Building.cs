@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -134,6 +135,12 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
                             }
                         }
                     }
+                }
+
+                // Wire up interaction handler from template data
+                if (!string.IsNullOrEmpty(facilityData.InteractableType))
+                {
+                    facility.Interactable = CreateFacilityInteractable(facilityData.InteractableType, facility);
                 }
 
                 // Add facility to dictionary
@@ -994,6 +1001,31 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
     /// <summary>
     /// Find an interactable facility at the given absolute position.
     /// </summary>
+    private IFacilityInteractable? CreateFacilityInteractable(string typeName, Facility facility)
+    {
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            foreach (var type in assembly.GetTypes())
+            {
+                if (type.Name == typeName && typeof(IFacilityInteractable).IsAssignableFrom(type))
+                {
+                    try
+                    {
+                        return Activator.CreateInstance(type, facility, this) as IFacilityInteractable;
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error($"Building {BuildingName}: Failed to create interactable '{typeName}': {ex.Message}");
+                        return null;
+                    }
+                }
+            }
+        }
+
+        Log.Error($"Building {BuildingName}: Interactable type '{typeName}' not found");
+        return null;
+    }
+
     public IFacilityInteractable? GetInteractableFacilityAt(Vector2I absolutePos)
     {
         var relativePos = absolutePos - _gridPosition;
