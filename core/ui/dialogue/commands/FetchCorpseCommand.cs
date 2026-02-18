@@ -47,23 +47,17 @@ public class FetchCorpseCommand : EntityCommand
         // Create sub-activity lazily
         if (_fetchActivity == null)
         {
-            // Find graveyard via SharedKnowledge using WorldNavigator
-            var plan = WorldNavigator.NavigateToBuilding(_owner, "Graveyard");
-            if (plan == null)
-            {
-                Log.Warn($"{_owner.Name}: Cannot find a graveyard");
-                return null;
-            }
-
-            var graveyardBuilding = plan.TargetBuilding?.Building;
-            if (graveyardBuilding == null || !GodotObject.IsInstanceValid(graveyardBuilding))
+            // Find graveyard via SharedKnowledge (BDI-compliant — entity only knows
+            // what their knowledge sources tell them)
+            var graveyardRef = _owner.FindNearestBuildingOfType("Graveyard", _owner.GetCurrentGridPosition());
+            if (graveyardRef == null || !graveyardRef.IsValid)
             {
                 Log.Warn($"{_owner.Name}: Graveyard building reference is invalid");
                 return null;
             }
 
             _fetchActivity = new FetchResourceActivity(
-                graveyardBuilding, _altarBuilding, "corpse", 1, priority: -1);
+                graveyardRef.Building!, _altarBuilding, "corpse", 1, priority: -1);
             InitializeSubActivity(_fetchActivity);
         }
 

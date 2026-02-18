@@ -52,7 +52,7 @@ Fetches a corpse from the nearest graveyard and brings it to the necromancy alta
   - `altarBuilding` (Building): The altar building to deposit the corpse at
 - **Behavior**:
   - Resolves altar building from Parameters on first call
-  - Finds graveyard via WorldNavigator.NavigateToBuilding
+  - Finds graveyard via SharedKnowledge building lookup (FindNearestBuildingOfType)
   - Creates FetchResourceActivity as a sub-activity and drives it via RunSubActivity
   - FetchResourceActivity handles the full go→take→return→deposit pattern including cross-area navigation
   - Command completes when sub-activity completes or fails

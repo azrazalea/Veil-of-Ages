@@ -95,6 +95,14 @@ public abstract class NavigationActivity : Activity
             return null;
         }
 
+        // Cross-area: if PathFinder signals a transition is needed, return ChangeAreaAction
+        if (_pathFinder.NeedsAreaTransition)
+        {
+            var transition = _pathFinder.PendingTransition!;
+            _pathFinder.CompleteTransition(_owner);
+            return new ChangeAreaAction(_owner, this, transition.LinkedPoint!, Priority);
+        }
+
         // Check if we've reached the goal
         if (_pathFinder.IsGoalReached(_owner))
         {

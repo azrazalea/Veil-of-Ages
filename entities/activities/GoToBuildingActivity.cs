@@ -48,7 +48,7 @@ public class GoToBuildingActivity : NavigationActivity
         // If targeting storage and building requires facility navigation, use SetFacilityGoal
         if (_targetStorage && _targetBuilding.RequiresStorageFacilityNavigation())
         {
-            if (!_pathFinder.SetFacilityGoal(_targetBuilding, "storage"))
+            if (!_pathFinder.SetFacilityGoal(owner, _targetBuilding, "storage"))
             {
                 // No valid storage facility position found - fall back to building goal
                 _pathFinder.SetBuildingGoal(owner, _targetBuilding);

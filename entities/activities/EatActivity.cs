@@ -69,7 +69,7 @@ public class EatActivity : Activity
             // Initialize go-to phase if needed
             if (_goToPhase == null)
             {
-                _goToPhase = new NavigateToBuildingActivity(_target, Priority);
+                _goToPhase = new GoToBuildingActivity(_target, Priority);
                 _goToPhase.Initialize(_owner);
             }
 

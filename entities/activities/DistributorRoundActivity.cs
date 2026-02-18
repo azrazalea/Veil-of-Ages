@@ -163,7 +163,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
     ///
     /// Navigation+observation states (CheckingGranaryStock, CheckingHousehold) use PermitReentry
     /// for both Interrupted and Resumed to force fresh CheckStorageActivity creation.
-    /// ReturningToGranary uses PermitReentry for fresh NavigationHelper-based navigation.
+    /// ReturningToGranary uses PermitReentry for fresh navigation.
     /// Sub-activity references are automatically nulled by the base class OnTransitioned callback.
     /// </summary>
     private void ConfigureStateMachine()
@@ -204,7 +204,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
             .Permit(DistributionTrigger.BreakComplete, DistributionState.CheckingHousehold)
             .Permit(DistributionTrigger.Interrupted, DistributionState.CheckingHousehold);
 
-        // ReturningToGranary: navigation via NavigationHelper (cross-area capable)
+        // ReturningToGranary: navigation via GoToBuildingActivity (cross-area capable)
         _machine.Configure(DistributionState.ReturningToGranary)
             .Permit(DistributionTrigger.ArrivedBackAtGranary, DistributionState.DepositingCollected)
             .PermitReentry(DistributionTrigger.Interrupted)
@@ -787,12 +787,12 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
             return null;
         }
 
-        // Use NavigationHelper for cross-area capable navigation back to granary
+        // Use GoToBuildingActivity for cross-area capable navigation back to granary
         var (result, action) = RunCurrentSubActivity(
             () =>
             {
                 DebugLog("DISTRIBUTOR", $"Starting navigation back to granary: {_granary.BuildingName}", 0);
-                return NavigationHelper.CreateNavigationToBuilding(_owner, _granary, Priority, targetStorage: true);
+                return new GoToBuildingActivity(_granary, Priority, targetStorage: true);
             },
             position, perception);
         switch (result)

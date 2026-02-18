@@ -51,6 +51,33 @@ public class PathFinder
     // Building goal: if true, entity must be inside; if false, adjacent is acceptable
     private bool _requireInterior;
 
+    // Cross-area navigation state
+    // When the target building/facility is in a different area, PathFinder internally
+    // plans the route (via WorldNavigator.FindRouteToArea which uses entity's knowledge —
+    // NO god knowledge), walks to transition points, and signals when a transition is needed.
+    private List<TransitionPoint>? _crossAreaRoute;
+    private int _crossAreaRouteIndex;
+    private bool _needsAreaTransition;
+    private TransitionPoint? _pendingTransition;
+
+    // Final goal storage — the real goal, restored after all area transitions complete.
+    // While cross-area navigation is active, _goalType is set to intermediate Position goals.
+    private PathGoalType _finalGoalType = PathGoalType.None;
+    private Building? _finalGoalBuilding;
+    private string? _finalGoalFacilityId;
+    private bool _finalRequireInterior;
+
+    /// <summary>
+    /// Gets a value indicating whether true when the entity has reached a transition point and needs to change area.
+    /// NavigationActivity checks this and returns a ChangeAreaAction.
+    /// </summary>
+    public bool NeedsAreaTransition => _needsAreaTransition;
+
+    /// <summary>
+    /// Gets the transition point the entity needs to traverse. Only valid when NeedsAreaTransition is true.
+    /// </summary>
+    public TransitionPoint? PendingTransition => _pendingTransition;
+
     // Simple enum to track goal type
     public enum PathGoalType
     {
@@ -130,6 +157,13 @@ public class PathFinder
         PathIndex = 0;
         _pathNeedsCalculation = true;
         _stepsSinceLastRecalculation = 0;
+
+        // Clear cross-area route state — HandleCrossAreaPlanning will re-plan if needed.
+        // Keep _finalGoalType and stored goal params so it knows what to plan toward.
+        _crossAreaRoute = null;
+        _crossAreaRouteIndex = 0;
+        _needsAreaTransition = false;
+        _pendingTransition = null;
     }
 
     public void Reset()
@@ -137,6 +171,12 @@ public class PathFinder
         ClearPath();
         _goalType = PathGoalType.None;
         _firstGoalCalculation = false;
+
+        // Clear final goal storage (ClearPath preserves these)
+        _finalGoalType = PathGoalType.None;
+        _finalGoalBuilding = null;
+        _finalGoalFacilityId = null;
+        _finalRequireInterior = false;
     }
 
     // Check if path is valid
@@ -248,6 +288,23 @@ public class PathFinder
 
     public void SetBuildingGoal(Being entity, Building targetBuilding, bool requireInterior = true)
     {
+        // Cross-area detection: if entity and building are in different areas,
+        // store the final goal and defer route planning to CalculatePathIfNeeded.
+        if (entity.GridArea != null && targetBuilding.GridArea != null
+            && entity.GridArea != targetBuilding.GridArea)
+        {
+            _finalGoalType = PathGoalType.Building;
+            _finalGoalBuilding = targetBuilding;
+            _finalRequireInterior = requireInterior;
+            _finalGoalFacilityId = null;
+            _goalType = PathGoalType.None;
+            _pathNeedsCalculation = true;
+            _firstGoalCalculation = true;
+            _recalculationAttempts = 0;
+            return;
+        }
+
+        // Same-area: existing behavior
         _goalType = PathGoalType.Building;
         _targetBuilding = targetBuilding;
         _requireInterior = requireInterior;
@@ -259,10 +316,11 @@ public class PathFinder
     /// <summary>
     /// Set goal to navigate adjacent to a specific facility in a building.
     /// </summary>
+    /// <param name="entity">The entity navigating (used for cross-area detection).</param>
     /// <param name="building">The building containing the facility.</param>
     /// <param name="facilityId">The facility ID (e.g., "oven", "quern", "storage", "crop").</param>
     /// <returns>True if a valid facility position was found, false otherwise.</returns>
-    public bool SetFacilityGoal(Building building, string facilityId)
+    public bool SetFacilityGoal(Being entity, Building building, string facilityId)
     {
         // Get facility positions from building
         var facilityPositions = building.GetFacilityPositions(facilityId);
@@ -271,7 +329,23 @@ public class PathFinder
             return false;
         }
 
-        // Store the building and facility ID for smart recalculation
+        // Cross-area detection: if entity and building are in different areas,
+        // store the final goal and defer route planning to CalculatePathIfNeeded.
+        if (entity.GridArea != null && building.GridArea != null
+            && entity.GridArea != building.GridArea)
+        {
+            _finalGoalType = PathGoalType.Facility;
+            _finalGoalBuilding = building;
+            _finalGoalFacilityId = facilityId;
+            _finalRequireInterior = false;
+            _goalType = PathGoalType.None;
+            _pathNeedsCalculation = true;
+            _firstGoalCalculation = true;
+            _recalculationAttempts = 0;
+            return true;
+        }
+
+        // Same-area: existing behavior
         _targetFacilityBuilding = building;
         _targetFacilityId = facilityId;
         _goalType = PathGoalType.Facility;
@@ -288,6 +362,13 @@ public class PathFinder
     public bool IsGoalReached(Being entity)
     {
         if (entity == null)
+        {
+            return false;
+        }
+
+        // During cross-area navigation, the real goal hasn't been reached yet —
+        // we're still navigating intermediate positions or waiting for transitions.
+        if (_finalGoalType != PathGoalType.None)
         {
             return false;
         }
@@ -503,6 +584,30 @@ public class PathFinder
         {
             Log.Error("CalculatePathIfNeeded: Entity is null");
             return false;
+        }
+
+        // Cross-area: if waiting for area transition, let NavigationActivity handle it
+        if (_needsAreaTransition)
+        {
+            return true;
+        }
+
+        // Cross-area: if we have a final goal in another area, handle route planning.
+        // Uses WorldNavigator.FindRouteToArea which queries entity's knowledge (BDI-compliant).
+        if (_finalGoalType != PathGoalType.None)
+        {
+            if (!HandleCrossAreaPlanning(entity))
+            {
+                return false;
+            }
+
+            // If HandleCrossAreaPlanning signaled a transition, we're done for this tick
+            if (_needsAreaTransition)
+            {
+                return true;
+            }
+
+            // Otherwise it set an intermediate goal — fall through to normal path calc
         }
 
         // If goal is already reached, no path needed
@@ -1179,6 +1284,131 @@ public class PathFinder
         candidates.Sort((a, b) => a.blocksEntrance.CompareTo(b.blocksEntrance));
 
         return (candidates, positionMap);
+    }
+
+    /// <summary>
+    /// Called by NavigationActivity after it returns a ChangeAreaAction.
+    /// Advances to the next step in the cross-area route.
+    /// The entity hasn't actually transitioned yet — ChangeAreaAction handles that.
+    /// On the next tick, HandleCrossAreaPlanning will determine the next step.
+    /// </summary>
+    public void CompleteTransition(Being entity)
+    {
+        _needsAreaTransition = false;
+        _pendingTransition = null;
+        _crossAreaRouteIndex++;
+
+        // Clear current path data — entity will be in a new area after ChangeAreaAction executes
+        CurrentPath = [];
+        PathIndex = 0;
+        _pathNeedsCalculation = true;
+        _firstGoalCalculation = true;
+        _stepsSinceLastRecalculation = 0;
+        _recalculationAttempts = 0;
+        _goalType = PathGoalType.None; // HandleCrossAreaPlanning sets this on next tick
+    }
+
+    /// <summary>
+    /// Handles cross-area route planning when the final goal is in another area.
+    /// Called from CalculatePathIfNeeded when _finalGoalType != None.
+    /// Uses WorldNavigator.FindRouteToArea which queries entity's SharedKnowledge (BDI-compliant).
+    /// </summary>
+    /// <returns>True if planning succeeded (may have set an intermediate goal or signaled transition),
+    /// false if no route could be found.</returns>
+    private bool HandleCrossAreaPlanning(Being entity)
+    {
+        var targetArea = _finalGoalBuilding?.GridArea;
+        if (targetArea == null)
+        {
+            Log.Error("HandleCrossAreaPlanning: final goal building has no GridArea");
+            return false;
+        }
+
+        // 1. Entity now in target area? Restore the real goal and let normal calc handle it.
+        if (entity.GridArea == targetArea)
+        {
+            SetFinalGoal(entity);
+            return true;
+        }
+
+        var currentArea = entity.GridArea;
+        if (currentArea == null)
+        {
+            Log.Error("HandleCrossAreaPlanning: entity has no GridArea");
+            return false;
+        }
+
+        // 2. No route planned? Plan one using entity's knowledge (no god knowledge).
+        if (_crossAreaRoute == null)
+        {
+            _crossAreaRoute = WorldNavigator.FindRouteToArea(entity, currentArea, targetArea);
+            _crossAreaRouteIndex = 0;
+
+            if (_crossAreaRoute == null)
+            {
+                Log.Error($"No cross-area route from {currentArea.Name} to {targetArea.Name} (entity lacks knowledge?)");
+                return false;
+            }
+        }
+
+        // 3. All transitions traversed but still not in target area? Re-plan.
+        if (_crossAreaRouteIndex >= _crossAreaRoute.Count)
+        {
+            _crossAreaRoute = null;
+            return HandleCrossAreaPlanning(entity);
+        }
+
+        var currentTransition = _crossAreaRoute[_crossAreaRouteIndex];
+
+        // 4. Entity at the current transition point? Signal that NavigationActivity
+        //    should return a ChangeAreaAction.
+        if (entity.GetCurrentGridPosition() == currentTransition.SourcePosition
+            && entity.GridArea == currentTransition.SourceArea)
+        {
+            _needsAreaTransition = true;
+            _pendingTransition = currentTransition;
+            return true;
+        }
+
+        // 5. Set intermediate position goal to walk to the transition point.
+        _goalType = PathGoalType.Position;
+        _targetPosition = currentTransition.SourcePosition;
+        _pathNeedsCalculation = true;
+        _firstGoalCalculation = true;
+        _recalculationAttempts = 0;
+        return true;
+    }
+
+    /// <summary>
+    /// Restores the real goal (Building or Facility) after all area transitions are done.
+    /// Called from HandleCrossAreaPlanning when entity has arrived in the target area.
+    /// </summary>
+    private void SetFinalGoal(Being entity)
+    {
+        var goalType = _finalGoalType;
+        var building = _finalGoalBuilding;
+        var facilityId = _finalGoalFacilityId;
+        var requireInterior = _finalRequireInterior;
+
+        // Clear all cross-area state
+        _finalGoalType = PathGoalType.None;
+        _finalGoalBuilding = null;
+        _finalGoalFacilityId = null;
+        _finalRequireInterior = false;
+        _crossAreaRoute = null;
+        _crossAreaRouteIndex = 0;
+
+        // Set the real goal — entity is now in the same area as the building,
+        // so these will NOT detect cross-area and will use normal pathfinding.
+        switch (goalType)
+        {
+            case PathGoalType.Building:
+                SetBuildingGoal(entity, building!, requireInterior);
+                break;
+            case PathGoalType.Facility:
+                SetFacilityGoal(entity, building!, facilityId!);
+                break;
+        }
     }
 
     /// <summary>

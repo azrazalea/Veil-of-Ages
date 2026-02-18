@@ -259,7 +259,7 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
             () =>
             {
                 DebugLog("ACTIVITY", $"Starting navigation to workplace: {_workplace.BuildingName}", 0);
-                return new NavigateToBuildingActivity(_workplace, Priority);
+                return new GoToBuildingActivity(_workplace, Priority);
             },
             position, perception);
         switch (result)
@@ -547,7 +547,7 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
             () =>
             {
                 DebugLog("ACTIVITY", $"Starting navigation to home: {_home!.BuildingName}", 0);
-                return new NavigateToBuildingActivity(_home, Priority, targetStorage: true);
+                return new GoToBuildingActivity(_home, Priority, targetStorage: true);
             },
             position, perception);
         switch (result)

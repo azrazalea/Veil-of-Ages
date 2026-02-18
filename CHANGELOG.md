@@ -8,8 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- NavigateToBuildingActivity: cross-area capable drop-in replacement for GoToBuildingActivity
-- NavigationHelper utility for cross-area navigation (eliminates duplicated nav code)
 - Tag-based item taking in TakeFromStorageActivity (resolves tag to item ID after arriving)
 
 ### Fixed
@@ -17,10 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Entities in cellar can now navigate back to village for any activity (eating, studying, working, etc.)
 
 ### Changed
-- CheckHomeStorageActivity renamed to CheckStorageActivity (now cross-area capable)
-- TakeFromStorageActivity upgraded with built-in cross-area navigation phases
+- PathFinder handles cross-area navigation internally; navigation activities work seamlessly across areas without special wrappers
+- CheckStorageActivity and TakeFromStorageActivity simplified from 3 phases to 2 (PathFinder handles cross-area routing)
 - ConsumeItemActivity refactored to use TakeFromStorageActivity for cross-area food fetching
 - DistributorRoundActivity simplified from 10 to 8 states using CheckStorageActivity
+- FetchCorpseCommand uses SharedKnowledge building lookup instead of WorldNavigator (BDI-compliant)
+
+### Removed
+- NavigateToBuildingActivity (replaced by cross-area capable GoToBuildingActivity)
+- GoToWorldPositionActivity (PathFinder handles cross-area routing internally)
+- NavigationHelper utility (no longer needed; use GoToBuildingActivity/GoToFacilityActivity directly)
 
 ### Added
 - Localization infrastructure with PO/Gettext translation system (`locale/en.po`)

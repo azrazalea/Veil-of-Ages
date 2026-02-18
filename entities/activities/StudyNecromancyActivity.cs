@@ -108,7 +108,14 @@ public class StudyNecromancyActivity : Activity
 
         if (_navigationActivity == null)
         {
-            _navigationActivity = NavigationHelper.CreateNavigationToFacility(_owner, _facilityRef, Priority);
+            var building = _facilityRef.Building.Building;
+            if (building == null || !Godot.GodotObject.IsInstanceValid(building))
+            {
+                Fail();
+                return null;
+            }
+
+            _navigationActivity = new GoToFacilityActivity(building, _facilityRef.FacilityType, Priority);
             _navigationActivity.Initialize(_owner);
         }
 

@@ -63,11 +63,15 @@ return _pathFinder.FollowPath(entity);  // No A* here, just follows
 ```
 
 - **Key Methods**:
-  - `SetBuildingGoal(entity, building, requireInterior = true)`: Sets building navigation goal with interior/adjacency control
+  - `SetBuildingGoal(entity, building, requireInterior = true)`: Sets building navigation goal with interior/adjacency control. Now detects cross-area targets and defers to cross-area routing when entity and building are in different areas.
   - `CalculatePathIfNeeded(entity, perception)`: **Call from Think thread**. Calculates path if needed, avoiding perceived entities.
   - `FollowPath(entity)`: **Call from Execute thread**. Follows pre-calculated path only.
   - `IsGoalReached(entity)`: Checks if entity has reached goal, respects `requireInterior` flag for Building goals
   - `GetBuildingPerimeterPositions(buildingPos, buildingSize)`: Helper method that returns all positions one tile outside the building bounds
+  - `SetFacilityGoal(entity, building, facilityId)`: Sets facility navigation goal. Takes entity parameter for cross-area detection; when entity and building are in different areas, defers to cross-area routing.
+  - `NeedsAreaTransition` (bool property): True when PathFinder has reached a transition point and needs the caller to execute a ChangeAreaAction.
+  - `PendingTransition` (TransitionPoint? property): The transition point to use when `NeedsAreaTransition` is true.
+  - `CompleteTransition(entity)`: Call after ChangeAreaAction executes. Advances the cross-area route and clears transition state.
 - **Features**:
   - Automatic path recalculation with cooldown (5 ticks)
   - Maximum 3 recalculation attempts before failure
@@ -84,6 +88,12 @@ return _pathFinder.FollowPath(entity);  // No A* here, just follows
   - The border of perception range acts as a "fog of war" wall, preventing paths beyond what they can see
   - Uses `entity.MaxSenseRange` to determine perception radius
   - `CloneAStarGrid(source)`: Helper that deep-clones an AStarGrid2D with all solid/weight states
+- **Cross-Area Navigation**:
+  - When a Building or Facility goal is in a different area than the entity, PathFinder internally plans the route using `WorldNavigator.FindRouteToArea(entity, ...)` (BDI-compliant — uses entity's known transitions only).
+  - PathFinder walks to each transition point, then signals `NeedsAreaTransition = true`.
+  - NavigationActivity checks this flag and returns a `ChangeAreaAction`, then calls `CompleteTransition()`.
+  - All navigation activities (GoToLocation, GoToBuilding, GoToFacility) get cross-area support automatically with zero code changes to the activities themselves.
+  - The `_finalGoalType` field stores the real goal while cross-area routing is in progress. After all transitions complete, the real goal is restored via `SetFinalGoal()`.
 
 ### L.cs
 Static localization helper for non-Node classes that cannot call `Godot.Object.Tr()` directly.

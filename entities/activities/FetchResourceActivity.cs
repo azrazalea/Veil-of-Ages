@@ -446,6 +446,6 @@ public class FetchResourceActivity : StatefulActivity<FetchResourceActivity.Fetc
     private Activity CreateNavigationActivity(Building targetBuilding, string label)
     {
         DebugLog("FETCH", $"Starting navigation to {label}: {targetBuilding.BuildingName}", 0);
-        return NavigationHelper.CreateNavigationToBuilding(_owner!, targetBuilding, Priority, targetStorage: true);
+        return new GoToBuildingActivity(targetBuilding, Priority, targetStorage: true);
     }
 }

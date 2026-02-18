@@ -119,7 +119,7 @@ public class StudyActivity : Activity
         // Initialize go-to phase if needed
         if (_goToStudyPhase == null)
         {
-            _goToStudyPhase = new NavigateToBuildingActivity(_home, Priority);
+            _goToStudyPhase = new GoToBuildingActivity(_home, Priority);
             _goToStudyPhase.Initialize(_owner);
         }
 

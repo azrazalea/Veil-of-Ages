@@ -12,23 +12,21 @@ namespace VeilOfAges.Entities.Activities;
 /// (e.g., hungry but no memory of food locations).
 ///
 /// Phases:
-/// 1. CrossAreaNav (if needed) — cross-area navigation via NavigationHelper
-/// 2. LocalNav — GoToBuildingActivity(targetStorage: true) to reach storage access position
-/// 3. Observe — Call AccessStorage to observe and update memory, then complete
+/// 1. Navigate — GoToBuildingActivity(targetStorage: true) to reach storage access position (cross-area capable)
+/// 2. Observe — Call AccessStorage to observe and update memory, then complete
 ///
-/// Interruption behavior: OnResume() nulls navigation, regresses to CrossAreaNav.
+/// Interruption behavior: OnResume() nulls navigation, regresses to Navigate.
 /// </summary>
 public class CheckStorageActivity : Activity
 {
     private enum Phase
     {
-        CrossAreaNav,
-        LocalNav,
+        Navigate,
         Observing
     }
 
     private readonly Building _targetBuilding;
-    private Phase _currentPhase = Phase.CrossAreaNav;
+    private Phase _currentPhase = Phase.Navigate;
     private Activity? _navActivity;
     private bool _hasObserved;
 
@@ -54,9 +52,9 @@ public class CheckStorageActivity : Activity
     {
         base.OnResume();
         _navActivity = null;
-        if (_currentPhase <= Phase.LocalNav)
+        if (_currentPhase != Phase.Observing)
         {
-            _currentPhase = Phase.CrossAreaNav;
+            _currentPhase = Phase.Navigate;
         }
     }
 
@@ -78,55 +76,13 @@ public class CheckStorageActivity : Activity
 
         return _currentPhase switch
         {
-            Phase.CrossAreaNav => ProcessCrossAreaNav(position, perception),
-            Phase.LocalNav => ProcessLocalNav(position, perception),
+            Phase.Navigate => ProcessNavigate(position, perception),
             Phase.Observing => ProcessObserving(),
             _ => null
         };
     }
 
-    private EntityAction? ProcessCrossAreaNav(Vector2I position, Perception perception)
-    {
-        if (_owner == null)
-        {
-            return null;
-        }
-
-        // Skip cross-area nav if already in same area
-        if (_owner.GridArea == null || _targetBuilding.GridArea == null
-            || _owner.GridArea == _targetBuilding.GridArea)
-        {
-            _currentPhase = Phase.LocalNav;
-            return ProcessLocalNav(position, perception);
-        }
-
-        if (_navActivity == null)
-        {
-            _navActivity = NavigationHelper.CreateNavigationToBuilding(
-                _owner, _targetBuilding, Priority, targetStorage: true);
-            _navActivity.Initialize(_owner);
-            DebugLog("CHECK_STORAGE", $"Starting cross-area navigation to {_targetBuilding.BuildingName}", 0);
-        }
-
-        var (result, action) = RunSubActivity(_navActivity, position, perception);
-        switch (result)
-        {
-            case SubActivityResult.Failed:
-                DebugLog("CHECK_STORAGE", "Cross-area navigation failed", 0);
-                Fail();
-                return null;
-            case SubActivityResult.Continue:
-                return action;
-            case SubActivityResult.Completed:
-                break;
-        }
-
-        _navActivity = null;
-        _currentPhase = Phase.LocalNav;
-        return new IdleAction(_owner, this, Priority);
-    }
-
-    private EntityAction? ProcessLocalNav(Vector2I position, Perception perception)
+    private EntityAction? ProcessNavigate(Vector2I position, Perception perception)
     {
         if (_owner == null)
         {
@@ -137,14 +93,14 @@ public class CheckStorageActivity : Activity
         {
             _navActivity = new GoToBuildingActivity(_targetBuilding, Priority, targetStorage: true);
             _navActivity.Initialize(_owner);
-            DebugLog("CHECK_STORAGE", $"Starting local navigation to {_targetBuilding.BuildingName}", 0);
+            DebugLog("CHECK_STORAGE", $"Starting navigation to {_targetBuilding.BuildingName}", 0);
         }
 
         var (result, action) = RunSubActivity(_navActivity, position, perception);
         switch (result)
         {
             case SubActivityResult.Failed:
-                DebugLog("CHECK_STORAGE", "Local navigation failed", 0);
+                DebugLog("CHECK_STORAGE", "Navigation failed", 0);
                 Fail();
                 return null;
             case SubActivityResult.Continue:

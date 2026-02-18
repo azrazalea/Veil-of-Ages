@@ -60,7 +60,7 @@ public class HideInBuildingActivity : Activity
         {
             if (_goToPhase == null)
             {
-                _goToPhase = new NavigateToBuildingActivity(_targetBuilding, Priority, requireInterior: true);
+                _goToPhase = new GoToBuildingActivity(_targetBuilding, Priority, requireInterior: true);
                 _goToPhase.Initialize(_owner);
             }
 

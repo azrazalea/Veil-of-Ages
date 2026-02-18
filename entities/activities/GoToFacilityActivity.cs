@@ -44,7 +44,7 @@ public class GoToFacilityActivity : NavigationActivity
         base.Initialize(owner);
 
         _pathFinder = new PathFinder();
-        if (!_pathFinder.SetFacilityGoal(_building, _facilityId))
+        if (!_pathFinder.SetFacilityGoal(owner, _building, _facilityId))
         {
             Log.Warn($"{owner.Name}: No accessible {_facilityId} in {_building.BuildingName}");
             Fail();
