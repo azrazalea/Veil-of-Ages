@@ -19,16 +19,16 @@ The Kenney pack includes:
 - **Atlas Index**: `kenney_atlas_index.json` - Maps descriptive names to {row, col} positions
 
 ### DCSS ProjectUtumno
-- **Used File**: `dcss/ProjectUtumno_full.png`
+- **Used File**: `dcss/dcss_combined_atlas.png`
 - **Native Size**: 32x32 pixel tiles (no upscaling needed)
 - **Margin/Separation**: None
 - **License**: CC0 (Public Domain) - see `dcss/LICENSE.txt`
 - **Source**: Dungeon Crawl Stone Soup tileset by ProjectUtumno
 - **Usage**: Supplementary tileset for dungeon, environmental, and decorative tiles
 
-The DCSS pack includes two atlases:
-- **Main Atlas**: `ProjectUtumno_full.png` — indexed by `dcss_utumno_index.json`
-- **Supplemental Atlas**: `supplemental_atlas.png` — indexed by `dcss_supplemental_index.json`
+The DCSS pack uses a single combined atlas:
+- **Combined Atlas**: `dcss_combined_atlas.png` — indexed by `dcss_combined_index.json` (always use this)
+- **Old Atlases (reference only, being phased out)**: `ProjectUtumno_full.png` (indexed by `dcss_utumno_index.json`) and `supplemental_atlas.png` (indexed by `dcss_supplemental_index.json`)
 - **Reference PNGs**: Subdirectories contain individual PNGs for visual inspection (NOT loaded by the game)
 
 ### Urizen OneBit V2
@@ -87,11 +87,13 @@ assets/
 │   ├── colored-transparent_packed.png        # Original 16x16
 │   ├── colored-transparent_packed_2x.png     # 2x upscaled - USED BY GAME
 │   └── kenney_atlas_index.json
-├── dcss/                             # DCSS ProjectUtumno (TWO atlases)
-│   ├── ProjectUtumno_full.png               # Main atlas - USED BY GAME
-│   ├── supplemental_atlas.png               # Supplemental atlas - USED BY GAME
-│   ├── dcss_utumno_index.json
-│   ├── dcss_supplemental_index.json
+├── dcss/                             # DCSS ProjectUtumno (combined atlas)
+│   ├── dcss_combined_atlas.png              # Combined atlas - USED BY GAME
+│   ├── dcss_combined_index.json             # Combined index - USE THIS
+│   ├── ProjectUtumno_full.png               # Old main atlas - REFERENCE ONLY (being phased out)
+│   ├── supplemental_atlas.png               # Old supplemental atlas - REFERENCE ONLY (being phased out)
+│   ├── dcss_utumno_index.json               # Old main index - REFERENCE ONLY (being phased out)
+│   ├── dcss_supplemental_index.json         # Old supplemental index - REFERENCE ONLY (being phased out)
 │   ├── LICENSE.txt
 │   └── (subdirectories)                     # Individual PNGs (REFERENCE ONLY)
 ├── urizen/                           # Urizen OneBit V2
@@ -117,8 +119,7 @@ All atlases provide consistent 32x32 pixel tiles:
 ### Atlas Definitions
 Atlas JSON definitions are located in `/resources/tiles/atlases/`:
 - `kenney_1bit.json` - ID: `kenney`
-- `dcss_utumno.json` - ID: `dcss`
-- `dcss_supplemental.json` - ID: `dcss_supplemental`
+- `dcss_utumno.json` - ID: `dcss` (references `dcss_combined_atlas.png`)
 - `urizen_onebit.json` - ID: `urizen`
 - `custom.json` - ID: `custom`
 

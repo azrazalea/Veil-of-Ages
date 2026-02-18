@@ -1,9 +1,0 @@
-{
-  "Id": "dcss_supplemental",
-  "Name": "DCSS Supplemental Atlas",
-  "Description": "Supplemental DCSS tiles including player doll overlays (base bodies, clothing, cloaks, hair, headwear)",
-  "TexturePath": "res://assets/dcss/supplemental_atlas.png",
-  "TileSize": [32, 32],
-  "Separation": [0, 0],
-  "Margin": [0, 0]
-}

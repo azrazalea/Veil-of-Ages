@@ -1,8 +1,8 @@
 {
   "Id": "human_townsfolk",
   "Name": "Human Townsfolk",
-  "TexturePath": "res://assets/dcss/supplemental_atlas.png",
+  "TexturePath": "res://assets/dcss/dcss_combined_atlas.png",
   "SpriteSize": [32, 32],
-  "Row": 16,
-  "Col": 59
+  "Row": 60,
+  "Col": 22
 }
