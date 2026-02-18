@@ -20,7 +20,7 @@
             "Default": { "AtlasCoords": [12, 5] }
         },
         "dirt": {
-            "Default": { "AtlasSource": "dcss", "AtlasCoords": [19, 2] }
+            "Default": { "AtlasSource": "dcss", "AtlasCoords": [18, 2] }
         }
     }
 }

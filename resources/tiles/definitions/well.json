@@ -6,7 +6,7 @@
     "IsWalkable": false,
     "BaseDurability": 80,
     "AtlasSource": "dcss",
-    "AtlasCoords": [2, 63],
+    "AtlasCoords": [1, 63],
     "DefaultSensoryDifficulties": {
         "Sight": 0.9,
         "Hearing": 0.4,
