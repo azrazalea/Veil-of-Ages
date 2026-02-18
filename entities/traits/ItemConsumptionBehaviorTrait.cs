@@ -111,9 +111,9 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
             return null;
         }
 
-        if (currentActivity is CheckHomeStorageActivity)
+        if (currentActivity is CheckStorageActivity)
         {
-            DebugLog("EATING", $"CheckHomeStorageActivity already running, state: {currentActivity.State}");
+            DebugLog("EATING", $"CheckStorageActivity already running, state: {currentActivity.State}");
             return null;
         }
 
@@ -175,7 +175,7 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
                 {
                     // Never checked this building or observation expired - go check it
                     DebugLog("EATING", $"No food memory, going to check {building.BuildingName} (priority {checkPriority})", 0);
-                    var checkActivity = new CheckHomeStorageActivity(building, priority: checkPriority);
+                    var checkActivity = new CheckStorageActivity(building, priority: checkPriority);
                     return new StartActivityAction(_owner, this, checkActivity, priority: checkPriority);
                 }
 

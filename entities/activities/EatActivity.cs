@@ -21,7 +21,7 @@ public class EatActivity : Activity
     private readonly float _restoreAmount;
     private readonly uint _consumptionDuration;
 
-    private GoToBuildingActivity? _goToPhase;
+    private Activity? _goToPhase;
     private uint _consumptionTimer;
     private bool _isConsuming;
 
@@ -69,7 +69,7 @@ public class EatActivity : Activity
             // Initialize go-to phase if needed
             if (_goToPhase == null)
             {
-                _goToPhase = new GoToBuildingActivity(_target, Priority);
+                _goToPhase = new NavigateToBuildingActivity(_target, Priority);
                 _goToPhase.Initialize(_owner);
             }
 

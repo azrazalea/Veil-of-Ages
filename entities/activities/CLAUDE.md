@@ -175,6 +175,54 @@ switch (result)
 - If a sub-activity's `GetNextAction()` returns `null` (e.g., goal already reached), the helper checks if the state changed to Completed
 - If still Running but returned null (edge case), it returns an IdleAction to "hold the slot" and prevent other traits from overwriting the activity
 
+### NavigationHelper.cs
+Static utility class for creating cross-area navigation activities. Eliminates duplicated cross-area navigation patterns.
+
+**Methods:**
+- `CreateNavigationToBuilding(owner, target, priority, targetStorage)` — Creates either GoToWorldPositionActivity (cross-area) or GoToBuildingActivity (same-area)
+- `CreateNavigationToFacility(owner, facilityRef, priority)` — Creates either GoToWorldPositionActivity (cross-area) or GoToLocationActivity (same-area)
+
+**Usage:**
+```csharp
+// Navigate to a building (cross-area aware)
+var navActivity = NavigationHelper.CreateNavigationToBuilding(owner, building, priority, targetStorage: true);
+navActivity.Initialize(owner);
+
+// Navigate to a facility reference (cross-area aware)
+var navActivity = NavigationHelper.CreateNavigationToFacility(owner, facilityRef, priority);
+navActivity.Initialize(owner);
+```
+
+**Used By:**
+- TakeFromStorageActivity, CheckStorageActivity, FetchResourceActivity, WorkOnOrderActivity, StudyNecromancyActivity, DistributorRoundActivity
+
+### NavigateToBuildingActivity.cs
+Cross-area capable navigation to a building. Drop-in replacement for GoToBuildingActivity.
+
+**Usage:**
+```csharp
+// Same params as GoToBuildingActivity — just swap the class name
+new NavigateToBuildingActivity(building, priority: 0)
+new NavigateToBuildingActivity(building, priority: 0, targetStorage: true)
+new NavigateToBuildingActivity(building, priority: 0, requireInterior: true)
+```
+
+**Phases:**
+1. **CrossAreaNav** (if needed) — GoToWorldPositionActivity via NavigationHelper
+2. **LocalNav** — GoToBuildingActivity to reach the building within the target area
+
+**Behavior:**
+- If entity is already in the same area as the target, CrossAreaNav is skipped immediately
+- OnResume() nulls navigation, regresses to CrossAreaNav
+- Supports all GoToBuildingActivity params: targetStorage, requireInterior
+
+**Used By:**
+All activities that navigate to a building as a first step: StudyActivity, EatActivity, HideInBuildingActivity, WorkFieldActivity, ProcessReactionActivity.
+
+**When to use NavigateToBuildingActivity vs GoToBuildingActivity:**
+- **NavigateToBuildingActivity** — any activity's first navigation step (may need cross-area)
+- **GoToBuildingActivity** — only inside LocalNav phases where cross-area is already handled (e.g., inside NavigateToBuildingActivity, TakeFromStorageActivity, CheckStorageActivity)
+
 ### GoToLocationActivity.cs
 Moves an entity to a specific grid position.
 
@@ -277,7 +325,9 @@ compounding effects. Decay multipliers are reserved for passive effects.
 
 ### ConsumeItemActivity.cs
 Consumes food items from inventory or home storage to restore a need.
-Uses `ConsumeFromInventoryAction` for inventory food and `ConsumeFromStorageByTagAction` for home storage food.
+Uses `TakeFromStorageActivity` to fetch food (cross-area capable) and
+`ConsumeFromInventoryAction` for consumption. Hidden entities use
+`ConsumeFromStorageByTagAction` directly (they're already inside the building).
 
 **Usage:**
 ```csharp
@@ -292,47 +342,78 @@ new ConsumeItemActivity(
 ```
 
 **Phases:**
-1. **Check Inventory** - If entity has food in inventory, start consuming immediately
-2. **Go to Home** - If no food in inventory, travel to home using GoToBuildingActivity
-3. **Check Home Storage** - Look for food in home storage (uses memory check)
-4. **Issue Consume Action** - Return `ConsumeFromInventoryAction` or `ConsumeFromStorageByTagAction`
-5. **Consumption Timer** - Idle for consumption duration, then restore need
+1. **Check Inventory** - If entity has food in inventory, skip to consuming
+2. **Hidden Entity** - If hidden, use ConsumeFromStorageByTagAction directly (no navigation)
+3. **Fetch from Storage** - TakeFromStorageActivity(home, foodTag, 1) handles cross-area navigation + local navigation + taking into inventory
+4. **Consume** - ConsumeFromInventoryAction + timer + need restoration
 
 **Behavior:**
 - Checks inventory first (no travel needed if food found)
+- Hidden entities consume directly from storage (no navigation needed)
+- Non-hidden entities use TakeFromStorageActivity for cross-area capable food fetching
+- Always consumes from inventory via ConsumeFromInventoryAction after fetching
 - Validates home building still exists during travel
-- Uses `ConsumeFromInventoryAction` for inventory consumption (by item ID)
-- Uses `ConsumeFromStorageByTagAction` for home storage consumption (by tag)
 - Applies need restoration only after consumption duration completes
 - Fails if no food found in inventory and no home, or home has no food
 
-### CheckHomeStorageActivity.cs
-Goes to a building and observes its storage to refresh memory.
+### CheckStorageActivity.cs
+Goes to a building and observes its storage to refresh memory. Cross-area capable.
 
 **Usage:**
 ```csharp
-new CheckHomeStorageActivity(homeBuilding, priority: 0)
+new CheckStorageActivity(targetBuilding, priority: 0)
 ```
 
 **Phases:**
-1. **Navigate** - Travel to target building using GoToBuildingActivity with `targetStorage: true`
-2. **Observe** - Call AccessStorage to observe and update personal memory
+1. **CrossAreaNav** (if needed) - Cross-area navigation via NavigationHelper
+2. **LocalNav** - GoToBuildingActivity(targetStorage: true) to reach storage access position
+3. **Observing** - Call AccessStorage to observe and update personal memory, then complete
 
 **Behavior:**
-- Uses `GoToBuildingActivity` with `targetStorage: true` to handle RequireAdjacentToFacility automatically
-- Used by ItemConsumptionBehaviorTrait when entity is hungry but has no memory of food
+- Handles cross-area navigation automatically via NavigationHelper
+- Uses `GoToBuildingActivity` with `targetStorage: true` for local navigation
+- Used by ItemConsumptionBehaviorTrait, BakerJobTrait, and DistributorRoundActivity
 - Validates building still exists during travel
 - Calls `_owner.AccessStorage()` which automatically updates PersonalMemory
 - Completes immediately after observing (single tick observation)
-- After completion, the consuming trait can act on the updated memory
+- OnResume() nulls navigation, regresses to CrossAreaNav phase
 
 **Integration with ItemConsumptionBehaviorTrait:**
 When an entity is hungry but has no memory of food locations:
 1. Trait checks `HasFoodAvailable()` -> returns false (no inventory, no memory)
-2. Trait starts `CheckHomeStorageActivity` to go home and observe storage
-3. Activity navigates to home, calls `AccessStorage()`, completes
-4. On next think cycle, `HasFoodAvailable()` may now return true (if home had food)
+2. Trait starts `CheckStorageActivity` to go to building and observe storage
+3. Activity navigates (cross-area if needed), calls `AccessStorage()`, completes
+4. On next think cycle, `HasFoodAvailable()` may now return true (if building had food)
 5. Trait then starts `ConsumeItemActivity` as normal
+
+### TakeFromStorageActivity.cs
+Takes specified items from a building's storage into the entity's inventory. Cross-area capable.
+Supports both item-by-ID and tag-based modes.
+
+**Usage:**
+```csharp
+// Take specific items by ID
+new TakeFromStorageActivity(building, new List<(string, int)> { ("wheat", 5) }, priority: 0)
+
+// Take items by tag (resolves to item ID after arriving)
+new TakeFromStorageActivity(building, tag: "food", quantity: 1, priority: 0)
+```
+
+**Phases:**
+1. **CrossAreaNav** (if needed) - Cross-area navigation via NavigationHelper
+2. **LocalNav** - GoToBuildingActivity(targetStorage: true) to reach storage access position
+3. **Taking** - TakeFromStorageAction per item (tag mode resolves tag to item ID first)
+
+**Behavior:**
+- Handles cross-area navigation automatically via NavigationHelper
+- Tag mode: after arriving, calls AccessStorage to observe, FindItemByTag to resolve tag → item ID
+- ID mode: takes items directly using TakeFromStorageAction
+- OnResume() nulls navigation, regresses to CrossAreaNav. Taking progress (items already taken) is preserved.
+- Backward compatible: existing callers that already navigate will see navigation phases complete immediately
+
+**Used By:**
+- ConsumeItemActivity (tag mode: fetch food from home)
+- FetchResourceActivity, WorkFieldActivity, ProcessReactionActivity (ID mode)
 
 ### ProcessReactionActivity.cs
 Processes a crafting reaction (input items -> output items) at a workplace.
@@ -400,7 +481,7 @@ new StudyNecromancyActivity(facilityRef, studyDuration: 400, priority: 0)
 
 **Behavior:**
 - Dynamically finds necromancy_altar via FacilityReference (cross-area capable)
-- Uses WorldNavigator for cross-area navigation when altar is in different area
+- Uses NavigationHelper for cross-area navigation when altar is in different area
 - Drains energy at 0.015/tick (more taxing than normal study)
 - Grants XP in both "necromancy" and "arcane_theory" skills
 - Completes after study duration or if energy is low
@@ -424,8 +505,7 @@ new WorkOnOrderActivity(facilityRef, facility, priority: 0)
 2. **Working** - Work each tick, advance progress, grant XP, drain energy
 
 **Behavior:**
-- Uses WorldNavigator for cross-area navigation when facility is in different area
-- Falls back to GoToLocationActivity for same-area navigation
+- Uses NavigationHelper for cross-area navigation when facility is in different area
 - Calls `workOrder.Advance(worker)` each tick in Working phase (increments progress, grants XP, drains energy)
 - Exits early if energy becomes critical or time phase changes (necromancy is night-only)
 - Completes when work order finishes or conditions no longer met (work order stays on facility)
@@ -456,8 +536,7 @@ new FetchResourceActivity(
 
 **Behavior:**
 - Validates both buildings exist throughout the activity
-- Uses WorldNavigator for cross-area navigation when building is in different area
-- Falls back to GoToBuildingActivity with targetStorage: true for same-area navigation
+- Uses NavigationHelper for cross-area navigation when building is in different area
 - Takes up to desiredQuantity, or all available if less
 - Uses Being wrapper methods for storage access (auto-observes contents)
 - Completes even if destination storage is full (keeps items in inventory)
@@ -473,16 +552,19 @@ new FetchResourceActivity(
 |-------|-------------|
 | `ISubActivityRunner` | Interface for shared sub-activity driving |
 | `Activity` | Abstract base with state, lifecycle |
+| `NavigationHelper` | Static utility for cross-area navigation creation |
+| `NavigateToBuildingActivity` | Navigate to building (cross-area capable, replaces GoToBuildingActivity for first nav) |
 | `GoToLocationActivity` | Navigate to grid position |
-| `GoToBuildingActivity` | Navigate to building |
+| `GoToBuildingActivity` | Navigate to building (same-area only, used inside LocalNav phases) |
 | `GoToWorldPositionActivity` | Navigate across area boundaries using NavigationPlan |
-| `CheckHomeStorageActivity` | Go to building and observe storage to refresh memory |
+| `CheckStorageActivity` | Navigate to building (cross-area) and observe storage to refresh memory |
+| `TakeFromStorageActivity` | Navigate to building (cross-area) and take items by ID or tag |
 | `SleepActivity` | Sleep at night, restore energy |
 | `WorkFieldActivity` | Work at building, produce/transport wheat |
 | `WorkOnOrderActivity` | Work on facility's active work order (cross-area capable) |
-| `ConsumeItemActivity` | Eat food from inventory/home storage |
+| `ConsumeItemActivity` | Eat food from inventory/home storage (cross-area capable) |
 | `ProcessReactionActivity` | Craft items via reaction system |
-| `FetchResourceActivity` | Fetch items from one building to another |
+| `FetchResourceActivity` | Fetch items from one building to another (cross-area capable) |
 
 ## Integration with Being
 

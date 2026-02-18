@@ -1,7 +1,6 @@
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
-using VeilOfAges.Entities.Items;
 using VeilOfAges.Entities.Needs;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.Entities.Traits;
@@ -10,9 +9,16 @@ namespace VeilOfAges.Entities.Activities;
 
 /// <summary>
 /// Activity for consuming food items from inventory or home storage.
-/// Checks inventory first, then travels to home if needed.
-/// Uses ConsumeFromInventoryAction for inventory food and
-/// ConsumeFromStorageByTagAction for home storage food.
+/// Checks inventory first, then uses TakeFromStorageActivity to navigate to
+/// storage (cross-area if needed) and fetch food into inventory.
+/// Always consumes from inventory via ConsumeFromInventoryAction.
+///
+/// Phases:
+/// 1. Check inventory for food — if found, skip to consuming
+/// 2. Hidden entities — use ConsumeFromStorageByTagAction directly (no navigation)
+/// 3. Fetch from storage — TakeFromStorageActivity(home, foodTag, 1) handles
+///    cross-area navigation + local navigation + taking into inventory
+/// 4. Consume — ConsumeFromInventoryAction + timer + need restoration.
 /// </summary>
 public class ConsumeItemActivity : Activity
 {
@@ -22,13 +28,15 @@ public class ConsumeItemActivity : Activity
     private readonly float _restoreAmount;
     private readonly uint _consumptionDuration;
 
-    private GoToBuildingActivity? _goToPhase;
+    private TakeFromStorageActivity? _fetchActivity;
     private uint _consumptionTimer;
     private bool _isConsuming;
     private bool _consumeActionIssued;
     private bool _itemConsumed;
-    private bool _isFromInventory;
-    private string? _foodItemId; // Item ID for inventory consumption (found during validation)
+    private string? _foodItemId;
+
+    // Hidden entity special case: use ConsumeFromStorageByTagAction directly
+    private bool _hiddenStorageConsumeIssued;
 
     public override string DisplayName => _isConsuming
         ? L.Tr("activity.EATING")
@@ -64,7 +72,12 @@ public class ConsumeItemActivity : Activity
     protected override void OnResume()
     {
         base.OnResume();
-        _goToPhase = null; // Force fresh pathfinder
+
+        // If we were fetching, null the sub-activity to force re-navigation
+        if (_fetchActivity != null && !_isConsuming)
+        {
+            _fetchActivity = null;
+        }
     }
 
     public override EntityAction? GetNextAction(Vector2I position, Perception perception)
@@ -84,7 +97,6 @@ public class ConsumeItemActivity : Activity
                 var foodItem = inventory.FindItemByTag(_foodTag);
                 if (foodItem != null)
                 {
-                    _isFromInventory = true;
                     _foodItemId = foodItem.Definition.Id;
                     _isConsuming = true;
                     DebugLog("EATING", $"Found food in inventory ({foodItem.Definition.Name}), starting to eat", 0);
@@ -92,10 +104,9 @@ public class ConsumeItemActivity : Activity
             }
         }
 
-        // Phase 0.5: Hidden entities skip navigation - they're already at home
+        // Phase 0.5: Hidden entities skip navigation — they're already inside the building
         if (_owner.IsHidden && !_isConsuming && !_itemConsumed && _home != null)
         {
-            // Check if home building is valid
             if (!GodotObject.IsInstanceValid(_home))
             {
                 DebugLog("EATING", "Hidden: Home building no longer valid", 0);
@@ -103,12 +114,26 @@ public class ConsumeItemActivity : Activity
                 return null;
             }
 
-            // Direct storage access (entity is inside the building)
             if (_owner.StorageHasItemByTag(_home, _foodTag))
             {
-                _isFromInventory = false;
-                _isConsuming = true;
-                DebugLog("EATING", $"Hidden: Found food at {_home.BuildingName}, starting to eat", 0);
+                // Issue ConsumeFromStorageByTagAction directly — entity is inside the building
+                if (!_hiddenStorageConsumeIssued)
+                {
+                    _hiddenStorageConsumeIssued = true;
+                    _isConsuming = true;
+                    DebugLog("EATING", $"Hidden: Found food at {_home.BuildingName}, consuming directly", 0);
+                    return new ConsumeFromStorageByTagAction(
+                        _owner, this, _home, _foodTag, 1, Priority);
+                }
+
+                // After action executed, food should be in inventory now
+                // (ConsumeFromStorageByTagAction adds to inventory if entity has one)
+                var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
+                var foodItem = inventory?.FindItemByTag(_foodTag);
+                if (foodItem != null)
+                {
+                    _foodItemId = foodItem.Definition.Id;
+                }
             }
             else
             {
@@ -118,10 +143,10 @@ public class ConsumeItemActivity : Activity
             }
         }
 
-        // Phase 1: Go to home if we haven't found food in inventory
+        // Phase 1: Fetch food from storage using TakeFromStorageActivity
+        // Handles cross-area navigation + local navigation + taking into inventory
         if (!_isConsuming && !_itemConsumed && _home != null)
         {
-            // Check home still exists
             if (!GodotObject.IsInstanceValid(_home))
             {
                 Log.Warn($"{_owner.Name}: Home destroyed while looking for food");
@@ -129,38 +154,38 @@ public class ConsumeItemActivity : Activity
                 return null;
             }
 
-            // Initialize go-to phase if needed (targeting storage position)
-            if (_goToPhase == null)
+            if (_fetchActivity == null)
             {
-                _goToPhase = new GoToBuildingActivity(_home, Priority, targetStorage: true);
-                _goToPhase.Initialize(_owner);
+                _fetchActivity = new TakeFromStorageActivity(_home, _foodTag, 1, Priority);
+                _fetchActivity.Initialize(_owner);
+                DebugLog("EATING", $"Starting fetch from {_home.BuildingName}", 0);
             }
 
-            // Run the navigation sub-activity
-            var (result, action) = RunSubActivity(_goToPhase, position, perception);
+            var (result, action) = RunSubActivity(_fetchActivity, position, perception);
             switch (result)
             {
                 case SubActivityResult.Failed:
+                    DebugLog("EATING", $"Failed to fetch food from {_home.BuildingName}", 0);
                     Fail();
                     return null;
                 case SubActivityResult.Continue:
                     return action;
                 case SubActivityResult.Completed:
-                    // Fall through to check storage
                     break;
             }
 
-            // We've arrived - check storage for food using wrapper (auto-observes)
-            if (_owner.StorageHasItemByTag(_home, _foodTag))
+            // TakeFromStorageActivity completed — food should now be in inventory
+            var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
+            var foodItem = inventory?.FindItemByTag(_foodTag);
+            if (foodItem != null)
             {
-                _isFromInventory = false;
+                _foodItemId = foodItem.Definition.Id;
                 _isConsuming = true;
-                DebugLog("EATING", $"Found food at {_home.BuildingName}, starting to eat", 0);
+                DebugLog("EATING", $"Fetched {foodItem.Definition.Name} from {_home.BuildingName}, starting to eat", 0);
             }
             else
             {
-                // Memory was wrong or food was taken - memory is now updated
-                Log.Warn($"{_owner.Name}: No food at {_home.BuildingName} (memory updated)");
+                Log.Warn($"{_owner.Name}: Fetch completed but no food in inventory");
                 Fail();
                 return null;
             }
@@ -174,59 +199,22 @@ public class ConsumeItemActivity : Activity
             return null;
         }
 
-        // Phase 2: Consume the item
+        // Phase 2: Consume the item from inventory
         if (_isConsuming)
         {
             // On first tick of consuming, issue the consume action
-            if (!_consumeActionIssued)
+            if (!_consumeActionIssued && _foodItemId != null)
             {
                 _consumeActionIssued = true;
-
-                if (_isFromInventory && _foodItemId != null)
-                {
-                    // Consuming from inventory - use ConsumeFromInventoryAction
-                    return new ConsumeFromInventoryAction(
-                        _owner,
-                        this,
-                        _foodItemId,
-                        1,
-                        Priority);
-                }
-                else if (_home != null)
-                {
-                    // Consuming from home storage - use ConsumeFromStorageByTagAction
-                    return new ConsumeFromStorageByTagAction(
-                        _owner,
-                        this,
-                        _home,
-                        _foodTag,
-                        1,
-                        Priority);
-                }
-                else
-                {
-                    // No valid source - should not happen but handle gracefully
-                    Log.Warn($"{_owner.Name}: No valid food source for consumption");
-                    Fail();
-                    return null;
-                }
+                return new ConsumeFromInventoryAction(
+                    _owner,
+                    this,
+                    _foodItemId,
+                    1,
+                    Priority);
             }
 
-            // After storage take action executed, food is now in inventory.
-            // Switch to inventory path so ConsumeFromInventoryAction actually consumes it.
-            if (_consumeActionIssued && !_isFromInventory && !_itemConsumed)
-            {
-                var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
-                var foodItem = inventory?.FindItemByTag(_foodTag);
-                if (foodItem != null)
-                {
-                    _isFromInventory = true;
-                    _foodItemId = foodItem.Definition.Id;
-                    _consumeActionIssued = false; // Need to issue ConsumeFromInventoryAction
-                }
-            }
-
-            // After action has been issued and presumably executed, mark item as consumed
+            // Mark item as consumed after action has been issued
             if (!_itemConsumed)
             {
                 _itemConsumed = true;
@@ -236,15 +224,12 @@ public class ConsumeItemActivity : Activity
 
             if (_consumptionTimer >= _consumptionDuration)
             {
-                // Apply restoration
                 _need.Restore(_restoreAmount);
-                var source = _isFromInventory ? "inventory" : _home?.BuildingName ?? "unknown";
-                DebugLog("EATING", $"Finished eating from {source} (hunger restored by {_restoreAmount})", 0);
+                DebugLog("EATING", $"Finished eating (hunger restored by {_restoreAmount})", 0);
                 Complete();
                 return null;
             }
 
-            // Still consuming, idle
             return new IdleAction(_owner, this, Priority);
         }
 

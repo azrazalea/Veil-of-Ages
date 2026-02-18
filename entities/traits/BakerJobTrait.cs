@@ -84,7 +84,7 @@ public class BakerJobTrait : JobTrait
     /// - ProcessReactionActivity if a reaction can be performed (milling or baking)
     /// - FetchResourceActivity for water if water is low and a well is available
     /// - FetchResourceActivity for wheat if wheat is low and a source is known
-    /// - CheckHomeStorageActivity if we have no memory of required inputs
+    /// - CheckStorageActivity if we have no memory of required inputs
     /// - null if nothing can be done (lets VillagerTrait handle idle behavior).
     /// </summary>
     protected override Activity? CreateWorkActivity()
@@ -102,7 +102,7 @@ public class BakerJobTrait : JobTrait
         }
 
         // If already checking storage, let it complete
-        if (_owner.GetCurrentActivity() is CheckHomeStorageActivity)
+        if (_owner.GetCurrentActivity() is CheckStorageActivity)
         {
             DebugLog("BAKER", "Already checking storage, waiting for completion");
             return null;
@@ -195,7 +195,7 @@ public class BakerJobTrait : JobTrait
         {
             DebugLog("BAKER", $"No memory of required inputs ({string.Join(", ", missingInputItemIds)}), going to check workplace storage", 0);
             _lastStorageCheckTick = currentTick;
-            return new CheckHomeStorageActivity(_workplace, priority: 0);
+            return new CheckStorageActivity(_workplace, priority: 0);
         }
 
         // Nothing to do - return null to let VillagerTrait handle idle behavior
@@ -305,7 +305,7 @@ public class BakerJobTrait : JobTrait
             {
                 // No memory of well - go check it
                 DebugLog("BAKER", "Need water, no memory of well storage, going to check well", 0);
-                return new CheckHomeStorageActivity(well, priority: 0);
+                return new CheckStorageActivity(well, priority: 0);
             }
 
             // We have memory of the well being empty - wait for water to regenerate
@@ -411,7 +411,7 @@ public class BakerJobTrait : JobTrait
             {
                 // No memory of this building - go check it
                 DebugLog("BAKER", $"Need wheat, no memory of {building.BuildingName} storage, going to check", 0);
-                return new CheckHomeStorageActivity(building, priority: 0);
+                return new CheckStorageActivity(building, priority: 0);
             }
 
             // We have memory but it showed no wheat (or we already checked above)

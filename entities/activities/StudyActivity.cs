@@ -29,7 +29,7 @@ public class StudyActivity : Activity
     private readonly Building _home;
     private readonly uint _studyDuration;
 
-    private GoToBuildingActivity? _goToStudyPhase;
+    private Activity? _goToStudyPhase;
     private uint _studyTimer;
     private StudyPhase _currentPhase = StudyPhase.GoingToStudy;
     private Need? _energyNeed;
@@ -119,7 +119,7 @@ public class StudyActivity : Activity
         // Initialize go-to phase if needed
         if (_goToStudyPhase == null)
         {
-            _goToStudyPhase = new GoToBuildingActivity(_home, Priority);
+            _goToStudyPhase = new NavigateToBuildingActivity(_home, Priority);
             _goToStudyPhase.Initialize(_owner);
         }
 

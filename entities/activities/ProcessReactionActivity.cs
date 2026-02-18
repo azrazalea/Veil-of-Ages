@@ -247,7 +247,7 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
             () =>
             {
                 DebugLog("REACTION", $"Navigating to {_workplace.BuildingName} to process {_reaction.Name}", 0);
-                return new GoToBuildingActivity(_workplace, Priority);
+                return new NavigateToBuildingActivity(_workplace, Priority);
             },
             position, perception);
         switch (result)
@@ -290,7 +290,7 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
             () =>
             {
                 DebugLog("REACTION", $"Navigating to storage to take inputs for {_reaction.Name}", 0);
-                return new GoToBuildingActivity(_workplace, Priority, targetStorage: true);
+                return new NavigateToBuildingActivity(_workplace, Priority, targetStorage: true);
             },
             position, perception);
         switch (result)
@@ -464,7 +464,7 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
             () =>
             {
                 DebugLog("REACTION", $"Navigating to storage to deposit outputs for {_reaction.Name}", 0);
-                return new GoToBuildingActivity(_workplace, Priority, targetStorage: true);
+                return new NavigateToBuildingActivity(_workplace, Priority, targetStorage: true);
             },
             position, perception);
         switch (result)

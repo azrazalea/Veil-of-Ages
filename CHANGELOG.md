@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- NavigateToBuildingActivity: cross-area capable drop-in replacement for GoToBuildingActivity
+- NavigationHelper utility for cross-area navigation (eliminates duplicated nav code)
+- Tag-based item taking in TakeFromStorageActivity (resolves tag to item ID after arriving)
+
+### Fixed
+- Cross-area navigation for all activities: studying, working, eating, baking, hiding, and distribution rounds now navigate across area boundaries
+- Entities in cellar can now navigate back to village for any activity (eating, studying, working, etc.)
+
+### Changed
+- CheckHomeStorageActivity renamed to CheckStorageActivity (now cross-area capable)
+- TakeFromStorageActivity upgraded with built-in cross-area navigation phases
+- ConsumeItemActivity refactored to use TakeFromStorageActivity for cross-area food fetching
+- DistributorRoundActivity simplified from 10 to 8 states using CheckStorageActivity
+
+### Added
 - Localization infrastructure with PO/Gettext translation system (`locale/en.po`)
 - Static localization helper `L.cs` for non-Node classes with caching
 - Localized all static UI strings (HUD labels, time descriptions, need status)

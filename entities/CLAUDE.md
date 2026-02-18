@@ -102,7 +102,7 @@ Being.cs provides a complete memory system integration with PersonalMemory and S
 1. **Inventory** - What they're carrying (immediate, always accurate)
 2. **Personal Memory** - What they've personally observed (may be stale)
 
-Entities do NOT omnisciently know what's in any storage container. If memory is empty or stale, the entity must go observe the storage to update their memory (see `CheckHomeStorageActivity`).
+Entities do NOT omnisciently know what's in any storage container. If memory is empty or stale, the entity must go observe the storage to update their memory (see `CheckStorageActivity`).
 
 ### BANNED: Remote Storage Access
 

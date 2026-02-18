@@ -8,19 +8,46 @@ namespace VeilOfAges.Entities.Activities;
 
 /// <summary>
 /// Activity that takes specified items from a building's storage into the entity's inventory.
-/// Each call to GetNextAction returns a TakeFromStorageAction for the current item.
+/// Supports both item-by-ID and tag-based modes.
+///
+/// Phases:
+/// 1. CrossAreaNav (if needed) — cross-area navigation via NavigationHelper
+/// 2. LocalNav — GoToBuildingActivity(targetStorage: true) to reach storage access position
+/// 3. Taking — TakeFromStorageAction per item (tag mode resolves tag to item ID first)
+///
+/// Interruption behavior: OnResume() nulls navigation, regresses to CrossAreaNav or LocalNav.
+/// Taking progress (items already taken) is preserved.
+///
+/// Backward compatibility: Existing callers already navigate before using this activity.
+/// The navigation phases complete immediately when already adjacent.
 /// </summary>
 public class TakeFromStorageActivity : Activity
 {
+    private enum Phase
+    {
+        CrossAreaNav,
+        LocalNav,
+        Taking
+    }
+
     private readonly Building _sourceBuilding;
-    private readonly List<(string itemId, int quantity)> _itemsToTake;
+    private readonly List<(string itemId, int quantity)>? _itemsToTake;
+    private readonly string? _tag;
+    private readonly int _tagQuantity;
+
+    private Phase _currentPhase;
+    private Activity? _navActivity;
     private int _currentIndex;
+    private bool _tagResolved;
 
     /// <inheritdoc/>
     public override string DisplayName => L.TrFmt("activity.TAKING_FROM_STORAGE", _sourceBuilding.BuildingName);
 
+    public override Building? TargetBuilding => _sourceBuilding;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="TakeFromStorageActivity"/> class.
+    /// Takes specific items by ID from a building's storage.
     /// </summary>
     /// <param name="sourceBuilding">The building to take items from.</param>
     /// <param name="itemsToTake">List of item IDs and quantities to take.</param>
@@ -33,6 +60,43 @@ public class TakeFromStorageActivity : Activity
         _sourceBuilding = sourceBuilding;
         _itemsToTake = itemsToTake;
         Priority = priority;
+        _currentPhase = Phase.CrossAreaNav;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TakeFromStorageActivity"/> class.
+    /// Takes items matching a tag from a building's storage.
+    /// After navigation, observes storage, resolves the tag to an item ID,
+    /// then issues TakeFromStorageAction.
+    /// </summary>
+    /// <param name="sourceBuilding">The building to take items from.</param>
+    /// <param name="tag">Tag to match items against (e.g., "food").</param>
+    /// <param name="quantity">Number of matching items to take.</param>
+    /// <param name="priority">Priority for actions returned by this activity.</param>
+    public TakeFromStorageActivity(
+        Building sourceBuilding,
+        string tag,
+        int quantity,
+        int priority)
+    {
+        _sourceBuilding = sourceBuilding;
+        _tag = tag;
+        _tagQuantity = quantity;
+        _itemsToTake = new List<(string itemId, int quantity)>();
+        Priority = priority;
+        _currentPhase = Phase.CrossAreaNav;
+    }
+
+    protected override void OnResume()
+    {
+        base.OnResume();
+        _navActivity = null;
+
+        // Regress to navigation — preserve taking progress
+        if (_currentPhase <= Phase.LocalNav)
+        {
+            _currentPhase = Phase.CrossAreaNav;
+        }
     }
 
     /// <inheritdoc/>
@@ -52,8 +116,135 @@ public class TakeFromStorageActivity : Activity
             return null;
         }
 
+        return _currentPhase switch
+        {
+            Phase.CrossAreaNav => ProcessCrossAreaNav(position, perception),
+            Phase.LocalNav => ProcessLocalNav(position, perception),
+            Phase.Taking => ProcessTaking(),
+            _ => null
+        };
+    }
+
+    private EntityAction? ProcessCrossAreaNav(Vector2I position, Perception perception)
+    {
+        if (_owner == null)
+        {
+            return null;
+        }
+
+        // Skip cross-area nav if entity is already in the same area as the building
+        if (_owner.GridArea == null || _sourceBuilding.GridArea == null
+            || _owner.GridArea == _sourceBuilding.GridArea)
+        {
+            _currentPhase = Phase.LocalNav;
+            return ProcessLocalNav(position, perception);
+        }
+
+        if (_navActivity == null)
+        {
+            _navActivity = NavigationHelper.CreateNavigationToBuilding(
+                _owner, _sourceBuilding, Priority, targetStorage: true);
+            _navActivity.Initialize(_owner);
+            DebugLog("TAKE_STORAGE", $"Starting cross-area navigation to {_sourceBuilding.BuildingName}", 0);
+        }
+
+        var (result, action) = RunSubActivity(_navActivity, position, perception);
+        switch (result)
+        {
+            case SubActivityResult.Failed:
+                DebugLog("TAKE_STORAGE", "Cross-area navigation failed", 0);
+                Fail();
+                return null;
+            case SubActivityResult.Continue:
+                return action;
+            case SubActivityResult.Completed:
+                break;
+        }
+
+        // Cross-area nav complete — now do local nav
+        _navActivity = null;
+        _currentPhase = Phase.LocalNav;
+        return new IdleAction(_owner, this, Priority);
+    }
+
+    private EntityAction? ProcessLocalNav(Vector2I position, Perception perception)
+    {
+        if (_owner == null)
+        {
+            return null;
+        }
+
+        if (_navActivity == null)
+        {
+            _navActivity = new GoToBuildingActivity(_sourceBuilding, Priority, targetStorage: true);
+            _navActivity.Initialize(_owner);
+            DebugLog("TAKE_STORAGE", $"Starting local navigation to {_sourceBuilding.BuildingName}", 0);
+        }
+
+        var (result, action) = RunSubActivity(_navActivity, position, perception);
+        switch (result)
+        {
+            case SubActivityResult.Failed:
+                DebugLog("TAKE_STORAGE", "Local navigation failed", 0);
+                Fail();
+                return null;
+            case SubActivityResult.Continue:
+                return action;
+            case SubActivityResult.Completed:
+                break;
+        }
+
+        // We've arrived — transition to Taking
+        _navActivity = null;
+        _currentPhase = Phase.Taking;
+        DebugLog("TAKE_STORAGE", $"Arrived at {_sourceBuilding.BuildingName}, starting to take items", 0);
+        return new IdleAction(_owner, this, Priority);
+    }
+
+    private EntityAction? ProcessTaking()
+    {
+        if (_owner == null)
+        {
+            return null;
+        }
+
+        // Tag mode: resolve tag to item ID on first call after arriving
+        if (_tag != null && !_tagResolved)
+        {
+            _tagResolved = true;
+
+            // Observe storage to update memory
+            var storage = _owner.AccessStorage(_sourceBuilding);
+            if (storage == null)
+            {
+                DebugLog("TAKE_STORAGE", "Cannot access storage (not adjacent?)", 0);
+                Fail();
+                return null;
+            }
+
+            var foundItem = storage.FindItemByTag(_tag);
+            if (foundItem == null)
+            {
+                DebugLog("TAKE_STORAGE", $"No item with tag '{_tag}' found in storage", 0);
+                Fail();
+                return null;
+            }
+
+            // Resolve tag to specific item ID
+            var resolvedId = foundItem.Definition.Id;
+            if (string.IsNullOrEmpty(resolvedId))
+            {
+                DebugLog("TAKE_STORAGE", $"Found item with tag '{_tag}' but it has no ID", 0);
+                Fail();
+                return null;
+            }
+
+            _itemsToTake!.Add((resolvedId, _tagQuantity));
+            DebugLog("TAKE_STORAGE", $"Resolved tag '{_tag}' to item '{resolvedId}'", 0);
+        }
+
         // Check if all items have been taken
-        if (_currentIndex >= _itemsToTake.Count)
+        if (_itemsToTake == null || _currentIndex >= _itemsToTake.Count)
         {
             DebugLog("TAKE_STORAGE", "All items taken successfully", 0);
             Complete();

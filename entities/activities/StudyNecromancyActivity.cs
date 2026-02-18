@@ -108,30 +108,7 @@ public class StudyNecromancyActivity : Activity
 
         if (_navigationActivity == null)
         {
-            // Determine if we need cross-area navigation
-            var currentArea = _owner.GridArea;
-            var targetArea = _facilityRef.Area;
-
-            if (targetArea != null && targetArea != currentArea)
-            {
-                // Cross-area: use WorldNavigator
-                var plan = WorldNavigator.NavigateToPosition(
-                    _owner, currentArea!, position, targetArea, _facilityRef.Position);
-                if (plan == null)
-                {
-                    DebugLog("ACTIVITY", "Cannot find route to necromancy altar", 0);
-                    Fail();
-                    return null;
-                }
-
-                _navigationActivity = new GoToWorldPositionActivity(plan, Priority);
-            }
-            else
-            {
-                // Same area: simple navigation to the facility position
-                _navigationActivity = new GoToLocationActivity(_facilityRef.Position, Priority);
-            }
-
+            _navigationActivity = NavigationHelper.CreateNavigationToFacility(_owner, _facilityRef, Priority);
             _navigationActivity.Initialize(_owner);
         }
 

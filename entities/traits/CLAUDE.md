@@ -37,7 +37,7 @@ Trait that handles need satisfaction by consuming items from inventory or home s
 - Checks inventory first, then personal memory for food locations
 - Priority-based action generation (critical hunger interrupts sleep)
 - Starts ConsumeItemActivity when food is available
-- Starts CheckHomeStorageActivity when hungry but no food memory (refreshes memory)
+- Starts CheckStorageActivity when hungry but no food memory (refreshes memory)
 - Tag-based food identification
 
 **Behavior Flow:**
@@ -45,8 +45,8 @@ Trait that handles need satisfaction by consuming items from inventory or home s
 2. Check `HasFoodAvailable()`:
    - Has food in inventory? -> Start ConsumeItemActivity
    - Remembers food in storage? -> Start ConsumeItemActivity
-   - No memory of food? -> Start CheckHomeStorageActivity (go home and observe storage)
-3. After CheckHomeStorageActivity completes, memory is updated
+   - No memory of food? -> Start CheckStorageActivity (go home and observe storage)
+3. After CheckStorageActivity completes, memory is updated
 4. On next think cycle, if home had food, ConsumeItemActivity can now start
 
 **Constructor Parameters:**

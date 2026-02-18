@@ -12,7 +12,7 @@ namespace VeilOfAges.Entities.Activities;
 public class HideInBuildingActivity : Activity
 {
     private readonly Building _targetBuilding;
-    private GoToBuildingActivity? _goToPhase;
+    private Activity? _goToPhase;
     private bool _hasArrived;
 
     public override string DisplayName => _hasArrived
@@ -60,7 +60,7 @@ public class HideInBuildingActivity : Activity
         {
             if (_goToPhase == null)
             {
-                _goToPhase = new GoToBuildingActivity(_targetBuilding, Priority, requireInterior: true);
+                _goToPhase = new NavigateToBuildingActivity(_targetBuilding, Priority, requireInterior: true);
                 _goToPhase.Initialize(_owner);
             }
 

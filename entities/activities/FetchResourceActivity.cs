@@ -1,10 +1,8 @@
 using System.Collections.Generic;
-using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Items;
-using VeilOfAges.Entities.Memory;
 using VeilOfAges.Entities.Needs;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.Entities.Traits;
@@ -445,33 +443,9 @@ public class FetchResourceActivity : StatefulActivity<FetchResourceActivity.Fetc
         return null;
     }
 
-    /// <summary>
-    /// Creates the appropriate navigation activity for reaching a target building.
-    /// If the building is in a different area from the entity, uses WorldNavigator
-    /// with GoToWorldPositionActivity for cross-area navigation. Otherwise uses
-    /// GoToBuildingActivity for same-area navigation.
-    /// </summary>
     private Activity CreateNavigationActivity(Building targetBuilding, string label)
     {
         DebugLog("FETCH", $"Starting navigation to {label}: {targetBuilding.BuildingName}", 0);
-
-        if (_owner!.GridArea != null && targetBuilding.GridArea != null
-            && _owner.GridArea != targetBuilding.GridArea)
-        {
-            // Cross-area navigation via WorldNavigator
-            var entityPos = _owner.GetCurrentGridPosition();
-            var plan = WorldNavigator.NavigateToPosition(
-                _owner, _owner.GridArea, entityPos,
-                targetBuilding.GridArea, targetBuilding.GetCurrentGridPosition());
-            if (plan != null)
-            {
-                DebugLog("FETCH", $"Using cross-area navigation to {label}", 0);
-                return new GoToWorldPositionActivity(plan, Priority);
-            }
-
-            DebugLog("FETCH", $"Cross-area route not found to {label}, falling back to same-area", 0);
-        }
-
-        return new GoToBuildingActivity(targetBuilding, Priority, targetStorage: true);
+        return NavigationHelper.CreateNavigationToBuilding(_owner!, targetBuilding, Priority, targetStorage: true);
     }
 }
