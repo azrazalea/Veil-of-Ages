@@ -19,27 +19,9 @@ public partial class PlayerInputController : Node
     [Export]
     private Dialogue? _dialogueUI;
     [Export]
-    private PanelContainer? _quickActions;
-    [Export]
-    private PanelContainer? _minimap;
-    [Export]
     private PanelContainer? _chooseLocationPrompt;
     [Export]
     private PopupMenu? _contextMenu;
-    [Export]
-    private RichTextLabel? _nameLabel;
-    [Export]
-    private ProgressBar? _hungerBar;
-    [Export]
-    private VBoxContainer? _commandQueueContainer;
-    [Export]
-    private Label? _activityLabel;
-    [Export]
-    private Label? _timeLabel;
-    [Export]
-    private Label? _dateLabel;
-    [Export]
-    private Label? _speedLabel;
     private EntityCommand? _pendingCommand;
     private Being? _commandTarget;
     private Vector2I _contextGridPos;
@@ -49,110 +31,34 @@ public partial class PlayerInputController : Node
 
     public override void _Ready()
     {
-        _gameController = GetNode<GameController>("/root/World/GameController");
-        _player = GetNode<Player>("/root/World/Entities/Player");
-
-        if (_gameController == null || _player == null)
-        {
-            Log.Error("PlayerInputController: Failed to find required nodes!");
-        }
+        // Try to resolve services now; they may not be registered yet
+        // (Player registers in Initialize(), which runs during world generation)
+        TryResolveServices();
     }
 
-    [Export]
-    private ProgressBar? _energyBar;
-
-    public override void _PhysicsProcess(double delta)
-    {
-        base._PhysicsProcess(delta);
-        var hungerNeed = _player?.NeedsSystem?.GetNeed("hunger");
-        var energyNeed = _player?.NeedsSystem?.GetNeed("energy");
-
-        if (_nameLabel != null && _nameLabel.Text != _player?.Name)
-        {
-            _nameLabel.Text = _player?.Name;
-        }
-
-        // Show current activity (not just assigned command)
-        if (_activityLabel != null)
-        {
-            var activity = _player?.GetCurrentActivity();
-            if (activity != null)
-            {
-                _activityLabel.Text = activity.DisplayName;
-            }
-            else
-            {
-                var command = _player?.GetAssignedCommand();
-                _activityLabel.Text = command?.DisplayName ?? Tr("ui.hud.IDLE");
-            }
-        }
-
-        if (_hungerBar != null && hungerNeed != null)
-        {
-            _hungerBar.Value = hungerNeed.Value;
-        }
-
-        if (_energyBar != null && energyNeed != null)
-        {
-            _energyBar.Value = energyNeed.Value;
-        }
-
-        UpdateTimeDisplay();
-        PopulateCommandList();
-    }
-
-    private void UpdateTimeDisplay()
+    private void TryResolveServices()
     {
         if (_gameController == null)
         {
-            return;
+            Services.TryGet<GameController>(out _gameController);
         }
 
-        var gameTime = _gameController.CurrentGameTime;
-
-        // Update time of day label (e.g., "Early Morning", "Dusk", "Midnight")
-        if (_timeLabel != null)
+        if (_player == null)
         {
-            _timeLabel.Text = CapitalizeFirst(gameTime.GetTimeOfDayDescription());
-        }
-
-        // Update date label (e.g., "Day 5, Seedweave")
-        if (_dateLabel != null)
-        {
-            _dateLabel.Text = L.TrFmt("ui.hud.DAY_DATE", gameTime.Day, gameTime.LocalizedMonthName);
-        }
-
-        // Update speed label
-        if (_speedLabel != null)
-        {
-            if (_gameController.SimulationPaused())
-            {
-                _speedLabel.Text = Tr("ui.hud.PAUSED");
-            }
-            else
-            {
-                float scale = _gameController.TimeScale;
-                _speedLabel.Text = scale >= 1.0f ? $"{scale:0.#}x" : $"{scale:0.##}x";
-            }
+            Services.TryGet<Player>(out _player);
         }
     }
 
-    private static string CapitalizeFirst(string input)
+    public override void _UnhandledInput(InputEvent @event)
     {
-        if (string.IsNullOrEmpty(input))
-        {
-            return input;
-        }
-
-        return char.ToUpperInvariant(input[0]) + input[1..];
-    }
-
-    public override void _Input(InputEvent @event)
-    {
-        // Skip if simulation is paused or essential references are missing
+        // Lazy service resolution — Player may register after our _Ready()
         if (_gameController == null || _player == null)
         {
-            return;
+            TryResolveServices();
+            if (_gameController == null || _player == null)
+            {
+                return;
+            }
         }
 
         // Interaction key
@@ -285,12 +191,6 @@ public partial class PlayerInputController : Node
                 if (didStartDialogue != true)
                 {
                     return;
-                }
-
-                if (_minimap != null && _quickActions != null)
-                {
-                    _minimap.Visible = false;
-                    _quickActions.Visible = false;
                 }
 
                 Log.Print($"Interacting with {entity.Name}");
@@ -455,12 +355,6 @@ public partial class PlayerInputController : Node
                             return;
                         }
 
-                        if (_minimap != null && _quickActions != null)
-                        {
-                            _minimap.Visible = false;
-                            _quickActions.Visible = false;
-                        }
-
                         Log.Print($"Interacting with {entity.Name}");
                     }
                     else
@@ -574,49 +468,6 @@ public partial class PlayerInputController : Node
         }
 
         Log.Print("Canceled current player command");
-    }
-
-    public void PopulateCommandList()
-    {
-        if (_commandQueueContainer == null)
-        {
-            return;
-        }
-
-        for (int i = _commandQueueContainer.GetChildCount() - 1; i >= 0; i--)
-        {
-            var child = _commandQueueContainer.GetChild(i);
-            _commandQueueContainer.RemoveChild(child);
-            child.QueueFree();
-        }
-
-        if (_player?.GetCommandQueue().Count == 0)
-        {
-            var label = new Label
-            {
-                Text = Tr("ui.hud.EMPTY"),
-            };
-            label.AddThemeFontSizeOverride("font_size", 10);
-
-            _commandQueueContainer.AddChild(label);
-            return;
-        }
-
-        LinkedListNode<EntityCommand>? node = _player?.GetCommandQueue().First();
-        while (node != null)
-        {
-            var label = new Label
-            {
-                Text = node?.Value.DisplayName ?? string.Empty,
-                TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
-                ClipText = true,
-            };
-
-            label.AddThemeFontSizeOverride("font_size", 10);
-
-            _commandQueueContainer.AddChild(label);
-            node = node?.Next;
-        }
     }
 
     public void ApproachEntity(Being entity)

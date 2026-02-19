@@ -10,7 +10,7 @@ The `/core/ui` directory contains the user interface systems, primarily focused 
 The main dialogue UI component that displays conversations and command options.
 
 - **Namespace**: `VeilOfAges.UI`
-- **Class**: `Dialogue : CanvasLayer`
+- **Class**: `Dialogue : Control`
 - **Key Responsibilities**:
   - Display dialogue panel with entity name and text
   - Generate and display command options as buttons
@@ -21,15 +21,65 @@ The main dialogue UI component that displays conversations and command options.
   - `_nameLabel`: RichTextLabel for entity name
   - `_dialogueText`: RichTextLabel for dialogue content
   - `_optionsContainer`: GridContainer for option buttons
-  - `_minimap`, `_quickActions`: Panels hidden during dialogue
-- **Important**: Checks `Being.WillRefuseCommand()` before showing dialogue and disables buttons for refused commands.
+- **Important**: Checks `Being.WillRefuseCommand()` before showing dialogue and disables buttons for refused commands. Fires `GameEvents.DialogueStateChanged` when opening/closing.
 - **Facility Dialogue**: `ShowFacilityDialogue(speaker, facility)` shows facility interaction options with explicit enabled/disabled states and tooltips.
+
+### NecromancerTheme.cs
+Programmatic Godot Theme builder for the necromancer UI aesthetic.
+
+- **Namespace**: `VeilOfAges.Core.UI`
+- **Class**: `NecromancerTheme` (static)
+- **Method**: `Build()` returns a configured `Theme`
+- Dark palette: bg `#2d2d42`, border `#7b5aad`, text white, gold accents
+- Type variations: `HeaderLabel`, `ValueLabel`, `DimLabel`
+- Public colors: `ColorCritical`, `ColorGood` for panel use
+
+### TopBarPanel.cs
+Top bar displaying location, date, time of day, and speed controls.
+
+- **Namespace**: `VeilOfAges.Core.UI`
+- **Class**: `TopBarPanel : PanelContainer`
+- Builds UI programmatically in `_Ready()`
+- Subscribes to `UITickFired`, `SimulationPauseChanged`, `TimeScaleChanged`
+- Speed buttons call `Services.Get<GameController>()`
+
+### CharacterPanel.cs
+Bottom-left character cluster with name, activity, automation indicator.
+
+- **Namespace**: `VeilOfAges.Core.UI`
+- **Class**: `CharacterPanel : PanelContainer`
+- Shows portrait placeholder, player name, current activity, "MANUAL"/"AUTO" indicator
+- Subscribes to `UITickFired`, `AutomationToggled`
+
+### NeedsPanel.cs
+Dynamic needs display showing 2-3 most critical needs.
+
+- **Namespace**: `VeilOfAges.Core.UI`
+- **Class**: `NeedsPanel : PanelContainer`
+- Hides entirely when all needs satisfied (calm HUD)
+- Uses `_Process` only for smooth bar lerping between UI tick updates
+- Trend arrows: `↑` rising, `→` stable, `↓` declining
+- Bar colors change: purple (normal), orange (low), red (critical)
+
+### CommandQueuePanel.cs
+Horizontal command queue strip with node pooling.
+
+- **Namespace**: `VeilOfAges.Core.UI`
+- **Class**: `CommandQueuePanel : PanelContainer`
+- Current command highlighted in gold, queued commands in white
+- Uses label pool (grow-only, hide unused) instead of destroy/recreate
+- Subscribes to `CommandQueueChanged` and `UITickFired`
 
 ## Key Classes/Interfaces
 
 | Class | Description |
 |-------|-------------|
-| `Dialogue` | Main dialogue UI panel controller |
+| `Dialogue` | Main dialogue UI panel controller (`Control`, fires `DialogueStateChanged`) |
+| `NecromancerTheme` | Programmatic theme builder (dark palette, gold accents) |
+| `TopBarPanel` | Top bar: location, date, time of day, speed controls |
+| `CharacterPanel` | Bottom-left: name, activity, MANUAL/AUTO indicator |
+| `NeedsPanel` | Dynamic critical needs display with trend arrows and color coding |
+| `CommandQueuePanel` | Horizontal command queue strip with node pooling |
 
 ## Important Notes
 
@@ -64,7 +114,8 @@ The main dialogue UI component that displays conversations and command options.
 ## Dependencies
 
 ### This module depends on:
-- `VeilOfAges.Core.PlayerInputController` - For location selection
+- `VeilOfAges.Core.Services` - Resolves GameController and Player without `GetNode` paths
+- `VeilOfAges.Core.GameEvents` - Subscribes to `UITickFired`, `SimulationPauseChanged`, `TimeScaleChanged`, `CommandQueueChanged`, `AutomationToggled`, `DialogueStateChanged`
 - `VeilOfAges.Entities.Being` - Entity dialogue methods
 - `VeilOfAges.UI.Commands` - TalkCommand, MoveToCommand, GuardCommand
 

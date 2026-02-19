@@ -8,7 +8,7 @@ using VeilOfAges.UI.Commands;
 
 namespace VeilOfAges.UI;
 
-public partial class Dialogue : CanvasLayer
+public partial class Dialogue : Control
 {
     [Export]
     private RichTextLabel? _nameLabel;
@@ -16,10 +16,6 @@ public partial class Dialogue : CanvasLayer
     private RichTextLabel? _dialogueText;
     [Export]
     private GridContainer? _optionsContainer;
-    [Export]
-    private PanelContainer? _minimap;
-    [Export]
-    private PanelContainer? _quickActions;
 
     private Being? _currentTarget;
     private Being? _currentSpeaker;
@@ -31,6 +27,9 @@ public partial class Dialogue : CanvasLayer
     public override void _Ready()
     {
         Visible = false; // Start hidden
+
+        // Full-rect anchors so this fills its parent container
+        SetAnchorsPreset(LayoutPreset.FullRect);
     }
 
     public bool ShowDialogue(Being speaker, Being target)
@@ -69,6 +68,7 @@ public partial class Dialogue : CanvasLayer
 
         // Show the dialogue UI
         Visible = true;
+        GameEvents.FireDialogueStateChanged(true);
 
         return true;
     }
@@ -108,6 +108,7 @@ public partial class Dialogue : CanvasLayer
         RefreshOptions();
 
         Visible = true;
+        GameEvents.FireDialogueStateChanged(true);
     }
 
     private void RefreshOptions()
@@ -234,11 +235,7 @@ public partial class Dialogue : CanvasLayer
         _currentTarget = null;
         _currentSpeaker = null;
         _isFacilityDialogue = false;
+        GameEvents.FireDialogueStateChanged(false);
         Visible = false;
-        if (_minimap != null && _quickActions != null)
-        {
-            _minimap.Visible = true;
-            _quickActions.Visible = true;
-        }
     }
 }

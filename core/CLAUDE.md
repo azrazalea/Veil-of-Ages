@@ -22,7 +22,7 @@ The main game loop controller that manages simulation timing and tick processing
 - **Important**: The `ProcessNextTick()` method is async and uses `_processingTick` flag to prevent overlapping tick processing.
 
 ### PlayerInputController.cs
-Handles all player input including mouse clicks, keyboard shortcuts, and context menus.
+Handles all player input including mouse clicks, keyboard shortcuts, and context menus. (~470 lines of pure input handling)
 
 - **Namespace**: `VeilOfAges.Core`
 - **Class**: `PlayerInputController : Node`
@@ -30,20 +30,41 @@ Handles all player input including mouse clicks, keyboard shortcuts, and context
   - Mouse click handling for movement and entity interaction
   - Context menu generation and handling
   - Location selection mode for commands requiring position input
-  - HUD updates (name label, hunger bar, activity display, command queue)
   - Simulation control hotkeys (pause, speed up/down)
   - Automation toggle (manual/automatic behavior)
   - Facility interaction (detects and shows facility dialogue)
   - Transition point interaction (detects and allows entering cellars/other areas)
+- **Input Method**: Uses `_UnhandledInput` for input processing
+- **Dependencies resolved via**: `Services.Get<GameController>()` and `Services.Get<Player>()` — no direct `GetNode` paths
+- **Exports**: Only `_dialogueUI`, `_chooseLocationPrompt`, and `_contextMenu` — no HUD display element exports
 - **Input Actions**: `interact`, `exit`, `toggle_simulation_pause`, `speed_up`, `slow_down`, `context_menu`, `toggle_automation`
 - **Important**: Uses `_awaitingLocationSelection` flag for commands that need a target position (like MoveToCommand, GuardCommand).
+
+### Services.cs
+Static service locator for decoupled access to global singletons.
+
+- **Namespace**: `VeilOfAges.Core`
+- **Class**: `Services` (static)
+- **Methods**: `Register<T>()`, `Get<T>()`, `TryGet<T>()`
+- Used by UI panels and PlayerInputController to access GameController and Player without `GetNode` paths.
+
+### GameEvents.cs
+Static event bus for broadcasting game-wide events to decoupled listeners.
+
+- **Namespace**: `VeilOfAges.Core`
+- **Class**: `GameEvents` (static)
+- **Events**: `UITickFired`, `SimulationPauseChanged`, `TimeScaleChanged`, `CommandQueueChanged`, `AutomationToggled`, `DialogueStateChanged`
+- **UITickFired** fires every 2 simulation ticks from GameController. UI panels subscribe to this instead of running their own `_Process` timers.
+- Instant events (pause, speed, etc.) provide responsive feedback for user actions.
 
 ## Key Classes/Interfaces
 
 | Class | Description |
 |-------|-------------|
 | `GameController` | Main game loop, tick processing, time management |
-| `PlayerInputController` | Player input handling, UI state management |
+| `PlayerInputController` | Player input handling (~470 lines of pure input handling) |
+| `Services` | Static service locator for decoupled singleton access |
+| `GameEvents` | Static event bus for game-wide broadcast events |
 
 ## Important Notes
 
@@ -57,7 +78,8 @@ Handles all player input including mouse clicks, keyboard shortcuts, and context
 - Entity thinking system processes are awaited before continuing
 
 ### UI Integration
-- PlayerInputController has direct exports to HUD elements (minimap, quick actions, dialogue)
+- PlayerInputController no longer has direct exports to HUD display elements. Its only scene exports are `_dialogueUI`, `_chooseLocationPrompt`, and `_contextMenu`.
+- HUD panels (TopBarPanel, CharacterPanel, NeedsPanel, CommandQueuePanel) are self-contained: they subscribe to `GameEvents` and resolve dependencies via `Services`.
 - Context menu dynamically populated based on click target (entity vs. empty tile)
 
 ## Dependencies

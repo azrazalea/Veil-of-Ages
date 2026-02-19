@@ -1,4 +1,5 @@
 using Godot;
+using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Sensory;
@@ -32,6 +33,7 @@ public class AutomationTrait : BeingTrait
     {
         IsAutomated = !IsAutomated;
         Log.Print($"{_owner?.Name}: Automation {(IsAutomated ? "ON" : "OFF")}");
+        GameEvents.FireAutomationToggled(IsAutomated);
         return IsAutomated;
     }
 

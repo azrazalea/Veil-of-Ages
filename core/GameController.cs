@@ -44,6 +44,7 @@ public partial class GameController : Node
         _world = GetTree().GetFirstNodeInGroup("World") as World;
         _player = GetNode<Player>("/root/World/Entities/Player");
         _thinkingSystem = GetNode<EntityThinkingSystem>("/root/World/EntityThinkingSystem");
+        Services.Register(this);
         GD.Print($"Current time: {CurrentGameTime.GetTimeDescription()}");
         GD.Print($"Actual time we want: {CurrentGameTime.Value - GameTime.CENTISECONDSPERYEAR}");
         if (_world == null || _player == null || _thinkingSystem == null)
@@ -67,6 +68,12 @@ public partial class GameController : Node
             CurrentTick++;
             _ = ProcessNextTick();
             CurrentGameTime = CurrentGameTime.Advance();
+
+            // Fire UI tick every 2 simulation ticks
+            if (CurrentTick % 2 == 0)
+            {
+                GameEvents.FireUITick();
+            }
         }
     }
 
@@ -111,16 +118,19 @@ public partial class GameController : Node
     public void PauseSimulation()
     {
         _simulationPaused = true;
+        GameEvents.FireSimulationPauseChanged(true);
     }
 
     public void ResumeSimulation()
     {
         _simulationPaused = false;
+        GameEvents.FireSimulationPauseChanged(false);
     }
 
     public void ToggleSimulationPause()
     {
         _simulationPaused = !_simulationPaused;
+        GameEvents.FireSimulationPauseChanged(_simulationPaused);
     }
 
     public bool SimulationPaused()
@@ -131,5 +141,6 @@ public partial class GameController : Node
     public void SetTimeScale(float scale)
     {
         TimeScale = Mathf.Clamp(scale, 0.1f, 25f);
+        GameEvents.FireTimeScaleChanged(TimeScale);
     }
 }

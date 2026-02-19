@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Tag-based item taking in TakeFromStorageActivity (resolves tag to item ID after arriving)
+- Service locator (`Services.cs`) for decoupled access to GameController and Player
+- Event bus (`GameEvents.cs`) with UITickFired, SimulationPauseChanged, TimeScaleChanged, CommandQueueChanged, AutomationToggled, DialogueStateChanged events
+- Programmatic UI theme (`NecromancerTheme.cs`) with dark necromancer palette
+- Top bar panel with location name, date, time of day, and clickable speed controls
+- Character panel showing player name, current activity, and MANUAL/AUTO automation indicator
+- Needs panel showing 2-3 most critical needs with trend arrows and color-coded bars (hides when all satisfied)
+- Command queue panel with pooled labels and gold-highlighted current command
+- CanvasLayer stacking: UILayer (10), ModalLayer (30), TooltipLayer (100)
+- Localized area names (`AreaDisplayName` on GridArea)
+- Localized command display names for all 13 command types
+- Translation keys for HUD strings (automation indicator, command queue, area names)
 
 ### Fixed
 - Cross-area navigation for all activities: studying, working, eating, baking, hiding, and distribution rounds now navigate across area boundaries
@@ -20,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - ConsumeItemActivity refactored to use TakeFromStorageActivity for cross-area food fetching
 - DistributorRoundActivity simplified from 10 to 8 states using CheckStorageActivity
 - FetchCorpseCommand uses SharedKnowledge building lookup instead of WorldNavigator (BDI-compliant)
+- HUD refactored: self-contained panels subscribe to GameEvents instead of being updated by PlayerInputController
+- PlayerInputController stripped to pure input handling (~485 lines); uses Services instead of GetNode, `_UnhandledInput` instead of `_Input`
+- Dialogue converted from CanvasLayer to Control, parented under ModalLayer
+- UI panels use event-driven updates (UITickFired every 2 sim ticks) instead of per-frame _PhysicsProcess
 
 ### Removed
 - NavigateToBuildingActivity (replaced by cross-area capable GoToBuildingActivity)

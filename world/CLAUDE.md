@@ -65,6 +65,8 @@ Manages a discrete area of the game world with its own tile layers and entity tr
   - Static tile definitions: `WaterTile`, `GrassTile`, `DirtTile`, `PathTile`
   - Supports active/inactive states and player area designation
   - Entity management with automatic pathfinding solid updates
+  - `AreaName`: Translation key for the area name (e.g., `"area.VILLAGE"`)
+  - `AreaDisplayName`: Localized display name via `L.Tr(AreaName)`
 
 ### Village.cs
 Represents a village settlement with shared knowledge about buildings and landmarks. Entities that are residents share access to the village's knowledge by reference.

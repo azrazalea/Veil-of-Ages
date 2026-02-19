@@ -13,7 +13,12 @@ namespace VeilOfAges.Grid;
 public partial class Area(Vector2I worldSize): Node2D
 {
     [Export]
-    public string AreaName { get; set; } = "Default Area";
+    public string AreaName { get; set; } = "area.VILLAGE";
+
+    /// <summary>
+    /// Gets localized display name for this area. AreaName should be a translation key.
+    /// </summary>
+    public string AreaDisplayName => L.Tr(AreaName);
     public Vector2I GridSize { get; set; } = new (worldSize.X, worldSize.Y);
     public AStarGrid2D? AStarGrid;
 

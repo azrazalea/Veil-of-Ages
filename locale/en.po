@@ -197,6 +197,24 @@ msgstr "Paused"
 msgid "ui.hud.EMPTY"
 msgstr "Empty"
 
+# HUD automation indicator
+msgid "ui.hud.MANUAL"
+msgstr "MANUAL"
+
+msgid "ui.hud.AUTO"
+msgstr "AUTO"
+
+# HUD command queue
+msgid "ui.hud.NO_COMMANDS"
+msgstr "No commands"
+
+# Area names
+msgid "area.VILLAGE"
+msgstr "Greyhaven"
+
+msgid "area.SCHOLARS_CELLAR"
+msgstr "Scholar's Cellar"
+
 # HUD date: {0}=day number, {1}=month name
 msgid "ui.hud.DAY_DATE"
 msgstr "Day {0}, {1}"
@@ -471,6 +489,47 @@ msgstr "Depositing collected items"
 
 msgid "activity.DISTRIBUTING"
 msgstr "Distributing"
+
+# --- Command Display Names ---
+
+msgid "command.MOVE_TO"
+msgstr "Move To"
+
+msgid "command.FOLLOW"
+msgstr "Follow"
+
+msgid "command.GUARD"
+msgstr "Guard"
+
+msgid "command.TALK"
+msgstr "Talk"
+
+msgid "command.CANCEL_ORDERS"
+msgstr "Cancel Orders"
+
+msgid "command.RETURN_HOME"
+msgstr "Return Home"
+
+msgid "command.FETCH_CORPSE"
+msgstr "Fetch Corpse"
+
+msgid "command.ATTACK"
+msgstr "Attack"
+
+msgid "command.BUILD"
+msgstr "Build"
+
+msgid "command.DEFEND"
+msgstr "Defend"
+
+msgid "command.GATHER"
+msgstr "Gather"
+
+msgid "command.PATROL"
+msgstr "Patrol"
+
+msgid "command.REST"
+msgstr "Rest"
 
 #
 # === Phase 5: JSON Data Localization ===

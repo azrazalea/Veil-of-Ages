@@ -16,6 +16,8 @@ namespace VeilOfAges.UI.Commands;
 /// </summary>
 public class FetchCorpseCommand : EntityCommand
 {
+    public override string DisplayName => L.Tr("command.FETCH_CORPSE");
+
     private Building? _altarBuilding;
     private FetchResourceActivity? _fetchActivity;
 

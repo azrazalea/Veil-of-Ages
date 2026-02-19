@@ -25,6 +25,8 @@ public class FollowCommand : EntityCommand
     private bool _isSearching;
     private int _searchRadius = 2;
 
+    public override string DisplayName => L.Tr("command.FOLLOW");
+
     public FollowCommand(Being owner, Being commander, bool isComplex = false)
         : base(owner, commander, isComplex)
     {

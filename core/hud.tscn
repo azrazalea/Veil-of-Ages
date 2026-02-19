@@ -1,9 +1,12 @@
 [gd_scene format=3 uid="uid://cmmglr0mto4me"]
 
-[ext_resource type="FontFile" uid="uid://cm65kg1osflue" path="res://assets/fonts/slimes_pixel_font_pack/Corvid Conspirator v1.1.ttf" id="1_l3ow8"]
 [ext_resource type="PackedScene" uid="uid://cgnn5ytban4uo" path="res://core/ui/dialogue.tscn" id="1_rn0xv"]
 [ext_resource type="Script" uid="uid://b26u0pft2ej7f" path="res://core/ui/Dialogue.cs" id="2_a8e1d"]
 [ext_resource type="Script" uid="uid://gyjyivm0kcr3" path="res://core/PlayerInputController.cs" id="4_whbmk"]
+[ext_resource type="Script" path="res://core/ui/TopBarPanel.cs" id="5_topbar"]
+[ext_resource type="Script" path="res://core/ui/CharacterPanel.cs" id="6_charpanel"]
+[ext_resource type="Script" path="res://core/ui/NeedsPanel.cs" id="7_needspanel"]
+[ext_resource type="Script" path="res://core/ui/CommandQueuePanel.cs" id="8_cmdqueue"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_l3ow8"]
 content_margin_left = 8.0
@@ -21,212 +24,113 @@ corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
-[node name="HUD" type="CanvasLayer" unique_id=708864749]
+[node name="HUD" type="CanvasLayer"]
 
-[node name="Character Container" type="PanelContainer" parent="." unique_id=771633190]
-z_index = 1
+[node name="UILayer" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="UIRoot" type="Control" parent="UILayer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TopBarPanel" type="PanelContainer" parent="UILayer/UIRoot"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 44.0
+grow_horizontal = 2
+mouse_filter = 1
+script = ExtResource("5_topbar")
+
+[node name="LeftSidebar" type="MarginContainer" parent="UILayer/UIRoot"]
 anchors_preset = 9
 anchor_bottom = 1.0
-offset_right = 127.0
+offset_top = 44.0
+offset_right = 120.0
 grow_vertical = 2
+mouse_filter = 2
 
-[node name="Basic Info Container" type="VBoxContainer" parent="Character Container" unique_id=1753092078]
-layout_mode = 2
-theme_override_constants/separation = 5
-
-[node name="Player Name Label" type="RichTextLabel" parent="Character Container/Basic Info Container" unique_id=670866239]
-layout_mode = 2
-theme_override_fonts/normal_font = ExtResource("1_l3ow8")
-text = "Lilith"
-fit_content = true
-
-[node name="HSeparator" type="HSeparator" parent="Character Container/Basic Info Container" unique_id=286381763]
-layout_mode = 2
-
-[node name="Activity section label" type="Label" parent="Character Container/Basic Info Container" unique_id=1257235657]
-layout_mode = 2
-text = "ui.hud.ACTIVITY_LABEL"
-
-[node name="Activity Label" type="Label" parent="Character Container/Basic Info Container" unique_id=1066176189]
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "Idle"
-horizontal_alignment = 1
-vertical_alignment = 1
-clip_text = true
-text_overrun_behavior = 3
-
-[node name="HSeparator2" type="HSeparator" parent="Character Container/Basic Info Container" unique_id=605481121]
-layout_mode = 2
-
-[node name="Needs Label" type="RichTextLabel" parent="Character Container/Basic Info Container" unique_id=241977826]
-layout_mode = 2
-text = "ui.hud.NEEDS_LABEL"
-fit_content = true
-
-[node name="Needs Container" type="PanelContainer" parent="Character Container/Basic Info Container" unique_id=709883826]
-layout_mode = 2
-
-[node name="Needs Vbox" type="VBoxContainer" parent="Character Container/Basic Info Container/Needs Container" unique_id=390373452]
-layout_mode = 2
-
-[node name="Hunger Label" type="RichTextLabel" parent="Character Container/Basic Info Container/Needs Container/Needs Vbox" unique_id=1609306726]
-layout_mode = 2
-theme_override_font_sizes/normal_font_size = 12
-text = "🍗Hunger"
-fit_content = true
-
-[node name="Hunger Need Bar" type="ProgressBar" parent="Character Container/Basic Info Container/Needs Container/Needs Vbox" unique_id=973120388]
-layout_mode = 2
-tooltip_text = "Hunger"
-theme_override_font_sizes/font_size = 7
-
-[node name="Energy Label" type="RichTextLabel" parent="Character Container/Basic Info Container/Needs Container/Needs Vbox"]
-layout_mode = 2
-theme_override_font_sizes/normal_font_size = 12
-text = "Energy"
-fit_content = true
-
-[node name="Energy Need Bar" type="ProgressBar" parent="Character Container/Basic Info Container/Needs Container/Needs Vbox"]
-layout_mode = 2
-tooltip_text = "Energy"
-theme_override_font_sizes/font_size = 7
-
-[node name="Queue Label" type="RichTextLabel" parent="Character Container/Basic Info Container" unique_id=329178253]
-layout_mode = 2
-text = "ui.hud.CMD_QUEUE_LABEL"
-fit_content = true
-
-[node name="Command Queue Panel Container" type="PanelContainer" parent="Character Container/Basic Info Container" unique_id=41078738]
-layout_mode = 2
-
-[node name="Command Queue List" type="VBoxContainer" parent="Character Container/Basic Info Container/Command Queue Panel Container" unique_id=1028479210]
-layout_mode = 2
-
-[node name="Kingdom Container" type="PanelContainer" parent="." unique_id=1086541042]
-z_index = 1
+[node name="RightSidebar" type="MarginContainer" parent="UILayer/UIRoot"]
 anchors_preset = 11
 anchor_left = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -127.0
+offset_left = -120.0
+offset_top = 44.0
 grow_horizontal = 0
 grow_vertical = 2
+mouse_filter = 2
 
-[node name="Top Bar Container" type="PanelContainer" parent="." unique_id=1009612818]
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -449.5
-offset_right = 449.5
-offset_bottom = 40.0
+[node name="BottomBar" type="HBoxContainer" parent="UILayer/UIRoot"]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -64.0
 grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_constants/separation = 8
 
-[node name="Top Bar HBox" type="HBoxContainer" parent="Top Bar Container" unique_id=1467559670]
+[node name="CharacterPanel" type="PanelContainer" parent="UILayer/UIRoot/BottomBar"]
 layout_mode = 2
-theme_override_constants/separation = 20
+size_flags_horizontal = 0
+mouse_filter = 1
+script = ExtResource("6_charpanel")
 
-[node name="Location Name" type="Label" parent="Top Bar Container/Top Bar HBox" unique_id=339975534]
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 0.658824)
-theme_override_fonts/font = ExtResource("1_l3ow8")
-theme_override_font_sizes/font_size = 21
-text = "Greyhaven"
-
-[node name="Spacer" type="Control" parent="Top Bar Container/Top Bar HBox" unique_id=422242708]
+[node name="NeedsPanel" type="PanelContainer" parent="UILayer/UIRoot/BottomBar"]
 layout_mode = 2
 size_flags_horizontal = 3
+mouse_filter = 1
+script = ExtResource("7_needspanel")
 
-[node name="Time Label" type="Label" parent="Top Bar Container/Top Bar HBox" unique_id=1042535283]
+[node name="CommandQueuePanel" type="PanelContainer" parent="UILayer/UIRoot/BottomBar"]
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.9, 0.7, 0.9)
-theme_override_font_sizes/font_size = 14
-text = "Early Morning"
+size_flags_horizontal = 3
+mouse_filter = 1
+script = ExtResource("8_cmdqueue")
 
-[node name="Date Label" type="Label" parent="Top Bar Container/Top Bar HBox" unique_id=1179856872]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8, 0.8, 1, 0.8)
-theme_override_font_sizes/font_size = 14
-text = "Day 1, Seedweave"
+[node name="ModalLayer" type="CanvasLayer" parent="."]
+layer = 30
 
-[node name="Speed Label" type="Label" parent="Top Bar Container/Top Bar HBox" unique_id=1220749358]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 1, 0.7, 0.9)
-theme_override_font_sizes/font_size = 14
-text = "1x"
-
-[node name="Minimap Container" type="PanelContainer" parent="." unique_id=1355862966]
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -61.5
-offset_top = -145.0
-offset_right = 61.5
-offset_bottom = -40.0
-grow_horizontal = 2
-grow_vertical = 0
-
-[node name="Quick Actions Container" type="PanelContainer" parent="." unique_id=1532036401]
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -106.0
-offset_top = -40.0
-offset_right = 106.0
-grow_horizontal = 2
-grow_vertical = 0
-
-[node name="Dialogue" parent="." unique_id=404562588 node_paths=PackedStringArray("_nameLabel", "_dialogueText", "_optionsContainer", "_minimap", "_quickActions") instance=ExtResource("1_rn0xv")]
+[node name="Dialogue" parent="ModalLayer" node_paths=PackedStringArray("_nameLabel", "_dialogueText", "_optionsContainer") instance=ExtResource("1_rn0xv")]
 visible = false
 script = ExtResource("2_a8e1d")
 _nameLabel = NodePath("Name Container/Name Label")
 _dialogueText = NodePath("Dialogue Panel/Dialogue Box/Dialogue Text Label")
 _optionsContainer = NodePath("Dialogue Panel/Dialogue Box/Dialogue Choices")
-_minimap = NodePath("../Minimap Container")
-_quickActions = NodePath("../Quick Actions Container")
 
-[node name="Dialogue Panel" parent="Dialogue" index="0"]
-offset_left = -449.0
-offset_right = 451.0
-offset_bottom = 1.0
-
-[node name="Choose Location Prompt" type="PanelContainer" parent="." unique_id=333852920]
+[node name="Choose Location Prompt" type="PanelContainer" parent="ModalLayer"]
 visible = false
-offset_left = 473.0
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -98.0
 offset_top = 56.0
-offset_right = 669.0
+offset_right = 98.0
 offset_bottom = 102.0
+grow_horizontal = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_l3ow8")
 
-[node name="Choose Location Label" type="RichTextLabel" parent="Choose Location Prompt" unique_id=1653038154]
+[node name="Choose Location Label" type="RichTextLabel" parent="ModalLayer/Choose Location Prompt"]
 layout_mode = 2
 text = "Choose a location
 to continue"
 scroll_active = false
 autowrap_mode = 0
 
-[node name="Context Menu" type="PopupMenu" parent="." unique_id=857285601]
+[node name="TooltipLayer" type="CanvasLayer" parent="."]
+layer = 100
 
-[node name="PlayerInputController" type="Node2D" parent="." unique_id=579160580 node_paths=PackedStringArray("_dialogueUI", "_quickActions", "_minimap", "_chooseLocationPrompt", "_contextMenu", "_nameLabel", "_hungerBar", "_energyBar", "_commandQueueContainer", "_activityLabel", "_timeLabel", "_dateLabel", "_speedLabel")]
+[node name="Context Menu" type="PopupMenu" parent="."]
+
+[node name="PlayerInputController" type="Node" parent="." node_paths=PackedStringArray("_dialogueUI", "_chooseLocationPrompt", "_contextMenu")]
 script = ExtResource("4_whbmk")
-_dialogueUI = NodePath("../Dialogue")
-_quickActions = NodePath("../Quick Actions Container")
-_minimap = NodePath("../Minimap Container")
-_chooseLocationPrompt = NodePath("../Choose Location Prompt")
+_dialogueUI = NodePath("../ModalLayer/Dialogue")
+_chooseLocationPrompt = NodePath("../ModalLayer/Choose Location Prompt")
 _contextMenu = NodePath("../Context Menu")
-_nameLabel = NodePath("../Character Container/Basic Info Container/Player Name Label")
-_hungerBar = NodePath("../Character Container/Basic Info Container/Needs Container/Needs Vbox/Hunger Need Bar")
-_energyBar = NodePath("../Character Container/Basic Info Container/Needs Container/Needs Vbox/Energy Need Bar")
-_commandQueueContainer = NodePath("../Character Container/Basic Info Container/Command Queue Panel Container/Command Queue List")
-_activityLabel = NodePath("../Character Container/Basic Info Container/Activity Label")
-_timeLabel = NodePath("../Top Bar Container/Top Bar HBox/Time Label")
-_dateLabel = NodePath("../Top Bar Container/Top Bar HBox/Date Label")
-_speedLabel = NodePath("../Top Bar Container/Top Bar HBox/Speed Label")
 
 [connection signal="index_pressed" from="Context Menu" to="PlayerInputController" method="HandleContextMenuSelection"]
-
-[editable path="Dialogue"]

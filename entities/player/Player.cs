@@ -72,6 +72,7 @@ public partial class Player : GenericBeing
         // Player always has debug enabled for detailed logging
         base.Initialize(gridArea, startGridPos, gameController, attributes, debugEnabled: true);
         Name = "Lilith Galonadel";
+        Services.Register(this);
 
         InitializeAutonomy();
     }
@@ -117,6 +118,9 @@ public partial class Player : GenericBeing
         if (_commandQueue.Count > 0 && _currentCommand == null)
         {
             _currentCommand = _commandQueue.Dequeue();
+
+            // Note: This runs on a background thread, but C# events are thread-safe to invoke
+            GameEvents.FireCommandQueueChanged();
         }
 
         return base.Think(currentPosition, observationData);
@@ -130,6 +134,7 @@ public partial class Player : GenericBeing
         }
 
         _commandQueue.Enqueue(command);
+        GameEvents.FireCommandQueueChanged();
 
         return true;
     }

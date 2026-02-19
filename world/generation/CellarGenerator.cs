@@ -79,7 +79,7 @@ public static class CellarGenerator
         var cellarSize = new Vector2I(7, 8);
         var cellar = new Area(cellarSize)
         {
-            AreaName = "Scholar's Cellar"
+            AreaName = "area.SCHOLARS_CELLAR"
         };
 
         // Add to scene tree under GridAreas so _Ready() fires
