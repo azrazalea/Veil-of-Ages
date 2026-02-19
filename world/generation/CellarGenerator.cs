@@ -166,7 +166,11 @@ public static class CellarGenerator
         cellarKnowledge.RegisterBuilding(cellarBuilding, cellar);
 
         // Register the necromancy_altar facility so FindNearestFacilityOfType works
-        var altarPos = cellarBuilding.GetCurrentGridPosition();
+        // Use the actual altar tile position, not the building origin (which is a wall tile)
+        var altarPositions = cellarBuilding.GetFacilityPositions("necromancy_altar");
+        var altarPos = altarPositions.Count > 0
+            ? cellarBuilding.GetCurrentGridPosition() + altarPositions[0]
+            : cellarBuilding.GetCurrentGridPosition();
         cellarKnowledge.RegisterFacility("necromancy_altar", cellarBuilding, cellar, altarPos);
 
         // Give this knowledge to the player (permanent - will persist for the game)
