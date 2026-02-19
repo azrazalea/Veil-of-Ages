@@ -1,13 +1,5 @@
 {
     "Id": "oven",
     "Name": "Oven",
-    "AtlasSource": "custom",
-    "AtlasCoords": [
-        0,
-        1
-    ],
-    "TileSize": [
-        1,
-        1
-    ]
+    "AnimationId": "oven_burn"
 }

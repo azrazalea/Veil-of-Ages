@@ -3,7 +3,7 @@
     32,
     32
   ],
-  "columns": 2,
+  "columns": 8,
   "sprites": {
     "quern": {
       "row": 0,
@@ -11,7 +11,11 @@
       "tiles_x": 1,
       "tiles_y": 1,
       "description": "Hand-operated stone grain mill",
-      "tags": ["crafting", "furniture", "medieval"],
+      "tags": [
+        "crafting",
+        "furniture",
+        "medieval"
+      ],
       "tile_type": "prop"
     },
     "logo": {
@@ -20,17 +24,29 @@
       "tiles_x": 1,
       "tiles_y": 1,
       "description": "GridFab application logo",
-      "tags": ["ui", "logo"],
+      "tags": [
+        "ui",
+        "logo"
+      ],
       "tile_type": "icon"
     },
-    "stone_hearth": {
+    "stone_hearth/burn": {
       "row": 1,
       "col": 0,
-      "tiles_x": 1,
+      "tiles_x": 8,
       "tiles_y": 1,
       "description": "Traditional stone oven with burning fire and coals",
-      "tags": ["crafting", "furniture", "fire", "medieval"],
-      "tile_type": "prop"
+      "tags": [
+        "crafting",
+        "furniture",
+        "fire",
+        "medieval"
+      ],
+      "tile_type": "prop",
+      "animated": true,
+      "frame_count": 8,
+      "fps": 8,
+      "loop": true
     }
   }
 }
