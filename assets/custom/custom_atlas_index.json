@@ -5,6 +5,18 @@
   ],
   "columns": 8,
   "sprites": {
+    "logo": {
+      "row": 0,
+      "col": 1,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "GridFab application logo",
+      "tags": [
+        "ui",
+        "logo"
+      ],
+      "tile_type": "icon"
+    },
     "quern": {
       "row": 0,
       "col": 0,
@@ -17,18 +29,6 @@
         "medieval"
       ],
       "tile_type": "prop"
-    },
-    "logo": {
-      "row": 0,
-      "col": 1,
-      "tiles_x": 1,
-      "tiles_y": 1,
-      "description": "GridFab application logo",
-      "tags": [
-        "ui",
-        "logo"
-      ],
-      "tile_type": "icon"
     },
     "stone_hearth/burn": {
       "row": 1,

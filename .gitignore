@@ -29,5 +29,8 @@ nul
 # Log files
 *.log
 
+# Sprite database (derived from JSON indexes, rebuild with tools/manage_sprite_db.py)
+assets/sprites.db
+
 
 .serena/cache/csharp/document_symbols_cache_v20-05-25.pkl
