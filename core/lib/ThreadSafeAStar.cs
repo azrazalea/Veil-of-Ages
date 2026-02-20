@@ -34,21 +34,27 @@ public static class ThreadSafeAStar
     }
 
     /// <summary>
-    /// Calculate path from start to end, optionally treating additional positions as blocked.
+    /// Weight multiplier applied to tiles occupied by perceived entities.
+    /// High enough to prefer pathing around (10 tiles extra), low enough to still push through.
+    /// </summary>
+    private const float EntityWeightPenalty = 10.0f;
+
+    /// <summary>
+    /// Calculate path from start to end, optionally applying extra weight to certain positions.
     /// Thread-safe - uses no shared mutable state.
     /// </summary>
     /// <param name="grid">The AStarGrid2D to read structure from (solid states, weights).</param>
     /// <param name="from">Start position.</param>
     /// <param name="to">End position.</param>
     /// <param name="allowPartialPath">If true, return path to closest reachable point when goal is unreachable.</param>
-    /// <param name="additionalBlocked">Optional set of positions to treat as blocked (e.g., perceived entities).</param>
+    /// <param name="additionalWeights">Optional set of positions with extra weight penalties (e.g., perceived entities).</param>
     /// <returns>List of positions from start to end, or empty if no path found.</returns>
     public static List<Vector2I> GetPath(
         AStarGrid2D grid,
         Vector2I from,
         Vector2I to,
         bool allowPartialPath = true,
-        HashSet<Vector2I>? additionalBlocked = null)
+        HashSet<Vector2I>? additionalWeights = null)
     {
         // Validate inputs
         if (!grid.IsInBoundsv(from) || !grid.IsInBoundsv(to))
@@ -56,8 +62,8 @@ public static class ThreadSafeAStar
             return [];
         }
 
-        // Start is blocked - can't path from here
-        if (IsBlocked(grid, from, additionalBlocked))
+        // Start is blocked - can't path from here (only check real solids, not weighted entities)
+        if (grid.IsPointSolid(from))
         {
             return [];
         }
@@ -68,8 +74,8 @@ public static class ThreadSafeAStar
             return [from];
         }
 
-        // If goal is blocked and no partial path allowed, fail immediately
-        if (!allowPartialPath && IsBlocked(grid, to, additionalBlocked))
+        // If goal is blocked and no partial path allowed, fail immediately (only check real solids)
+        if (!allowPartialPath && grid.IsPointSolid(to))
         {
             return [];
         }
@@ -132,14 +138,14 @@ public static class ThreadSafeAStar
             // Check all neighbors (8-directional based on grid's diagonal mode)
             foreach (var neighborPos in GetNeighbors(grid, currentPos))
             {
-                // Skip blocked cells
-                if (IsBlocked(grid, neighborPos, additionalBlocked))
+                // Skip truly blocked cells (walls, solid terrain)
+                if (!grid.IsInBoundsv(neighborPos) || grid.IsPointSolid(neighborPos))
                 {
                     continue;
                 }
 
                 // Check diagonal movement rules
-                if (!IsDiagonalMoveAllowed(grid, currentPos, neighborPos, additionalBlocked))
+                if (!IsDiagonalMoveAllowed(grid, currentPos, neighborPos))
                 {
                     continue;
                 }
@@ -164,9 +170,14 @@ public static class ThreadSafeAStar
                     continue;
                 }
 
-                // Calculate tentative g score
+                // Calculate tentative g score with entity weight penalty
                 float moveCost = GetMoveCost(currentPos, neighborPos);
                 float weightScale = grid.GetPointWeightScale(neighborPos);
+                if (additionalWeights != null && additionalWeights.Contains(neighborPos))
+                {
+                    weightScale += EntityWeightPenalty;
+                }
+
                 float tentativeG = current.GScore + (moveCost * weightScale);
 
                 // Found a better path to this neighbor
@@ -192,26 +203,12 @@ public static class ThreadSafeAStar
     }
 
     /// <summary>
-    /// Check if a position is blocked (solid in grid or in additional blocked set).
+    /// Check if a position is truly blocked (solid in grid or out of bounds).
+    /// Entity-occupied positions are NOT blocked — they get weight penalties instead.
     /// </summary>
-    private static bool IsBlocked(AStarGrid2D grid, Vector2I pos, HashSet<Vector2I>? additionalBlocked)
+    private static bool IsSolid(AStarGrid2D grid, Vector2I pos)
     {
-        if (!grid.IsInBoundsv(pos))
-        {
-            return true;
-        }
-
-        if (grid.IsPointSolid(pos))
-        {
-            return true;
-        }
-
-        if (additionalBlocked != null && additionalBlocked.Contains(pos))
-        {
-            return true;
-        }
-
-        return false;
+        return !grid.IsInBoundsv(pos) || grid.IsPointSolid(pos);
     }
 
     /// <summary>
@@ -238,12 +235,12 @@ public static class ThreadSafeAStar
 
     /// <summary>
     /// Check if diagonal movement is allowed based on grid's diagonal mode and obstacles.
+    /// Only checks real solids (walls, terrain) — entity-occupied tiles don't block diagonals.
     /// </summary>
     private static bool IsDiagonalMoveAllowed(
         AStarGrid2D grid,
         Vector2I from,
-        Vector2I to,
-        HashSet<Vector2I>? additionalBlocked)
+        Vector2I to)
     {
         int dx = to.X - from.X;
         int dy = to.Y - from.Y;
@@ -268,15 +265,13 @@ public static class ThreadSafeAStar
                 // Both adjacent cardinal cells must be clear
                 var adj1 = new Vector2I(from.X + dx, from.Y);
                 var adj2 = new Vector2I(from.X, from.Y + dy);
-                return !IsBlocked(grid, adj1, additionalBlocked) &&
-                       !IsBlocked(grid, adj2, additionalBlocked);
+                return !IsSolid(grid, adj1) && !IsSolid(grid, adj2);
 
             case AStarGrid2D.DiagonalModeEnum.AtLeastOneWalkable:
                 // At least one adjacent cardinal cell must be clear
                 var adjA = new Vector2I(from.X + dx, from.Y);
                 var adjB = new Vector2I(from.X, from.Y + dy);
-                return !IsBlocked(grid, adjA, additionalBlocked) ||
-                       !IsBlocked(grid, adjB, additionalBlocked);
+                return !IsSolid(grid, adjA) || !IsSolid(grid, adjB);
 
             case AStarGrid2D.DiagonalModeEnum.Max:
             default:

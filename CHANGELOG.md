@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Localized command display names for all 13 command types
 - Translation keys for HUD strings (automation indicator, command queue, area names)
 
+### Changed
+- Perceived entities now add weight penalty to pathfinding instead of fully blocking tiles, preventing total path failure when entities are nearby
+
 ### Fixed
 - Entities no longer walk through ovens, altars, chests, querns, and tombstones (facilities and decorations now block pathfinding)
 - Cross-area navigation for all activities: studying, working, eating, baking, hiding, and distribution rounds now navigate across area boundaries

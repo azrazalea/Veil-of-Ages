@@ -23,7 +23,7 @@ public class PathFinder
     private AStarGrid2D? _cachedPathfindingGrid;
 
     // Pooled HashSet for perceived entity positions - reused to reduce GC pressure
-    private readonly HashSet<Vector2I> _perceivedBlockedPositions = [];
+    private readonly HashSet<Vector2I> _perceivedEntityPositions = [];
 
     // Path state tracking
     private PathGoalType _goalType = PathGoalType.None;
@@ -793,7 +793,7 @@ public class PathFinder
                     }
 
                     // Early exit: Check if entity can leave current position
-                    if (!CanLeavePosition(astar, startPos, perceivedEntityPositions))
+                    if (!CanLeavePosition(astar, startPos))
                     {
                         Log.Error($"Entity at {startPos} is surrounded - cannot leave position");
                         return false;
@@ -1010,9 +1010,10 @@ public class PathFinder
 
     // Check if entity can leave their current position (has at least one non-blocked neighbor)
     // This is a quick early-exit check to avoid expensive A* when completely surrounded
-    private static bool CanLeavePosition(AStarGrid2D astar, Vector2I pos, HashSet<Vector2I>? blockedPositions)
+    private static bool CanLeavePosition(AStarGrid2D astar, Vector2I pos)
     {
         // Check all 8 directions (diagonal movement is allowed)
+        // Only real solids (walls, terrain) count — entity-occupied tiles are just expensive, not blocking
         for (int dx = -1; dx <= 1; dx++)
         {
             for (int dy = -1; dy <= 1; dy++)
@@ -1032,12 +1033,6 @@ public class PathFinder
 
                 // Must not be solid terrain
                 if (astar.IsPointSolid(neighbor))
-                {
-                    continue;
-                }
-
-                // Must not be blocked by perceived entity
-                if (blockedPositions != null && blockedPositions.Contains(neighbor))
                 {
                     continue;
                 }
@@ -1136,7 +1131,7 @@ public class PathFinder
         AStarGrid2D astar,
         Vector2I startPos,
         List<Vector2I> candidates,
-        HashSet<Vector2I>? perceivedBlocked)
+        HashSet<Vector2I>? perceivedWeights)
     {
         if (candidates.Count == 0)
         {
@@ -1152,8 +1147,8 @@ public class PathFinder
             }
         }
 
-        // Early exit if surrounded
-        if (!CanLeavePosition(astar, startPos, perceivedBlocked))
+        // Early exit if surrounded by real solids
+        if (!CanLeavePosition(astar, startPos))
         {
             return PathSearchResult.Fail("surrounded", 0);
         }
@@ -1161,7 +1156,7 @@ public class PathFinder
         // Try exact paths first (fast fail if unreachable)
         for (int i = 0; i < candidates.Count; i++)
         {
-            var path = ThreadSafeAStar.GetPath(astar, startPos, candidates[i], false, perceivedBlocked);
+            var path = ThreadSafeAStar.GetPath(astar, startPos, candidates[i], false, perceivedWeights);
             if (path.Count > 0)
             {
                 return PathSearchResult.Success(path, i);
@@ -1169,7 +1164,7 @@ public class PathFinder
         }
 
         // All exact paths failed - try partial path to first candidate
-        var partialPath = ThreadSafeAStar.GetPath(astar, startPos, candidates[0], true, perceivedBlocked);
+        var partialPath = ThreadSafeAStar.GetPath(astar, startPos, candidates[0], true, perceivedWeights);
         if (partialPath.Count > 1) // Must make progress
         {
             return PathSearchResult.PartialSuccess(partialPath, candidates.Count);
@@ -1483,19 +1478,19 @@ public class PathFinder
     /// <returns>HashSet of positions occupied by perceived beings, or null if none.</returns>
     private HashSet<Vector2I>? GetPerceivedEntityPositions(Being entity, Perception perception)
     {
-        _perceivedBlockedPositions.Clear();
+        _perceivedEntityPositions.Clear();
 
         foreach (var (sensable, position) in perception.GetAllDetected())
         {
-            // Only block positions of other Beings (not buildings or other sensables)
+            // Only add weight penalties for other Beings (not buildings or other sensables)
             if (sensable is Being otherBeing && otherBeing != entity)
             {
-                _perceivedBlockedPositions.Add(position);
+                _perceivedEntityPositions.Add(position);
             }
         }
 
-        // Return null if no blocked positions (optimization for ThreadSafeAStar)
-        return _perceivedBlockedPositions.Count > 0 ? _perceivedBlockedPositions : null;
+        // Return null if no weighted positions (optimization for ThreadSafeAStar)
+        return _perceivedEntityPositions.Count > 0 ? _perceivedEntityPositions : null;
     }
 
     /// <summary>
