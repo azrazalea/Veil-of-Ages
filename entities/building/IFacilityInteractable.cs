@@ -98,6 +98,11 @@ public interface IFacilityInteractable : IInteractable
 
     bool IInteractable.IsInteractorAdjacent(Being interactor)
     {
+        if (Facility.Owner == null)
+        {
+            return false;
+        }
+
         return Facility.Owner.IsAdjacentToFacility(Facility.Id, interactor.GetCurrentGridPosition());
     }
 

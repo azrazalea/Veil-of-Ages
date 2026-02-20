@@ -12,6 +12,7 @@ Interface for anything that can be sensed by entities.
 **SensableType Enum:**
 - `Being` - Living/undead entities
 - `Building` - Structures
+- `WorldObject` - Static world objects (facilities, decorations, trees)
 
 **SenseType Enum:**
 - `Hearing` - Audio perception

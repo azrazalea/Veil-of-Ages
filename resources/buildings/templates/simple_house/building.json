@@ -9,16 +9,22 @@
     "Facilities": [
         {
             "Id": "oven",
-            "Positions": [[1, 1]]
+            "Positions": [[1, 1]],
+            "DecorationId": "oven",
+            "IsWalkable": false
         },
         {
             "Id": "quern",
-            "Positions": [[2, 1]]
+            "Positions": [[2, 1]],
+            "DecorationId": "quern",
+            "IsWalkable": false
         },
         {
             "Id": "storage",
-            "Positions": [[5, 3], [5, 4]],
+            "Positions": [[5, 3]],
             "RequireAdjacent": true,
+            "DecorationId": "chest",
+            "IsWalkable": false,
             "Storage": {
                 "VolumeCapacity": 2.0,
                 "WeightCapacity": -1,
@@ -29,22 +35,8 @@
     ],
     "Decorations": [
         {
-            "Id": "oven",
-            "Position": [1, 1],
-            "PixelOffset": [0, 0]
-        },
-        {
-            "Id": "quern",
-            "Position": [2, 1]
-        },
-        {
             "Id": "bed",
             "Position": [5, 1],
-            "PixelOffset": [0, 0]
-        },
-        {
-            "Id": "chest",
-            "Position": [5, 3],
             "PixelOffset": [0, 0]
         }
     ],

@@ -9,12 +9,16 @@
     "Facilities": [
         {
             "Id": "oven",
-            "Positions": [[5, 1]]
+            "Positions": [[5, 1]],
+            "DecorationId": "oven",
+            "IsWalkable": false
         },
         {
             "Id": "storage",
-            "Positions": [[5, 3], [5, 4]],
+            "Positions": [[5, 3]],
             "RequireAdjacent": true,
+            "DecorationId": "chest",
+            "IsWalkable": false,
             "Storage": {
                 "VolumeCapacity": 2.0,
                 "WeightCapacity": -1,
@@ -30,18 +34,8 @@
             "PixelOffset": [0, 0]
         },
         {
-            "Id": "oven",
-            "Position": [5, 1],
-            "PixelOffset": [0, 0]
-        },
-        {
             "Id": "trapdoor",
             "Position": [1, 4],
-            "PixelOffset": [0, 0]
-        },
-        {
-            "Id": "chest",
-            "Position": [5, 3],
             "PixelOffset": [0, 0]
         }
     ],

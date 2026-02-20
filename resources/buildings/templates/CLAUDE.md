@@ -49,7 +49,47 @@ Any number of `*.grid` files may be present. The filename (without extension) is
       "Properties": { }
     }
   ],
-  "Facilities": [ ... ]
+  "Facilities": [ ... ],
+  "Decorations": [ ... ]
+}
+```
+
+### Facility schema
+
+```json
+{
+  "Id": "string",                        // Facility type (e.g., "oven", "storage", "necromancy_altar")
+  "Positions": [[x, y], ...],            // Relative positions within building
+  "RequireAdjacent": false,              // Whether entity must be adjacent to use (default false)
+  "InteractableType": "string",          // Optional IFacilityInteractable class name (reflection-resolved)
+  "DecorationId": "string",             // Optional — references DecorationDefinition for sprite
+  "IsWalkable": true,                    // Whether entities can walk through (default true)
+  "PixelOffset": [0, 0],                // Optional pixel offset for sprite positioning
+  "Storage": {                           // Optional storage configuration
+    "VolumeCapacity": 1.0,
+    "WeightCapacity": -1,
+    "DecayRateModifier": 1.0,
+    "Tags": ["food"],
+    "FetchDuration": 0,
+    "RegenerationItem": null,
+    "RegenerationRate": 0,
+    "RegenerationMaxQuantity": 100,
+    "RegenerationInitialQuantity": 0
+  }
+}
+```
+
+When `DecorationId` is set, the facility owns its own sprite (no separate Decoration needed). When `IsWalkable` is false, ALL positions are marked solid in the A* grid.
+
+### Decoration schema
+
+```json
+{
+  "Id": "string",                        // References a DecorationDefinition
+  "Position": [x, y],                   // Primary tile position (relative to building)
+  "PixelOffset": [0, 0],                // Optional pixel offset
+  "IsWalkable": true,                    // Whether entities can walk through (default true)
+  "AdditionalPositions": [[x, y], ...]   // Extra tiles beyond Position (default empty)
 }
 ```
 

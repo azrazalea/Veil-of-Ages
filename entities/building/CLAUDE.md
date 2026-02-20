@@ -13,9 +13,11 @@ Main building entity class that implements `IEntity<Trait>`.
 - TileMapLayer-based rendering with separate ground and structure layers
 - Template-based initialization from JSON
 - Grid system integration (walkable/blocked cells)
+- `IsWalkable` property for grid walkability
 - Entrance position tracking
 - Occupancy management (capacity, occupants)
 - Damage system per tile
+- Facilities and decorations are registered as grid entities via `AddEntity()` in `Initialize()`, and cleaned up with `RemoveEntity()` in `_ExitTree()`
 
 **Key Properties:**
 - `BuildingType` - Category (House, Farm, Graveyard)
@@ -44,22 +46,59 @@ Main building entity class that implements `IEntity<Trait>`.
 - `IsAdjacentToStorageFacility(entityPosition)` - Check if an entity at the given position is adjacent to the storage facility.
 
 ### Facility.cs
-Represents a named facility within a building (e.g., "oven", "storage", "altar").
+Extends `Sprite2D` and implements `IEntity<Trait>`. Represents a functional facility within a building (e.g., "oven", "storage", "altar"). Owns its own sprite and can block walkability. Registered as a grid entity via `GridArea.AddEntity()`.
 
 **Key Properties:**
 - `Id` - Facility type identifier (e.g., "oven", "corpse_pit")
 - `Positions` - List of relative positions within the building
 - `RequireAdjacent` - Whether entities must be adjacent to use this facility
-- `Owner` - Reference to the building containing this facility
-- `Traits` - List of traits attached to this facility
+- `Owner` - Reference to the building containing this facility (nullable for future standalone facilities)
+- `GridPosition` - Absolute grid position of primary tile
+- `IsWalkable` - Whether entities can walk through this facility's tiles (default true)
+- `GridArea` - Reference to grid area
+- `Traits` - SortedSet of traits attached to this facility
+- `DetectionDifficulties` - Per-sense detection difficulty values
 - `Interactable` - Optional `IFacilityInteractable` for player interaction
 - `ActiveWorkOrder` - Currently active work order on this facility (if any)
 
-**Key Methods:**
-- `GetWorldPositions()` - Get absolute grid positions for all facility tiles
+**Visual Methods:**
+- `InitializeVisual(definition, gridPosition, pixelOffset)` - Set up sprite from a DecorationDefinition (atlas or animated)
+
+**Other Methods:**
+- `GetAbsolutePositions()` - Get absolute grid positions (building offset + relative positions, or positions directly if standalone)
+- `GetCurrentGridPosition()` - Returns the absolute grid position (ISensable implementation)
+- `GetSensableType()` - Returns `SensableType.WorldObject` (ISensable implementation)
 - `StartWorkOrder(order)` - Start a work order on this facility
 - `CompleteWorkOrder()` - Complete and clear the active work order
 - `CancelWorkOrder()` - Cancel the active work order (progress lost)
+
+### Decoration.cs
+Extends `Sprite2D` and implements `IEntity<Trait>`. A decoration sprite placed in a building. Can optionally block walkability for non-interactive props like tombstones. Registered as a grid entity via `GridArea.AddEntity()`.
+
+**Key Properties:**
+- `DecorationId` - The decoration definition ID
+- `AbsoluteGridPosition` - Absolute grid position of this decoration
+- `GridPosition` - Relative position within the building
+- `IsWalkable` - Whether entities can walk through (default true)
+- `AllPositions` - All relative positions this decoration occupies (primary + additional)
+- `GridArea` - Reference to grid area
+- `Traits` - SortedSet of traits attached to this decoration
+- `DetectionDifficulties` - Per-sense detection difficulty values
+
+**Key Methods:**
+- `Initialize(definition, gridPosition, pixelOffset, isWalkable, additionalPositions)` - Set up sprite and position
+- `GetCurrentGridPosition()` - Returns the absolute grid position (ISensable implementation)
+- `GetSensableType()` - Returns `SensableType.WorldObject` (ISensable implementation)
+
+### DecorationDefinition.cs
+Data class for decoration sprite definitions loaded from JSON.
+
+**Key Properties:**
+- `Id` - Unique identifier
+- `AtlasSource` - Atlas source ID for static decorations
+- `AtlasCoords` - Column/row in atlas grid (X=col, Y=row)
+- `TileSize` - Size in tiles (default 1x1)
+- `AnimationId` - References SpriteAnimationDefinition for animated decorations
 
 ### IFacilityInteractable.cs
 Interface for facilities that can be interacted with through dialogue.

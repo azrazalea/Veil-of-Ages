@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Facilities now own their own sprites via `DecorationId` field (no more duplicate Decoration entries)
+- Facilities and decorations are now proper grid entities (`IEntity<Trait>`) with line-of-sight blocking
+- Facility promoted to Sprite2D with visual initialization and grid entity registration
 - Tag-based item taking in TakeFromStorageActivity (resolves tag to item ID after arriving)
 - Service locator (`Services.cs`) for decoupled access to GameController and Player
 - Event bus (`GameEvents.cs`) with UITickFired, SimulationPauseChanged, TimeScaleChanged, CommandQueueChanged, AutomationToggled, DialogueStateChanged events
@@ -22,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Translation keys for HUD strings (automation indicator, command queue, area names)
 
 ### Fixed
+- Entities no longer walk through ovens, altars, chests, querns, and tombstones (facilities and decorations now block pathfinding)
 - Cross-area navigation for all activities: studying, working, eating, baking, hiding, and distribution rounds now navigate across area boundaries
 - Entities in cellar can now navigate back to village for any activity (eating, studying, working, etc.)
 

@@ -42,7 +42,7 @@ Multi-threaded AI processing system. A Godot Node that:
 - Handles movement tick processing after action execution
 
 ### IEntity.cs
-Generic interface for trait-based entities. Provides:
+Non-generic `IEntity` base interface with `IsWalkable` property for grid walkability. The generic `IEntity<TraitType>` extends both `IEntity` and `ISensable`, providing:
 - Trait collection management (`_traits` SortedSet)
 - `AddTrait<T>()` and `AddTraitToQueue<T>()` methods for trait registration
 - `GetTrait<T>()` and `HasTrait<T>()` for trait queries

@@ -12,6 +12,8 @@
             "Positions": [[3, 4]],
             "RequireAdjacent": true,
             "InteractableType": "NecromancyAltarInteraction",
+            "DecorationId": "necromancy_altar",
+            "IsWalkable": false,
             "Storage": {
                 "VolumeCapacity": 0.5,
                 "WeightCapacity": 400,
@@ -24,11 +26,6 @@
         {
             "Id": "ladder",
             "Position": [1, 6],
-            "PixelOffset": [0, 0]
-        },
-        {
-            "Id": "necromancy_altar",
-            "Position": [3, 4],
             "PixelOffset": [0, 0]
         }
     ],

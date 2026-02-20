@@ -1,20 +1,33 @@
+using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Core.Lib;
+using VeilOfAges.Entities.Sensory;
 
 namespace VeilOfAges.Entities.Terrain;
 
-public partial class Tree : Node2D, IBlocksPathfinding
+public partial class Tree : Node2D, IEntity<Trait>
 {
     private const string DEFINITIONID = "tree";
 
     public Vector2I GridSize = new (1, 1);
 
     private Vector2I _gridPosition;
-    private VeilOfAges.Grid.Area? _gridArea;
+
+    public bool IsWalkable => false;
+    public SortedSet<Trait> Traits { get; } = [];
+    public VeilOfAges.Grid.Area? GridArea { get; private set; }
+
+    /// <summary>
+    /// Gets trees block line of sight.
+    /// </summary>
+    public Dictionary<SenseType, float> DetectionDifficulties { get; } = new ()
+    {
+        { SenseType.Sight, 1.0f }
+    };
 
     public void Initialize(VeilOfAges.Grid.Area gridArea, Vector2I gridPos)
     {
-        _gridArea = gridArea;
+        GridArea = gridArea;
         _gridPosition = gridPos;
 
         ZIndex = 1;
@@ -45,9 +58,19 @@ public partial class Tree : Node2D, IBlocksPathfinding
         AddChild(sprite);
     }
 
+    public Vector2I GetCurrentGridPosition()
+    {
+        return _gridPosition;
+    }
+
+    public SensableType GetSensableType()
+    {
+        return SensableType.WorldObject;
+    }
+
     public override void _ExitTree()
     {
-        _gridArea?.RemoveEntity(_gridPosition, GridSize);
+        GridArea?.RemoveEntity(_gridPosition, GridSize);
     }
 
     public static void Interact()

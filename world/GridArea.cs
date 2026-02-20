@@ -140,9 +140,9 @@ public partial class Area(Vector2I worldSize): Node2D
     {
         _groundGridSystem.SetCell(groundPos, tile);
 
-        // Only mark solid if terrain is unwalkable OR a pathfinding-blocking entity is here
+        // Only mark solid if terrain is unwalkable OR a non-walkable entity is here
         var entityAtPos = EntitiesGridSystem.GetCell(groundPos);
-        bool hasBlockingEntity = entityAtPos is IBlocksPathfinding;
+        bool hasBlockingEntity = entityAtPos is IEntity { IsWalkable: false };
         AStarGrid?.SetPointSolid(groundPos, !tile.IsWalkable || hasBlockingEntity);
         AStarGrid?.SetPointWeightScale(groundPos, tile.WalkDifficulty);
 
@@ -168,9 +168,9 @@ public partial class Area(Vector2I worldSize): Node2D
 
         Entities.Add(entity);
 
-        // Mark entities that block pathfinding as solid in the A* grid.
-        // Beings are dynamic and can move/queue, so they shouldn't block pathing.
-        bool shouldMarkSolid = entity is IBlocksPathfinding;
+        // Mark non-walkable entities as solid in the A* grid.
+        // Beings are walkable (dynamic collision handled at runtime), so they don't block pathing.
+        bool shouldMarkSolid = entity is IEntity { IsWalkable: false };
 
         if (entitySize is Vector2I size)
         {
@@ -214,8 +214,8 @@ public partial class Area(Vector2I worldSize): Node2D
 
         Entities.Remove(foundEntity);
 
-        // Only IBlocksPathfinding entities were marked solid, so only unmark them
-        bool shouldUnmarkSolid = foundEntity is IBlocksPathfinding;
+        // Only non-walkable entities were marked solid, so only unmark them
+        bool shouldUnmarkSolid = foundEntity is IEntity { IsWalkable: false };
 
         if (entitySize is Vector2I size)
         {
@@ -243,14 +243,14 @@ public partial class Area(Vector2I worldSize): Node2D
         }
     }
 
-    // TODO: We need to handle unwalkable objects here if any
     public bool IsCellWalkable(Vector2I gridPos)
     {
-        bool entityOccupied = EntitiesGridSystem.IsCellOccupied(gridPos);
+        var entityAtPos = EntitiesGridSystem.GetCell(gridPos);
+        bool hasBlockingEntity = entityAtPos is IEntity { IsWalkable: false };
         var groundTile = _groundGridSystem.GetCell(gridPos);
         bool groundWalkable = groundTile?.IsWalkable ?? false;
 
-        return !entityOccupied && groundWalkable;
+        return !hasBlockingEntity && groundWalkable;
     }
 
     public float GetTerrainDifficulty(Vector2I gridPos)

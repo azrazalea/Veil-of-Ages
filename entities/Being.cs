@@ -205,6 +205,12 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     // Reference to the grid system
     public Area? GridArea { get; protected set; }
 
+    /// <summary>
+    /// Gets a value indicating whether beings are always walkable — they don't permanently block pathfinding.
+    /// Dynamic collision is handled by the blocking response system at runtime.
+    /// </summary>
+    public bool IsWalkable => true;
+
     // Reference to the game controller (cached to avoid repeated tree lookups)
     public GameController? GameController { get; protected set; }
 

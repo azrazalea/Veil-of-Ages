@@ -19,9 +19,9 @@
         }
     ],
     "Decorations": [
-        {"Id": "tombstone", "Position": [1, 1]},
-        {"Id": "tombstone", "Position": [3, 1]},
-        {"Id": "tombstone", "Position": [4, 2]}
+        {"Id": "tombstone", "Position": [1, 1], "IsWalkable": false},
+        {"Id": "tombstone", "Position": [3, 1], "IsWalkable": false},
+        {"Id": "tombstone", "Position": [4, 2], "IsWalkable": false}
     ],
     "EntrancePositions": [[2, 3], [3, 3]],
     "Metadata": {

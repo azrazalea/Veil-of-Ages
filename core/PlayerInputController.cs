@@ -201,13 +201,16 @@ public partial class PlayerInputController : Node
                 ApproachEntity(entity);
             }
         }
-        else if (_player.GetGridArea()?.IsCellWalkable(gridPos) == true)
+        else
         {
-            // Create and assign a movement command
-            var moveCommand = new MoveToCommand(_player, _player);
-            moveCommand.WithParameter("targetPos", gridPos);
-            _player.QueueCommand(moveCommand);
-            Log.Print($"Moving to position {gridPos}");
+            if (_player.GetGridArea()?.IsCellWalkable(gridPos) == true)
+            {
+                // Create and assign a movement command
+                var moveCommand = new MoveToCommand(_player, _player);
+                moveCommand.WithParameter("targetPos", gridPos);
+                _player.QueueCommand(moveCommand);
+                Log.Print($"Moving to position {gridPos}");
+            }
         }
     }
 
@@ -379,6 +382,12 @@ public partial class PlayerInputController : Node
                 if (_contextFacilityInteractable != null && _dialogueUI != null)
                 {
                     var facility = _contextFacilityInteractable.Facility;
+                    if (facility.Owner == null)
+                    {
+                        Log.Warn("Cannot interact with facility - no owner building");
+                        break;
+                    }
+
                     var activity = new InteractWithFacilityActivity(
                         facility.Owner, facility.Id, _contextFacilityInteractable, _dialogueUI);
                     _player.SetCurrentActivity(activity);

@@ -10,7 +10,7 @@ using VeilOfAges.Entities.Traits;
 
 namespace VeilOfAges.Entities;
 
-public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
+public partial class Building : Node2D, IEntity<Trait>
 {
     [Export]
     public string BuildingType = "House";
@@ -26,6 +26,12 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
 
     private Vector2I _gridPosition;
     public VeilOfAges.Grid.Area? GridArea { get; private set; }
+
+    /// <summary>
+    /// Gets a value indicating whether buildings are never walkable — their wall tiles block pathfinding.
+    /// </summary>
+    public bool IsWalkable => false;
+
     public SortedSet<Trait> Traits { get; private set; } = [];
     private TintableTileMapLayer? _tileMap;
     private TintableTileMapLayer? _groundTileMap;
@@ -92,6 +98,10 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
             _capacity = template.Capacity;
             _entrancePositions = template.EntrancePositions;
 
+            // Track which (DecorationId, Position) pairs are owned by facilities
+            // so we can skip duplicate decorations
+            var facilityOwnedDecorations = new HashSet<(string Id, Vector2I Position)>();
+
             // Populate facilities from template
             foreach (var facilityData in template.Facilities)
             {
@@ -100,7 +110,18 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
                     facilityData.Id,
                     facilityData.Positions,
                     facilityData.RequireAdjacent,
-                    this);
+                    this)
+                {
+                    // Set walkability from template
+                    IsWalkable = facilityData.IsWalkable,
+                    GridArea = GridArea
+                };
+
+                // Set absolute grid position of primary tile
+                if (facilityData.Positions.Count > 0)
+                {
+                    facility.SetGridPosition(gridPos + facilityData.Positions[0]);
+                }
 
                 // If facility has storage configuration, create StorageTrait for it
                 if (facilityData.Storage != null)
@@ -110,7 +131,7 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
                         facilityData.Storage.WeightCapacity,
                         facilityData.Storage.DecayRateModifier,
                         fetchDuration: facilityData.Storage.FetchDuration);
-                    facility.AddTrait(storageTrait);
+                    facility.SelfAsEntity().AddTrait(storageTrait, 0);
 
                     // Handle regeneration configuration
                     if (!string.IsNullOrEmpty(facilityData.Storage.RegenerationItem))
@@ -143,6 +164,25 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
                     facility.Interactable = CreateFacilityInteractable(facilityData.InteractableType, facility);
                 }
 
+                // Initialize visual sprite if facility has a DecorationId
+                if (!string.IsNullOrEmpty(facilityData.DecorationId))
+                {
+                    var decorationDef = TileResourceManager.Instance.GetDecorationDefinition(facilityData.DecorationId);
+                    if (decorationDef != null && facilityData.Positions.Count > 0)
+                    {
+                        facility.InitializeVisual(decorationDef, facilityData.Positions[0], facilityData.PixelOffset);
+                        facility.ZIndex = 1; // Above floor tiles
+                        AddChild(facility);
+
+                        // Track this so we skip the duplicate decoration
+                        facilityOwnedDecorations.Add((facilityData.DecorationId, facilityData.Positions[0]));
+                    }
+                    else if (decorationDef == null)
+                    {
+                        Log.Warn($"Building {template.Name}: Decoration definition '{facilityData.DecorationId}' not found for facility '{facilityData.Id}'");
+                    }
+                }
+
                 // Add facility to dictionary
                 if (!_facilities.TryGetValue(facility.Id, out var facilityList))
                 {
@@ -153,12 +193,32 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
                 facilityList.Add(facility);
             }
 
-            // Initialize and setup TileMap
+            // Initialize and setup TileMap (must happen before entity registration,
+            // because SetGroundCell resets A* solid state for floor tiles)
             InitializeTileMaps(template);
 
-            // Create decoration sprites from template
+            // Register facilities as grid entities (AFTER tiles are placed so SetGroundCell
+            // doesn't overwrite their solid state). AddEntity handles walkability marking.
+            foreach (var facilityList in _facilities.Values)
+            {
+                foreach (var facility in facilityList)
+                {
+                    foreach (var absolutePos in facility.GetAbsolutePositions())
+                    {
+                        GridArea.AddEntity(absolutePos, facility);
+                    }
+                }
+            }
+
+            // Create decoration sprites from template (skipping those now owned by facilities)
             foreach (var decorationPlacement in template.Decorations)
             {
+                // Skip decorations that are now rendered by a facility
+                if (facilityOwnedDecorations.Contains((decorationPlacement.Id, decorationPlacement.Position)))
+                {
+                    continue;
+                }
+
                 var decorationDef = TileResourceManager.Instance.GetDecorationDefinition(decorationPlacement.Id);
                 if (decorationDef == null)
                 {
@@ -167,10 +227,21 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
                 }
 
                 var decoration = new Decoration();
-                decoration.Initialize(decorationDef, decorationPlacement.Position, decorationPlacement.PixelOffset);
+                decoration.Initialize(decorationDef, decorationPlacement.Position,
+                    decorationPlacement.PixelOffset, decorationPlacement.IsWalkable,
+                    decorationPlacement.AdditionalPositions);
+                decoration.GridArea = GridArea;
                 decoration.ZIndex = 1; // Above floor tiles
                 AddChild(decoration);
                 _decorations.Add(decoration);
+
+                // Register decoration as grid entity for each position it occupies
+                foreach (var relativePos in decoration.AllPositions)
+                {
+                    var absolutePos = _gridPosition + relativePos;
+                    decoration.AbsoluteGridPosition = absolutePos;
+                    GridArea.AddEntity(absolutePos, decoration);
+                }
             }
         }
 
@@ -450,6 +521,28 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
                     {
                         GridArea.RemoveEntity(absolutePos);
                     }
+                }
+            }
+
+            // Unregister facilities from the entity grid
+            foreach (var facilityList in _facilities.Values)
+            {
+                foreach (var facility in facilityList)
+                {
+                    foreach (var absolutePos in facility.GetAbsolutePositions())
+                    {
+                        GridArea.RemoveEntity(absolutePos);
+                    }
+                }
+            }
+
+            // Unregister decorations from the entity grid
+            foreach (var decoration in _decorations)
+            {
+                foreach (var relativePos in decoration.AllPositions)
+                {
+                    var absolutePos = _gridPosition + relativePos;
+                    GridArea.RemoveEntity(absolutePos);
                 }
             }
         }
@@ -841,7 +934,7 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
         // First try facility with id "storage"
         if (_facilities.TryGetValue("storage", out var storageFacilities) && storageFacilities.Count > 0)
         {
-            var storage = storageFacilities[0].GetTrait<StorageTrait>();
+            var storage = storageFacilities[0].SelfAsEntity().GetTrait<StorageTrait>();
             if (storage != null)
             {
                 return storage;
@@ -853,7 +946,7 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
         {
             foreach (var facility in facilityList)
             {
-                var storage = facility.GetTrait<StorageTrait>();
+                var storage = facility.SelfAsEntity().GetTrait<StorageTrait>();
                 if (storage != null)
                 {
                     return storage;
@@ -960,7 +1053,7 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
     public StorageTrait? GetFacilityStorage(string facilityId)
     {
         var facility = GetFacility(facilityId);
-        return facility?.GetTrait<StorageTrait>();
+        return facility?.SelfAsEntity().GetTrait<StorageTrait>();
     }
 
     /// <summary>
@@ -1207,7 +1300,7 @@ public partial class Building : Node2D, IEntity<Trait>, IBlocksPathfinding
             return;
         }
 
-        var storage = _regenerationFacility.GetTrait<StorageTrait>();
+        var storage = _regenerationFacility.SelfAsEntity().GetTrait<StorageTrait>();
         if (storage == null)
         {
             return;

@@ -61,6 +61,12 @@ public partial class GridGenerator : Node
         GenerateTerrain();
         MemoryProfiler.Checkpoint("GridGenerator after GenerateTerrain");
 
+        // Populate visual tile layers from the ground grid now that terrain is set up.
+        // This must happen before buildings are placed so that building/facility
+        // walkability markings aren't overwritten by ground tile A* resets.
+        _activeGridArea.PopulateLayersFromGrid();
+        MemoryProfiler.Checkpoint("GridGenerator after PopulateLayersFromGrid");
+
         var villageGenerator = new VillageGenerator(
             _activeGridArea,
             _entitiesContainer,
