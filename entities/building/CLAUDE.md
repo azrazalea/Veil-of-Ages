@@ -17,6 +17,7 @@ Main building entity class that implements `IEntity<Trait>`.
 - Entrance position tracking
 - Occupancy management (capacity, occupants)
 - Damage system per tile
+- Room detection via flood fill during `Initialize()` — groups tiles, facilities, decorations, and residents
 - Facilities and decorations are registered as grid entities via `AddEntity()` in `Initialize()`, and cleaned up with `RemoveEntity()` in `_ExitTree()`
 
 **Key Properties:**
@@ -39,11 +40,49 @@ Main building entity class that implements `IEntity<Trait>`.
 - `ContainsPosition(absolutePos)` - Check if given absolute grid position falls within building bounds
 - `GetInteractableFacilityAt(absolutePos)` - Find interactable facility at given absolute position, returns `IFacilityInteractable` or null
 
+**Room Methods:**
+- `Rooms` - `IReadOnlyList<Room>` of all detected rooms
+- `GetDefaultRoom()` - Returns the first room (for single-room buildings, returns the only room)
+- `GetRoomAtRelativePosition(relativePos)` - Get the room containing a relative position, or null
+- `GetRoomAtAbsolutePosition(absolutePos)` - Get the room containing an absolute position, or null
+- `DetectRooms(template)` (private) - Flood-fills walkable interior positions to detect connected regions as rooms, matches template `RoomData` hints by bounding box overlap, assigns facilities and decorations to rooms
+- `MatchRoomHints(hints)` (private) - Matches detected rooms to `RoomData` hints (Name, Purpose, IsSecret) by position overlap
+
 **Storage Methods:**
 - `GetStorage()` - Returns the `StorageTrait` for this building if it has one.
 - `GetStorageAccessPosition()` - Returns the absolute grid position an entity should navigate to for storage access. If `RequireAdjacentToFacility` is true, returns a walkable position adjacent to the storage facility; otherwise returns the building entrance.
 - `RequiresStorageFacilityNavigation()` - Returns true if navigation should target the storage facility position (i.e., storage has `RequireAdjacentToFacility = true` and a storage facility is defined).
 - `IsAdjacentToStorageFacility(entityPosition)` - Check if an entity at the given position is adjacent to the storage facility.
+
+### Room.cs
+Lightweight organizational class grouping tiles, facilities, decorations, and residents within a building. Plain C# class (NOT a Godot node). Created automatically via flood fill of walkable interior positions during `Building.Initialize()`. Template `RoomData` provides optional hints (name, purpose, `IsSecret`) matched by bounding box overlap.
+
+**Key Properties:**
+- `Id` - Unique identifier within the building (auto-generated)
+- `Name` - Human-readable name (from template hint or auto-generated)
+- `Purpose` - Room purpose string (e.g., "Living", "Workshop", "Storage")
+- `IsSecret` - Whether this room is secret (facilities hidden from village SharedKnowledge)
+- `Owner` - Reference to the containing `Building`
+- `GridArea` - Reference to the grid area this room exists in
+- `Tiles` - `IReadOnlySet<Vector2I>` of interior tile positions (relative to building origin)
+- `Facilities` - Facilities contained in this room
+- `Decorations` - Decorations contained in this room
+- `Residents` - Beings assigned to this room
+- `RoomKnowledge` - `SharedKnowledge` scope for secret rooms (null for non-secret rooms)
+- `Capacity` - Max residents (0 = unlimited)
+
+**Key Methods:**
+- `AddResident(being)` - Add a resident (respects capacity)
+- `RemoveResident(being)` - Remove a resident
+- `HasResident(being)` - Check if a being is a resident
+- `AddFacility(facility)` - Register a facility in this room
+- `AddDecoration(decoration)` - Register a decoration in this room
+- `ContainsRelativePosition(relativePos)` - Check if relative position is in this room
+- `ContainsAbsolutePosition(absolutePos)` - Check if absolute grid position is in this room
+- `InitializeSecrecy(knowledgeId, knowledgeName)` - Initialize as secret room with own SharedKnowledge scope
+
+**Secret Room Pattern:**
+Secret rooms create their own `SharedKnowledge` scope via `InitializeSecrecy()`. Facilities in secret rooms are registered in this scope instead of village knowledge. Authorized entities receive this knowledge via `Being.AddSharedKnowledge()`. Used by the cellar system to keep necromancy facilities hidden from villagers.
 
 ### Facility.cs
 Extends `Sprite2D` and implements `IEntity<Trait>`. Represents a functional facility within a building (e.g., "oven", "storage", "altar"). Owns its own sprite and can block walkability. Registered as a grid entity via `GridArea.AddEntity()`.
@@ -170,7 +209,7 @@ Data structure for JSON-serializable building templates.
 - `Name`, `Description`, `BuildingType`
 - `Size` - Grid dimensions
 - `Tiles` - List of `BuildingTileData`
-- `Rooms` - Optional room definitions
+- `Rooms` - Optional room definitions (list of `RoomData` with Name, Purpose, TopLeft, Size, IsSecret, Properties)
 - `EntrancePositions` - Door/gate locations
 - `Capacity` - Occupant limit
 
@@ -253,6 +292,7 @@ Singleton manager for all tile-related resources. Registered as a Godot autoload
 | Class | Description |
 |-------|-------------|
 | `Building` | Main building entity |
+| `Room` | Lightweight organizational unit for tiles/facilities/residents within a building |
 | `BuildingManager` | Template loading and placement |
 | `BuildingPlacementTool` | Interactive placement (WIP) |
 | `BuildingTemplate` | JSON template data structure |
@@ -287,6 +327,7 @@ Variant resolution order:
 3. `InitializeTileMaps()` sets up TileMapLayers
 4. `CreateTilesFromTemplate()` creates BuildingTile instances
 5. Each tile registered with grid system
+6. `DetectRooms()` flood-fills walkable interior to create `Room` objects, matches template `RoomData` hints, assigns facilities and decorations to rooms
 
 ### Detection Difficulties
 Tiles affect perception based on type:

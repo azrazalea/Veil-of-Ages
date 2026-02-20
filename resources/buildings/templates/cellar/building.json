@@ -30,6 +30,17 @@
         }
     ],
     "EntrancePositions": [[1, 6]],
-    "Rooms": [],
+    "Rooms": [
+        {
+            "Name": "Cellar Chamber",
+            "Purpose": "Workshop",
+            "TopLeft": [1, 1],
+            "Size": [5, 6],
+            "IsSecret": true,
+            "Properties": {
+                "Atmosphere": "Dark"
+            }
+        }
+    ],
     "Metadata": {}
 }

@@ -212,6 +212,13 @@ public class RoomData
     public Vector2I TopLeft { get; set; }
     public Vector2I Size { get; set; }
     public Dictionary<string, string> Properties { get; set; } = new ();
+
+    /// <summary>
+    /// Gets or sets a value indicating whether gets or sets whether this room is secret.
+    /// Secret rooms create their own SharedKnowledge scope — their facilities are
+    /// NOT registered in village SharedKnowledge.
+    /// </summary>
+    public bool IsSecret { get; set; }
 }
 
 /// <summary>

@@ -57,6 +57,14 @@ public partial class Building : Node2D, IEntity<Trait>
     // Residents tracking
     private readonly List<Being> _residents = [];
 
+    // Rooms detected via flood fill of walkable interior positions
+    private readonly List<Room> _rooms = [];
+
+    /// <summary>
+    /// Gets all rooms detected in this building.
+    /// </summary>
+    public IReadOnlyList<Room> Rooms => _rooms;
+
     // Facilities (keyed by facility ID, with list of Facility instances for each)
     private readonly Dictionary<string, List<Facility>> _facilities = new ();
 
@@ -243,6 +251,12 @@ public partial class Building : Node2D, IEntity<Trait>
                     GridArea.AddEntity(absolutePos, decoration);
                 }
             }
+        }
+
+        // Detect rooms via flood fill after all tiles, facilities, and decorations are placed
+        if (template != null)
+        {
+            DetectRooms(template);
         }
 
         ZIndex = 3;
@@ -904,23 +918,254 @@ public partial class Building : Node2D, IEntity<Trait>
         return result;
     }
 
-    // Resident management methods
+    // Resident management methods — delegates to default room when available
     public void AddResident(Being being)
     {
         if (being != null && !_residents.Contains(being) && _residents.Count < _capacity)
         {
             _residents.Add(being);
+            GetDefaultRoom()?.AddResident(being);
         }
     }
 
     public void RemoveResident(Being being)
     {
         _residents.Remove(being);
+        foreach (var room in _rooms)
+        {
+            room.RemoveResident(being);
+        }
     }
 
     public IReadOnlyList<Being> GetResidents() => _residents.AsReadOnly();
 
     public bool HasResident(Being being) => _residents.Contains(being);
+
+    // --- Room accessors ---
+
+    /// <summary>
+    /// Gets the default (first) room in this building, or null if no rooms detected.
+    /// For current single-room buildings, this returns the only room.
+    /// </summary>
+    public Room? GetDefaultRoom() => _rooms.Count > 0 ? _rooms[0] : null;
+
+    /// <summary>
+    /// Gets the room containing the given relative position, or null.
+    /// </summary>
+    public Room? GetRoomAtRelativePosition(Vector2I relativePos)
+    {
+        foreach (var room in _rooms)
+        {
+            if (room.ContainsRelativePosition(relativePos))
+            {
+                return room;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Gets the room containing the given absolute position, or null.
+    /// </summary>
+    public Room? GetRoomAtAbsolutePosition(Vector2I absolutePos)
+    {
+        return GetRoomAtRelativePosition(absolutePos - _gridPosition);
+    }
+
+    // --- Room detection via flood fill ---
+
+    /// <summary>
+    /// Detect rooms by flood-filling walkable interior positions.
+    /// Each connected region of non-wall tiles = one room.
+    /// Template RoomData hints are matched by position overlap.
+    /// Facilities and decorations are assigned to their containing room.
+    /// </summary>
+    private void DetectRooms(BuildingTemplate template)
+    {
+        // Collect all non-boundary positions within building bounds.
+        // Boundary = non-walkable structure tiles (walls, fences, windows).
+        // Interior = walkable structure tiles (doors, gates) + all floor/ground positions.
+        var interiorPositions = new HashSet<Vector2I>();
+
+        // Floor tiles are always interior
+        foreach (var pos in _groundTiles.Keys)
+        {
+            interiorPositions.Add(pos);
+        }
+
+        foreach (var pos in _groundBaseTiles.Keys)
+        {
+            interiorPositions.Add(pos);
+        }
+
+        // Structure tiles: walkable ones (doors, gates) are interior, non-walkable (walls) are not
+        foreach (var (pos, tile) in _tiles)
+        {
+            if (tile.IsWalkable)
+            {
+                interiorPositions.Add(pos);
+            }
+        }
+
+        // Also include facility positions even if they're non-walkable (oven is IN the room)
+        foreach (var facilityList in _facilities.Values)
+        {
+            foreach (var facility in facilityList)
+            {
+                foreach (var pos in facility.Positions)
+                {
+                    interiorPositions.Add(pos);
+                }
+            }
+        }
+
+        // Also include decoration positions
+        foreach (var decoration in _decorations)
+        {
+            foreach (var pos in decoration.AllPositions)
+            {
+                interiorPositions.Add(pos);
+            }
+        }
+
+        // Remove entrance positions from room tiles (entrances are thresholds, not room interior)
+        foreach (var entrance in _entrancePositions)
+        {
+            interiorPositions.Remove(entrance);
+        }
+
+        // Flood fill to find connected regions
+        var visited = new HashSet<Vector2I>();
+        int roomIndex = 0;
+
+        foreach (var startPos in interiorPositions)
+        {
+            if (visited.Contains(startPos))
+            {
+                continue;
+            }
+
+            // BFS flood fill from this position
+            var roomTiles = new HashSet<Vector2I>();
+            var queue = new Queue<Vector2I>();
+            queue.Enqueue(startPos);
+            visited.Add(startPos);
+
+            while (queue.Count > 0)
+            {
+                var current = queue.Dequeue();
+                roomTiles.Add(current);
+
+                // Check 4 neighbors
+                Vector2I[] neighbors =
+                [
+                    current + Vector2I.Up,
+                    current + Vector2I.Down,
+                    current + Vector2I.Left,
+                    current + Vector2I.Right
+                ];
+
+                foreach (var neighbor in neighbors)
+                {
+                    if (!visited.Contains(neighbor) && interiorPositions.Contains(neighbor))
+                    {
+                        visited.Add(neighbor);
+                        queue.Enqueue(neighbor);
+                    }
+                }
+            }
+
+            // Create room from this connected region
+            var room = new Room($"room_{roomIndex}", this, roomTiles)
+            {
+                GridArea = GridArea
+            };
+            _rooms.Add(room);
+            roomIndex++;
+        }
+
+        // Match rooms to template RoomData hints by position overlap
+        if (template.Rooms.Count > 0)
+        {
+            MatchRoomHints(template.Rooms);
+        }
+        else if (_rooms.Count == 1)
+        {
+            // No hints, single room — give it a default name based on building type
+            _rooms[0].Name = BuildingName;
+        }
+
+        // Assign facilities to their containing rooms
+        foreach (var facilityList in _facilities.Values)
+        {
+            foreach (var facility in facilityList)
+            {
+                if (facility.Positions.Count > 0)
+                {
+                    var room = GetRoomAtRelativePosition(facility.Positions[0]);
+                    room?.AddFacility(facility);
+                }
+            }
+        }
+
+        // Assign decorations to their containing rooms
+        foreach (var decoration in _decorations)
+        {
+            var room = GetRoomAtRelativePosition(decoration.GridPosition);
+            room?.AddDecoration(decoration);
+        }
+
+        Log.Print($"Building '{BuildingName}': Detected {_rooms.Count} room(s)");
+    }
+
+    /// <summary>
+    /// Match detected rooms to template RoomData hints by bounding box overlap.
+    /// Each hint is matched to the room whose tiles overlap most with the hint's bounding box.
+    /// </summary>
+    private void MatchRoomHints(List<RoomData> hints)
+    {
+        foreach (var hint in hints)
+        {
+            Room? bestMatch = null;
+            int bestOverlap = 0;
+
+            foreach (var room in _rooms)
+            {
+                // Count how many of the room's tiles fall within the hint's bounding box
+                int overlap = 0;
+                foreach (var tile in room.Tiles)
+                {
+                    if (tile.X >= hint.TopLeft.X && tile.X < hint.TopLeft.X + hint.Size.X &&
+                        tile.Y >= hint.TopLeft.Y && tile.Y < hint.TopLeft.Y + hint.Size.Y)
+                    {
+                        overlap++;
+                    }
+                }
+
+                if (overlap > bestOverlap)
+                {
+                    bestOverlap = overlap;
+                    bestMatch = room;
+                }
+            }
+
+            if (bestMatch != null)
+            {
+                if (hint.Name != null)
+                {
+                    bestMatch.Name = hint.Name;
+                }
+
+                if (hint.Purpose != null)
+                {
+                    bestMatch.Purpose = hint.Purpose;
+                }
+
+                bestMatch.IsSecret = hint.IsSecret;
+            }
+        }
+    }
 
     // Storage helper methods
 

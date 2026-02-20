@@ -43,7 +43,7 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
     /// </summary>
     private Building? GetHome()
     {
-        return _owner?.SelfAsEntity().GetTrait<HomeTrait>()?.Home;
+        return _owner?.SelfAsEntity().GetTrait<HomeTrait>()?.HomeBuilding;
     }
 
     /// <summary>

@@ -13,11 +13,13 @@ Generates cellar areas beneath buildings and links them via transition points.
 - **Class**: `CellarGenerator` (static)
 - **Key Methods**:
   - `CreateCellar(world, building)`: Creates a cellar area beneath a building with trapdoor transition
+  - `RegisterCellarWithPlayer(world, cellar, trapdoor, ladder, cellarBuilding)` (private): Registers cellar knowledge via Room secrecy system
 - **Key Features**:
   - Loads cellar layout from `cellar.json` building template (no programmatic tile placement)
   - Automatically finds trapdoor decoration in building for transition point placement
   - Creates bidirectional transition points (trapdoor ↔ ladder)
-  - Registers cellar knowledge with player's personal SharedKnowledge (NOT village knowledge - cellar is SECRET)
+  - Uses Room-based secrecy: gets the cellar building's default Room, calls `Room.InitializeSecrecy()` to create a SharedKnowledge scope, then registers transitions/facilities/building in `Room.RoomKnowledge`
+  - Player receives the room's SharedKnowledge via `Being.AddSharedKnowledge()` (permanent, not village knowledge - cellar is SECRET)
   - Sets up necromancy altar interaction handler programmatically via `NecromancyAltarInteraction`
   - Handles non-walkable trapdoor positions by finding nearest walkable interior tile
 

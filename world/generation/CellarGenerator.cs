@@ -129,8 +129,9 @@ public static class CellarGenerator
 
     /// <summary>
     /// Registers cellar transition points and facility with the player's personal
-    /// SharedKnowledge. This keeps the cellar SECRET from the village - only the
-    /// player knows about the trapdoor, ladder, and altar.
+    /// SharedKnowledge via the cellar room's secrecy system. This keeps the cellar
+    /// SECRET from the village - only the player knows about the trapdoor, ladder,
+    /// and altar.
     /// </summary>
     /// <param name="world">The world node for finding the player.</param>
     /// <param name="cellar">The cellar area.</param>
@@ -151,19 +152,31 @@ public static class CellarGenerator
             return;
         }
 
-        // Create a personal-scope SharedKnowledge for the player's secret cellar knowledge.
-        // This is separate from the village SharedKnowledge so the cellar stays hidden.
-        var cellarKnowledge = new SharedKnowledge(
-            "player_cellar",
-            "Secret Cellar",
-            "personal");
+        // Get the cellar room (detected via flood fill during Building.Initialize)
+        var cellarRoom = cellarBuilding.GetDefaultRoom();
+        if (cellarRoom == null)
+        {
+            Log.Error("CellarGenerator: Cellar building has no rooms");
+            return;
+        }
+
+        // Room was already marked IsSecret by template hint matching in DetectRooms().
+        // Initialize its SharedKnowledge scope so we can register facilities and transitions.
+        cellarRoom.InitializeSecrecy("player_cellar", "Secret Cellar");
+
+        var roomKnowledge = cellarRoom.RoomKnowledge;
+        if (roomKnowledge == null)
+        {
+            Log.Error("CellarGenerator: Failed to initialize cellar room secrecy");
+            return;
+        }
 
         // Register both transition points so WorldNavigator can plan routes
-        cellarKnowledge.RegisterTransitionPoint(trapdoor);
-        cellarKnowledge.RegisterTransitionPoint(ladder);
+        roomKnowledge.RegisterTransitionPoint(trapdoor);
+        roomKnowledge.RegisterTransitionPoint(ladder);
 
         // Register the cellar building so the player knows about it
-        cellarKnowledge.RegisterBuilding(cellarBuilding, cellar);
+        roomKnowledge.RegisterBuilding(cellarBuilding, cellar);
 
         // Register the necromancy_altar facility so FindNearestFacilityOfType works
         // Use the actual altar tile position, not the building origin (which is a wall tile)
@@ -174,7 +187,7 @@ public static class CellarGenerator
             : cellarBuilding.GetCurrentGridPosition();
         if (altarFacility != null)
         {
-            cellarKnowledge.RegisterFacility("necromancy_altar", altarFacility, cellar, altarPos);
+            roomKnowledge.RegisterFacility("necromancy_altar", altarFacility, cellar, altarPos);
         }
         else
         {
@@ -182,8 +195,8 @@ public static class CellarGenerator
         }
 
         // Give this knowledge to the player (permanent - will persist for the game)
-        player.AddSharedKnowledge(cellarKnowledge);
+        player.AddSharedKnowledge(roomKnowledge);
 
-        Log.Print("CellarGenerator: Registered cellar knowledge with player's personal SharedKnowledge");
+        Log.Print("CellarGenerator: Registered cellar knowledge with player via Room.RoomKnowledge");
     }
 }

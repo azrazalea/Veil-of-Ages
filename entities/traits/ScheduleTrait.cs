@@ -151,7 +151,7 @@ public class ScheduleTrait : BeingTrait
 
         // Step 6+7: shouldSleep is true, handle home navigation and sleep
         var homeTrait = _owner.SelfAsEntity().GetTrait<HomeTrait>();
-        var home = homeTrait?.Home;
+        var home = homeTrait?.HomeBuilding;
 
         if (home != null && GodotObject.IsInstanceValid(home))
         {

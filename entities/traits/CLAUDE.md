@@ -52,16 +52,17 @@ Trait that handles need satisfaction by consuming items from inventory or home s
 **Constructor Parameters:**
 - `needId` - The need to satisfy (e.g., "hunger")
 - `foodTag` - Tag to identify food items (e.g., "food", "zombie_food")
-- `getHome` - Function to get home building (may return null)
 - `restoreAmount` - Amount to restore when eating (default 60)
 - `consumptionDuration` - Ticks to spend eating (default 244)
+
+**Home Resolution:**
+Internally calls `HomeTrait?.HomeBuilding` to get the home building (no longer takes a `getHome` function parameter).
 
 **Usage:**
 ```csharp
 var consumptionTrait = new ItemConsumptionBehaviorTrait(
     "hunger",
     "food",
-    () => villagerTrait?.Home,
     restoreAmount: 60f,
     consumptionDuration: 244
 );
@@ -301,9 +302,10 @@ Autonomous village life behavior (non-sleep daily routine).
 **Building Knowledge:**
 Uses SharedKnowledge from Village to find buildings to visit:
 ```csharp
+var home = _owner?.SelfAsEntity().GetTrait<HomeTrait>()?.HomeBuilding;
 var knownBuildings = _owner.SharedKnowledge
     .SelectMany(k => k.GetAllBuildings())
-    .Where(b => b.IsValid && b.Building != _home)
+    .Where(b => b.IsValid && b.Building != home)
     .ToList();
 ```
 Villagers receive SharedKnowledge when added as village residents via `Village.AddResident()`.
@@ -540,7 +542,7 @@ Trait (base)
         +-- AutomationTrait (toggle automated/manual behavior)
         +-- ScheduleTrait (unified sleep/scheduling for all living entities)
         +-- VillagerTrait (village daily routine, non-sleep)
-        +-- HomeTrait (home building reference + IsEntityAtHome)
+        +-- HomeTrait (home room/building reference + IsEntityAtHome)
         +-- JobTrait (ABSTRACT - sealed SuggestAction, implements IDesiredResources)
               +-- FarmerJobTrait (farming work, WorkFieldActivity)
               +-- BakerJobTrait (baking work, BakingActivity)
@@ -573,7 +575,7 @@ Interfaces:
 | `ZombieTrait` | Hunger-driven zombie behavior |
 | `ScheduleTrait` | Unified sleep/scheduling for all living entities |
 | `VillagerTrait` | Village daily routine (non-sleep) |
-| `HomeTrait` | Home building reference + IsEntityAtHome() |
+| `HomeTrait` | Home room/building reference + IsEntityAtHome() |
 | `JobTrait` | **Abstract base for all job traits** - sealed SuggestAction enforces pattern |
 | `FarmerJobTrait` | Work at assigned farm during day (extends JobTrait) |
 | `BakerJobTrait` | Work at assigned bakery during day (extends JobTrait) |
@@ -867,11 +869,11 @@ SelfAsEntity().AddTraitToQueue<MyNewTrait>(1); // priority 1
 var consumptionTrait = new ItemConsumptionBehaviorTrait(
     "hunger",
     "food",
-    () => _home,
     restoreAmount: 60f,
     consumptionDuration: 244
 );
 _owner?.SelfAsEntity().AddTraitToQueue(consumptionTrait, Priority - 1, initQueue);
+// Home is resolved automatically via HomeTrait.HomeBuilding
 ```
 
 **Adding a need with strategy-based consumption behavior**:

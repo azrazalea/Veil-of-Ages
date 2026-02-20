@@ -64,7 +64,7 @@ public class FarmerJobTrait : JobTrait
     {
         // Get farmer's home from HomeTrait
         var homeTrait = _owner?.SelfAsEntity().GetTrait<HomeTrait>();
-        Building? home = homeTrait?.Home;
+        Building? home = homeTrait?.HomeBuilding;
 
         return new WorkFieldActivity(_workplace!, home, WORKDURATION, priority: 0);
     }

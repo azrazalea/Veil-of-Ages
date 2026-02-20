@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Room system: buildings automatically detect rooms via flood fill of walkable interior positions
+- Room-based home tracking: HomeTrait now references a Room instead of a Building
+- Room secrecy: cellar uses Room.IsSecret with its own SharedKnowledge scope instead of manual setup
 - Facilities now own their own sprites via `DecorationId` field (no more duplicate Decoration entries)
 - Facilities and decorations are now proper grid entities (`IEntity<Trait>`) with line-of-sight blocking
 - Facility promoted to Sprite2D with visual initialization and grid entity registration

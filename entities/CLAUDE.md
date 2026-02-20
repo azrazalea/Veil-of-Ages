@@ -67,6 +67,7 @@ World-level sensory coordination system. Manages:
 | Type | Description |
 |------|-------------|
 | `Being` | Abstract base for all living/undead entities |
+| `Room` | Organizational unit grouping tiles/facilities/residents within a building (see building/CLAUDE.md) |
 | `BeingTrait` | Specialized trait with Being-specific helpers |
 | `EntityAction` | Base class for executable actions |
 | `EntityThinkingSystem` | Multi-threaded AI coordinator |
@@ -256,6 +257,7 @@ The entity AI system intentionally mimics human cognition using a **Belief-Desir
 - All villagers know where the well, town hall, and farms are
 - Village scope: exact building coordinates
 - Kingdom scope (future): "Village X has a bakery"
+- Room scope (personal): secret rooms create their own SharedKnowledge scope, given only to authorized entities (e.g., cellar knowledge given to player only)
 - New members inherit community knowledge when added to village
 - Does NOT contain storage contents (that's PersonalMemory)
 

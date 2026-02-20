@@ -78,7 +78,7 @@ public class DormantUndeadTrait : BeingTrait
         var gameTime = _owner.GameController?.CurrentGameTime ?? new GameTime(0);
         var currentPhase = gameTime.CurrentDayPhase;
 
-        var home = _owner.SelfAsEntity().GetTrait<HomeTrait>()?.Home;
+        var home = _owner.SelfAsEntity().GetTrait<HomeTrait>()?.HomeBuilding;
         var currentActivity = _owner.GetCurrentActivity();
 
         // If hidden and should emerge

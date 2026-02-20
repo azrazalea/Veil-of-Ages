@@ -36,7 +36,7 @@ public partial class Player : GenericBeing
     /// <summary>
     /// Gets the player's home building from HomeTrait.
     /// </summary>
-    public Building? Home => SelfAsEntity().GetTrait<HomeTrait>()?.Home;
+    public Building? Home => SelfAsEntity().GetTrait<HomeTrait>()?.HomeBuilding;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Player"/> class.

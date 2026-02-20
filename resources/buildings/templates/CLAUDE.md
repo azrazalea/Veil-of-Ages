@@ -46,6 +46,7 @@ Any number of `*.grid` files may be present. The filename (without extension) is
       "Purpose": "string",
       "TopLeft": [x, y],
       "Size": [width, height],
+      "IsSecret": false,
       "Properties": { }
     }
   ],
@@ -166,7 +167,7 @@ The old flat `.json` files (one file per building, all tiles listed as explicit 
   "Capacity": "number",
   "EntrancePositions": [[x, y], ...],
   "Metadata": { "ConstructionTime": "string", "RequiredMaterials": "string", "Value": "string" },
-  "Rooms": [ { "Name": "string", "Purpose": "string", "TopLeft": [x, y], "Size": [width, height] } ],
+  "Rooms": [ { "Name": "string", "Purpose": "string", "TopLeft": [x, y], "Size": [width, height], "IsSecret": false } ],
   "Tiles": [
     {
       "Position": [x, y],
@@ -213,7 +214,7 @@ Position names: `CornerTopLeft`, `CornerTopRight`, `CornerBottomLeft`, `CornerBo
 - **GridBuildingTemplateLoader**: `entities/building/GridBuildingTemplateLoader.cs` — parses GridFab directories
 - **BuildingTemplate**: `entities/building/BuildingTemplate.cs`
 - **BuildingTileData**: Nested class in `BuildingTemplate.cs`
-- **RoomData**: Nested class in `BuildingTemplate.cs`
+- **RoomData**: Nested class in `BuildingTemplate.cs` (Name, Purpose, TopLeft, Size, IsSecret, Properties)
 - **Vector2IConverter**: Custom JSON converter for `[x, y]` arrays
 
 ## Validation Rules

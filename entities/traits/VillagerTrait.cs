@@ -44,7 +44,7 @@ public class VillagerTrait : BeingTrait
     /// <summary>
     /// Gets the home building from HomeTrait.
     /// </summary>
-    private Building? GetHome() => _owner?.SelfAsEntity().GetTrait<HomeTrait>()?.Home;
+    private Building? GetHome() => _owner?.SelfAsEntity().GetTrait<HomeTrait>()?.HomeBuilding;
 
     /// <summary>
     /// Validates that the trait has all required configuration.
