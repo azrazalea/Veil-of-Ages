@@ -118,9 +118,6 @@ public partial class Player : GenericBeing
         if (_commandQueue.Count > 0 && _currentCommand == null)
         {
             _currentCommand = _commandQueue.Dequeue();
-
-            // Note: This runs on a background thread, but C# events are thread-safe to invoke
-            GameEvents.FireCommandQueueChanged();
         }
 
         return base.Think(currentPosition, observationData);
