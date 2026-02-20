@@ -1189,7 +1189,7 @@ public class VillageGenerator
     private bool IsValidSpawnPosition(Vector2I pos)
     {
         // Check bounds and occupancy
-        return IsPositionInWorldBounds(pos) && _gridArea.IsCellWalkable(pos);
+        return IsPositionInWorldBounds(pos) && _gridArea.IsCellWalkable(pos) && !_gridArea.EntitiesGridSystem.IsCellOccupied(pos);
     }
 
     /// <summary>
