@@ -314,6 +314,35 @@ public class PathFinder
     }
 
     /// <summary>
+    /// Set goal to navigate adjacent to a specific facility.
+    /// Delegates to the building-based overload if the facility has an owner building,
+    /// leveraging all existing cross-area and candidate-finding logic.
+    /// For standalone facilities (no owner), sets the goal position directly (same-area only).
+    /// </summary>
+    /// <param name="entity">The entity navigating (used for cross-area detection).</param>
+    /// <param name="facility">The facility to navigate to.</param>
+    /// <returns>True if a valid facility goal was established, false otherwise.</returns>
+    public bool SetFacilityGoal(Being entity, Facility facility)
+    {
+        // If the facility has an owner building, delegate to the full overload.
+        // This preserves all cross-area routing and candidate-finding logic.
+        if (facility.Owner != null)
+        {
+            return SetFacilityGoal(entity, facility.Owner, facility.Id);
+        }
+
+        // Standalone facility (no owner building) — set position directly, same-area only.
+        _targetFacilityBuilding = null;
+        _targetFacilityId = null;
+        _targetFacilityPosition = facility.GridPosition;
+        _goalType = PathGoalType.Facility;
+        _firstGoalCalculation = true;
+        _pathNeedsCalculation = true;
+        _recalculationAttempts = 0;
+        return true;
+    }
+
+    /// <summary>
     /// Set goal to navigate adjacent to a specific facility in a building.
     /// </summary>
     /// <param name="entity">The entity navigating (used for cross-area detection).</param>
@@ -914,6 +943,29 @@ public class PathFinder
                     break;
 
                 case PathGoalType.Facility:
+                    if (_targetFacilityPosition.HasValue && _targetFacilityBuilding == null)
+                    {
+                        // Standalone facility: position already known, path to an adjacent tile.
+                        var standaloneAdjacentPositions = GetAdjacentPositions(_targetFacilityPosition.Value)
+                            .Where(pos => IsValidCandidate(astar, pos, perceivedEntityPositions))
+                            .ToList();
+
+                        var standaloneResult = TryPathToCandidates(astar, startPos, standaloneAdjacentPositions, perceivedEntityPositions);
+                        if (!standaloneResult.Found)
+                        {
+                            Log.Error($"No path to standalone facility at {_targetFacilityPosition.Value}: {standaloneResult.FailureReason}");
+                            return false;
+                        }
+
+                        if (standaloneResult.SuccessIndex >= 0 && standaloneResult.SuccessIndex < standaloneAdjacentPositions.Count)
+                        {
+                            _targetPosition = standaloneAdjacentPositions[standaloneResult.SuccessIndex];
+                        }
+
+                        CurrentPath = standaloneResult.Path;
+                        break;
+                    }
+
                     if (_targetFacilityBuilding == null || _targetFacilityId == null)
                     {
                         Log.Error("Facility goal missing building or facility ID");

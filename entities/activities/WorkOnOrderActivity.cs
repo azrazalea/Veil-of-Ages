@@ -81,7 +81,7 @@ public class WorkOnOrderActivity : Activity
     {
         if (_navigationActivity == null)
         {
-            var building = _facilityRef.Building.Building;
+            var building = _facilityRef.Facility?.Owner;
             if (building == null || !Godot.GodotObject.IsInstanceValid(building))
             {
                 DebugLog("WORK_ORDER", "Facility building no longer valid", 0);

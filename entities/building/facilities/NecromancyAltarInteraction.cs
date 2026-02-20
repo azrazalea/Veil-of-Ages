@@ -16,15 +16,13 @@ namespace VeilOfAges.Entities;
 public class NecromancyAltarInteraction : IFacilityInteractable
 {
     private readonly Facility _facility;
-    private readonly Building _building;
 
     public string FacilityDisplayName => "Necromancy Altar";
     public Facility Facility => _facility;
 
-    public NecromancyAltarInteraction(Facility facility, Building building)
+    public NecromancyAltarInteraction(Facility facility)
     {
         _facility = facility;
-        _building = building;
     }
 
     public List<FacilityDialogueOption> GetInteractionOptions(Being interactor)
@@ -54,7 +52,7 @@ public class NecromancyAltarInteraction : IFacilityInteractable
         }
 
         // Check if altar already has a corpse (check storage)
-        var altarStorage = _building.GetStorage();
+        var altarStorage = _facility.SelfAsEntity().GetTrait<StorageTrait>();
         if (altarStorage != null && altarStorage.FindItemByTag("corpse") != null)
         {
             return new FacilityDialogueOption("Get Corpse", null, false, "Corpse already on altar");
@@ -78,7 +76,14 @@ public class NecromancyAltarInteraction : IFacilityInteractable
                     continue;
                 }
 
-                var observation = interactor.Memory.RecallStorageContents(graveyardRef.Building);
+                // Storage observations are keyed by Facility — look up the storage facility first
+                var storageFacility = graveyardRef.Building.GetStorageFacility();
+                if (storageFacility == null)
+                {
+                    continue;
+                }
+
+                var observation = interactor.Memory.RecallStorageContents(storageFacility);
                 if (observation != null)
                 {
                     hasAnyGraveyardMemory = true;
@@ -106,7 +111,7 @@ public class NecromancyAltarInteraction : IFacilityInteractable
         return new FacilityDialogueOption("Get Corpse", facilityAction: entity =>
         {
             var command = new FetchCorpseCommand(entity, entity);
-            command.WithParameter("altarBuilding", _building);
+            command.WithParameter("altarFacility", _facility);
             entity.AssignCommand(command);
         });
     }
@@ -119,7 +124,7 @@ public class NecromancyAltarInteraction : IFacilityInteractable
         }
 
         // Check for corpse on altar
-        var altarStorage = _building.GetStorage();
+        var altarStorage = _facility.SelfAsEntity().GetTrait<StorageTrait>();
         if (altarStorage == null || altarStorage.FindItemByTag("corpse") == null)
         {
             return new FacilityDialogueOption("Raise Zombie", null, false, "No corpse on altar");
@@ -144,8 +149,7 @@ public class NecromancyAltarInteraction : IFacilityInteractable
         {
             var workOrder = new RaiseZombieWorkOrder
             {
-                SpawnFacility = _facility,
-                AltarBuilding = _building
+                SpawnFacility = _facility
             };
             _facility.StartWorkOrder(workOrder);
         });

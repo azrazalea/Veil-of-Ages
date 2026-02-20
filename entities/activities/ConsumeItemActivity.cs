@@ -122,8 +122,16 @@ public class ConsumeItemActivity : Activity
                     _hiddenStorageConsumeIssued = true;
                     _isConsuming = true;
                     DebugLog("EATING", $"Hidden: Found food at {_home.BuildingName}, consuming directly", 0);
+                    var homeStorageFacility = _home.GetStorageFacility();
+                    if (homeStorageFacility == null)
+                    {
+                        DebugLog("EATING", $"Hidden: No storage facility in {_home.BuildingName}", 0);
+                        Fail();
+                        return null;
+                    }
+
                     return new ConsumeFromStorageByTagAction(
-                        _owner, this, _home, _foodTag, 1, Priority);
+                        _owner, this, homeStorageFacility, _foodTag, 1, Priority);
                 }
 
                 // After action executed, food should be in inventory now

@@ -69,6 +69,7 @@ return _pathFinder.FollowPath(entity);  // No A* here, just follows
   - `IsGoalReached(entity)`: Checks if entity has reached goal, respects `requireInterior` flag for Building goals
   - `GetBuildingPerimeterPositions(buildingPos, buildingSize)`: Helper method that returns all positions one tile outside the building bounds
   - `SetFacilityGoal(entity, building, facilityId)`: Sets facility navigation goal. Takes entity parameter for cross-area detection; when entity and building are in different areas, defers to cross-area routing.
+  - `SetFacilityGoal(entity, facility)`: Overload taking a `Facility` directly. If the facility has an `Owner` building, delegates to the `(Being, Building, string)` overload; standalone facilities (no owner) use direct position targeting.
   - `NeedsAreaTransition` (bool property): True when PathFinder has reached a transition point and needs the caller to execute a ChangeAreaAction.
   - `PendingTransition` (TransitionPoint? property): The transition point to use when `NeedsAreaTransition` is true.
   - `CompleteTransition(entity)`: Call after ChangeAreaAction executes. Advances the cross-area route and clears transition state.

@@ -1514,6 +1514,39 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     }
 
     /// <summary>
+    /// Check if this entity can access a specific facility based on proximity rules.
+    /// If the facility has RequireAdjacent set, the entity must be adjacent to the
+    /// facility's grid position. Otherwise, being adjacent to the owner building is sufficient.
+    /// </summary>
+    /// <param name="facility">The facility to check access for.</param>
+    /// <returns>True if the entity can access the facility.</returns>
+    public bool CanAccessFacility(Facility facility)
+    {
+        // If facility requires adjacent, check direct adjacency to the facility
+        if (facility.RequireAdjacent)
+        {
+            var entityPos = GetCurrentGridPosition();
+            var facilityPos = facility.GridPosition;
+            var diff = entityPos - facilityPos;
+
+            // Adjacent means within 1 tile (including diagonals)
+            return System.Math.Abs(diff.X) <= 1 && System.Math.Abs(diff.Y) <= 1;
+        }
+
+        // Otherwise, being adjacent to the owner building is sufficient
+        if (facility.Owner != null)
+        {
+            return IsAdjacentToBuilding(facility.Owner);
+        }
+
+        // Standalone facility with no RequireAdjacent: check direct adjacency
+        var entityPosStandalone = GetCurrentGridPosition();
+        var facilityPosStandalone = facility.GridPosition;
+        var diffStandalone = entityPosStandalone - facilityPosStandalone;
+        return System.Math.Abs(diffStandalone.X) <= 1 && System.Math.Abs(diffStandalone.Y) <= 1;
+    }
+
+    /// <summary>
     /// Check if this entity can access a building's storage based on proximity rules.
     /// If the building's storage facility has RequireAdjacent set, the entity must
     /// be adjacent to the actual storage facility position. Otherwise, being adjacent
@@ -1568,10 +1601,11 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             return null;
         }
 
-        var storage = building.GetStorage();
-        if (storage != null)
+        var storageFacility = building.GetStorageFacility();
+        var storage = storageFacility?.SelfAsEntity().GetTrait<StorageTrait>();
+        if (storageFacility != null && storage != null)
         {
-            Memory?.ObserveStorage(building, storage);
+            Memory?.ObserveStorage(storageFacility, storage);
         }
 
         return storage;
@@ -1596,21 +1630,22 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             return null;
         }
 
-        var storage = building.GetStorage();
-        if (storage == null)
+        var storageFacility = building.GetStorageFacility();
+        var storage = storageFacility?.SelfAsEntity().GetTrait<StorageTrait>();
+        if (storageFacility == null || storage == null)
         {
             return null;
         }
 
         // Observe before taking (entity looks at storage to find the item)
-        Memory?.ObserveStorage(building, storage);
+        Memory?.ObserveStorage(storageFacility, storage);
 
         var item = storage.RemoveItem(itemDefId, quantity);
 
         // Observe after taking (entity sees updated contents)
         if (item != null)
         {
-            Memory?.ObserveStorage(building, storage);
+            Memory?.ObserveStorage(storageFacility, storage);
         }
 
         return item;
@@ -1635,14 +1670,15 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             return null;
         }
 
-        var storage = building.GetStorage();
-        if (storage == null)
+        var storageFacility = building.GetStorageFacility();
+        var storage = storageFacility?.SelfAsEntity().GetTrait<StorageTrait>();
+        if (storageFacility == null || storage == null)
         {
             return null;
         }
 
         // Observe before taking (entity looks at storage to find the item)
-        Memory?.ObserveStorage(building, storage);
+        Memory?.ObserveStorage(storageFacility, storage);
 
         // Find the item by tag
         var foundItem = storage.FindItemByTag(itemTag);
@@ -1656,7 +1692,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         // Observe after taking (entity sees updated contents)
         if (item != null)
         {
-            Memory?.ObserveStorage(building, storage);
+            Memory?.ObserveStorage(storageFacility, storage);
         }
 
         return item;
@@ -1680,7 +1716,119 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             return false;
         }
 
-        var storage = building.GetStorage();
+        var storageFacility = building.GetStorageFacility();
+        var storage = storageFacility?.SelfAsEntity().GetTrait<StorageTrait>();
+        if (storageFacility == null || storage == null)
+        {
+            return false;
+        }
+
+        var result = storage.AddItem(item);
+
+        // Observe after putting (entity sees updated contents)
+        Memory?.ObserveStorage(storageFacility, storage);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Take an item from a facility's storage and automatically observe contents.
+    /// REQUIRES PHYSICAL PROXIMITY - returns null if not adjacent to the facility.
+    /// Used by the action layer (TakeFromStorageAction) which is already Facility-based.
+    /// </summary>
+    /// <param name="facility">The facility to take from.</param>
+    /// <param name="itemDefId">The item definition ID to take.</param>
+    /// <param name="quantity">The quantity to take.</param>
+    /// <returns>The removed item, or null if not available, facility has no storage, or entity is not adjacent.</returns>
+    public Item? TakeFromFacilityStorage(Facility facility, string itemDefId, int quantity)
+    {
+        // ENTITIES CANNOT REMOTELY ACCESS STORAGE
+        if (!CanAccessFacility(facility))
+        {
+            return null;
+        }
+
+        var storage = facility.SelfAsEntity().GetTrait<StorageTrait>();
+        if (storage == null)
+        {
+            return null;
+        }
+
+        // Observe before taking (entity looks at storage to find the item)
+        Memory?.ObserveStorage(facility, storage);
+
+        var item = storage.RemoveItem(itemDefId, quantity);
+
+        // Observe after taking (entity sees updated contents)
+        if (item != null)
+        {
+            Memory?.ObserveStorage(facility, storage);
+        }
+
+        return item;
+    }
+
+    /// <summary>
+    /// Take an item by tag from a facility's storage and automatically observe contents.
+    /// REQUIRES PHYSICAL PROXIMITY - returns null if not adjacent to the facility.
+    /// Used by the action layer (ConsumeFromStorageByTagAction) which is Facility-based.
+    /// </summary>
+    /// <param name="facility">The facility to take from.</param>
+    /// <param name="itemTag">The tag to search for.</param>
+    /// <param name="quantity">The quantity to take.</param>
+    /// <returns>The removed item, or null if not available, facility has no storage, or entity is not adjacent.</returns>
+    public Item? TakeFromFacilityStorageByTag(Facility facility, string itemTag, int quantity)
+    {
+        // ENTITIES CANNOT REMOTELY ACCESS STORAGE
+        if (!CanAccessFacility(facility))
+        {
+            return null;
+        }
+
+        var storage = facility.SelfAsEntity().GetTrait<StorageTrait>();
+        if (storage == null)
+        {
+            return null;
+        }
+
+        // Observe before taking (entity looks at storage to find the item)
+        Memory?.ObserveStorage(facility, storage);
+
+        // Find the item by tag
+        var foundItem = storage.FindItemByTag(itemTag);
+        if (foundItem?.Definition.Id == null)
+        {
+            return null;
+        }
+
+        var item = storage.RemoveItem(foundItem.Definition.Id, quantity);
+
+        // Observe after taking (entity sees updated contents)
+        if (item != null)
+        {
+            Memory?.ObserveStorage(facility, storage);
+        }
+
+        return item;
+    }
+
+    /// <summary>
+    /// Put an item into a facility's storage and automatically observe contents.
+    /// REQUIRES PHYSICAL PROXIMITY - returns false if not adjacent to the facility.
+    /// Used by the action layer (TakeFromStorageAction, ConsumeFromStorageByTagAction) for rollback.
+    /// </summary>
+    /// <param name="facility">The facility to put the item into.</param>
+    /// <param name="item">The item to add.</param>
+    /// <returns>True if the item was added, false if the facility has no storage, it's full, or entity is not adjacent.</returns>
+    public bool PutInFacilityStorage(Facility facility, Item item)
+    {
+        // ENTITIES CANNOT REMOTELY ACCESS STORAGE
+        if (!CanAccessFacility(facility))
+        {
+            return false;
+        }
+
+        var storage = facility.SelfAsEntity().GetTrait<StorageTrait>();
         if (storage == null)
         {
             return false;
@@ -1689,7 +1837,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         var result = storage.AddItem(item);
 
         // Observe after putting (entity sees updated contents)
-        Memory?.ObserveStorage(building, storage);
+        Memory?.ObserveStorage(facility, storage);
 
         return result;
     }
@@ -1707,7 +1855,13 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     public bool StorageHasItem(Building building, string itemDefId, int quantity = 1)
     {
         // MEMORY ONLY - does NOT access real storage
-        var observation = Memory?.RecallStorageContents(building);
+        var storageFacility = building.GetStorageFacility();
+        if (storageFacility == null)
+        {
+            return false;
+        }
+
+        var observation = Memory?.RecallStorageContents(storageFacility);
         if (observation == null)
         {
             return false; // No memory = don't know
@@ -1728,7 +1882,13 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     public bool StorageHasItemByTag(Building building, string itemTag)
     {
         // MEMORY ONLY - does NOT access real storage
-        var observation = Memory?.RecallStorageContents(building);
+        var storageFacility = building.GetStorageFacility();
+        if (storageFacility == null)
+        {
+            return false;
+        }
+
+        var observation = Memory?.RecallStorageContents(storageFacility);
         if (observation == null)
         {
             return false; // No memory = don't know
@@ -1749,7 +1909,13 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     public int GetStorageItemCount(Building building, string itemDefId)
     {
         // MEMORY ONLY - does NOT access real storage
-        var observation = Memory?.RecallStorageContents(building);
+        var storageFacility = building.GetStorageFacility();
+        if (storageFacility == null)
+        {
+            return 0;
+        }
+
+        var observation = Memory?.RecallStorageContents(storageFacility);
         if (observation == null)
         {
             return 0; // No memory = assume 0
@@ -1878,8 +2044,9 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             if (nearest != null)
             {
                 // Convert FacilityObservation to FacilityReference for consistent API
-                var buildingRef = new BuildingReference(nearest.Building, nearest.Area);
-                return new FacilityReference(nearest.FacilityType, buildingRef, nearest.Area, nearest.Position);
+                // Look up the Facility object from the building (null-safe: facility may have been removed)
+                var facility = nearest.Building.GetFacility(nearest.FacilityType);
+                return new FacilityReference(nearest.FacilityType, facility, nearest.Area, nearest.Position);
             }
         }
 
@@ -1898,13 +2065,15 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         var addedBuildings = new HashSet<Building>();
 
         // First: Check personal memory for observed storage with this item
+        // Memory is now keyed by Facility; use facility.Owner to get the Building for callers.
         if (Memory != null)
         {
-            foreach (var (building, quantity) in Memory.RecallStorageWithItem(itemTag))
+            foreach (var (facility, quantity) in Memory.RecallStorageWithItem(itemTag))
             {
-                if (GodotObject.IsInstanceValid(building) && addedBuildings.Add(building))
+                var ownerBuilding = facility.Owner;
+                if (ownerBuilding != null && GodotObject.IsInstanceValid(ownerBuilding) && addedBuildings.Add(ownerBuilding))
                 {
-                    results.Add((building, quantity));
+                    results.Add((ownerBuilding, quantity));
                 }
             }
         }
@@ -1961,13 +2130,15 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         var addedBuildings = new HashSet<Building>();
 
         // First: Check personal memory for observed storage with this item by ID
+        // Memory is now keyed by Facility; use facility.Owner to get the Building for callers.
         if (Memory != null)
         {
-            foreach (var (building, quantity) in Memory.RecallStorageWithItemById(itemDefId))
+            foreach (var (facility, quantity) in Memory.RecallStorageWithItemById(itemDefId))
             {
-                if (GodotObject.IsInstanceValid(building) && addedBuildings.Add(building))
+                var ownerBuilding = facility.Owner;
+                if (ownerBuilding != null && GodotObject.IsInstanceValid(ownerBuilding) && addedBuildings.Add(ownerBuilding))
                 {
-                    results.Add((building, quantity));
+                    results.Add((ownerBuilding, quantity));
                 }
             }
         }
@@ -2007,15 +2178,18 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         var addedBuildings = new HashSet<Building>();
 
         // First: Check personal memory for observed storage with this item
+        // Memory is now keyed by Facility; use facility.Owner to get the Building for callers.
         if (Memory != null)
         {
-            foreach (var (building, quantity) in Memory.RecallStorageWithItem(itemTag))
+            foreach (var (facility, quantity) in Memory.RecallStorageWithItem(itemTag))
             {
-                if (GodotObject.IsInstanceValid(building) &&
-                    string.Equals(building.BuildingType, buildingType, StringComparison.OrdinalIgnoreCase) &&
-                    addedBuildings.Add(building))
+                var ownerBuilding = facility.Owner;
+                if (ownerBuilding != null &&
+                    GodotObject.IsInstanceValid(ownerBuilding) &&
+                    string.Equals(ownerBuilding.BuildingType, buildingType, StringComparison.OrdinalIgnoreCase) &&
+                    addedBuildings.Add(ownerBuilding))
                 {
-                    results.Add((building, quantity));
+                    results.Add((ownerBuilding, quantity));
                 }
             }
         }

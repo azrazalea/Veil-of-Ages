@@ -421,10 +421,17 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
 
         int amountToLoad = System.Math.Min(neededQuantity, available);
 
-        _loadAction = TransferBetweenStoragesAction.FromBuilding(
+        var granaryFacility = _granary.GetStorageFacility();
+        if (granaryFacility == null)
+        {
+            DebugLog("DISTRIBUTOR", "Granary has no storage facility", 0);
+            return new IdleAction(_owner, this, Priority);
+        }
+
+        _loadAction = TransferBetweenStoragesAction.FromFacility(
             _owner,
             this,
-            _granary,
+            granaryFacility,
             nextItemId,
             amountToLoad,
             Priority);
@@ -598,10 +605,17 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         int amountToDeliver = System.Math.Min(needed, haveInInventory);
 
         // Create deposit action to deliver items
+        var householdFacility = household.GetStorageFacility();
+        if (householdFacility == null)
+        {
+            DebugLog("DISTRIBUTOR", $"Household {household.BuildingName} has no storage facility", 0);
+            return new IdleAction(_owner, this, Priority);
+        }
+
         _deliverAction = new DepositToStorageAction(
             _owner,
             this,
-            household,
+            householdFacility,
             nextTarget.ItemId,
             amountToDeliver,
             Priority)
@@ -653,10 +667,18 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
 
         int excessBread = breadCount - BREADEXCESSTHRESHOLD;
 
+        var householdFacilityBread = household.GetStorageFacility();
+        if (householdFacilityBread == null)
+        {
+            DebugLog("DISTRIBUTOR", $"Household {household.BuildingName} has no storage facility for bread collection", 0);
+            _exchangeSubPhase = ExchangeSubPhase.CollectingWheat;
+            return new IdleAction(_owner, this, Priority);
+        }
+
         _collectAction = new TakeFromStorageAction(
             _owner,
             this,
-            household,
+            householdFacilityBread,
             "bread",
             excessBread,
             Priority)
@@ -708,10 +730,18 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
 
         int excessWheat = wheatCount - WHEATEXCESSTHRESHOLD;
 
+        var householdFacilityWheat = household.GetStorageFacility();
+        if (householdFacilityWheat == null)
+        {
+            DebugLog("DISTRIBUTOR", $"Household {household.BuildingName} has no storage facility for wheat collection", 0);
+            _exchangeSubPhase = ExchangeSubPhase.Done;
+            return new IdleAction(_owner, this, Priority);
+        }
+
         _collectAction = new TakeFromStorageAction(
             _owner,
             this,
-            household,
+            householdFacilityWheat,
             "wheat",
             excessWheat,
             Priority)
@@ -894,10 +924,18 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
             return new IdleAction(_owner, this, Priority);
         }
 
+        var granaryDepositFacility = _granary.GetStorageFacility();
+        if (granaryDepositFacility == null)
+        {
+            DebugLog("DISTRIBUTOR", "Granary has no storage facility for deposit", 0);
+            _currentDepositIndex++;
+            return new IdleAction(_owner, this, Priority);
+        }
+
         _depositAction = new DepositToStorageAction(
             _owner,
             this,
-            _granary,
+            granaryDepositFacility,
             nextItemId,
             haveInInventory,
             Priority)

@@ -60,7 +60,7 @@ public class NecromancyStudyJobTrait : JobTrait
     protected override Building? GetWorkplace()
     {
         var facilityRef = GetCachedFacilityRef();
-        return facilityRef?.Building.Building;
+        return facilityRef?.Facility?.Owner;
     }
 
     /// <summary>
@@ -119,7 +119,7 @@ public class NecromancyStudyJobTrait : JobTrait
         }
 
         // Check for active work order on the altar — work orders take priority
-        var building = facilityRef.Building.Building;
+        var building = facilityRef.Facility?.Owner;
         if (building != null && GodotObject.IsInstanceValid(building))
         {
             var facility = building.GetFacility("necromancy_altar");

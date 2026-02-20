@@ -925,11 +925,11 @@ public partial class Building : Node2D, IEntity<Trait>
     // Storage helper methods
 
     /// <summary>
-    /// Gets the primary storage for this building.
+    /// Gets the primary storage facility for this building.
     /// First looks for a facility with id "storage", then any facility with StorageTrait.
     /// </summary>
-    /// <returns>The StorageTrait if found, null otherwise.</returns>
-    public StorageTrait? GetStorage()
+    /// <returns>The Facility with StorageTrait if found, null otherwise.</returns>
+    public Facility? GetStorageFacility()
     {
         // First try facility with id "storage"
         if (_facilities.TryGetValue("storage", out var storageFacilities) && storageFacilities.Count > 0)
@@ -937,7 +937,7 @@ public partial class Building : Node2D, IEntity<Trait>
             var storage = storageFacilities[0].SelfAsEntity().GetTrait<StorageTrait>();
             if (storage != null)
             {
-                return storage;
+                return storageFacilities[0];
             }
         }
 
@@ -949,12 +949,22 @@ public partial class Building : Node2D, IEntity<Trait>
                 var storage = facility.SelfAsEntity().GetTrait<StorageTrait>();
                 if (storage != null)
                 {
-                    return storage;
+                    return facility;
                 }
             }
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Gets the primary storage for this building.
+    /// First looks for a facility with id "storage", then any facility with StorageTrait.
+    /// </summary>
+    /// <returns>The StorageTrait if found, null otherwise.</returns>
+    public StorageTrait? GetStorage()
+    {
+        return GetStorageFacility()?.SelfAsEntity().GetTrait<StorageTrait>();
     }
 
     /// <summary>
@@ -1104,7 +1114,7 @@ public partial class Building : Node2D, IEntity<Trait>
                 {
                     try
                     {
-                        return Activator.CreateInstance(type, facility, this) as IFacilityInteractable;
+                        return Activator.CreateInstance(type, facility) as IFacilityInteractable;
                     }
                     catch (Exception ex)
                     {

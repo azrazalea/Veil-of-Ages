@@ -381,10 +381,17 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
 
             // Return a ProduceToStorageAction to add wheat on the main thread
             // This is thread-safe because actions execute on main thread
+            var workplaceStorageFacility = _workplace.GetStorageFacility();
+            if (workplaceStorageFacility == null)
+            {
+                DebugLog("ACTIVITY", "Workplace has no storage facility, cannot produce wheat", 0);
+                return null;
+            }
+
             _pendingProduceAction = new ProduceToStorageAction(
                 _owner,
                 this,
-                _workplace,
+                workplaceStorageFacility,
                 "wheat",
                 1,
                 Priority);
@@ -658,7 +665,10 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
 
             // Get remembered contents for farm
             var memoryContents = "nothing (no memory)";
-            var storageMemory = _owner.Memory?.RecallStorageContents(_workplace);
+            var workplaceStorageFacility = _workplace.GetStorageFacility();
+            var storageMemory = workplaceStorageFacility != null
+                ? _owner.Memory?.RecallStorageContents(workplaceStorageFacility)
+                : null;
             if (storageMemory != null)
             {
                 var rememberedItems = storageMemory.Items
@@ -680,7 +690,10 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
 
                 // Get remembered contents for home
                 var memoryContents = "nothing (no memory)";
-                var storageMemory = _owner.Memory?.RecallStorageContents(_home);
+                var homeStorageFacility = _home.GetStorageFacility();
+                var storageMemory = homeStorageFacility != null
+                    ? _owner.Memory?.RecallStorageContents(homeStorageFacility)
+                    : null;
                 if (storageMemory != null)
                 {
                     var rememberedItems = storageMemory.Items

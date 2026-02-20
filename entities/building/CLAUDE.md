@@ -111,13 +111,13 @@ Interface for facilities that can be interacted with through dialogue.
 Facilities implement this to provide context-sensitive dialogue options to the player. Options can be disabled with explanatory tooltips.
 
 **Implementors:**
-- `NecromancyAltarInteraction` - Provides "Get Corpse" and "Raise Zombie" options with smart enabled/disabled logic
+- `NecromancyAltarInteraction` - Provides "Get Corpse" and "Raise Zombie" options with smart enabled/disabled logic. Constructor takes `(Facility facility)`. Uses `_facility.SelfAsEntity().GetTrait<StorageTrait>()` for storage access.
 
 ### facilities/ subdirectory
 Contains facility interaction implementations.
 
 **Files:**
-- `NecromancyAltarInteraction.cs` - Interaction handler for necromancy_altar facility. Provides context-sensitive "Get Corpse" (checks night phase, altar storage, graveyard memory) and "Raise Zombie" (checks night phase, corpse presence, necromancy skill level, active work orders) options with detailed disabled reasons.
+- `NecromancyAltarInteraction.cs` - Interaction handler for necromancy_altar facility. Constructor takes `(Facility facility)`. Provides context-sensitive "Get Corpse" (checks night phase, altar storage via `_facility.SelfAsEntity().GetTrait<StorageTrait>()`, graveyard memory) and "Raise Zombie" (checks night phase, corpse presence, necromancy skill level, active work orders) options with detailed disabled reasons.
 
 ### GridBuildingTemplateLoader.cs
 Static class that loads building templates from the directory-based **GridFab** format. Converts visual grid files into standard `BuildingTemplate` objects consumed by `BuildingManager`.

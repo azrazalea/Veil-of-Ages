@@ -65,10 +65,18 @@ public class DepositToStorageActivity : Activity
 
         DebugLog("DEPOSIT_STORAGE", $"Depositing {quantity} {itemId} to {_targetBuilding.BuildingName}", 0);
 
+        var storageFacility = _targetBuilding.GetStorageFacility();
+        if (storageFacility == null)
+        {
+            DebugLog("DEPOSIT_STORAGE", $"No storage facility found in {_targetBuilding.BuildingName}", 0);
+            Fail();
+            return null;
+        }
+
         return new DepositToStorageAction(
             _owner,
             this,
-            _targetBuilding,
+            storageFacility,
             itemId,
             quantity,
             Priority);

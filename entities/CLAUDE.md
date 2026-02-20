@@ -129,12 +129,22 @@ This is intentional. Entities must physically travel to storage locations to obs
 - `GetAllBuildingsOfType(type)` - Get all buildings of type
 
 **Storage ACTION Methods (Require Physical Proximity):**
+
+Building-based overloads internally resolve Building→Facility via `GetStorageFacility()`:
 - `AccessStorage(building)` - Get storage and observe (returns null if not adjacent)
 - `TakeFromStorage(building, itemDefId, quantity)` - Take and observe (returns null if not adjacent)
 - `TakeFromStorageByTag(building, itemTag, quantity)` - Take by tag and observe (returns null if not adjacent)
 - `PutInStorage(building, item)` - Put and observe (returns false if not adjacent)
 
+Facility-based overloads (preferred for post-Phase-2 code):
+- `CanAccessFacility(facility)` - Check if entity is physically adjacent to the facility
+- `TakeFromFacilityStorage(facility, itemDefId, quantity)` - Take and observe (returns null if not adjacent)
+- `TakeFromFacilityStorageByTag(facility, itemTag, quantity)` - Take by tag and observe (returns null if not adjacent)
+- `PutInFacilityStorage(facility, item)` - Put and observe (returns false if not adjacent)
+
 **Storage CHECK Methods (Memory Only - No Real Storage Access):**
+
+Internally resolve Building→Facility via `GetStorageFacility()` for memory lookup:
 - `StorageHasItem(building, itemDefId, quantity)` - Check MEMORY for item
 - `StorageHasItemByTag(building, itemTag)` - Check MEMORY for item by tag
 - `GetStorageItemCount(building, itemDefId)` - Get REMEMBERED count (may be stale)
@@ -143,7 +153,7 @@ This is intentional. Entities must physically travel to storage locations to obs
 - `FindFacilityOfType(facilityType)` - Find nearest facility of type, checks SharedKnowledge first then PersonalMemory, prefers same-area facilities (cross-area gets distance penalty)
 
 **Combined Item Search (PersonalMemory + SharedKnowledge):**
-- `FindItemLocations(itemTag)` - Find buildings with item, personal memory first
+- `FindItemLocations(itemTag)` - Find buildings with item, personal memory first. Internally uses Facility-keyed PersonalMemory observations but returns `(Building, int)` for callers.
 - `FindItemLocationsById(itemDefId)` - Find by item ID
 - `FindItemInBuildingType(itemTag, buildingType)` - Filter by building type
 - `HasIdeaWhereToFind(itemTag)` - Quick check for any leads

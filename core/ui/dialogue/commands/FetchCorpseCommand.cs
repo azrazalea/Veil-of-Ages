@@ -9,7 +9,7 @@ namespace VeilOfAges.UI.Commands;
 
 /// <summary>
 /// Command that fetches a corpse from the nearest graveyard and brings it to the necromancy altar.
-/// The altar building is passed via Parameters ("altarBuilding").
+/// The altar facility is passed via Parameters ("altarFacility").
 ///
 /// Thin wrapper around FetchResourceActivity which handles the full
 /// go→take→return→deposit pattern including cross-area navigation.
@@ -18,7 +18,7 @@ public class FetchCorpseCommand : EntityCommand
 {
     public override string DisplayName => L.Tr("command.FETCH_CORPSE");
 
-    private Building? _altarBuilding;
+    private Facility? _altarFacility;
     private FetchResourceActivity? _fetchActivity;
 
     public FetchCorpseCommand(Being owner, Being commander)
@@ -28,21 +28,21 @@ public class FetchCorpseCommand : EntityCommand
 
     public override EntityAction? SuggestAction(Vector2I currentGridPos, Perception currentPerception)
     {
-        // Resolve altar building from parameters on first call
-        if (_altarBuilding == null)
+        // Resolve altar facility from parameters on first call
+        if (_altarFacility == null)
         {
-            if (!Parameters.TryGetValue("altarBuilding", out var altarObj) || altarObj is not Building altar)
+            if (!Parameters.TryGetValue("altarFacility", out var altarObj) || altarObj is not Facility altar)
             {
-                Log.Warn($"{_owner.Name}: FetchCorpseCommand has no altarBuilding parameter");
+                Log.Warn($"{_owner.Name}: FetchCorpseCommand has no altarFacility parameter");
                 return null;
             }
 
-            _altarBuilding = altar;
+            _altarFacility = altar;
         }
 
-        if (!GodotObject.IsInstanceValid(_altarBuilding))
+        if (!GodotObject.IsInstanceValid(_altarFacility))
         {
-            Log.Warn($"{_owner.Name}: Altar building no longer valid");
+            Log.Warn($"{_owner.Name}: Altar facility no longer valid");
             return null;
         }
 
@@ -58,8 +58,22 @@ public class FetchCorpseCommand : EntityCommand
                 return null;
             }
 
+            var altarBuilding = _altarFacility.Owner;
+            if (altarBuilding == null || !GodotObject.IsInstanceValid(altarBuilding))
+            {
+                Log.Warn($"{_owner.Name}: FetchCorpseCommand: Altar facility has no valid owner building");
+                return null;
+            }
+
+            var graveyardBuilding = graveyardRef.Building;
+            if (graveyardBuilding == null || !GodotObject.IsInstanceValid(graveyardBuilding))
+            {
+                Log.Warn($"{_owner.Name}: FetchCorpseCommand: Graveyard building reference is invalid");
+                return null;
+            }
+
             _fetchActivity = new FetchResourceActivity(
-                graveyardRef.Building!, _altarBuilding, "corpse", 1, priority: -1);
+                graveyardBuilding, altarBuilding, "corpse", 1, priority: -1);
             InitializeSubActivity(_fetchActivity);
         }
 

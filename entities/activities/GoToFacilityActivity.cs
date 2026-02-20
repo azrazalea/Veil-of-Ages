@@ -11,8 +11,12 @@ namespace VeilOfAges.Entities.Activities;
 /// </summary>
 public class GoToFacilityActivity : NavigationActivity
 {
-    private readonly Building _building;
+    // Nullable to support standalone facilities that have no owner building.
+    private readonly Building? _building;
     private readonly string _facilityId;
+
+    // Optional direct facility reference — used by the Facility constructor overload.
+    private readonly Facility? _facility;
 
     public override string DisplayName => L.TrFmt("activity.GOING_TO_FACILITY", _facilityId);
     public override Building? TargetBuilding => _building;
@@ -36,6 +40,26 @@ public class GoToFacilityActivity : NavigationActivity
     {
         _building = building;
         _facilityId = facilityId;
+        _facility = null;
+        Priority = priority;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GoToFacilityActivity"/> class.
+    /// Create an activity to navigate adjacent to a specific facility using the
+    /// <see cref="Facility"/> object directly. Backward-compat fields are populated
+    /// from <paramref name="facility"/>'s owner and ID.
+    /// </summary>
+    /// <param name="facility">The facility to navigate to.</param>
+    /// <param name="priority">Action priority (default 0).</param>
+    public GoToFacilityActivity(Facility facility, int priority = 0)
+    {
+        _facility = facility;
+
+        // Populate backward-compat fields so ValidateTarget and DisplayName still work.
+        // Owner is nullable (standalone facilities have no owner), so _building may be null.
+        _building = facility.Owner;
+        _facilityId = facility.Id;
         Priority = priority;
     }
 
@@ -44,15 +68,40 @@ public class GoToFacilityActivity : NavigationActivity
         base.Initialize(owner);
 
         _pathFinder = new PathFinder();
-        if (!_pathFinder.SetFacilityGoal(owner, _building, _facilityId))
+
+        bool goalSet;
+        if (_facility != null)
         {
-            Log.Warn($"{owner.Name}: No accessible {_facilityId} in {_building.BuildingName}");
+            // Use the Facility-direct overload — delegates to building overload internally
+            // if the facility has an owner, otherwise handles standalone facilities.
+            goalSet = _pathFinder.SetFacilityGoal(owner, _facility);
+        }
+        else if (_building != null)
+        {
+            goalSet = _pathFinder.SetFacilityGoal(owner, _building, _facilityId);
+        }
+        else
+        {
+            Log.Warn($"{owner.Name}: GoToFacilityActivity has no facility or building reference");
+            Fail();
+            return;
+        }
+
+        if (!goalSet)
+        {
+            Log.Warn($"{owner.Name}: No accessible {_facilityId} in {_building?.BuildingName ?? "(standalone)"}");
             Fail();
         }
     }
 
     protected override bool ValidateTarget()
     {
+        // If no building reference (standalone facility), skip building validation.
+        if (_building == null)
+        {
+            return true;
+        }
+
         if (!GodotObject.IsInstanceValid(_building))
         {
             Log.Warn($"{_owner!.Name}: Building destroyed while navigating to {_facilityId}");

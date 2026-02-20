@@ -2,6 +2,7 @@ using System.Globalization;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
+using VeilOfAges.Entities.Traits;
 using VeilOfAges.Grid;
 
 namespace VeilOfAges.Entities.Memory;
@@ -95,6 +96,10 @@ public class SharedKnowledge
 
     // Facility tracking - facilities by type
     private readonly Dictionary<string, List<FacilityReference>> _facilities = new ();
+
+    // Facility storage tag tracking - what tags each facility stores
+    // Parallel to _buildingsByStorageTag but at facility granularity for precise targeting
+    private readonly Dictionary<string, List<FacilityReference>> _facilitiesByStorageTag = new ();  // tag -> facilities
 
     // Transition point tracking
     private readonly List<TransitionPointReference> _transitionPoints = new ();
@@ -364,11 +369,13 @@ public class SharedKnowledge
 
     /// <summary>
     /// Register a facility in this knowledge scope.
+    /// If the facility has a StorageTrait with tags, also registers in the
+    /// facility-by-storage-tag index for quick tag-based lookup.
+    /// Main thread only.
     /// </summary>
-    public void RegisterFacility(string facilityType, Building building, Area? area, Vector2I position)
+    public void RegisterFacility(string facilityType, Facility facility, Area? area, Vector2I position)
     {
-        var buildingRef = new BuildingReference(building, area);
-        var facilityRef = new FacilityReference(facilityType, buildingRef, area, position);
+        var facilityRef = new FacilityReference(facilityType, facility, area, position);
 
         if (!_facilities.TryGetValue(facilityType, out var list))
         {
@@ -377,6 +384,22 @@ public class SharedKnowledge
         }
 
         list.Add(facilityRef);
+
+        // Also index by storage tags if this facility has a StorageTrait with tags
+        var storageTrait = facility.SelfAsEntity().GetTrait<StorageTrait>();
+        if (storageTrait != null && storageTrait.Tags.Count > 0)
+        {
+            foreach (var tag in storageTrait.Tags)
+            {
+                if (!_facilitiesByStorageTag.TryGetValue(tag, out var taggedFacilities))
+                {
+                    taggedFacilities = new List<FacilityReference>();
+                    _facilitiesByStorageTag[tag] = taggedFacilities;
+                }
+
+                taggedFacilities.Add(facilityRef);
+            }
+        }
     }
 
     /// <summary>
@@ -387,7 +410,25 @@ public class SharedKnowledge
     {
         if (_facilities.TryGetValue(facilityType, out var list))
         {
-            return list.Where(f => f.Building.IsValid).ToList();
+            return list.Where(f => f.Facility != null && GodotObject.IsInstanceValid(f.Facility)).ToList();
+        }
+
+        return Array.Empty<FacilityReference>();
+    }
+
+    /// <summary>
+    /// Get all valid facilities known to store items with a specific tag.
+    /// This is common knowledge about what facilities are INTENDED to store,
+    /// not whether they actually have items right now.
+    /// Returns a snapshot copy safe for background thread access.
+    /// </summary>
+    /// <param name="tag">The tag to search for (e.g., "food", "corpse").</param>
+    /// <returns>List of facility references whose storage trait has this tag.</returns>
+    public IReadOnlyList<FacilityReference> GetFacilitiesByTag(string tag)
+    {
+        if (_facilitiesByStorageTag.TryGetValue(tag, out var facilities))
+        {
+            return facilities.Where(f => f.Facility != null && GodotObject.IsInstanceValid(f.Facility)).ToList();
         }
 
         return Array.Empty<FacilityReference>();
@@ -428,7 +469,13 @@ public class SharedKnowledge
     {
         foreach (var list in _facilities.Values)
         {
-            list.RemoveAll(f => f.Building.Building == building);
+            list.RemoveAll(f => f.Facility?.Owner == building);
+        }
+
+        // Also remove from the tag-based index
+        foreach (var list in _facilitiesByStorageTag.Values)
+        {
+            list.RemoveAll(f => f.Facility?.Owner == building);
         }
     }
 
@@ -509,7 +556,13 @@ public class SharedKnowledge
         // Clean up invalid facility references
         foreach (var list in _facilities.Values)
         {
-            list.RemoveAll(f => !f.Building.IsValid);
+            list.RemoveAll(f => f.Facility == null || !GodotObject.IsInstanceValid(f.Facility));
+        }
+
+        // Clean up invalid facility tag references
+        foreach (var list in _facilitiesByStorageTag.Values)
+        {
+            list.RemoveAll(f => f.Facility == null || !GodotObject.IsInstanceValid(f.Facility));
         }
     }
 }
@@ -518,10 +571,10 @@ public class SharedKnowledge
 /// Lightweight reference to a facility within a building.
 /// </summary>
 /// <param name="FacilityType">The type of facility (e.g., "corpse_pit", "altar").</param>
-/// <param name="Building">Reference to the building containing this facility.</param>
+/// <param name="Facility">The facility object. Use Facility.Owner to get the containing building.</param>
 /// <param name="Area">The area this facility is in.</param>
 /// <param name="Position">The grid position of the facility.</param>
-public record FacilityReference(string FacilityType, BuildingReference Building, Area? Area, Vector2I Position);
+public record FacilityReference(string FacilityType, Facility? Facility, Area? Area, Vector2I Position);
 
 /// <summary>
 /// Reference to a transition point for cross-area routing.

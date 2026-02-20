@@ -300,7 +300,11 @@ public class BakerJobTrait : JobTrait
         if (wellWater <= 0)
         {
             // We don't remember seeing water at the well
-            var wellMemory = _owner.Memory?.RecallStorageContents(well);
+            // Storage observations are keyed by Facility — look up the storage facility first
+            var wellStorageFacility = well.GetStorageFacility();
+            var wellMemory = wellStorageFacility != null
+                ? _owner.Memory?.RecallStorageContents(wellStorageFacility)
+                : null;
             if (wellMemory == null)
             {
                 // No memory of well - go check it
@@ -368,16 +372,25 @@ public class BakerJobTrait : JobTrait
         int rememberedQuantity = 0;
 
         // First, check remembered locations (highest confidence)
-        foreach (var (building, quantity) in rememberedWheatLocations)
+        // RecallStorageWithItemById returns (Facility, int); use facility.Owner for the Building.
+        foreach (var (facility, quantity) in rememberedWheatLocations)
         {
+            var ownerBuilding = facility.Owner;
+
+            // Skip if no owner building (shouldn't happen for building-owned facilities)
+            if (ownerBuilding == null)
+            {
+                continue;
+            }
+
             // Skip our own workplace
-            if (building == _workplace)
+            if (ownerBuilding == _workplace)
             {
                 continue;
             }
 
             // Skip invalid buildings
-            if (!GodotObject.IsInstanceValid(building))
+            if (!GodotObject.IsInstanceValid(ownerBuilding))
             {
                 continue;
             }
@@ -385,7 +398,7 @@ public class BakerJobTrait : JobTrait
             // Use the building with the most remembered wheat
             if (quantity > rememberedQuantity)
             {
-                sourceBuilding = building;
+                sourceBuilding = ownerBuilding;
                 rememberedQuantity = quantity;
             }
         }
@@ -406,7 +419,11 @@ public class BakerJobTrait : JobTrait
         foreach (var building in grainBuildings)
         {
             // Check if we have any memory of this building's storage
-            var observation = _owner.Memory?.RecallStorageContents(building);
+            // Storage observations are keyed by Facility — look up the storage facility first
+            var storageFacility = building.GetStorageFacility();
+            var observation = storageFacility != null
+                ? _owner.Memory?.RecallStorageContents(storageFacility)
+                : null;
             if (observation == null)
             {
                 // No memory of this building - go check it

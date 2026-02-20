@@ -6,15 +6,15 @@ namespace VeilOfAges.Entities.Actions;
 /// <summary>
 /// Action to transfer items from one storage to another.
 /// Source or destination must be the entity's inventory.
-/// For building-to-building transfers, entity must be adjacent to both.
+/// For facility-to-facility transfers, entity must be adjacent to both.
 /// Uses safe transfer - items never disappear.
 /// </summary>
 public class TransferBetweenStoragesAction : EntityAction
 {
-    private readonly IStorageContainer _source;
-    private readonly IStorageContainer _destination;
-    private readonly Building? _sourceBuilding;
-    private readonly Building? _destBuilding;
+    private readonly IStorageContainer? _source;
+    private readonly IStorageContainer? _destination;
+    private readonly Facility? _sourceFacility;
+    private readonly Facility? _destFacility;
     private readonly string _itemDefId;
     private readonly int _quantity;
     private int _actualTransferred;
@@ -25,24 +25,24 @@ public class TransferBetweenStoragesAction : EntityAction
     public int ActualTransferred => _actualTransferred;
 
     /// <summary>
-    /// Create a transfer from building storage to entity inventory.
+    /// Create a transfer from facility storage to entity inventory.
     /// </summary>
-    public static TransferBetweenStoragesAction FromBuilding(
+    public static TransferBetweenStoragesAction FromFacility(
         Being entity,
         object source,
-        Building building,
+        Facility facility,
         string itemDefId,
         int quantity,
         int priority = 0)
     {
         var inventory = entity.SelfAsEntity().GetTrait<InventoryTrait>();
-        var storage = building.GetStorage();
+        var storage = facility.SelfAsEntity().GetTrait<StorageTrait>();
         return new TransferBetweenStoragesAction(
             entity,
             source,
-            storage!,
-            inventory!,
-            building,
+            storage,
+            inventory,
+            facility,
             null,
             itemDefId,
             quantity,
@@ -50,25 +50,25 @@ public class TransferBetweenStoragesAction : EntityAction
     }
 
     /// <summary>
-    /// Create a transfer from entity inventory to building storage.
+    /// Create a transfer from entity inventory to facility storage.
     /// </summary>
-    public static TransferBetweenStoragesAction ToBuilding(
+    public static TransferBetweenStoragesAction ToFacility(
         Being entity,
         object source,
-        Building building,
+        Facility facility,
         string itemDefId,
         int quantity,
         int priority = 0)
     {
         var inventory = entity.SelfAsEntity().GetTrait<InventoryTrait>();
-        var storage = building.GetStorage();
+        var storage = facility.SelfAsEntity().GetTrait<StorageTrait>();
         return new TransferBetweenStoragesAction(
             entity,
             source,
-            inventory!,
-            storage!,
+            inventory,
+            storage,
             null,
-            building,
+            facility,
             itemDefId,
             quantity,
             priority);
@@ -77,10 +77,10 @@ public class TransferBetweenStoragesAction : EntityAction
     private TransferBetweenStoragesAction(
         Being entity,
         object source,
-        IStorageContainer sourceContainer,
-        IStorageContainer destContainer,
-        Building? sourceBuilding,
-        Building? destBuilding,
+        IStorageContainer? sourceContainer,
+        IStorageContainer? destContainer,
+        Facility? sourceFacility,
+        Facility? destFacility,
         string itemDefId,
         int quantity,
         int priority)
@@ -88,21 +88,27 @@ public class TransferBetweenStoragesAction : EntityAction
     {
         _source = sourceContainer;
         _destination = destContainer;
-        _sourceBuilding = sourceBuilding;
-        _destBuilding = destBuilding;
+        _sourceFacility = sourceFacility;
+        _destFacility = destFacility;
         _itemDefId = itemDefId;
         _quantity = quantity;
     }
 
     public override bool Execute()
     {
-        // Verify adjacency for any buildings involved
-        if (_sourceBuilding != null && !Entity.CanAccessBuildingStorage(_sourceBuilding))
+        // Require valid source and destination containers
+        if (_source == null || _destination == null)
         {
             return false;
         }
 
-        if (_destBuilding != null && !Entity.CanAccessBuildingStorage(_destBuilding))
+        // Verify adjacency for any facilities involved
+        if (_sourceFacility != null && !Entity.CanAccessFacility(_sourceFacility))
+        {
+            return false;
+        }
+
+        if (_destFacility != null && !Entity.CanAccessFacility(_destFacility))
         {
             return false;
         }
@@ -110,22 +116,22 @@ public class TransferBetweenStoragesAction : EntityAction
         // Use safe transfer
         _actualTransferred = _source.TransferTo(_destination, _itemDefId, _quantity);
 
-        // Update memory for any buildings involved
-        if (_sourceBuilding != null)
+        // Update memory for any facilities involved
+        if (_sourceFacility != null)
         {
-            var storage = _sourceBuilding.GetStorage();
+            var storage = _sourceFacility.SelfAsEntity().GetTrait<StorageTrait>();
             if (storage != null)
             {
-                Entity.Memory?.ObserveStorage(_sourceBuilding, storage);
+                Entity.Memory?.ObserveStorage(_sourceFacility, storage);
             }
         }
 
-        if (_destBuilding != null)
+        if (_destFacility != null)
         {
-            var storage = _destBuilding.GetStorage();
+            var storage = _destFacility.SelfAsEntity().GetTrait<StorageTrait>();
             if (storage != null)
             {
-                Entity.Memory?.ObserveStorage(_destBuilding, storage);
+                Entity.Memory?.ObserveStorage(_destFacility, storage);
             }
         }
 

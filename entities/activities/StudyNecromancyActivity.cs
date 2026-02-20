@@ -42,7 +42,7 @@ public class StudyNecromancyActivity : Activity
         _ => L.Tr("activity.STUDYING_DARK_ARTS")
     };
 
-    public override Building? TargetBuilding => _facilityRef.Building.Building;
+    public override Building? TargetBuilding => _facilityRef.Facility?.Owner;
 
     public StudyNecromancyActivity(FacilityReference facilityRef, uint studyDuration = 400, int priority = 0)
     {
@@ -58,7 +58,7 @@ public class StudyNecromancyActivity : Activity
     {
         base.Initialize(owner);
         _energyNeed = owner.NeedsSystem?.GetNeed("energy");
-        DebugLog("ACTIVITY", $"Started StudyNecromancyActivity at altar in {_facilityRef.Building.Building?.BuildingName ?? "unknown"}, priority: {Priority}, study duration: {_studyDuration} ticks", 0);
+        DebugLog("ACTIVITY", $"Started StudyNecromancyActivity at altar in {_facilityRef.Facility?.Owner?.BuildingName ?? "unknown"}, priority: {Priority}, study duration: {_studyDuration} ticks", 0);
     }
 
     protected override void OnResume()
@@ -76,7 +76,7 @@ public class StudyNecromancyActivity : Activity
             return null;
         }
 
-        var building = _facilityRef.Building.Building;
+        var building = _facilityRef.Facility?.Owner;
         if (building == null || !GodotObject.IsInstanceValid(building))
         {
             Fail();
@@ -108,7 +108,7 @@ public class StudyNecromancyActivity : Activity
 
         if (_navigationActivity == null)
         {
-            var building = _facilityRef.Building.Building;
+            var building = _facilityRef.Facility?.Owner;
             if (building == null || !Godot.GodotObject.IsInstanceValid(building))
             {
                 Fail();
@@ -131,7 +131,7 @@ public class StudyNecromancyActivity : Activity
                 break;
         }
 
-        var buildingName = _facilityRef.Building.Building?.BuildingName ?? "altar";
+        var buildingName = _facilityRef.Facility?.Owner?.BuildingName ?? "altar";
         Log.Print($"{_owner.Name}: Arrived at {buildingName} to study dark arts");
         DebugLog("ACTIVITY", $"Arrived at necromancy altar, starting study phase (duration: {_studyDuration} ticks)", 0);
 

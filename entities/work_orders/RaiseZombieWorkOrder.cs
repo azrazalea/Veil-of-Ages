@@ -29,11 +29,6 @@ public class RaiseZombieWorkOrder : WorkOrder
     /// </summary>
     public Facility? SpawnFacility { get; set; }
 
-    /// <summary>
-    /// Gets or sets the building containing the altar.
-    /// </summary>
-    public Building? AltarBuilding { get; set; }
-
     public RaiseZombieWorkOrder()
         : base(
             id: $"raise_zombie_{Guid.NewGuid():N}",

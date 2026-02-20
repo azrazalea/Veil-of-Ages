@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 - Perceived entities now add weight penalty to pathfinding instead of fully blocking tiles, preventing total path failure when entities are nearby
+- Storage operations now target facilities directly instead of buildings (internal architecture improvement — no behavior change)
+- PersonalMemory storage observations keyed by Facility instead of Building
+- SharedKnowledge FacilityReference stores Facility directly, eliminating double-dereference pattern
 
 ### Fixed
 - Entities no longer walk through ovens, altars, chests, querns, and tombstones (facilities and decorations now block pathfinding)

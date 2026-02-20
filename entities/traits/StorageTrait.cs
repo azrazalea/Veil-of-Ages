@@ -68,6 +68,13 @@ public class StorageTrait : Trait, IStorageContainer
     public uint FetchDuration { get; set; }
 
     /// <summary>
+    /// Gets or sets the list of storage tags indicating what types of items this storage is intended to hold.
+    /// Used by SharedKnowledge to index facilities by tag for quick lookup.
+    /// Example: ["food", "grain"] for a granary, ["corpse", "zombie_food"] for a corpse pit.
+    /// </summary>
+    public List<string> Tags { get; set; } = [];
+
+    /// <summary>
     /// Gets the currently used volume in cubic meters.
     /// </summary>
     public float UsedVolume => _items.Sum(item => item.TotalVolume);

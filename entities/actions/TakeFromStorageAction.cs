@@ -4,12 +4,12 @@ using VeilOfAges.Entities.Traits;
 namespace VeilOfAges.Entities.Actions;
 
 /// <summary>
-/// Action to take items from a building's storage into the entity's inventory.
-/// Requires entity to be adjacent to the building.
+/// Action to take items from a facility's storage into the entity's inventory.
+/// Requires entity to be adjacent to the facility.
 /// </summary>
 public class TakeFromStorageAction : EntityAction
 {
-    private readonly Building _building;
+    private readonly Facility _facility;
     private readonly string _itemDefId;
     private readonly int _quantity;
     private Item? _takenItem;
@@ -27,21 +27,21 @@ public class TakeFromStorageAction : EntityAction
     public TakeFromStorageAction(
         Being entity,
         object source,
-        Building building,
+        Facility facility,
         string itemDefId,
         int quantity,
         int priority = 0)
         : base(entity, source, priority: priority)
     {
-        _building = building;
+        _facility = facility;
         _itemDefId = itemDefId;
         _quantity = quantity;
     }
 
     public override bool Execute()
     {
-        // TakeFromStorage handles adjacency check and memory observation
-        _takenItem = Entity.TakeFromStorage(_building, _itemDefId, _quantity);
+        // TakeFromFacilityStorage handles adjacency check and memory observation
+        _takenItem = Entity.TakeFromFacilityStorage(_facility, _itemDefId, _quantity);
 
         if (_takenItem == null)
         {
@@ -53,7 +53,7 @@ public class TakeFromStorageAction : EntityAction
         if (inventory == null)
         {
             // Put back if no inventory
-            Entity.PutInStorage(_building, _takenItem);
+            Entity.PutInFacilityStorage(_facility, _takenItem);
             _takenItem = null;
             return false;
         }
@@ -61,7 +61,7 @@ public class TakeFromStorageAction : EntityAction
         if (!inventory.AddItem(_takenItem))
         {
             // Put back if inventory full
-            Entity.PutInStorage(_building, _takenItem);
+            Entity.PutInFacilityStorage(_facility, _takenItem);
             _takenItem = null;
             return false;
         }

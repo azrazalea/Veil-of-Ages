@@ -201,10 +201,18 @@ public static class WorldNavigator
             }
 
             // Wrap the steps with facility/building metadata
+            // Derive BuildingReference from the facility's owner building, if available
+            BuildingReference? targetBuildingRef = null;
+            var ownerBuilding = bestFacility.Facility?.Owner;
+            if (ownerBuilding != null && GodotObject.IsInstanceValid(ownerBuilding))
+            {
+                targetBuildingRef = new BuildingReference(ownerBuilding, bestFacility.Area);
+            }
+
             var result = new NavigationPlan
             {
                 TargetFacility = bestFacility,
-                TargetBuilding = bestFacility.Building,
+                TargetBuilding = targetBuildingRef,
             };
             foreach (var step in plan.Steps)
             {

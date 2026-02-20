@@ -211,10 +211,18 @@ public class TakeFromStorageActivity : Activity
 
         DebugLog("TAKE_STORAGE", $"Taking {quantity} {itemId} from {_sourceBuilding.BuildingName}", 0);
 
+        var storageFacility = _sourceBuilding.GetStorageFacility();
+        if (storageFacility == null)
+        {
+            DebugLog("TAKE_STORAGE", $"No storage facility found in {_sourceBuilding.BuildingName}", 0);
+            Fail();
+            return null;
+        }
+
         return new TakeFromStorageAction(
             _owner,
             this,
-            _sourceBuilding,
+            storageFacility,
             itemId,
             quantity,
             Priority);

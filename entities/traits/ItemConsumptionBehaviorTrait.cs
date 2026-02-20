@@ -170,7 +170,11 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
             // This prevents infinite loops when home is empty - we'll try granary next
             foreach (var building in buildingsToCheck)
             {
-                var observation = _owner.Memory?.RecallStorageContents(building);
+                // Storage observations are keyed by Facility — check via the building's storage facility
+                var storageFacility = building.GetStorageFacility();
+                var observation = storageFacility != null
+                    ? _owner.Memory?.RecallStorageContents(storageFacility)
+                    : null;
                 if (observation == null)
                 {
                     // Never checked this building or observation expired - go check it
@@ -201,12 +205,13 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
         if (inventory?.FindItemByTag(_foodTag) == null)
         {
             // Not in inventory - find which building has the remembered food
-            var buildingsWithFood = _owner.Memory?.RecallStorageWithItem(_foodTag) ?? [];
-            if (buildingsWithFood.Count > 0)
+            // RecallStorageWithItem now returns (Facility, int); use facility.Owner for the Building.
+            var facilitiesWithFood = _owner.Memory?.RecallStorageWithItem(_foodTag) ?? [];
+            if (facilitiesWithFood.Count > 0)
             {
-                // Use the first building with food (could optimize to pick nearest)
-                targetBuilding = buildingsWithFood[0].building;
-                DebugLog("EATING", $"Found remembered food at {targetBuilding.BuildingName}");
+                // Use the first facility's owner building (could optimize to pick nearest)
+                targetBuilding = facilitiesWithFood[0].facility.Owner;
+                DebugLog("EATING", $"Found remembered food at {targetBuilding?.BuildingName ?? "unknown"}");
             }
             else
             {
@@ -269,7 +274,10 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
                 var realInfo = realFood != null ? $"{realFood.Quantity} {realFood.Definition.Name}" : "none";
 
                 var memoryContents = "nothing (no memory)";
-                var storageMemory = _owner.Memory?.RecallStorageContents(home);
+                var homeStorageFacility = home.GetStorageFacility();
+                var storageMemory = homeStorageFacility != null
+                    ? _owner.Memory?.RecallStorageContents(homeStorageFacility)
+                    : null;
                 if (storageMemory != null)
                 {
                     var rememberedFood = storageMemory.Items

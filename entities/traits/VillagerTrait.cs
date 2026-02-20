@@ -346,7 +346,10 @@ public class VillagerTrait : BeingTrait
 
             // Get remembered contents
             var memoryContents = "nothing (no memory)";
-            var storageMemory = _owner.Memory?.RecallStorageContents(home);
+            var homeStorageFacility = home.GetStorageFacility();
+            var storageMemory = homeStorageFacility != null
+                ? _owner.Memory?.RecallStorageContents(homeStorageFacility)
+                : null;
             if (storageMemory != null)
             {
                 var rememberedItems = storageMemory.Items
