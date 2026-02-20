@@ -721,7 +721,7 @@ public class VillageGenerator
         foreach (var house in _placedHouses)
         {
             // Each house has capacity 2, check if there's room
-            var residents = house.GetResidents();
+            var residents = house.Rooms.SelectMany(r => r.Residents).ToList();
             if (residents.Count < 2)
             {
                 distributorHome = house;
@@ -903,7 +903,7 @@ public class VillageGenerator
     /// </summary>
     private void StockHouseWithFood(Building house)
     {
-        var storage = house.GetStorage();
+        var storage = house.GetDefaultRoom()?.GetStorage();
         if (storage == null)
         {
             Log.Warn($"House {house.BuildingName} has no storage for initial food");
@@ -931,7 +931,7 @@ public class VillageGenerator
     /// </summary>
     private void StockGranaryWithFood(Building granary)
     {
-        var storage = granary.GetStorage();
+        var storage = granary.GetDefaultRoom()?.GetStorage();
         if (storage == null)
         {
             Log.Warn($"Granary {granary.BuildingName} has no storage for initial food");
@@ -964,7 +964,7 @@ public class VillageGenerator
     /// </summary>
     private void StockGraveyardWithCorpses(Building graveyard)
     {
-        var storage = graveyard.GetStorage();
+        var storage = graveyard.GetDefaultRoom()?.GetStorage();
         if (storage == null)
         {
             Log.Warn($"Graveyard {graveyard.BuildingName} has no storage for corpses");

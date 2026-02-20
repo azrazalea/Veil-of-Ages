@@ -131,7 +131,7 @@ This is intentional. Entities must physically travel to storage locations to obs
 
 **Storage ACTION Methods (Require Physical Proximity):**
 
-Building-based overloads internally resolve Building→Facility via `GetStorageFacility()`:
+Building-based overloads still exist for backward compatibility. Internally they resolve Building→Room (via `GetDefaultRoom()`)→Facility (via `Room.GetStorageFacility()`). Callers' signatures have not changed:
 - `AccessStorage(building)` - Get storage and observe (returns null if not adjacent)
 - `TakeFromStorage(building, itemDefId, quantity)` - Take and observe (returns null if not adjacent)
 - `TakeFromStorageByTag(building, itemTag, quantity)` - Take by tag and observe (returns null if not adjacent)
@@ -145,7 +145,7 @@ Facility-based overloads (preferred for post-Phase-2 code):
 
 **Storage CHECK Methods (Memory Only - No Real Storage Access):**
 
-Internally resolve Building→Facility via `GetStorageFacility()` for memory lookup:
+Internally resolve Building→Room→Facility via `GetDefaultRoom()?.GetStorageFacility()` for memory lookup:
 - `StorageHasItem(building, itemDefId, quantity)` - Check MEMORY for item
 - `StorageHasItemByTag(building, itemTag)` - Check MEMORY for item by tag
 - `GetStorageItemCount(building, itemDefId)` - Get REMEMBERED count (may be stale)

@@ -296,13 +296,58 @@ public partial class DebugServer : Node
         {
             if (child is Building building)
             {
-                snapshot.Buildings.Add(new BuildingSnapshot
+                var buildingSnapshot = new BuildingSnapshot
                 {
                     Name = building.Name,
                     Type = building.BuildingType,
                     Position = building.GetCurrentGridPosition(),
                     Size = building.GridSize
-                });
+                };
+
+                // Populate rooms and their facilities
+                foreach (var room in building.Rooms)
+                {
+                    var roomSnapshot = new RoomSnapshot
+                    {
+                        Id = room.Id,
+                        Name = room.Name,
+                        Purpose = room.Purpose,
+                        IsSecret = room.IsSecret,
+                        ResidentCount = room.Residents.Count
+                    };
+
+                    foreach (var facility in room.Facilities)
+                    {
+                        var facilitySnapshot = new FacilitySnapshot
+                        {
+                            Id = facility.Id,
+                            Position = facility.GetCurrentGridPosition(),
+                            IsWalkable = facility.IsWalkable
+                        };
+
+                        var storageTrait = facility.SelfAsEntity().GetTrait<StorageTrait>();
+                        if (storageTrait != null)
+                        {
+                            facilitySnapshot.HasStorage = true;
+                            facilitySnapshot.StorageContents = [];
+                            foreach (var item in storageTrait.GetAllItems())
+                            {
+                                facilitySnapshot.StorageContents.Add(new ItemSnapshot
+                                {
+                                    Id = item.Definition.Id ?? string.Empty,
+                                    Name = item.Definition.Name ?? string.Empty,
+                                    Quantity = item.Quantity
+                                });
+                            }
+                        }
+
+                        roomSnapshot.Facilities.Add(facilitySnapshot);
+                    }
+
+                    buildingSnapshot.Rooms.Add(roomSnapshot);
+                }
+
+                snapshot.Buildings.Add(buildingSnapshot);
             }
         }
 

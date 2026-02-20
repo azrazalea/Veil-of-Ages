@@ -58,13 +58,6 @@ public class FetchCorpseCommand : EntityCommand
                 return null;
             }
 
-            var altarBuilding = _altarFacility.Owner;
-            if (altarBuilding == null || !GodotObject.IsInstanceValid(altarBuilding))
-            {
-                Log.Warn($"{_owner.Name}: FetchCorpseCommand: Altar facility has no valid owner building");
-                return null;
-            }
-
             var graveyardBuilding = graveyardRef.Building;
             if (graveyardBuilding == null || !GodotObject.IsInstanceValid(graveyardBuilding))
             {
@@ -72,8 +65,30 @@ public class FetchCorpseCommand : EntityCommand
                 return null;
             }
 
+            // Resolve buildings to their storage facilities for FetchResourceActivity
+            var graveyardStorage = graveyardBuilding.GetDefaultRoom()?.GetStorageFacility();
+            if (graveyardStorage == null)
+            {
+                Log.Warn($"{_owner.Name}: FetchCorpseCommand: Graveyard has no storage facility");
+                return null;
+            }
+
+            var altarBuilding = _altarFacility.Owner;
+            if (altarBuilding == null || !GodotObject.IsInstanceValid(altarBuilding))
+            {
+                Log.Warn($"{_owner.Name}: FetchCorpseCommand: Altar facility has no valid owner building");
+                return null;
+            }
+
+            var altarStorage = altarBuilding.GetDefaultRoom()?.GetStorageFacility();
+            if (altarStorage == null)
+            {
+                Log.Warn($"{_owner.Name}: FetchCorpseCommand: Cellar has no storage facility");
+                return null;
+            }
+
             _fetchActivity = new FetchResourceActivity(
-                graveyardBuilding, altarBuilding, "corpse", 1, priority: -1);
+                graveyardStorage, altarStorage, "corpse", 1, priority: -1);
             InitializeSubActivity(_fetchActivity);
         }
 

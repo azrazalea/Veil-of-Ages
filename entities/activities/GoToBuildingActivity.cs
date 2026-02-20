@@ -46,7 +46,10 @@ public class GoToBuildingActivity : NavigationActivity
         _pathFinder = new PathFinder();
 
         // If targeting storage and building requires facility navigation, use SetFacilityGoal
-        if (_targetStorage && _targetBuilding.RequiresStorageFacilityNavigation())
+        var room = _targetBuilding.GetDefaultRoom();
+        var storageFacilities = room?.GetFacilities("storage");
+        bool requiresFacilityNav = storageFacilities != null && storageFacilities.Count > 0 && storageFacilities[0].RequireAdjacent;
+        if (_targetStorage && requiresFacilityNav)
         {
             if (!_pathFinder.SetFacilityGoal(owner, _targetBuilding, "storage"))
             {

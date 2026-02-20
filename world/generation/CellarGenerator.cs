@@ -180,10 +180,10 @@ public static class CellarGenerator
 
         // Register the necromancy_altar facility so FindNearestFacilityOfType works
         // Use the actual altar tile position, not the building origin (which is a wall tile)
-        var altarFacility = cellarBuilding.GetFacility("necromancy_altar");
-        var altarPositions = cellarBuilding.GetFacilityPositions("necromancy_altar");
-        var altarPos = altarPositions.Count > 0
-            ? cellarBuilding.GetCurrentGridPosition() + altarPositions[0]
+        var altarFacility = cellarBuilding.GetDefaultRoom()?.GetFacility("necromancy_altar");
+        var altarAbsolutePositions = altarFacility?.GetAbsolutePositions();
+        var altarPos = altarAbsolutePositions != null && altarAbsolutePositions.Count > 0
+            ? altarAbsolutePositions[0]
             : cellarBuilding.GetCurrentGridPosition();
         if (altarFacility != null)
         {

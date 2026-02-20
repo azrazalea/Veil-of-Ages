@@ -24,11 +24,11 @@ namespace VeilOfAges.Entities.Traits;
 public abstract class JobTrait : BeingTrait, IDesiredResources
 {
     /// <summary>
-    /// The workplace building. Set via configuration or constructor.
+    /// The workplace facility. Set via configuration or constructor.
     /// For most jobs, this is the place of work (farm, bakery, etc.).
     /// ScholarJobTrait overrides GetWorkplace() to use home instead.
     /// </summary>
-    protected Building? _workplace;
+    protected Facility? _workplace;
 
     /// <summary>
     /// Gets default work phases are Dawn and Day. Override to customize.
@@ -60,10 +60,10 @@ public abstract class JobTrait : BeingTrait, IDesiredResources
     protected abstract Activity? CreateWorkActivity();
 
     /// <summary>
-    /// Gets the workplace for this job. Default returns _workplace field.
+    /// Gets the workplace facility for this job. Default returns _workplace field.
     /// Override for special cases like ScholarJobTrait which uses home.
     /// </summary>
-    protected virtual Building? GetWorkplace() => _workplace;
+    protected virtual Facility? GetWorkplace() => _workplace;
 
     /// <summary>
     /// Gets the configuration key used to get the workplace from TraitConfiguration.
@@ -182,7 +182,8 @@ public abstract class JobTrait : BeingTrait, IDesiredResources
 
     /// <summary>
     /// Configures the trait from a TraitConfiguration.
-    /// Default implementation sets workplace. Override for custom configuration.
+    /// Default implementation resolves workplace building to its storage facility.
+    /// Override for custom configuration.
     /// </summary>
     public override void Configure(TraitConfiguration config)
     {
@@ -193,6 +194,8 @@ public abstract class JobTrait : BeingTrait, IDesiredResources
         }
 
         // Try custom key first, then "workplace" as fallback
-        _workplace = config.GetBuilding(WorkplaceConfigKey) ?? config.GetBuilding("workplace");
+        // Resolve Building -> Facility via default room's storage facility
+        var building = config.GetBuilding(WorkplaceConfigKey) ?? config.GetBuilding("workplace");
+        _workplace = building?.GetDefaultRoom()?.GetStorageFacility();
     }
 }

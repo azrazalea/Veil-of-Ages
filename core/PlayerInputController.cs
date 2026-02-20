@@ -308,7 +308,16 @@ public partial class PlayerInputController : Node
         {
             if (child is Building building && building.ContainsPosition(position))
             {
-                var interactable = building.GetInteractableFacilityAt(position);
+                IFacilityInteractable? interactable = null;
+                foreach (var room in building.Rooms)
+                {
+                    interactable = room.GetInteractableFacilityAt(position);
+                    if (interactable != null)
+                    {
+                        break;
+                    }
+                }
+
                 if (interactable != null)
                 {
                     return interactable;

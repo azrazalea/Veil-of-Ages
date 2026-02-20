@@ -32,13 +32,8 @@ Main building entity class that implements `IEntity<Trait>`.
 - `GetWalkableTiles()` - Legacy method returning tiles marked as inherently walkable in their definition. Prefer `GetWalkableInteriorPositions()` for pathfinding.
 
 **Facility Methods:**
-- `AddFacility(facility)` - Programmatically add a facility to this building (used for runtime facility addition)
-- `GetFacilities()` - Returns all facility IDs available in this building (from `_facilityPositions.Keys`). Populated from the building template's `Facilities` array during initialization.
-- `HasFacility(facilityId)` - Check if building has at least one instance of the specified facility.
-- `GetFacilityPositions(facilityId)` - Get all relative positions for a given facility type.
-- `GetAdjacentWalkablePosition(facilityPosition)` - Get a walkable position adjacent to a facility for entity positioning.
+- `AddFacility(facility)` (private) - Registers a facility in the building and assigns it to the appropriate room. Called internally during `Initialize()`.
 - `ContainsPosition(absolutePos)` - Check if given absolute grid position falls within building bounds
-- `GetInteractableFacilityAt(absolutePos)` - Find interactable facility at given absolute position, returns `IFacilityInteractable` or null
 
 **Room Methods:**
 - `Rooms` - `IReadOnlyList<Room>` of all detected rooms
@@ -48,11 +43,10 @@ Main building entity class that implements `IEntity<Trait>`.
 - `DetectRooms(template)` (private) - Flood-fills walkable interior positions to detect connected regions as rooms, matches template `RoomData` hints by bounding box overlap, assigns facilities and decorations to rooms
 - `MatchRoomHints(hints)` (private) - Matches detected rooms to `RoomData` hints (Name, Purpose, IsSecret) by position overlap
 
-**Storage Methods:**
-- `GetStorage()` - Returns the `StorageTrait` for this building if it has one.
-- `GetStorageAccessPosition()` - Returns the absolute grid position an entity should navigate to for storage access. If `RequireAdjacentToFacility` is true, returns a walkable position adjacent to the storage facility; otherwise returns the building entrance.
-- `RequiresStorageFacilityNavigation()` - Returns true if navigation should target the storage facility position (i.e., storage has `RequireAdjacentToFacility = true` and a storage facility is defined).
-- `IsAdjacentToStorageFacility(entityPosition)` - Check if an entity at the given position is adjacent to the storage facility.
+**Infrastructure Methods:**
+- `ProcessRegeneration(tickMultiplier)` - Processes tile regeneration for damaged tiles. Called by World each tick. This is infrastructure (not behavioral) and stays on Building.
+
+**Phase 4 Note:** All behavioral methods (GetStorage, GetStorageFacility, GetFacility, GetFacilities, HasFacility, GetFacilityIds, GetFacilityStorage, GetFacilityPositions, GetStandingOrders, GetStorageAccessPosition, RequiresStorageFacilityNavigation, IsAdjacentToStorageFacility, IsAdjacentToFacility, GetAdjacentWalkablePosition, GetStorageFetchDuration, ProduceItem, AddResident, RemoveResident, GetResidents, HasResident, GetInteractableFacilityAt) have been removed from Building. All callers now use Room directly. See Room.cs for the replacement API.
 
 ### Room.cs
 Lightweight organizational class grouping tiles, facilities, decorations, and residents within a building. Plain C# class (NOT a Godot node). Created automatically via flood fill of walkable interior positions during `Building.Initialize()`. Template `RoomData` provides optional hints (name, purpose, `IsSecret`) matched by bounding box overlap.
@@ -71,10 +65,20 @@ Lightweight organizational class grouping tiles, facilities, decorations, and re
 - `RoomKnowledge` - `SharedKnowledge` scope for secret rooms (null for non-secret rooms)
 - `Capacity` - Max residents (0 = unlimited)
 
-**Key Methods:**
+**Resident Methods:**
 - `AddResident(being)` - Add a resident (respects capacity)
 - `RemoveResident(being)` - Remove a resident
 - `HasResident(being)` - Check if a being is a resident
+
+**Facility Lookup Methods (moved from Building in Phase 4):**
+- `GetFacility(facilityId)` - Get the first facility matching the given ID, or null
+- `GetFacilities(facilityId)` - Get all facilities matching the given ID (returns list, may be empty)
+- `HasFacility(facilityId)` - Check if this room has at least one facility with the given ID
+- `GetStorageFacility()` - Get the first facility that has a `StorageTrait`, or null. This is the primary way to find storage in a room.
+- `GetStorage()` - Convenience method: returns the `StorageTrait` from the storage facility, or null
+- `GetInteractableFacilityAt(absolutePos)` - Find an interactable facility at the given absolute grid position within this room, returns `IFacilityInteractable` or null
+
+**Internal Methods:**
 - `AddFacility(facility)` - Register a facility in this room
 - `AddDecoration(decoration)` - Register a decoration in this room
 - `ContainsRelativePosition(relativePos)` - Check if relative position is in this room

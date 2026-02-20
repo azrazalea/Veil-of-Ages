@@ -339,14 +339,14 @@ public class VillagerTrait : BeingTrait
             return;
         }
 
-        var homeStorage = home.GetStorage();
+        var homeStorage = home.GetDefaultRoom()?.GetStorage();
         if (homeStorage != null)
         {
             var realContents = homeStorage.GetContentsSummary();
 
             // Get remembered contents
             var memoryContents = "nothing (no memory)";
-            var homeStorageFacility = home.GetStorageFacility();
+            var homeStorageFacility = home.GetDefaultRoom()?.GetStorageFacility();
             var storageMemory = homeStorageFacility != null
                 ? _owner.Memory?.RecallStorageContents(homeStorageFacility)
                 : null;

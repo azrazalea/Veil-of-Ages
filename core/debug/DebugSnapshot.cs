@@ -373,4 +373,88 @@ public class BuildingSnapshot
     /// </summary>
     [JsonPropertyName("size")]
     public Vector2I Size { get; set; }
+
+    /// <summary>
+    /// Gets or sets rooms detected in this building.
+    /// </summary>
+    [JsonPropertyName("rooms")]
+    public List<RoomSnapshot> Rooms { get; set; } = [];
+}
+
+/// <summary>
+/// Room info snapshot for debug server.
+/// </summary>
+public class RoomSnapshot
+{
+    /// <summary>
+    /// Gets or sets room identifier.
+    /// </summary>
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets room name.
+    /// </summary>
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets room purpose (e.g., "Living", "Kitchen", "Workshop").
+    /// </summary>
+    [JsonPropertyName("purpose")]
+    public string? Purpose { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this room is secret.
+    /// </summary>
+    [JsonPropertyName("isSecret")]
+    public bool IsSecret { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of residents assigned to this room.
+    /// </summary>
+    [JsonPropertyName("residentCount")]
+    public int ResidentCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets facilities contained in this room.
+    /// </summary>
+    [JsonPropertyName("facilities")]
+    public List<FacilitySnapshot> Facilities { get; set; } = [];
+}
+
+/// <summary>
+/// Facility info snapshot for debug server.
+/// </summary>
+public class FacilitySnapshot
+{
+    /// <summary>
+    /// Gets or sets facility identifier.
+    /// </summary>
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the absolute grid position of this facility's primary tile.
+    /// </summary>
+    [JsonPropertyName("position")]
+    public Vector2I Position { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether entities can walk through this facility.
+    /// </summary>
+    [JsonPropertyName("isWalkable")]
+    public bool IsWalkable { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this facility has a storage trait.
+    /// </summary>
+    [JsonPropertyName("hasStorage")]
+    public bool HasStorage { get; set; }
+
+    /// <summary>
+    /// Gets or sets the items stored in this facility's storage, if any.
+    /// </summary>
+    [JsonPropertyName("storageContents")]
+    public List<ItemSnapshot>? StorageContents { get; set; }
 }

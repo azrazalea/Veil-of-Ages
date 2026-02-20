@@ -171,15 +171,20 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
             foreach (var building in buildingsToCheck)
             {
                 // Storage observations are keyed by Facility — check via the building's storage facility
-                var storageFacility = building.GetStorageFacility();
+                var storageFacility = building.GetDefaultRoom()?.GetStorageFacility();
                 var observation = storageFacility != null
                     ? _owner.Memory?.RecallStorageContents(storageFacility)
                     : null;
                 if (observation == null)
                 {
+                    if (storageFacility == null)
+                    {
+                        continue; // No storage facility in this building, skip
+                    }
+
                     // Never checked this building or observation expired - go check it
                     DebugLog("EATING", $"No food memory, going to check {building.BuildingName} (priority {checkPriority})", 0);
-                    var checkActivity = new CheckStorageActivity(building, priority: checkPriority);
+                    var checkActivity = new CheckStorageActivity(storageFacility, priority: checkPriority);
                     return new StartActivityAction(_owner, this, checkActivity, priority: checkPriority);
                 }
 
@@ -226,11 +231,14 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
             DebugLog("EATING", "Food is in inventory, no travel needed");
         }
 
+        // Resolve target building to its storage facility for ConsumeItemActivity
+        Facility? targetStorage = targetBuilding?.GetDefaultRoom()?.GetStorageFacility();
+
         // Start consume activity
         var consumeActivity = new ConsumeItemActivity(
             _foodTag,
             _need,
-            targetBuilding,
+            targetStorage,
             _restoreAmount,
             _consumptionDuration,
             priority: actionPriority);
@@ -267,14 +275,14 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
         var storageComparison = string.Empty;
         if (home != null && GodotObject.IsInstanceValid(home))
         {
-            var homeStorage = home.GetStorage();
+            var homeStorage = home.GetDefaultRoom()?.GetStorage();
             if (homeStorage != null)
             {
                 var realFood = homeStorage.FindItemByTag(_foodTag);
                 var realInfo = realFood != null ? $"{realFood.Quantity} {realFood.Definition.Name}" : "none";
 
                 var memoryContents = "nothing (no memory)";
-                var homeStorageFacility = home.GetStorageFacility();
+                var homeStorageFacility = home.GetDefaultRoom()?.GetStorageFacility();
                 var storageMemory = homeStorageFacility != null
                     ? _owner.Memory?.RecallStorageContents(homeStorageFacility)
                     : null;

@@ -351,8 +351,10 @@ public class PathFinder
     /// <returns>True if a valid facility position was found, false otherwise.</returns>
     public bool SetFacilityGoal(Being entity, Building building, string facilityId)
     {
-        // Get facility positions from building
-        var facilityPositions = building.GetFacilityPositions(facilityId);
+        // Get facility positions from building's rooms
+        var defaultRoom = building.GetDefaultRoom();
+        var facilityPositions = defaultRoom?.GetFacilities(facilityId)
+            .SelectMany(f => f.Positions).ToList() ?? [];
         if (facilityPositions.Count == 0)
         {
             return false;
@@ -1301,7 +1303,9 @@ public class PathFinder
         var candidates = new List<(Vector2I facilityPos, Vector2I adjacentPos, bool blocksEntrance)>();
         var positionMap = new Dictionary<Vector2I, Vector2I>(); // adjacentPos -> facilityPos
 
-        var facilityPositions = building.GetFacilityPositions(facilityId);
+        var defaultRoom = building.GetDefaultRoom();
+        var facilityPositions = defaultRoom?.GetFacilities(facilityId)
+            .SelectMany(f => f.Positions).ToList() ?? [];
         Vector2I buildingPos = building.GetCurrentGridPosition();
 
         // Get entrance positions to avoid blocking doorways

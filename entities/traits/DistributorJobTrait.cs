@@ -1,3 +1,4 @@
+using System.Linq;
 using Godot;
 using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
@@ -87,7 +88,7 @@ public class DistributorJobTrait : BeingTrait
         }
 
         // Check if granary has standing orders
-        var orders = _workplace.GetStandingOrders();
+        var orders = _workplace.Traits.OfType<GranaryTrait>().FirstOrDefault()?.Orders;
         if (orders == null || orders.Count == 0)
         {
             DebugLog("DISTRIBUTOR", "No standing orders at granary");

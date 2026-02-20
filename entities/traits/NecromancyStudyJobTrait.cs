@@ -57,10 +57,10 @@ public class NecromancyStudyJobTrait : JobTrait
     /// Returns a non-null value so JobTrait's sealed SuggestAction doesn't bail out
     /// on the workplace null check. The actual facility is resolved in CreateWorkActivity.
     /// </summary>
-    protected override Building? GetWorkplace()
+    protected override Facility? GetWorkplace()
     {
         var facilityRef = GetCachedFacilityRef();
-        return facilityRef?.Facility?.Owner;
+        return facilityRef?.Facility;
     }
 
     /// <summary>
@@ -119,15 +119,11 @@ public class NecromancyStudyJobTrait : JobTrait
         }
 
         // Check for active work order on the altar — work orders take priority
-        var building = facilityRef.Facility?.Owner;
-        if (building != null && GodotObject.IsInstanceValid(building))
+        var altarFacility = facilityRef.Facility;
+        if (altarFacility != null && GodotObject.IsInstanceValid(altarFacility) && altarFacility.ActiveWorkOrder != null)
         {
-            var facility = building.GetFacility("necromancy_altar");
-            if (facility?.ActiveWorkOrder != null)
-            {
-                DebugLog("NECROMANCYSTUDY", $"Active work order found on altar, starting WorkOnOrderActivity", 0);
-                return new WorkOnOrderActivity(facilityRef, facility, priority: 0, allowedPhases: [DayPhaseType.Night]);
-            }
+            DebugLog("NECROMANCYSTUDY", $"Active work order found on altar, starting WorkOnOrderActivity", 0);
+            return new WorkOnOrderActivity(facilityRef, altarFacility, priority: 0, allowedPhases: [DayPhaseType.Night]);
         }
 
         // No work order — default to necromancy study

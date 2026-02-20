@@ -24,7 +24,7 @@ public class ConsumeItemActivity : Activity
 {
     private readonly string _foodTag;
     private readonly Need _need;
-    private readonly Building? _home;
+    private readonly Facility? _homeStorage;
     private readonly float _restoreAmount;
     private readonly uint _consumptionDuration;
 
@@ -40,8 +40,8 @@ public class ConsumeItemActivity : Activity
 
     public override string DisplayName => _isConsuming
         ? L.Tr("activity.EATING")
-        : _home != null ? L.Tr("activity.GOING_HOME_TO_EAT") : L.Tr("activity.LOOKING_FOR_FOOD");
-    public override Building? TargetBuilding => _home;
+        : _homeStorage != null ? L.Tr("activity.GOING_HOME_TO_EAT") : L.Tr("activity.LOOKING_FOR_FOOD");
+    public override Building? TargetBuilding => _homeStorage?.Owner;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ConsumeItemActivity"/> class.
@@ -49,21 +49,21 @@ public class ConsumeItemActivity : Activity
     /// </summary>
     /// <param name="foodTag">Tag to identify food items (e.g., "food", "zombie_food").</param>
     /// <param name="need">The need to restore.</param>
-    /// <param name="home">Home building with storage (can be null if only using inventory).</param>
+    /// <param name="homeStorage">Home storage facility (can be null if only using inventory).</param>
     /// <param name="restoreAmount">Amount to restore the need.</param>
     /// <param name="consumptionDuration">Ticks to consume.</param>
     /// <param name="priority">Action priority.</param>
     public ConsumeItemActivity(
         string foodTag,
         Need need,
-        Building? home,
+        Facility? homeStorage,
         float restoreAmount,
         uint consumptionDuration,
         int priority = 0)
     {
         _foodTag = foodTag;
         _need = need;
-        _home = home;
+        _homeStorage = homeStorage;
         _restoreAmount = restoreAmount;
         _consumptionDuration = consumptionDuration;
         Priority = priority;
@@ -105,33 +105,28 @@ public class ConsumeItemActivity : Activity
         }
 
         // Phase 0.5: Hidden entities skip navigation — they're already inside the building
-        if (_owner.IsHidden && !_isConsuming && !_itemConsumed && _home != null)
+        if (_owner.IsHidden && !_isConsuming && !_itemConsumed && _homeStorage != null)
         {
-            if (!GodotObject.IsInstanceValid(_home))
+            if (!GodotObject.IsInstanceValid(_homeStorage))
             {
                 DebugLog("EATING", "Hidden: Home building no longer valid", 0);
                 Fail();
                 return null;
             }
 
-            if (_owner.StorageHasItemByTag(_home, _foodTag))
+            if (_owner.StorageHasItemByTag(_homeStorage, _foodTag))
             {
                 // Issue ConsumeFromStorageByTagAction directly — entity is inside the building
                 if (!_hiddenStorageConsumeIssued)
                 {
                     _hiddenStorageConsumeIssued = true;
                     _isConsuming = true;
-                    DebugLog("EATING", $"Hidden: Found food at {_home.BuildingName}, consuming directly", 0);
-                    var homeStorageFacility = _home.GetStorageFacility();
-                    if (homeStorageFacility == null)
-                    {
-                        DebugLog("EATING", $"Hidden: No storage facility in {_home.BuildingName}", 0);
-                        Fail();
-                        return null;
-                    }
+                    var storageName = _homeStorage.Owner?.BuildingName ?? "home";
+                    DebugLog("EATING", $"Hidden: Found food at {storageName}, consuming directly", 0);
+                    var storage = _homeStorage;
 
                     return new ConsumeFromStorageByTagAction(
-                        _owner, this, homeStorageFacility, _foodTag, 1, Priority);
+                        _owner, this, storage, _foodTag, 1, Priority);
                 }
 
                 // After action executed, food should be in inventory now
@@ -145,7 +140,7 @@ public class ConsumeItemActivity : Activity
             }
             else
             {
-                Log.Warn($"{_owner.Name}: Hidden but no food at {_home.BuildingName}");
+                Log.Warn($"{_owner.Name}: Hidden but no food at {_homeStorage.Owner?.BuildingName ?? "home"}");
                 Fail();
                 return null;
             }
@@ -153,9 +148,9 @@ public class ConsumeItemActivity : Activity
 
         // Phase 1: Fetch food from storage using TakeFromStorageActivity
         // Handles cross-area navigation + local navigation + taking into inventory
-        if (!_isConsuming && !_itemConsumed && _home != null)
+        if (!_isConsuming && !_itemConsumed && _homeStorage != null)
         {
-            if (!GodotObject.IsInstanceValid(_home))
+            if (!GodotObject.IsInstanceValid(_homeStorage))
             {
                 Log.Warn($"{_owner.Name}: Home destroyed while looking for food");
                 Fail();
@@ -164,16 +159,17 @@ public class ConsumeItemActivity : Activity
 
             if (_fetchActivity == null)
             {
-                _fetchActivity = new TakeFromStorageActivity(_home, _foodTag, 1, Priority);
+                var storage = _homeStorage;
+                _fetchActivity = new TakeFromStorageActivity(storage, _foodTag, 1, Priority);
                 _fetchActivity.Initialize(_owner);
-                DebugLog("EATING", $"Starting fetch from {_home.BuildingName}", 0);
+                DebugLog("EATING", $"Starting fetch from {_homeStorage.Owner?.BuildingName ?? "home"}", 0);
             }
 
             var (result, action) = RunSubActivity(_fetchActivity, position, perception);
             switch (result)
             {
                 case SubActivityResult.Failed:
-                    DebugLog("EATING", $"Failed to fetch food from {_home.BuildingName}", 0);
+                    DebugLog("EATING", $"Failed to fetch food from {_homeStorage.Owner?.BuildingName ?? "home"}", 0);
                     Fail();
                     return null;
                 case SubActivityResult.Continue:
@@ -189,7 +185,7 @@ public class ConsumeItemActivity : Activity
             {
                 _foodItemId = foodItem.Definition.Id;
                 _isConsuming = true;
-                DebugLog("EATING", $"Fetched {foodItem.Definition.Name} from {_home.BuildingName}, starting to eat", 0);
+                DebugLog("EATING", $"Fetched {foodItem.Definition.Name} from {_homeStorage.Owner?.BuildingName ?? "home"}, starting to eat", 0);
             }
             else
             {
@@ -200,7 +196,7 @@ public class ConsumeItemActivity : Activity
         }
 
         // If we still haven't found a source, fail
-        if (!_isConsuming && _home == null)
+        if (!_isConsuming && _homeStorage == null)
         {
             Log.Warn($"{_owner.Name}: No food in inventory and no home to go to");
             Fail();

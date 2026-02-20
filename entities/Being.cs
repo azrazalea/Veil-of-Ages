@@ -1562,18 +1562,36 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             return false;
         }
 
+        // Get storage through the room
+        var room = building.GetDefaultRoom();
+        if (room == null)
+        {
+            return false;
+        }
+
         // Check if storage exists
-        var storage = building.GetStorage();
+        var storage = room.GetStorage();
         if (storage == null)
         {
             return false;
         }
 
         // Check if storage facility requires adjacent positioning
-        var storageFacilities = building.GetFacilities("storage");
+        var storageFacilities = room.GetFacilities("storage");
         if (storageFacilities.Count > 0 && storageFacilities[0].RequireAdjacent)
         {
-            return building.IsAdjacentToStorageFacility(GetCurrentGridPosition());
+            // Check adjacency against facility's absolute positions directly
+            var entityPos = GetCurrentGridPosition();
+            foreach (var absolutePos in storageFacilities[0].GetAbsolutePositions())
+            {
+                var diff = entityPos - absolutePos;
+                if (System.Math.Abs(diff.X) <= 1 && System.Math.Abs(diff.Y) <= 1)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         // Otherwise, being adjacent to building is sufficient
@@ -1601,7 +1619,8 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             return null;
         }
 
-        var storageFacility = building.GetStorageFacility();
+        var room = building.GetDefaultRoom();
+        var storageFacility = room?.GetStorageFacility();
         var storage = storageFacility?.SelfAsEntity().GetTrait<StorageTrait>();
         if (storageFacility != null && storage != null)
         {
@@ -1630,7 +1649,8 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             return null;
         }
 
-        var storageFacility = building.GetStorageFacility();
+        var room = building.GetDefaultRoom();
+        var storageFacility = room?.GetStorageFacility();
         var storage = storageFacility?.SelfAsEntity().GetTrait<StorageTrait>();
         if (storageFacility == null || storage == null)
         {
@@ -1670,7 +1690,8 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             return null;
         }
 
-        var storageFacility = building.GetStorageFacility();
+        var room = building.GetDefaultRoom();
+        var storageFacility = room?.GetStorageFacility();
         var storage = storageFacility?.SelfAsEntity().GetTrait<StorageTrait>();
         if (storageFacility == null || storage == null)
         {
@@ -1716,7 +1737,8 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             return false;
         }
 
-        var storageFacility = building.GetStorageFacility();
+        var room = building.GetDefaultRoom();
+        var storageFacility = room?.GetStorageFacility();
         var storage = storageFacility?.SelfAsEntity().GetTrait<StorageTrait>();
         if (storageFacility == null || storage == null)
         {
@@ -1855,7 +1877,8 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     public bool StorageHasItem(Building building, string itemDefId, int quantity = 1)
     {
         // MEMORY ONLY - does NOT access real storage
-        var storageFacility = building.GetStorageFacility();
+        var room = building.GetDefaultRoom();
+        var storageFacility = room?.GetStorageFacility();
         if (storageFacility == null)
         {
             return false;
@@ -1882,7 +1905,8 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     public bool StorageHasItemByTag(Building building, string itemTag)
     {
         // MEMORY ONLY - does NOT access real storage
-        var storageFacility = building.GetStorageFacility();
+        var room = building.GetDefaultRoom();
+        var storageFacility = room?.GetStorageFacility();
         if (storageFacility == null)
         {
             return false;
@@ -1909,7 +1933,8 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     public int GetStorageItemCount(Building building, string itemDefId)
     {
         // MEMORY ONLY - does NOT access real storage
-        var storageFacility = building.GetStorageFacility();
+        var room = building.GetDefaultRoom();
+        var storageFacility = room?.GetStorageFacility();
         if (storageFacility == null)
         {
             return 0;
@@ -1919,6 +1944,89 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         if (observation == null)
         {
             return 0; // No memory = assume 0
+        }
+
+        return observation.GetQuantityById(itemDefId);
+    }
+
+    /// <summary>
+    /// Access a facility's storage and automatically observe its contents.
+    /// Use this instead of directly getting StorageTrait to ensure the entity
+    /// remembers what they saw in the storage.
+    /// REQUIRES PHYSICAL PROXIMITY - returns null if not adjacent to facility.
+    /// </summary>
+    /// <param name="facility">The facility to access storage from.</param>
+    /// <returns>The storage container, or null if the facility has no storage or entity is not adjacent.</returns>
+    public StorageTrait? AccessFacilityStorage(Facility facility)
+    {
+        // ENTITIES CANNOT REMOTELY ACCESS STORAGE
+        if (!CanAccessFacility(facility))
+        {
+            return null;
+        }
+
+        var storage = facility.SelfAsEntity().GetTrait<StorageTrait>();
+        if (storage != null)
+        {
+            Memory?.ObserveStorage(facility, storage);
+        }
+
+        return storage;
+    }
+
+    /// <summary>
+    /// Check if a facility's storage has an item based on MEMORY only.
+    /// This is for decision-making ("do I think there's food here?").
+    /// Does NOT access real storage - only queries personal memory.
+    /// </summary>
+    /// <param name="facility">The facility to check.</param>
+    /// <param name="itemDefId">The item definition ID to check for.</param>
+    /// <param name="quantity">The minimum quantity required (default 1).</param>
+    /// <returns>True if memory indicates at least the specified quantity.</returns>
+    public bool StorageHasItem(Facility facility, string itemDefId, int quantity = 1)
+    {
+        var observation = Memory?.RecallStorageContents(facility);
+        if (observation == null)
+        {
+            return false;
+        }
+
+        return observation.GetQuantityById(itemDefId) >= quantity;
+    }
+
+    /// <summary>
+    /// Check if a facility's storage has an item by tag based on MEMORY only.
+    /// This is for decision-making ("do I think there's food here?").
+    /// Does NOT access real storage - only queries personal memory.
+    /// </summary>
+    /// <param name="facility">The facility to check.</param>
+    /// <param name="itemTag">The tag to search for.</param>
+    /// <returns>True if memory indicates an item with the specified tag exists.</returns>
+    public bool StorageHasItemByTag(Facility facility, string itemTag)
+    {
+        var observation = Memory?.RecallStorageContents(facility);
+        if (observation == null)
+        {
+            return false;
+        }
+
+        return observation.HasItemWithTag(itemTag);
+    }
+
+    /// <summary>
+    /// Get the count of an item in a facility's storage based on MEMORY only.
+    /// This is for decision-making ("how much food do I think is here?").
+    /// Does NOT access real storage - only queries personal memory.
+    /// </summary>
+    /// <param name="facility">The facility to check.</param>
+    /// <param name="itemDefId">The item definition ID to count.</param>
+    /// <returns>The remembered quantity, or 0 if no memory or not found.</returns>
+    public int GetStorageItemCount(Facility facility, string itemDefId)
+    {
+        var observation = Memory?.RecallStorageContents(facility);
+        if (observation == null)
+        {
+            return 0;
         }
 
         return observation.GetQuantityById(itemDefId);
@@ -2044,8 +2152,8 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             if (nearest != null)
             {
                 // Convert FacilityObservation to FacilityReference for consistent API
-                // Look up the Facility object from the building (null-safe: facility may have been removed)
-                var facility = nearest.Building.GetFacility(nearest.FacilityType);
+                // Look up the Facility object from the building's default room (null-safe: facility may have been removed)
+                var facility = nearest.Building.GetDefaultRoom()?.GetFacility(nearest.FacilityType);
                 return new FacilityReference(nearest.FacilityType, facility, nearest.Area, nearest.Position);
             }
         }

@@ -36,7 +36,7 @@ public class ScholarJobTrait : JobTrait
     /// <summary>
     /// Scholars use their home as the workplace.
     /// </summary>
-    protected override Building? GetWorkplace() => _home;
+    protected override Facility? GetWorkplace() => _home?.GetDefaultRoom()?.GetStorageFacility();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ScholarJobTrait"/> class.

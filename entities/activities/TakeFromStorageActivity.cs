@@ -7,11 +7,11 @@ using VeilOfAges.Entities.Sensory;
 namespace VeilOfAges.Entities.Activities;
 
 /// <summary>
-/// Activity that takes specified items from a building's storage into the entity's inventory.
+/// Activity that takes specified items from a facility's storage into the entity's inventory.
 /// Supports both item-by-ID and tag-based modes.
 ///
 /// Phases:
-/// 1. Navigate — GoToBuildingActivity(targetStorage: true) to reach storage access position (cross-area capable)
+/// 1. Navigate — GoToFacilityActivity to reach storage access position (cross-area capable)
 /// 2. Taking — TakeFromStorageAction per item (tag mode resolves tag to item ID first)
 ///
 /// Interruption behavior: OnResume() nulls navigation, regresses to Navigate.
@@ -28,7 +28,7 @@ public class TakeFromStorageActivity : Activity
         Taking
     }
 
-    private readonly Building _sourceBuilding;
+    private readonly Facility _storageFacility;
     private readonly List<(string itemId, int quantity)>? _itemsToTake;
     private readonly string? _tag;
     private readonly int _tagQuantity;
@@ -39,23 +39,23 @@ public class TakeFromStorageActivity : Activity
     private bool _tagResolved;
 
     /// <inheritdoc/>
-    public override string DisplayName => L.TrFmt("activity.TAKING_FROM_STORAGE", _sourceBuilding.BuildingName);
+    public override string DisplayName => L.TrFmt("activity.TAKING_FROM_STORAGE", _storageFacility.Owner?.BuildingName ?? _storageFacility.Id);
 
-    public override Building? TargetBuilding => _sourceBuilding;
+    public override Building? TargetBuilding => _storageFacility.Owner;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TakeFromStorageActivity"/> class.
-    /// Takes specific items by ID from a building's storage.
+    /// Takes specific items by ID from a facility's storage.
     /// </summary>
-    /// <param name="sourceBuilding">The building to take items from.</param>
+    /// <param name="storageFacility">The facility to take items from.</param>
     /// <param name="itemsToTake">List of item IDs and quantities to take.</param>
     /// <param name="priority">Priority for actions returned by this activity.</param>
     public TakeFromStorageActivity(
-        Building sourceBuilding,
+        Facility storageFacility,
         List<(string itemId, int quantity)> itemsToTake,
         int priority)
     {
-        _sourceBuilding = sourceBuilding;
+        _storageFacility = storageFacility;
         _itemsToTake = itemsToTake;
         Priority = priority;
         _currentPhase = Phase.Navigate;
@@ -63,21 +63,21 @@ public class TakeFromStorageActivity : Activity
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TakeFromStorageActivity"/> class.
-    /// Takes items matching a tag from a building's storage.
+    /// Takes items matching a tag from a facility's storage.
     /// After navigation, observes storage, resolves the tag to an item ID,
     /// then issues TakeFromStorageAction.
     /// </summary>
-    /// <param name="sourceBuilding">The building to take items from.</param>
+    /// <param name="storageFacility">The facility to take items from.</param>
     /// <param name="tag">Tag to match items against (e.g., "food").</param>
     /// <param name="quantity">Number of matching items to take.</param>
     /// <param name="priority">Priority for actions returned by this activity.</param>
     public TakeFromStorageActivity(
-        Building sourceBuilding,
+        Facility storageFacility,
         string tag,
         int quantity,
         int priority)
     {
-        _sourceBuilding = sourceBuilding;
+        _storageFacility = storageFacility;
         _tag = tag;
         _tagQuantity = quantity;
         _itemsToTake = new List<(string itemId, int quantity)>();
@@ -106,10 +106,10 @@ public class TakeFromStorageActivity : Activity
             return null;
         }
 
-        // Check if building is still valid
-        if (!GodotObject.IsInstanceValid(_sourceBuilding))
+        // Check if facility is still valid
+        if (!GodotObject.IsInstanceValid(_storageFacility))
         {
-            DebugLog("TAKE_STORAGE", "Source building is no longer valid", 0);
+            DebugLog("TAKE_STORAGE", "Storage facility is no longer valid", 0);
             Fail();
             return null;
         }
@@ -131,9 +131,9 @@ public class TakeFromStorageActivity : Activity
 
         if (_navActivity == null)
         {
-            _navActivity = new GoToBuildingActivity(_sourceBuilding, Priority, targetStorage: true);
+            _navActivity = new GoToFacilityActivity(_storageFacility, Priority);
             _navActivity.Initialize(_owner);
-            DebugLog("TAKE_STORAGE", $"Starting navigation to {_sourceBuilding.BuildingName}", 0);
+            DebugLog("TAKE_STORAGE", $"Starting navigation to {_storageFacility.Owner?.BuildingName ?? _storageFacility.Id}", 0);
         }
 
         var (result, action) = RunSubActivity(_navActivity, position, perception);
@@ -152,7 +152,7 @@ public class TakeFromStorageActivity : Activity
         // We've arrived — transition to Taking
         _navActivity = null;
         _currentPhase = Phase.Taking;
-        DebugLog("TAKE_STORAGE", $"Arrived at {_sourceBuilding.BuildingName}, starting to take items", 0);
+        DebugLog("TAKE_STORAGE", $"Arrived at {_storageFacility.Owner?.BuildingName ?? _storageFacility.Id}, starting to take items", 0);
         return new IdleAction(_owner, this, Priority);
     }
 
@@ -169,7 +169,7 @@ public class TakeFromStorageActivity : Activity
             _tagResolved = true;
 
             // Observe storage to update memory
-            var storage = _owner.AccessStorage(_sourceBuilding);
+            var storage = _owner.AccessFacilityStorage(_storageFacility);
             if (storage == null)
             {
                 DebugLog("TAKE_STORAGE", "Cannot access storage (not adjacent?)", 0);
@@ -209,20 +209,12 @@ public class TakeFromStorageActivity : Activity
         var (itemId, quantity) = _itemsToTake[_currentIndex];
         _currentIndex++;
 
-        DebugLog("TAKE_STORAGE", $"Taking {quantity} {itemId} from {_sourceBuilding.BuildingName}", 0);
-
-        var storageFacility = _sourceBuilding.GetStorageFacility();
-        if (storageFacility == null)
-        {
-            DebugLog("TAKE_STORAGE", $"No storage facility found in {_sourceBuilding.BuildingName}", 0);
-            Fail();
-            return null;
-        }
+        DebugLog("TAKE_STORAGE", $"Taking {quantity} {itemId} from {_storageFacility.Owner?.BuildingName ?? _storageFacility.Id}", 0);
 
         return new TakeFromStorageAction(
             _owner,
             this,
-            storageFacility,
+            _storageFacility,
             itemId,
             quantity,
             Priority);

@@ -52,9 +52,9 @@ Fetches a corpse from the nearest graveyard and brings it to the necromancy alta
   - `altarFacility` (Facility): The altar facility to deposit the corpse at
 - **Behavior**:
   - Resolves altar facility from Parameters on first call
-  - Resolves `facility.Owner` (Building) for use with FetchResourceActivity
   - Finds graveyard via SharedKnowledge building lookup (FindNearestBuildingOfType)
-  - Creates FetchResourceActivity as a sub-activity and drives it via RunSubActivity
+  - Resolves graveyard and altar buildings to their storage Facilities for FetchResourceActivity
+  - Creates FetchResourceActivity(graveyardStorage, altarStorage) as a sub-activity and drives it via RunSubActivity
   - FetchResourceActivity handles the full go→take→return→deposit pattern including cross-area navigation
   - Command completes when sub-activity completes or fails
 

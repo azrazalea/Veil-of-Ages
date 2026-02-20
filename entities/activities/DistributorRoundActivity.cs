@@ -256,12 +256,21 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
             return null;
         }
 
+        // Resolve granary to its storage facility for CheckStorageActivity
+        var granaryStorage = _granary.GetDefaultRoom()?.GetStorageFacility();
+        if (granaryStorage == null)
+        {
+            DebugLog("DISTRIBUTOR", "Granary has no storage facility", 0);
+            Fail();
+            return null;
+        }
+
         // Use CheckStorageActivity to navigate to granary and observe storage
         var (result, action) = RunCurrentSubActivity(
             () =>
             {
                 DebugLog("DISTRIBUTOR", $"Starting CheckStorageActivity for granary: {_granary.BuildingName}", 0);
-                return new CheckStorageActivity(_granary, Priority);
+                return new CheckStorageActivity(granaryStorage, Priority);
             },
             position, perception);
         switch (result)
@@ -421,7 +430,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
 
         int amountToLoad = System.Math.Min(neededQuantity, available);
 
-        var granaryFacility = _granary.GetStorageFacility();
+        var granaryFacility = _granary.GetDefaultRoom()?.GetStorageFacility();
         if (granaryFacility == null)
         {
             DebugLog("DISTRIBUTOR", "Granary has no storage facility", 0);
@@ -467,12 +476,22 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
             return new IdleAction(_owner, this, Priority);
         }
 
+        // Resolve household to its storage facility for CheckStorageActivity
+        var householdStorage = household.GetDefaultRoom()?.GetStorageFacility();
+        if (householdStorage == null)
+        {
+            DebugLog("DISTRIBUTOR", $"Household {household.BuildingName} has no storage facility, skipping", 0);
+            _currentHouseholdIndex++;
+            _currentSubActivity = null;
+            return new IdleAction(_owner, this, Priority);
+        }
+
         // Use CheckStorageActivity to navigate to household and observe storage
         var (result, action) = RunCurrentSubActivity(
             () =>
             {
                 DebugLog("DISTRIBUTOR", $"Starting CheckStorageActivity for household: {household.BuildingName}", 0);
-                return new CheckStorageActivity(household, Priority);
+                return new CheckStorageActivity(householdStorage, Priority);
             },
             position, perception);
         switch (result)
@@ -605,7 +624,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         int amountToDeliver = System.Math.Min(needed, haveInInventory);
 
         // Create deposit action to deliver items
-        var householdFacility = household.GetStorageFacility();
+        var householdFacility = household.GetDefaultRoom()?.GetStorageFacility();
         if (householdFacility == null)
         {
             DebugLog("DISTRIBUTOR", $"Household {household.BuildingName} has no storage facility", 0);
@@ -667,7 +686,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
 
         int excessBread = breadCount - BREADEXCESSTHRESHOLD;
 
-        var householdFacilityBread = household.GetStorageFacility();
+        var householdFacilityBread = household.GetDefaultRoom()?.GetStorageFacility();
         if (householdFacilityBread == null)
         {
             DebugLog("DISTRIBUTOR", $"Household {household.BuildingName} has no storage facility for bread collection", 0);
@@ -730,7 +749,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
 
         int excessWheat = wheatCount - WHEATEXCESSTHRESHOLD;
 
-        var householdFacilityWheat = household.GetStorageFacility();
+        var householdFacilityWheat = household.GetDefaultRoom()?.GetStorageFacility();
         if (householdFacilityWheat == null)
         {
             DebugLog("DISTRIBUTOR", $"Household {household.BuildingName} has no storage facility for wheat collection", 0);
@@ -924,7 +943,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
             return new IdleAction(_owner, this, Priority);
         }
 
-        var granaryDepositFacility = _granary.GetStorageFacility();
+        var granaryDepositFacility = _granary.GetDefaultRoom()?.GetStorageFacility();
         if (granaryDepositFacility == null)
         {
             DebugLog("DISTRIBUTOR", "Granary has no storage facility for deposit", 0);

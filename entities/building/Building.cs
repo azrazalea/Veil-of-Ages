@@ -4,7 +4,6 @@ using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Items;
-using VeilOfAges.Entities.Memory;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.Entities.Traits;
 
@@ -53,9 +52,6 @@ public partial class Building : Node2D, IEntity<Trait>
     // For tracking residents/workers
     private int _capacity;
     private int _occupants;
-
-    // Residents tracking
-    private readonly List<Being> _residents = [];
 
     // Rooms detected via flood fill of walkable interior positions
     private readonly List<Room> _rooms = [];
@@ -918,29 +914,6 @@ public partial class Building : Node2D, IEntity<Trait>
         return result;
     }
 
-    // Resident management methods — delegates to default room when available
-    public void AddResident(Being being)
-    {
-        if (being != null && !_residents.Contains(being) && _residents.Count < _capacity)
-        {
-            _residents.Add(being);
-            GetDefaultRoom()?.AddResident(being);
-        }
-    }
-
-    public void RemoveResident(Being being)
-    {
-        _residents.Remove(being);
-        foreach (var room in _rooms)
-        {
-            room.RemoveResident(being);
-        }
-    }
-
-    public IReadOnlyList<Being> GetResidents() => _residents.AsReadOnly();
-
-    public bool HasResident(Being being) => _residents.Contains(being);
-
     // --- Room accessors ---
 
     /// <summary>
@@ -1167,94 +1140,11 @@ public partial class Building : Node2D, IEntity<Trait>
         }
     }
 
-    // Storage helper methods
-
     /// <summary>
-    /// Gets the primary storage facility for this building.
-    /// First looks for a facility with id "storage", then any facility with StorageTrait.
+    /// Add a facility to this building's internal dictionary.
+    /// Used during Initialize() to register template-defined facilities.
     /// </summary>
-    /// <returns>The Facility with StorageTrait if found, null otherwise.</returns>
-    public Facility? GetStorageFacility()
-    {
-        // First try facility with id "storage"
-        if (_facilities.TryGetValue("storage", out var storageFacilities) && storageFacilities.Count > 0)
-        {
-            var storage = storageFacilities[0].SelfAsEntity().GetTrait<StorageTrait>();
-            if (storage != null)
-            {
-                return storageFacilities[0];
-            }
-        }
-
-        // Then try any facility that has StorageTrait
-        foreach (var facilityList in _facilities.Values)
-        {
-            foreach (var facility in facilityList)
-            {
-                var storage = facility.SelfAsEntity().GetTrait<StorageTrait>();
-                if (storage != null)
-                {
-                    return facility;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Gets the primary storage for this building.
-    /// First looks for a facility with id "storage", then any facility with StorageTrait.
-    /// </summary>
-    /// <returns>The StorageTrait if found, null otherwise.</returns>
-    public StorageTrait? GetStorage()
-    {
-        return GetStorageFacility()?.SelfAsEntity().GetTrait<StorageTrait>();
-    }
-
-    /// <summary>
-    /// Gets standing orders from this building's GranaryTrait, if it has one.
-    /// Used by distributors to determine what to deliver where.
-    /// </summary>
-    /// <returns>The StandingOrders if this is a granary, null otherwise.</returns>
-    public StandingOrders? GetStandingOrders()
-    {
-        var granaryTrait = Traits.OfType<GranaryTrait>().FirstOrDefault();
-        return granaryTrait?.Orders;
-    }
-
-    /// <summary>
-    /// Produces an item into this building's own storage.
-    /// This is the building adding to itself - NOT remote storage access.
-    /// THREAD SAFETY: Only call from main thread (ProcessRegeneration, Initialize, Action.Execute).
-    /// For entity-initiated production, use ProduceToStorageAction instead.
-    /// </summary>
-    /// <param name="itemDefId">The item definition ID to produce (e.g., "wheat").</param>
-    /// <param name="quantity">How many to produce.</param>
-    /// <returns>True if item was added to storage, false if no storage or storage full.</returns>
-    public bool ProduceItem(string itemDefId, int quantity = 1)
-    {
-        var storage = GetStorage();
-        if (storage == null)
-        {
-            return false;
-        }
-
-        var itemDef = ItemResourceManager.Instance.GetDefinition(itemDefId);
-        if (itemDef == null)
-        {
-            Log.Warn($"Building {BuildingName}: Cannot produce item '{itemDefId}' - definition not found");
-            return false;
-        }
-
-        var item = new Item(itemDef, quantity);
-        return storage.AddItem(item);
-    }
-
-    /// <summary>
-    /// Programmatically add a facility to this building.
-    /// </summary>
-    public void AddFacility(Facility facility)
+    private void AddFacility(Facility facility)
     {
         if (!_facilities.TryGetValue(facility.Id, out var facilityList))
         {
@@ -1263,77 +1153,6 @@ public partial class Building : Node2D, IEntity<Trait>
         }
 
         facilityList.Add(facility);
-    }
-
-    public IEnumerable<string> GetFacilityIds()
-    {
-        return _facilities.Keys;
-    }
-
-    /// <summary>
-    /// Get the first facility with the specified ID.
-    /// </summary>
-    /// <param name="facilityId">The facility ID to look up.</param>
-    /// <returns>The first Facility with the given ID, or null if not found.</returns>
-    public Facility? GetFacility(string facilityId)
-    {
-        if (_facilities.TryGetValue(facilityId, out var facilityList) && facilityList.Count > 0)
-        {
-            return facilityList[0];
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Get all facilities with the specified ID.
-    /// </summary>
-    /// <param name="facilityId">The facility ID to look up.</param>
-    /// <returns>List of Facility instances, or empty list if not found.</returns>
-    public List<Facility> GetFacilities(string facilityId)
-    {
-        if (_facilities.TryGetValue(facilityId, out var facilityList))
-        {
-            return new List<Facility>(facilityList);
-        }
-
-        return new List<Facility>();
-    }
-
-    /// <summary>
-    /// Get the storage from a specific facility.
-    /// </summary>
-    /// <param name="facilityId">The facility ID to look up.</param>
-    /// <returns>The StorageTrait from the first matching facility, or null if not found.</returns>
-    public StorageTrait? GetFacilityStorage(string facilityId)
-    {
-        var facility = GetFacility(facilityId);
-        return facility?.SelfAsEntity().GetTrait<StorageTrait>();
-    }
-
-    /// <summary>
-    /// Get all positions for a given facility type.
-    /// </summary>
-    /// <param name="facilityId">The facility ID to look up.</param>
-    /// <returns>List of relative positions for the facility, or empty list if not found.</returns>
-    public List<Vector2I> GetFacilityPositions(string facilityId)
-    {
-        if (_facilities.TryGetValue(facilityId, out var facilityList))
-        {
-            return facilityList.SelectMany(f => f.Positions).ToList();
-        }
-
-        return new List<Vector2I>();
-    }
-
-    /// <summary>
-    /// Check if building has a specific facility.
-    /// </summary>
-    /// <param name="facilityId">The facility ID to check for.</param>
-    /// <returns>True if the building has at least one instance of the facility.</returns>
-    public bool HasFacility(string facilityId)
-    {
-        return _facilities.ContainsKey(facilityId) && _facilities[facilityId].Count > 0;
     }
 
     /// <summary>
@@ -1347,7 +1166,7 @@ public partial class Building : Node2D, IEntity<Trait>
     }
 
     /// <summary>
-    /// Find an interactable facility at the given absolute position.
+    /// Create an interactable handler by type name using reflection.
     /// </summary>
     private IFacilityInteractable? CreateFacilityInteractable(string typeName, Facility facility)
     {
@@ -1371,174 +1190,6 @@ public partial class Building : Node2D, IEntity<Trait>
         }
 
         Log.Error($"Building {BuildingName}: Interactable type '{typeName}' not found");
-        return null;
-    }
-
-    public IFacilityInteractable? GetInteractableFacilityAt(Vector2I absolutePos)
-    {
-        var relativePos = absolutePos - _gridPosition;
-        foreach (var facilityList in _facilities.Values)
-        {
-            foreach (var facility in facilityList)
-            {
-                if (facility.Interactable != null && facility.Positions.Contains(relativePos))
-                {
-                    return facility.Interactable;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Get the fetch duration for retrieving items from this building's storage.
-    /// Returns the FetchDuration from the storage's StorageTrait, or 0 for instant access.
-    /// </summary>
-    /// <returns>Fetch duration in ticks, or 0 for instant access.</returns>
-    public uint GetStorageFetchDuration()
-    {
-        return GetStorage()?.FetchDuration ?? 0;
-    }
-
-    /// <summary>
-    /// Gets the position an entity should navigate to for storage access.
-    /// If the storage facility has RequireAdjacent set, returns a walkable position adjacent to the storage facility.
-    /// Otherwise returns the building entrance position.
-    /// </summary>
-    /// <returns>The absolute grid position to navigate to, or null if no valid position exists.</returns>
-    public Vector2I? GetStorageAccessPosition()
-    {
-        // Check if storage facility requires adjacent positioning
-        var storageFacilities = GetFacilities("storage");
-        if (storageFacilities.Count > 0 && storageFacilities[0].RequireAdjacent)
-        {
-            // Find a storage facility position that has an adjacent walkable tile
-            foreach (var facility in storageFacilities)
-            {
-                foreach (var pos in facility.Positions)
-                {
-                    Vector2I? adjacentPos = GetAdjacentWalkablePosition(pos);
-                    if (adjacentPos.HasValue)
-                    {
-                        // Return absolute position
-                        return _gridPosition + adjacentPos.Value;
-                    }
-                }
-            }
-
-            // No walkable position adjacent to storage facility
-            return null;
-        }
-
-        // Default: return first entrance position
-        var entrances = GetEntrancePositions();
-        if (entrances.Count > 0)
-        {
-            return entrances[0];
-        }
-
-        // Fallback: return building origin
-        return _gridPosition;
-    }
-
-    /// <summary>
-    /// Checks if this building requires navigating to a specific storage facility position
-    /// rather than just being adjacent to the building.
-    /// </summary>
-    /// <returns>True if navigation should target the storage facility position.</returns>
-    public bool RequiresStorageFacilityNavigation()
-    {
-        // Check if storage facility requires adjacent positioning
-        var storageFacilities = GetFacilities("storage");
-        if (storageFacilities.Count == 0 || !storageFacilities[0].RequireAdjacent)
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Check if an entity position is adjacent to a facility.
-    /// </summary>
-    /// <param name="facilityId">The facility ID to check adjacency against.</param>
-    /// <param name="entityPosition">The absolute grid position of the entity.</param>
-    /// <returns>True if the entity is adjacent to any instance of the facility, false if no such facility exists or entity is not adjacent.</returns>
-    public bool IsAdjacentToFacility(string facilityId, Vector2I entityPosition)
-    {
-        var positions = GetFacilityPositions(facilityId);
-        if (positions.Count == 0)
-        {
-            // No facility defined - fall back to building adjacency
-            return true;
-        }
-
-        // Check if entity is adjacent to any facility position (including diagonals)
-        foreach (var relativePos in positions)
-        {
-            Vector2I absolutePos = _gridPosition + relativePos;
-
-            // Check if entity is at the facility position or adjacent to it
-            if (entityPosition == absolutePos)
-            {
-                return true;
-            }
-
-            foreach (var direction in DirectionUtils.All)
-            {
-                if (entityPosition == absolutePos + direction)
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Check if an entity position is adjacent to the storage facility.
-    /// Used when the storage facility has RequireAdjacent set to true.
-    /// </summary>
-    /// <param name="entityPosition">The absolute grid position of the entity.</param>
-    /// <returns>True if the entity is adjacent to any storage facility, false if no storage facility exists or entity is not adjacent.</returns>
-    public bool IsAdjacentToStorageFacility(Vector2I entityPosition)
-    {
-        return IsAdjacentToFacility("storage", entityPosition);
-    }
-
-    /// <summary>
-    /// Get a walkable position adjacent to a facility.
-    /// Returns null if no adjacent walkable position exists.
-    /// </summary>
-    /// <param name="facilityPosition">The relative position of the facility within the building.</param>
-    /// <returns>A relative position that is walkable and adjacent to the facility, or null if none exists.</returns>
-    public Vector2I? GetAdjacentWalkablePosition(Vector2I facilityPosition)
-    {
-        foreach (var direction in DirectionUtils.All)
-        {
-            Vector2I adjacentPos = facilityPosition + direction;
-
-            // Check if this position has a walkable tile in our building
-            if (_tiles.TryGetValue(adjacentPos, out var tile) && tile.IsWalkable)
-            {
-                return adjacentPos;
-            }
-
-            // Also check ground tiles (floors are typically in _groundTiles)
-            if (_groundTiles.TryGetValue(adjacentPos, out var groundTile) && groundTile.IsWalkable)
-            {
-                return adjacentPos;
-            }
-
-            // Also check ground base tiles
-            if (_groundBaseTiles.TryGetValue(adjacentPos, out var groundBaseTile) && groundBaseTile.IsWalkable)
-            {
-                return adjacentPos;
-            }
-        }
-
         return null;
     }
 

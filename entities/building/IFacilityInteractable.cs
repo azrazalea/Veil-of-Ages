@@ -98,12 +98,19 @@ public interface IFacilityInteractable : IInteractable
 
     bool IInteractable.IsInteractorAdjacent(Being interactor)
     {
-        if (Facility.Owner == null)
+        var interactorPos = interactor.GetCurrentGridPosition();
+        var absolutePositions = Facility.GetAbsolutePositions();
+
+        foreach (var facilityPos in absolutePositions)
         {
-            return false;
+            // Check if interactor is at or adjacent to (including diagonals) the facility position
+            if (interactorPos == facilityPos || DirectionUtils.IsAdjacent(interactorPos, facilityPos))
+            {
+                return true;
+            }
         }
 
-        return Facility.Owner.IsAdjacentToFacility(Facility.Id, interactor.GetCurrentGridPosition());
+        return false;
     }
 
     bool IInteractable.Interact(Being interactor, Dialogue dialogue)

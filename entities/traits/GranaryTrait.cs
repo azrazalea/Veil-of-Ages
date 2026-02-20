@@ -56,7 +56,7 @@ public class GranaryTrait : Trait
     /// </summary>
     private static bool HasBakerResident(Building building)
     {
-        foreach (var resident in building.GetResidents())
+        foreach (var resident in building.Rooms.SelectMany(r => r.Residents))
         {
             if (resident.SelfAsEntity().HasTrait<BakerJobTrait>())
             {
@@ -73,7 +73,7 @@ public class GranaryTrait : Trait
     /// </summary>
     private static bool HasScholarResident(Building building)
     {
-        foreach (var resident in building.GetResidents())
+        foreach (var resident in building.Rooms.SelectMany(r => r.Residents))
         {
             if (resident.SelfAsEntity().HasTrait<ScholarJobTrait>())
             {

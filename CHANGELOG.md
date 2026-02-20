@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Room system: buildings automatically detect rooms via flood fill of walkable interior positions
 - Room-based home tracking: HomeTrait now references a Room instead of a Building
 - Room secrecy: cellar uses Room.IsSecret with its own SharedKnowledge scope instead of manual setup
+- Room gains facility/storage lookup methods: `GetFacility()`, `GetStorage()`, `GetInteractableFacilityAt()`, etc.
+- Debug server now exposes room and facility data (storage contents, residents, walkability) in building snapshots
 - Facilities now own their own sprites via `DecorationId` field (no more duplicate Decoration entries)
 - Facilities and decorations are now proper grid entities (`IEntity<Trait>`) with line-of-sight blocking
 - Facility promoted to Sprite2D with visual initialization and grid entity registration
@@ -32,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Storage operations now target facilities directly instead of buildings (internal architecture improvement — no behavior change)
 - PersonalMemory storage observations keyed by Facility instead of Building
 - SharedKnowledge FacilityReference stores Facility directly, eliminating double-dereference pattern
+- Building stripped of behavioral methods: all storage, facility, and resident queries now go through Room (Phase 4 architecture refactor)
+- Activity constructors (WorkFieldActivity, ConsumeItemActivity, ProcessReactionActivity, FetchResourceActivity, CheckStorageActivity) accept Facility parameters directly instead of Building
 
 ### Fixed
 - Entities no longer walk through ovens, altars, chests, querns, and tombstones (facilities and decorations now block pathfinding)

@@ -6,7 +6,6 @@ using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Needs;
 using VeilOfAges.Entities.Reactions;
 using VeilOfAges.Entities.Sensory;
-using VeilOfAges.Entities.Traits;
 
 namespace VeilOfAges.Entities.Activities;
 
@@ -67,7 +66,8 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
     private const float BASEENERGYCOSTPERTICK = 0.01f;
 
     private readonly ReactionDefinition _reaction;
-    private readonly Building? _workplace;
+    private readonly Facility? _workplaceStorage;
+    private readonly Building? _workplaceBuilding;
 
     // Progress tracking (preserved across interruptions)
     private uint _processTimer;
@@ -86,7 +86,7 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
         _ => L.TrFmt("activity.PREPARING", _reaction.Name ?? string.Empty)
     };
 
-    public override Building? TargetBuilding => _workplace;
+    public override Building? TargetBuilding => _workplaceBuilding;
 
     public override string? TargetFacilityId => _machine.State is ReactionState.GoingToFacility
         or ReactionState.ExecutingReaction
@@ -114,14 +114,14 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
     /// Create an activity to process a reaction at a workplace.
     /// </summary>
     /// <param name="reaction">The reaction definition to process.</param>
-    /// <param name="workplace">The building with required facilities (can be null if no facilities required).</param>
-    /// <param name="storage">The storage to use for inputs/outputs (kept for compatibility but not used directly).</param>
+    /// <param name="workplaceStorage">The storage facility for inputs/outputs (can be null if no storage required).</param>
     /// <param name="priority">Action priority.</param>
-    public ProcessReactionActivity(ReactionDefinition reaction, Building? workplace, StorageTrait storage, int priority = 0)
+    public ProcessReactionActivity(ReactionDefinition reaction, Facility? workplaceStorage, int priority = 0)
         : base(ReactionState.GoingToBuilding)
     {
         _reaction = reaction;
-        _workplace = workplace;
+        _workplaceStorage = workplaceStorage;
+        _workplaceBuilding = workplaceStorage?.Owner;
         Priority = priority;
 
         // Apply reaction's hunger multiplier (defaults to 1.0 if not specified)
@@ -208,9 +208,9 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
         }
 
         // Check workplace still exists (if we have one)
-        if (_workplace != null && !GodotObject.IsInstanceValid(_workplace))
+        if (_workplaceBuilding != null && !GodotObject.IsInstanceValid(_workplaceBuilding))
         {
-            Log.Warn($"{_owner.Name}: Workplace destroyed while processing {_reaction.Name}");
+            Log.Warn($"{_owner.Name}: {_workplaceBuilding?.BuildingName ?? "workplace"} destroyed while processing {_reaction.Name}");
             Fail();
             return null;
         }
@@ -237,17 +237,18 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
         }
 
         // No workplace needed - skip directly to storage for inputs
-        if (_workplace == null)
+        if (_workplaceBuilding == null)
         {
             _machine.Fire(ReactionTrigger.ArrivedAtBuilding);
             return new IdleAction(_owner, this, Priority);
         }
 
+        var building = _workplaceBuilding; // Local capture for lambda (guaranteed non-null by check above)
         var (result, action) = RunCurrentSubActivity(
             () =>
             {
-                DebugLog("REACTION", $"Navigating to {_workplace.BuildingName} to process {_reaction.Name}", 0);
-                return new GoToBuildingActivity(_workplace, Priority);
+                DebugLog("REACTION", $"Navigating to {building.BuildingName} to process {_reaction.Name}", 0);
+                return new GoToBuildingActivity(building, Priority);
             },
             position, perception);
         switch (result)
@@ -262,7 +263,7 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
         }
 
         // Arrived at building
-        DebugLog("REACTION", $"Arrived at {_workplace.BuildingName} to process {_reaction.Name}", 0);
+        DebugLog("REACTION", $"Arrived at {building.BuildingName} to process {_reaction.Name}", 0);
         _machine.Fire(ReactionTrigger.ArrivedAtBuilding);
         return new IdleAction(_owner, this, Priority);
     }
@@ -279,18 +280,19 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
             .Where(i => !string.IsNullOrEmpty(i.ItemId))
             .ToList();
 
-        // No inputs needed or no workplace - skip to taking inputs (which will also skip)
-        if (inputsToTake.Count == 0 || _workplace == null)
+        // No inputs needed or no workplace storage - skip to taking inputs (which will also skip)
+        if (inputsToTake.Count == 0 || _workplaceStorage == null)
         {
             _machine.Fire(ReactionTrigger.ArrivedAtStorageForInputs);
             return new IdleAction(_owner, this, Priority);
         }
 
+        var storage = _workplaceStorage; // Local capture for lambda (guaranteed non-null by check above)
         var (result, action) = RunCurrentSubActivity(
             () =>
             {
                 DebugLog("REACTION", $"Navigating to storage to take inputs for {_reaction.Name}", 0);
-                return new GoToBuildingActivity(_workplace, Priority, targetStorage: true);
+                return new GoToFacilityActivity(storage, Priority);
             },
             position, perception);
         switch (result)
@@ -317,8 +319,8 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
             return null;
         }
 
-        // No workplace - skip taking inputs
-        if (_workplace == null)
+        // No workplace storage - skip taking inputs
+        if (_workplaceStorage == null)
         {
             _machine.Fire(ReactionTrigger.InputsTaken);
             return new IdleAction(_owner, this, Priority);
@@ -339,6 +341,7 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
             }
         }
 
+        var storage = _workplaceStorage; // Local capture for lambda (guaranteed non-null by check above)
         var (result, action) = RunCurrentSubActivity(
             () =>
             {
@@ -347,7 +350,7 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
                     .Select(i => (i.ItemId!, i.Quantity))
                     .ToList();
                 DebugLog("REACTION", $"Taking inputs for {_reaction.Name}", 0);
-                return new TakeFromStorageActivity(_workplace, inputsToTake, Priority);
+                return new TakeFromStorageActivity(storage, inputsToTake, Priority);
             },
             position, perception);
         switch (result)
@@ -375,18 +378,19 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
         }
 
         // No facility required - skip to executing reaction
-        if (_workplace == null || _reaction.RequiredFacilities.Count == 0)
+        if (_workplaceBuilding == null || _reaction.RequiredFacilities.Count == 0)
         {
             _machine.Fire(ReactionTrigger.ArrivedAtFacility);
             return new IdleAction(_owner, this, Priority);
         }
 
+        var building = _workplaceBuilding; // Local capture for lambda (guaranteed non-null by check above)
         var (result, action) = RunCurrentSubActivity(
             () =>
             {
                 string facilityId = _reaction.RequiredFacilities[0];
                 DebugLog("REACTION", $"Navigating to {facilityId} to execute {_reaction.Name}", 0);
-                return new GoToFacilityActivity(_workplace, facilityId, Priority);
+                return new GoToFacilityActivity(building, facilityId, Priority);
             },
             position, perception);
         switch (result)
@@ -451,20 +455,21 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
             return null;
         }
 
-        // No workplace - skip depositing (outputs stay in inventory)
-        if (_workplace == null)
+        // No workplace storage - skip depositing (outputs stay in inventory)
+        if (_workplaceStorage == null)
         {
-            // No workplace means we can't deposit - just complete
-            Log.Print($"{_owner.Name}: Completed {_reaction.Name}");
+            // No workplace storage means we can't deposit - just complete
+            Log.Print($"{_owner.Name}: Completed {_reaction.Name} at {_workplaceBuilding?.BuildingName ?? "workplace"}");
             Complete();
             return null;
         }
 
+        var storageForOutputNav = _workplaceStorage; // Local capture for lambda (guaranteed non-null by check above)
         var (result, action) = RunCurrentSubActivity(
             () =>
             {
                 DebugLog("REACTION", $"Navigating to storage to deposit outputs for {_reaction.Name}", 0);
-                return new GoToBuildingActivity(_workplace, Priority, targetStorage: true);
+                return new GoToFacilityActivity(storageForOutputNav, Priority);
             },
             position, perception);
         switch (result)
@@ -510,6 +515,13 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
             }
         }
 
+        var storage = _workplaceStorage;
+        if (storage == null)
+        {
+            Complete();
+            return null;
+        }
+
         var (result, action) = RunCurrentSubActivity(
             () =>
             {
@@ -518,7 +530,7 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
                     .Select(o => (o.ItemId!, o.Quantity))
                     .ToList();
                 DebugLog("REACTION", $"Depositing outputs for {_reaction.Name}", 0);
-                return new DepositToStorageActivity(_workplace!, outputsToDeposit, Priority);
+                return new DepositToStorageActivity(storage, outputsToDeposit, Priority);
             },
             position, perception);
         switch (result)

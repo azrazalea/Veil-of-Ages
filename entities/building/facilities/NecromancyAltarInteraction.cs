@@ -77,7 +77,7 @@ public class NecromancyAltarInteraction : IFacilityInteractable
                 }
 
                 // Storage observations are keyed by Facility — look up the storage facility first
-                var storageFacility = graveyardRef.Building.GetStorageFacility();
+                var storageFacility = graveyardRef.Building.GetDefaultRoom()?.GetStorageFacility();
                 if (storageFacility == null)
                 {
                     continue;

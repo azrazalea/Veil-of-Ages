@@ -251,14 +251,18 @@ Multi-phase work activity at a farm/field. Produces wheat, brings harvest home.
 
 **Usage:**
 ```csharp
-new WorkFieldActivity(workplace: farm, home: house, workDuration: 400, priority: 0)
+new WorkFieldActivity(workplace: farmBuilding, homeStorage: homeStorageFacility, workDuration: 400, priority: 0)
 ```
+
+**Parameters:**
+- `workplace` (Building) - The farm building to work at
+- `homeStorage` (Facility?) - The home storage facility to deposit wheat into (can be null)
 
 **Phases:**
 1. **GoingToWork** - Navigate to workplace using GoToBuildingActivity
 2. **Working** - Idle at location, spend energy (0.05/tick), produce wheat
 3. **TakingWheat** - Gather 4-6 wheat from farm storage into inventory
-4. **GoingHome** - Navigate home using GoToBuildingActivity
+4. **GoingHome** - Navigate to home storage using GoToFacilityActivity
 5. **DepositingWheat** - Transfer wheat from inventory to home storage
 
 **Behavior:**
@@ -288,7 +292,7 @@ Uses `TakeFromStorageActivity` to fetch food (cross-area capable) and
 new ConsumeItemActivity(
     foodTag: "food",           // Tag to identify food items
     need: hungerNeed,          // Need to restore
-    home: houseBuilding,       // Home with storage (can be null)
+    homeStorage: storageFacility, // Home storage facility (can be null)
     restoreAmount: 50f,        // Amount to restore
     consumptionDuration: 24,   // Ticks to consume
     priority: 0
@@ -311,22 +315,25 @@ new ConsumeItemActivity(
 - Fails if no food found in inventory and no home, or home has no food
 
 ### CheckStorageActivity.cs
-Goes to a building and observes its storage to refresh memory. Cross-area capable.
+Goes to a facility and observes its storage to refresh memory. Cross-area capable.
 
 **Usage:**
 ```csharp
-new CheckStorageActivity(targetBuilding, priority: 0)
+new CheckStorageActivity(storageFacility, priority: 0)
 ```
 
+**Parameters:**
+- `storageFacility` (Facility) - The storage facility to observe
+
 **Phases:**
-1. **Navigate** - GoToBuildingActivity(targetStorage: true) to reach storage access position (cross-area capable)
-2. **Observing** - Call AccessStorage to observe and update personal memory, then complete
+1. **Navigate** - GoToFacilityActivity to reach facility access position (cross-area capable)
+2. **Observing** - Call AccessFacilityStorage to observe and update personal memory, then complete
 
 **Behavior:**
-- Uses `GoToBuildingActivity` with `targetStorage: true` for navigation (cross-area capable via PathFinder)
+- Uses `GoToFacilityActivity` for navigation (cross-area capable via PathFinder)
 - Used by ItemConsumptionBehaviorTrait, BakerJobTrait, and DistributorRoundActivity
-- Validates building still exists during travel
-- Calls `_owner.AccessStorage()` which automatically updates PersonalMemory
+- Validates facility still exists during travel
+- Calls `_owner.AccessFacilityStorage()` which automatically updates PersonalMemory
 - Completes immediately after observing (single tick observation)
 - OnResume() nulls navigation, regresses to Navigate phase
 
@@ -339,25 +346,28 @@ When an entity is hungry but has no memory of food locations:
 5. Trait then starts `ConsumeItemActivity` as normal
 
 ### TakeFromStorageActivity.cs
-Takes specified items from a building's storage into the entity's inventory. Cross-area capable.
+Takes specified items from a facility's storage into the entity's inventory. Cross-area capable.
 Supports both item-by-ID and tag-based modes.
 
 **Usage:**
 ```csharp
 // Take specific items by ID
-new TakeFromStorageActivity(building, new List<(string, int)> { ("wheat", 5) }, priority: 0)
+new TakeFromStorageActivity(facility, new List<(string, int)> { ("wheat", 5) }, priority: 0)
 
 // Take items by tag (resolves to item ID after arriving)
-new TakeFromStorageActivity(building, tag: "food", quantity: 1, priority: 0)
+new TakeFromStorageActivity(facility, tag: "food", quantity: 1, priority: 0)
 ```
 
+**Parameters:**
+- `facility` (Facility) - The storage facility to take items from
+
 **Phases:**
-1. **Navigate** - GoToBuildingActivity(targetStorage: true) to reach storage access position (cross-area capable)
+1. **Navigate** - GoToFacilityActivity to reach facility access position (cross-area capable)
 2. **Taking** - TakeFromStorageAction per item (tag mode resolves tag to item ID first)
 
 **Behavior:**
-- Uses `GoToBuildingActivity` with `targetStorage: true` for navigation (cross-area capable via PathFinder)
-- Tag mode: after arriving, calls AccessStorage to observe, FindItemByTag to resolve tag → item ID
+- Uses `GoToFacilityActivity` for navigation (cross-area capable via PathFinder)
+- Tag mode: after arriving, calls AccessFacilityStorage to observe, FindItemByTag to resolve tag → item ID
 - ID mode: takes items directly using TakeFromStorageAction
 - OnResume() nulls navigation, regresses to Navigate phase. Taking progress (items already taken) is preserved.
 - Backward compatible: existing callers that already navigate will see navigation phases complete immediately
@@ -373,15 +383,18 @@ Uses `ConsumeFromStorageAction` and `ProduceToStorageAction` for storage operati
 **Usage:**
 ```csharp
 new ProcessReactionActivity(
-    reaction: breadReaction,    // ReactionDefinition to process
-    workplace: bakery,          // Building with facilities (can be null)
-    storage: storageTrait,      // Storage for inputs/outputs
+    reaction: breadReaction,         // ReactionDefinition to process
+    workplaceStorage: storageFacility, // Storage facility for inputs/outputs (can be null)
     priority: 0
 )
 ```
 
+**Parameters:**
+- `reaction` (ReactionDefinition) - The reaction to process
+- `workplaceStorage` (Facility?) - The storage facility containing inputs and receiving outputs. Derives the building from `workplaceStorage.Owner`.
+
 **Phases:**
-1. **Go to Workplace** - Navigate to workplace if specified (skipped if null)
+1. **Go to Workplace** - Navigate to workplace building if specified (skipped if null)
 2. **Go to Facility** - Navigate to specific facility if reaction requires one
 3. **Verify Inputs** - Check all required inputs are available in storage
 4. **Consume Inputs** - Remove input items from storage using `ConsumeFromStorageAction` (one action per input type)
@@ -446,28 +459,32 @@ new WorkOnOrderActivity(facilityRef, facility, priority: 0)
 Used by NecromancyStudyJobTrait when altar has an active work order.
 
 ### FetchResourceActivity.cs
-Fetches resources from one building (source) and brings them to another (destination).
+Fetches resources from one facility (source) and brings them to another (destination).
 
 **Usage:**
 ```csharp
 new FetchResourceActivity(
-    sourceBuilding: well,        // Building to take items from
-    destinationBuilding: bakery, // Building to deposit items to
-    itemId: "water",             // Item ID to fetch
-    desiredQuantity: 5,          // How many items to fetch
+    sourceFacility: wellStorage,     // Source storage facility
+    destinationFacility: bakeryStorage, // Destination storage facility
+    itemId: "water",                 // Item ID to fetch
+    desiredQuantity: 5,              // How many items to fetch
     priority: 0
 )
 ```
 
+**Parameters:**
+- `sourceFacility` (Facility) - The storage facility to take items from
+- `destinationFacility` (Facility) - The storage facility to deposit items into
+
 **Phases:**
-1. **GoingToSource** - Navigate to source building (cross-area capable via GoToBuildingActivity)
+1. **GoingToSource** - Navigate to source facility (cross-area capable via GoToFacilityActivity)
 2. **TakingResource** - Take items from source storage into inventory
-3. **GoingToDestination** - Navigate to destination building (cross-area capable via GoToBuildingActivity)
+3. **GoingToDestination** - Navigate to destination facility (cross-area capable via GoToFacilityActivity)
 4. **DepositingResource** - Transfer items from inventory to destination storage
 
 **Behavior:**
-- Validates both buildings exist throughout the activity
-- Uses GoToBuildingActivity for navigation (cross-area capable via PathFinder)
+- Validates both facilities exist throughout the activity
+- Uses GoToFacilityActivity for navigation (cross-area capable via PathFinder)
 - Takes up to desiredQuantity, or all available if less
 - Uses Being wrapper methods for storage access (auto-observes contents)
 - Completes even if destination storage is full (keeps items in inventory)
@@ -485,8 +502,8 @@ new FetchResourceActivity(
 | `Activity` | Abstract base with state, lifecycle |
 | `GoToLocationActivity` | Navigate to grid position |
 | `GoToBuildingActivity` | Navigate to building (cross-area capable via PathFinder) |
-| `CheckStorageActivity` | Navigate to building (cross-area) and observe storage to refresh memory |
-| `TakeFromStorageActivity` | Navigate to building (cross-area) and take items by ID or tag |
+| `CheckStorageActivity` | Navigate to facility (cross-area) and observe storage to refresh memory |
+| `TakeFromStorageActivity` | Navigate to facility (cross-area) and take items by ID or tag |
 | `SleepActivity` | Sleep at night, restore energy |
 | `WorkFieldActivity` | Work at building, produce/transport wheat |
 | `WorkOnOrderActivity` | Work on facility's active work order (cross-area capable) |

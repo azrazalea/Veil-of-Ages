@@ -404,6 +404,20 @@ typedBeing.SelfAsEntity().AddTraitToQueue(bakerTrait, priority: -1);
 
 **Priority:** -1 (runs before VillagerTrait at priority 1)
 
+### HomeTrait.cs
+Trait that provides home room/building reference for entities.
+
+**Features:**
+- Stores a `Room` reference internally (not a Building reference)
+- `Home` property returns the home `Room`
+- `HomeBuilding` convenience property returns `_home?.Owner` for callers that need the `Building`
+- `IsEntityAtHome()` checks if the entity's current position is inside the home room
+- `SetHome(Room)` sets the home room directly and calls `Room.AddResident()` (not Building.AddResident)
+- `SetHome(Building)` backward-compatible overload that resolves to the building's default room
+
+**Resident Registration:**
+HomeTrait calls `Room.AddResident(being)` directly when setting a home. This happens either in `SetHome()` (if `_owner` is already set) or deferred to `Initialize()` (if `Configure()` was called before `Initialize()`). Building.AddResident no longer exists -- all resident management is on Room.
+
 ### AutomationTrait.cs
 Trait that allows toggling between automated and manual behavior.
 
@@ -519,7 +533,8 @@ Interface for traits that specify desired resource levels at home storage.
 // Check if a trait specifies desired resources
 if (trait is IDesiredResources desiredResources)
 {
-    var homeStorage = home?.GetStorage();
+    var homeRoom = _owner?.SelfAsEntity().GetTrait<HomeTrait>()?.Home;
+    var homeStorage = homeRoom?.GetStorage();
     var missing = desiredResources.GetMissingResources(homeStorage);
 
     foreach (var (itemId, neededQty) in missing)

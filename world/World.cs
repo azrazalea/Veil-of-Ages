@@ -301,8 +301,11 @@ public partial class World : Node2D
         {
             if (entity is Building building)
             {
-                // Process building storage decay
-                building.GetStorage()?.ProcessDecay(tickMultiplier);
+                // Process storage decay for all rooms in the building
+                foreach (var room in building.Rooms)
+                {
+                    room.GetStorage()?.ProcessDecay(tickMultiplier);
+                }
 
                 // Process building regeneration (e.g., wells regenerating water)
                 building.ProcessRegeneration(tickMultiplier);

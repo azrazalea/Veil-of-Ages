@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using VeilOfAges.Entities.Memory;
+using VeilOfAges.Entities.Traits;
 
 namespace VeilOfAges.Entities;
 
@@ -144,6 +146,80 @@ public class Room
         {
             _decorations.Add(decoration);
         }
+    }
+
+    // --- Facility lookup ---
+
+    /// <summary>
+    /// Get the first facility in this room with the specified ID.
+    /// </summary>
+    public Facility? GetFacility(string facilityId)
+    {
+        return _facilities.FirstOrDefault(f => f.Id == facilityId);
+    }
+
+    /// <summary>
+    /// Get all facilities in this room with the specified ID.
+    /// </summary>
+    public List<Facility> GetFacilities(string facilityId)
+    {
+        return _facilities.Where(f => f.Id == facilityId).ToList();
+    }
+
+    /// <summary>
+    /// Check if this room contains at least one facility with the specified ID.
+    /// </summary>
+    public bool HasFacility(string facilityId)
+    {
+        return _facilities.Any(f => f.Id == facilityId);
+    }
+
+    /// <summary>
+    /// Gets the primary storage facility for this room.
+    /// First looks for a facility with id "storage", then any facility with StorageTrait.
+    /// </summary>
+    public Facility? GetStorageFacility()
+    {
+        // First try facility with id "storage"
+        var storageFacility = _facilities.FirstOrDefault(f => f.Id == "storage");
+        if (storageFacility != null)
+        {
+            var storage = storageFacility.SelfAsEntity().GetTrait<StorageTrait>();
+            if (storage != null)
+            {
+                return storageFacility;
+            }
+        }
+
+        // Then try any facility that has StorageTrait
+        return _facilities.FirstOrDefault(f => f.SelfAsEntity().GetTrait<StorageTrait>() != null);
+    }
+
+    /// <summary>
+    /// Gets the primary StorageTrait for this room.
+    /// First looks for a facility with id "storage", then any facility with StorageTrait.
+    /// </summary>
+    public StorageTrait? GetStorage()
+    {
+        return GetStorageFacility()?.SelfAsEntity().GetTrait<StorageTrait>();
+    }
+
+    /// <summary>
+    /// Find an interactable facility at the given absolute position within this room.
+    /// </summary>
+    public IFacilityInteractable? GetInteractableFacilityAt(Vector2I absolutePos)
+    {
+        var buildingPos = Owner.GetCurrentGridPosition();
+        var relativePos = absolutePos - buildingPos;
+        foreach (var facility in _facilities)
+        {
+            if (facility.Interactable != null && facility.Positions.Contains(relativePos))
+            {
+                return facility.Interactable;
+            }
+        }
+
+        return null;
     }
 
     // --- Position queries ---

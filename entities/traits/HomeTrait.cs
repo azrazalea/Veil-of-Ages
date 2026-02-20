@@ -43,10 +43,9 @@ public class HomeTrait : BeingTrait
         // Register as resident now that _owner is available.
         // Configure() may have set _home before _owner was set,
         // so we need to do the AddResident call here.
-        // Building.AddResident handles both building-level and room-level tracking.
         if (_home != null && _owner != null)
         {
-            _home.Owner.AddResident(_owner);
+            _home.AddResident(_owner);
         }
 
         IsInitialized = true;
@@ -88,14 +87,13 @@ public class HomeTrait : BeingTrait
         _home = room;
         Log.Print($"{_owner?.Name}: Home set to room '{room.Name}' in {room.Owner.BuildingName}");
 
-        // Register as a resident of the home building.
-        // Building.AddResident handles both building-level and room-level tracking.
+        // Register as a resident of the home room directly.
         // Only call AddResident if _owner is already set (i.e., Initialize has run).
         // If called from Configure() before Initialize(), the registration is
         // deferred to Initialize() where _owner becomes available.
         if (_owner != null)
         {
-            room.Owner.AddResident(_owner);
+            room.AddResident(_owner);
         }
     }
 
