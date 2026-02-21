@@ -30,6 +30,45 @@
       ],
       "tile_type": "prop"
     },
+    "stone_cross": {
+      "row": 0,
+      "col": 2,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Stone cross grave marker",
+      "tags": [
+        "graveyard",
+        "decoration",
+        "medieval"
+      ],
+      "tile_type": "prop"
+    },
+    "tombstone": {
+      "row": 0,
+      "col": 3,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Upright stone tombstone with carved cross",
+      "tags": [
+        "graveyard",
+        "decoration",
+        "medieval"
+      ],
+      "tile_type": "prop"
+    },
+    "wooden_cross": {
+      "row": 0,
+      "col": 4,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Wooden cross grave marker",
+      "tags": [
+        "graveyard",
+        "decoration",
+        "medieval"
+      ],
+      "tile_type": "prop"
+    },
     "stone_hearth/burn": {
       "row": 1,
       "col": 0,

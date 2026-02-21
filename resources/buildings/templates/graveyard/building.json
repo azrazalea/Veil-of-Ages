@@ -1,15 +1,15 @@
 {
     "Name": "Graveyard",
-    "Description": "A small cemetery with stone walls and several graves",
+    "Description": "A village cemetery enclosed by stone walls with rows of grave markers",
     "BuildingType": "Graveyard",
-    "Size": [6, 4],
+    "Size": [10, 8],
     "Culture": "Human",
     "Style": "Rural",
-    "Capacity": 3,
+    "Capacity": 6,
     "Facilities": [
         {
             "Id": "storage",
-            "Positions": [[2, 1]],
+            "Positions": [[1, 1]],
             "Storage": {
                 "VolumeCapacity": 5.0,
                 "WeightCapacity": -1,
@@ -19,22 +19,27 @@
         }
     ],
     "Decorations": [
-        {"Id": "tombstone", "Position": [1, 1], "IsWalkable": false},
-        {"Id": "tombstone", "Position": [3, 1], "IsWalkable": false},
-        {"Id": "tombstone", "Position": [4, 2], "IsWalkable": false}
+        {"Id": "tombstone",    "Position": [2, 2], "IsWalkable": false},
+        {"Id": "stone_cross",  "Position": [4, 2], "IsWalkable": false},
+        {"Id": "wooden_cross", "Position": [6, 2], "IsWalkable": false},
+        {"Id": "tombstone",    "Position": [8, 2], "IsWalkable": false},
+        {"Id": "wooden_cross", "Position": [1, 5], "IsWalkable": false},
+        {"Id": "tombstone",    "Position": [3, 5], "IsWalkable": false},
+        {"Id": "stone_cross",  "Position": [5, 5], "IsWalkable": false},
+        {"Id": "tombstone",    "Position": [7, 5], "IsWalkable": false}
     ],
-    "EntrancePositions": [[2, 3], [3, 3]],
+    "EntrancePositions": [[4, 7], [5, 7]],
     "Metadata": {
         "ConstructionTime": "3d",
-        "RequiredMaterials": "Stone:10",
-        "Value": "150"
+        "RequiredMaterials": "Stone:20",
+        "Value": "200"
     },
     "Rooms": [
         {
             "Name": "Cemetery Grounds",
             "Purpose": "Burial",
             "TopLeft": [1, 1],
-            "Size": [4, 2],
+            "Size": [8, 6],
             "Properties": {
                 "Quality": "Basic",
                 "Atmosphere": "Somber"

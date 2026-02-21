@@ -1,0 +1,7 @@
+{
+    "Id": "wooden_cross",
+    "Name": "Wooden Cross",
+    "AtlasSource": "custom",
+    "AtlasCoords": [4, 0],
+    "TileSize": [1, 1]
+}
