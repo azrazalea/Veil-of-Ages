@@ -4,7 +4,8 @@ using System.Linq;
 using Godot;
 using VeilOfAges.Core;
 using VeilOfAges.Entities.Items;
-using BuildingEntity = VeilOfAges.Entities.Building;
+using VeilOfAges.Entities.Traits;
+using VeilOfAges.Grid;
 
 namespace VeilOfAges.Entities.Memory;
 
@@ -19,14 +20,17 @@ public class PersonalMemory
 {
     private readonly Being _owner;
 
-    // Storage observations - what I personally saw in storage containers
-    private readonly Dictionary<BuildingEntity, StorageObservation> _storageObservations = new ();
+    // Storage observations - what I personally saw in storage containers, keyed by Facility
+    private readonly Dictionary<Facility, StorageObservation> _storageObservations = new ();
 
     // Entity sightings - where I last saw specific entities
     private readonly Dictionary<Being, EntitySighting> _entitySightings = new ();
 
     // Location memories - places I've been
     private readonly Dictionary<Vector2I, LocationMemory> _locationMemories = new ();
+
+    // Facility observations - facilities I've personally discovered
+    private readonly List<FacilityObservation> _facilityObservations = new ();
 
     /// <summary>
     /// Gets or sets default duration for general memories in ticks (~12 game hours).
@@ -61,40 +65,39 @@ public class PersonalMemory
     /// Record an observation of storage contents.
     /// Call this when entity examines or accesses a storage container.
     /// </summary>
-    /// <param name="building">The building containing the storage.</param>
+    /// <param name="facility">The facility containing the storage.</param>
     /// <param name="storage">The storage container to observe.</param>
-    public void ObserveStorage(BuildingEntity building, IStorageContainer storage)
+    public void ObserveStorage(Facility facility, IStorageContainer storage)
     {
         uint currentTick = GameController.CurrentTick;
 
-        var items = new List<ItemSnapshot>();
-        foreach (var item in storage.GetAllItems())
-        {
-            items.Add(new ItemSnapshot(
-                item.Definition.Id ?? string.Empty,
-                item.Definition.Name ?? string.Empty,
-                item.Quantity,
-                new List<string>(item.Definition.Tags)));
-        }
+        var items = storage.GetAllItems()
+            .GroupBy(i => i.Definition.Id ?? string.Empty)
+            .Select(g => new ItemSnapshot(
+                g.Key,
+                g.First().Definition.LocalizedName ?? string.Empty,
+                g.Sum(i => i.Quantity),
+                new List<string>(g.First().Definition.Tags)))
+            .ToList();
 
         var observation = new StorageObservation(
-            building,
+            facility,
             currentTick,
             currentTick + StorageMemoryDuration,
             items);
 
-        _storageObservations[building] = observation;
+        _storageObservations[facility] = observation;
     }
 
     /// <summary>
-    /// Recall what was last seen in a specific storage building.
+    /// Recall what was last seen in a specific storage facility.
     /// Returns null if no memory or memory expired.
     /// </summary>
-    /// <param name="building">The building to recall storage contents for.</param>
+    /// <param name="facility">The facility to recall storage contents for.</param>
     /// <returns>The storage observation if remembered and not expired, null otherwise.</returns>
-    public StorageObservation? RecallStorageContents(BuildingEntity building)
+    public StorageObservation? RecallStorageContents(Facility facility)
     {
-        if (_storageObservations.TryGetValue(building, out var observation))
+        if (_storageObservations.TryGetValue(facility, out var observation))
         {
             if (!observation.IsExpired(GameController.CurrentTick))
             {
@@ -107,23 +110,23 @@ public class PersonalMemory
 
     /// <summary>
     /// Find all remembered storage locations that had a specific item (by tag).
-    /// Returns list of (building, remembered quantity) tuples, sorted by quantity descending.
+    /// Returns list of (facility, remembered quantity) tuples, sorted by quantity descending.
     /// </summary>
     /// <param name="itemTag">The tag to search for (e.g., "food", "grain").</param>
-    /// <returns>List of buildings and quantities where the item was seen.</returns>
-    public List<(BuildingEntity building, int quantity)> RecallStorageWithItem(string itemTag)
+    /// <returns>List of facilities and quantities where the item was seen.</returns>
+    public List<(Facility facility, int quantity)> RecallStorageWithItem(string itemTag)
     {
         uint currentTick = GameController.CurrentTick;
-        var results = new List<(BuildingEntity building, int quantity)>();
+        var results = new List<(Facility facility, int quantity)>();
 
-        foreach (var (building, observation) in _storageObservations)
+        foreach (var (facility, observation) in _storageObservations)
         {
             if (observation.IsExpired(currentTick))
             {
                 continue;
             }
 
-            if (!GodotObject.IsInstanceValid(building))
+            if (!GodotObject.IsInstanceValid(facility))
             {
                 continue;
             }
@@ -135,7 +138,7 @@ public class PersonalMemory
                     .Where(i => i.Tags.Contains(itemTag, StringComparer.OrdinalIgnoreCase))
                     .Sum(i => i.Quantity);
 
-                results.Add((building, qty));
+                results.Add((facility, qty));
             }
         }
 
@@ -144,23 +147,23 @@ public class PersonalMemory
 
     /// <summary>
     /// Find all remembered storage locations that had a specific item (by definition ID).
-    /// Returns list of (building, remembered quantity) tuples, sorted by quantity descending.
+    /// Returns list of (facility, remembered quantity) tuples, sorted by quantity descending.
     /// </summary>
     /// <param name="itemDefId">The item definition ID to search for.</param>
-    /// <returns>List of buildings and quantities where the item was seen.</returns>
-    public List<(BuildingEntity building, int quantity)> RecallStorageWithItemById(string itemDefId)
+    /// <returns>List of facilities and quantities where the item was seen.</returns>
+    public List<(Facility facility, int quantity)> RecallStorageWithItemById(string itemDefId)
     {
         uint currentTick = GameController.CurrentTick;
-        var results = new List<(BuildingEntity building, int quantity)>();
+        var results = new List<(Facility facility, int quantity)>();
 
-        foreach (var (building, observation) in _storageObservations)
+        foreach (var (facility, observation) in _storageObservations)
         {
             if (observation.IsExpired(currentTick))
             {
                 continue;
             }
 
-            if (!GodotObject.IsInstanceValid(building))
+            if (!GodotObject.IsInstanceValid(facility))
             {
                 continue;
             }
@@ -172,7 +175,7 @@ public class PersonalMemory
             if (matchingItems.Count > 0)
             {
                 int qty = matchingItems.Sum(i => i.Quantity);
-                results.Add((building, qty));
+                results.Add((facility, qty));
             }
         }
 
@@ -195,7 +198,7 @@ public class PersonalMemory
                 continue;
             }
 
-            if (!GodotObject.IsInstanceValid(observation.Building))
+            if (!GodotObject.IsInstanceValid(observation.Facility))
             {
                 continue;
             }
@@ -225,7 +228,7 @@ public class PersonalMemory
                 continue;
             }
 
-            if (!GodotObject.IsInstanceValid(observation.Building))
+            if (!GodotObject.IsInstanceValid(observation.Facility))
             {
                 continue;
             }
@@ -240,14 +243,14 @@ public class PersonalMemory
     }
 
     /// <summary>
-    /// Get all remembered storage observations (non-expired, valid buildings only).
+    /// Get all remembered storage observations (non-expired, valid facilities only).
     /// </summary>
     /// <returns>Enumerable of all valid storage observations.</returns>
     public IEnumerable<StorageObservation> GetAllStorageObservations()
     {
         uint currentTick = GameController.CurrentTick;
         return _storageObservations.Values
-            .Where(o => !o.IsExpired(currentTick) && GodotObject.IsInstanceValid(o.Building));
+            .Where(o => !o.IsExpired(currentTick) && GodotObject.IsInstanceValid(o.Facility));
     }
 
     /// <summary>
@@ -390,6 +393,45 @@ public class PersonalMemory
     }
 
     /// <summary>
+    /// Record an observation of a facility at a specific location.
+    /// Call this when entity discovers or visits a facility.
+    /// </summary>
+    public void ObserveFacility(string facilityType, Facility facility, Area? area, Vector2I position)
+    {
+        uint currentTick = GameController.CurrentTick;
+
+        // Update existing observation if found
+        var existing = _facilityObservations.FirstOrDefault(f =>
+            f.FacilityType == facilityType && f.Facility == facility);
+        if (existing != null)
+        {
+            existing.Update(currentTick, currentTick + StorageMemoryDuration);
+            return;
+        }
+
+        // Capture storage tags at observation time — the entity can see what this facility stores
+        var storageTrait = facility.SelfAsEntity().GetTrait<StorageTrait>();
+        IReadOnlyList<string> storageTags = storageTrait != null && storageTrait.Tags.Count > 0
+            ? storageTrait.Tags.ToList()
+            : Array.Empty<string>();
+
+        _facilityObservations.Add(new FacilityObservation(
+            facilityType, facility, area, position, storageTags,
+            currentTick, currentTick + StorageMemoryDuration));
+    }
+
+    /// <summary>
+    /// Recall all remembered facilities of a specific type that are still valid and not expired.
+    /// </summary>
+    public List<FacilityObservation> RecallFacilitiesOfType(string facilityType)
+    {
+        uint currentTick = GameController.CurrentTick;
+        return _facilityObservations
+            .Where(f => f.FacilityType == facilityType && !f.IsExpired(currentTick) && f.IsValid)
+            .ToList();
+    }
+
+    /// <summary>
     /// Remove expired memories to free memory.
     /// Call periodically (e.g., once per game hour or during idle time).
     /// </summary>
@@ -426,6 +468,9 @@ public class PersonalMemory
         {
             _locationMemories.Remove(key);
         }
+
+        // Clean facility observations
+        _facilityObservations.RemoveAll(f => f.IsExpired(currentTick) || !f.IsValid);
     }
 
     /// <summary>
@@ -436,6 +481,7 @@ public class PersonalMemory
         _storageObservations.Clear();
         _entitySightings.Clear();
         _locationMemories.Clear();
+        _facilityObservations.Clear();
     }
 
     /// <summary>
@@ -458,7 +504,8 @@ public class PersonalMemory
     public string GetDebugSummary()
     {
         var (storage, entities, locations) = GetMemoryCounts();
-        return $"PersonalMemory[{_owner.Name}]: {storage} storage obs, {entities} entity sightings, {locations} locations";
+        int facilities = _facilityObservations.Count(f => !f.IsExpired(GameController.CurrentTick) && f.IsValid);
+        return $"PersonalMemory[{_owner.Name}]: {storage} storage obs, {entities} entity sightings, {locations} locations, {facilities} facilities";
     }
 }
 
@@ -482,9 +529,9 @@ public record ItemSnapshot(
 public class StorageObservation
 {
     /// <summary>
-    /// Gets the building containing the observed storage.
+    /// Gets the facility containing the observed storage.
     /// </summary>
-    public BuildingEntity Building { get; }
+    public Facility Facility { get; }
 
     /// <summary>
     /// Gets the tick when this observation was made.
@@ -506,12 +553,12 @@ public class StorageObservation
     /// Creates a new storage observation.
     /// </summary>
     public StorageObservation(
-        BuildingEntity building,
+        Facility facility,
         uint observedTick,
         uint expirationTick,
         List<ItemSnapshot> items)
     {
-        Building = building;
+        Facility = facility;
         ObservedTick = observedTick;
         ExpirationTick = expirationTick;
         Items = items;
@@ -697,4 +744,88 @@ public class LocationMemory
     /// <param name="currentTick">The current game tick.</param>
     /// <returns>The number of ticks since this location was visited.</returns>
     public uint GetAge(uint currentTick) => currentTick - VisitedTick;
+}
+
+/// <summary>
+/// A memory of observing a facility at a specific location.
+/// </summary>
+public class FacilityObservation
+{
+    /// <summary>
+    /// Gets the type of facility observed (e.g., "corpse_pit", "altar").
+    /// </summary>
+    public string FacilityType { get; }
+
+    /// <summary>
+    /// Gets the facility that was observed.
+    /// </summary>
+    public Facility Facility { get; }
+
+    /// <summary>
+    /// Gets the area the facility is in.
+    /// </summary>
+    public Area? Area { get; }
+
+    /// <summary>
+    /// Gets the grid position of the facility.
+    /// </summary>
+    public Vector2I Position { get; }
+
+    /// <summary>
+    /// Gets the storage tags observed on this facility (e.g., "food", "grain").
+    /// Empty if the facility has no storage.
+    /// </summary>
+    public IReadOnlyList<string> StorageTags { get; }
+
+    /// <summary>
+    /// Gets the tick when this observation was made.
+    /// </summary>
+    public uint ObservedTick { get; private set; }
+
+    /// <summary>
+    /// Gets the tick when this memory expires.
+    /// </summary>
+    public uint ExpirationTick { get; private set; }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="FacilityObservation"/> class.
+    /// </summary>
+    public FacilityObservation(
+        string facilityType,
+        Facility facility,
+        Area? area,
+        Vector2I position,
+        IReadOnlyList<string> storageTags,
+        uint observedTick,
+        uint expirationTick)
+    {
+        FacilityType = facilityType;
+        Facility = facility;
+        Area = area;
+        Position = position;
+        StorageTags = storageTags;
+        ObservedTick = observedTick;
+        ExpirationTick = expirationTick;
+    }
+
+    /// <summary>
+    /// Check if this memory has expired.
+    /// </summary>
+    /// <param name="currentTick">The current game tick.</param>
+    /// <returns>True if the memory has expired.</returns>
+    public bool IsExpired(uint currentTick) => currentTick > ExpirationTick;
+
+    /// <summary>
+    /// Gets a value indicating whether the facility reference is still valid (not freed).
+    /// </summary>
+    public bool IsValid => GodotObject.IsInstanceValid(Facility);
+
+    /// <summary>
+    /// Update this observation with new timing information.
+    /// </summary>
+    public void Update(uint observedTick, uint expirationTick)
+    {
+        ObservedTick = observedTick;
+        ExpirationTick = expirationTick;
+    }
 }

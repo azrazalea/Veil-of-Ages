@@ -33,11 +33,14 @@ public partial class BeingResourceManager : ResourceManager<BeingResourceManager
 
     public override void _Ready()
     {
+        MemoryProfiler.Checkpoint("BeingResourceManager _Ready start");
+
         // Pre-register all trait types before loading definitions
         TraitFactory.RegisterAllTraits();
 
         // Base _Ready sets singleton, calls LoadDefinitions, OnDefinitionsLoaded, LogInitialized
         base._Ready();
+        MemoryProfiler.Checkpoint("BeingResourceManager _Ready end");
     }
 
     /// <summary>

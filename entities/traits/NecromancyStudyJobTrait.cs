@@ -1,29 +1,37 @@
 using System;
+using Godot;
+using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Activities;
+using VeilOfAges.Entities.Memory;
 using VeilOfAges.Entities.Needs;
 
 namespace VeilOfAges.Entities.Traits;
 
 /// <summary>
 /// Job trait for the necromancer's nighttime study of dark arts.
-/// Studies necromancy at home during Dusk/Night phases.
-/// During Dawn/Day, this trait returns null and ScholarJobTrait handles daytime work.
+/// Studies necromancy at the nearest necromancy_altar during Night phase only.
+/// During Dawn/Day/Dusk, this trait returns null and other traits handle behavior.
 ///
 /// Inherits from JobTrait which enforces the pattern:
 /// - Traits DECIDE when to work (via sealed SuggestAction)
 /// - Activities EXECUTE the work (via CreateWorkActivity)
 ///
+/// Work order priority: If the necromancy_altar facility has an active work order,
+/// a WorkOnOrderActivity is created instead of StudyNecromancyActivity.
+///
 /// Special behaviors:
-/// - Will not start studying if energy is low (allows PlayerBehaviorTrait's sleep to take over)
-/// - Uses home as workplace (same pattern as ScholarJobTrait).
+/// - Will not start if energy is critical (allows sleep to take over)
+/// - Finds the nearest necromancy_altar via Being.FindFacilityOfType (cached with TTL).
 /// </summary>
 public class NecromancyStudyJobTrait : JobTrait
 {
     private const uint WORKDURATION = 400; // ~50 seconds real time at 8 ticks/sec
+    private const uint FACILITYCACHETTL = 200; // Re-lookup facility every ~25 seconds
 
-    // Uses home as workplace - set via Configure or SetHome
-    private Building? _home;
+    // Cached facility reference to avoid FindFacilityOfType every tick
+    private FacilityReference? _cachedFacilityRef;
+    private uint _facilityCacheTick;
 
     /// <summary>
     /// Gets the activity type for necromancy study work.
@@ -31,104 +39,118 @@ public class NecromancyStudyJobTrait : JobTrait
     protected override Type WorkActivityType => typeof(StudyNecromancyActivity);
 
     /// <summary>
-    /// Gets necromancy study happens during Dusk and Night (dark arts thrive in darkness).
+    /// Check if the given activity counts as "working" for this job.
+    /// Necromancy study can produce either StudyNecromancyActivity or WorkOnOrderActivity.
     /// </summary>
-    protected override DayPhaseType[] WorkPhases => [DayPhaseType.Dusk, DayPhaseType.Night];
+    protected override bool IsWorkActivity(Activity activity)
+    {
+        return activity is StudyNecromancyActivity or WorkOnOrderActivity;
+    }
 
     /// <summary>
-    /// Gets necromancy study uses "home" as the configuration key.
+    /// Gets necromancy study happens during Night only (dark arts thrive in deepest darkness).
     /// </summary>
-    protected override string WorkplaceConfigKey => "home";
+    protected override DayPhaseType[] WorkPhases => [DayPhaseType.Night];
 
     /// <summary>
-    /// Necromancer studies at their home.
+    /// The workplace is dynamically resolved via FindFacilityOfType (cached).
+    /// Returns a non-null value so JobTrait's sealed SuggestAction doesn't bail out
+    /// on the workplace null check. The actual facility is resolved in CreateWorkActivity.
     /// </summary>
-    protected override Building? GetWorkplace() => _home;
+    protected override Facility? GetWorkplace()
+    {
+        var facilityRef = GetCachedFacilityRef();
+        return facilityRef?.Facility;
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="NecromancyStudyJobTrait"/> class.
     /// Parameterless constructor for data-driven entity system.
-    /// Home must be configured via Configure() method or SetHome().
+    /// The altar is found dynamically via FindFacilityOfType.
     /// </summary>
     public NecromancyStudyJobTrait()
     {
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="NecromancyStudyJobTrait"/> class.
-    /// Constructor for direct instantiation with a home/study building.
-    /// </summary>
-    public NecromancyStudyJobTrait(Building home)
-    {
-        _home = home;
-    }
-
-    /// <summary>
-    /// Sets the home building where the necromancer studies dark arts.
-    /// </summary>
-    /// <param name="home">The building to use as the study location.</param>
-    public void SetHome(Building home)
-    {
-        _home = home;
-    }
-
-    /// <summary>
     /// Validates that the trait has all required configuration.
+    /// The necromancy altar is found dynamically, so no configuration is strictly required.
     /// </summary>
     public override bool ValidateConfiguration(TraitConfiguration config)
     {
-        // If already set via constructor, we're good
-        if (_home != null)
-        {
-            return true;
-        }
-
-        // home is recommended but we handle null gracefully
-        if (config.GetBuilding("home") == null)
-        {
-            Log.Warn("NecromancyStudyJobTrait: 'home' parameter recommended for proper function");
-        }
-
-        return true; // Don't fail - we handle missing home gracefully
+        return true;
     }
 
     /// <summary>
     /// Configures the trait from a TraitConfiguration.
+    /// No configuration needed — altar is found dynamically.
     /// </summary>
     public override void Configure(TraitConfiguration config)
     {
-        // If already set via constructor or SetHome, skip configuration
-        if (_home != null)
-        {
-            return;
-        }
-
-        _home = config.GetBuilding("home");
+        // No-op: necromancy altar is resolved dynamically via FindFacilityOfType
     }
 
     /// <summary>
-    /// Create the necromancy study activity.
-    /// Returns null if energy is low to allow sleep to take over.
-    /// The activity handles navigation to home and studying dark arts.
+    /// Create the necromancy work activity.
+    /// Priority: work orders on the altar first, then default to studying.
+    /// Returns null if energy is critical or no altar is found.
     /// </summary>
     protected override Activity? CreateWorkActivity()
     {
-        // Don't start studying if too tired - let PlayerBehaviorTrait's sleep take over
-        var energyNeed = _owner?.NeedsSystem?.GetNeed("energy");
-        if (energyNeed != null && energyNeed.IsLow())
+        if (_owner == null)
         {
-            DebugLog("NECROMANCYSTUDY", "Energy is low, skipping study to allow sleep");
             return null;
         }
 
-        return new StudyNecromancyActivity(_home!, WORKDURATION, priority: 0);
+        // Don't start if energy is critical - let sleep take over
+        var energyNeed = _owner.NeedsSystem?.GetNeed("energy");
+        if (energyNeed != null && energyNeed.IsCritical())
+        {
+            DebugLog("NECROMANCYSTUDY", "Energy is critical, skipping to allow sleep");
+            return null;
+        }
+
+        // Use cached facility reference (avoids FindFacilityOfType every tick)
+        var facilityRef = GetCachedFacilityRef();
+        if (facilityRef == null)
+        {
+            DebugLog("NECROMANCYSTUDY", "No necromancy_altar facility found");
+            return null;
+        }
+
+        // Check for active work order on the altar — work orders take priority
+        var altarFacility = facilityRef.Facility;
+        if (altarFacility != null && GodotObject.IsInstanceValid(altarFacility) && altarFacility.ActiveWorkOrder != null)
+        {
+            DebugLog("NECROMANCYSTUDY", $"Active work order found on altar, starting WorkOnOrderActivity", 0);
+            return new WorkOnOrderActivity(facilityRef, altarFacility, priority: 0, allowedPhases: [DayPhaseType.Night]);
+        }
+
+        // No work order — default to necromancy study
+        return new StudyNecromancyActivity(facilityRef, WORKDURATION, priority: 0);
+    }
+
+    /// <summary>
+    /// Get the cached facility reference, refreshing if the TTL has expired.
+    /// Avoids calling FindFacilityOfType every tick (GC pressure reduction).
+    /// </summary>
+    private FacilityReference? GetCachedFacilityRef()
+    {
+        uint currentTick = GameController.CurrentTick;
+        if (_cachedFacilityRef == null || (currentTick - _facilityCacheTick) >= FACILITYCACHETTL)
+        {
+            _cachedFacilityRef = _owner?.FindFacilityOfType("necromancy_altar");
+            _facilityCacheTick = currentTick;
+        }
+
+        return _cachedFacilityRef;
     }
 
     // ===== Dialogue Methods (not part of job pattern, kept in subclass) =====
     public override string InitialDialogue(Being speaker)
     {
         var gameTime = _owner?.GameController?.CurrentGameTime ?? new GameTime(0);
-        if (gameTime.CurrentDayPhase is DayPhaseType.Dusk or DayPhaseType.Night)
+        if (gameTime.CurrentDayPhase is DayPhaseType.Night)
         {
             return "The veil between worlds grows thin at this hour... I must not be disturbed.";
         }

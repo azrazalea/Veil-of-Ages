@@ -9,7 +9,7 @@ namespace VeilOfAges.Entities.Activities;
 /// <summary>
 /// Activity for studying at home during daytime.
 /// Phases:
-/// 1. Navigate to home building (if not already there)
+/// 1. Navigate to home room (if not already there)
 /// 2. Study (idle, spend energy)
 /// Completes after study duration or if day phase ends.
 /// Drains energy while studying (mental work is taxing).
@@ -26,33 +26,33 @@ public class StudyActivity : Activity
     // Mental work is taxing - 0.01/tick
     private const float ENERGYCOSTPERTICK = 0.01f;
 
-    private readonly Building _home;
+    private readonly Room _homeRoom;
     private readonly uint _studyDuration;
 
-    private GoToBuildingActivity? _goToStudyPhase;
+    private Activity? _goToStudyPhase;
     private uint _studyTimer;
     private StudyPhase _currentPhase = StudyPhase.GoingToStudy;
     private Need? _energyNeed;
 
     public override string DisplayName => _currentPhase switch
     {
-        StudyPhase.GoingToStudy => "Going to study",
-        StudyPhase.Studying => "Studying",
-        _ => "Studying"
+        StudyPhase.GoingToStudy => L.Tr("activity.GOING_TO_STUDY"),
+        StudyPhase.Studying => L.Tr("activity.STUDYING"),
+        _ => L.Tr("activity.STUDYING")
     };
 
-    public override Building? TargetBuilding => _home;
+    public override Room? TargetRoom => _homeRoom;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="StudyActivity"/> class.
     /// Create an activity to study at home.
     /// </summary>
-    /// <param name="home">The building to study at (home).</param>
+    /// <param name="homeRoom">The room to study at (home).</param>
     /// <param name="studyDuration">How many ticks to study (default 400).</param>
     /// <param name="priority">Action priority (default 0).</param>
-    public StudyActivity(Building home, uint studyDuration = 400, int priority = 0)
+    public StudyActivity(Room homeRoom, uint studyDuration = 400, int priority = 0)
     {
-        _home = home;
+        _homeRoom = homeRoom;
         _studyDuration = studyDuration;
         Priority = priority;
 
@@ -67,7 +67,7 @@ public class StudyActivity : Activity
         // Get energy need - studying directly costs energy (not via decay multiplier)
         _energyNeed = owner.NeedsSystem?.GetNeed("energy");
 
-        DebugLog("ACTIVITY", $"Started StudyActivity at {_home.BuildingName}, priority: {Priority}, study duration: {_studyDuration} ticks", 0);
+        DebugLog("ACTIVITY", $"Started StudyActivity at {_homeRoom.Name}, priority: {Priority}, study duration: {_studyDuration} ticks", 0);
     }
 
     protected override void OnResume()
@@ -85,8 +85,8 @@ public class StudyActivity : Activity
             return null;
         }
 
-        // Check if home still exists
-        if (!GodotObject.IsInstanceValid(_home))
+        // Check if home room still exists (Room is plain C#, not GodotObject)
+        if (_homeRoom.IsDestroyed)
         {
             Fail();
             return null;
@@ -119,7 +119,7 @@ public class StudyActivity : Activity
         // Initialize go-to phase if needed
         if (_goToStudyPhase == null)
         {
-            _goToStudyPhase = new GoToBuildingActivity(_home, Priority);
+            _goToStudyPhase = new GoToRoomActivity(_homeRoom, Priority);
             _goToStudyPhase.Initialize(_owner);
         }
 
@@ -138,7 +138,7 @@ public class StudyActivity : Activity
         }
 
         // We've arrived at home
-        Log.Print($"{_owner.Name}: Arrived at {_home.BuildingName} to study");
+        Log.Print($"{_owner.Name}: Arrived at {_homeRoom.Name} to study");
         DebugLog("ACTIVITY", $"Arrived at home, starting study phase (duration: {_studyDuration} ticks)", 0);
 
         _currentPhase = StudyPhase.Studying;

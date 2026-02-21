@@ -13,7 +13,12 @@ namespace VeilOfAges.Grid;
 public partial class Area(Vector2I worldSize): Node2D
 {
     [Export]
-    public string AreaName { get; set; } = "Default Area";
+    public string AreaName { get; set; } = "area.VILLAGE";
+
+    /// <summary>
+    /// Gets localized display name for this area. AreaName should be a translation key.
+    /// </summary>
+    public string AreaDisplayName => L.Tr(AreaName);
     public Vector2I GridSize { get; set; } = new (worldSize.X, worldSize.Y);
     public AStarGrid2D? AStarGrid;
 
@@ -37,6 +42,17 @@ public partial class Area(Vector2I worldSize): Node2D
     /// Is this the area the player is in currently?.
     /// </summary>
     private bool _isPlayerArea;
+
+    /// <summary>
+    /// Guards against double-initialization when an off-tree area later enters the scene tree.
+    /// </summary>
+    private bool _isDataInitialized;
+
+    /// <summary>
+    /// Gets a value indicating whether true while this area is being removed from the scene tree during an area transition.
+    /// StructuralEntity._ExitTree() checks this to avoid corrupting the AStarGrid.
+    /// </summary>
+    public bool IsDeactivating { get; private set; }
     private uint _beingNum;
     public List<Node2D> Entities { get; private set; } = [];
 
@@ -74,13 +90,19 @@ public partial class Area(Vector2I worldSize): Node2D
         _isActive = true;
     }
 
-    public override void _Ready()
+    /// <summary>
+    /// Initialize data structures (TileMapLayers, AStarGrid) without requiring the scene tree.
+    /// Safe to call on areas that will never be added to the tree (e.g., cellar before player enters).
+    /// Guarded by _isDataInitialized to prevent double-init if _Ready() fires later.
+    /// </summary>
+    public void InitializeOffTree()
     {
-        base._Ready();
+        if (_isDataInitialized)
+        {
+            return;
+        }
 
-        // Get TileSet from the main ground layer, or from TileResourceManager for programmatic areas
-        var worldGroundLayer = GetNodeOrNull<TileMapLayer>("/root/World/GroundLayer");
-        var tileSet = worldGroundLayer?.TileSet ?? TileResourceManager.Instance?.GetTileSet();
+        var tileSet = TileResourceManager.Instance?.GetTileSet();
         _groundLayer = new TileMapLayer
         {
             TileSet = tileSet
@@ -90,6 +112,43 @@ public partial class Area(Vector2I worldSize): Node2D
             ZIndex = 5
         };
         AStarGrid = PathFinder.CreateNewAStarGrid(this);
+        _isDataInitialized = true;
+    }
+
+    public override void _Ready()
+    {
+        base._Ready();
+        InitializeOffTree();
+    }
+
+    /// <summary>
+    /// Add this area to the scene tree so it renders. Called during area transitions.
+    /// </summary>
+    public void ActivateInTree(Node container)
+    {
+        if (!IsInsideTree())
+        {
+            container.AddChild(this);
+        }
+
+        _isActive = true;
+    }
+
+    /// <summary>
+    /// Remove this area from the scene tree (stops rendering). Data is preserved in memory.
+    /// Sets IsDeactivating so StructuralEntity._ExitTree() skips grid unregistration.
+    /// </summary>
+    public void DeactivateFromTree(Node container)
+    {
+        IsDeactivating = true;
+        if (IsInsideTree())
+        {
+            container.RemoveChild(this);
+        }
+
+        IsDeactivating = false;
+        _isActive = false;
+        _isPlayerArea = false;
     }
 
     public void MakePlayerArea(Player player, Vector2I playerStartingLocation)
@@ -131,13 +190,25 @@ public partial class Area(Vector2I worldSize): Node2D
         return _beingNum > 0;
     }
 
+    /// <summary>
+    /// Set A* walkability and weight for a position without painting the ground TileMapLayer visual.
+    /// Used by walkable StructuralEntities (floors) that render via their own Sprite2D nodes.
+    /// </summary>
+    public void SetGroundWalkability(Vector2I pos, bool walkable, float weight = 1.0f)
+    {
+        var entitiesAtPos = EntitiesGridSystem.GetCell(pos);
+        bool hasBlockingEntity = entitiesAtPos?.Exists(e => e is IEntity { IsWalkable: false }) ?? false;
+        AStarGrid?.SetPointSolid(pos, !walkable || hasBlockingEntity);
+        AStarGrid?.SetPointWeightScale(pos, weight);
+    }
+
     public void SetGroundCell(Vector2I groundPos, Tile tile)
     {
         _groundGridSystem.SetCell(groundPos, tile);
 
-        // Only mark solid if terrain is unwalkable OR a pathfinding-blocking entity is here
-        var entityAtPos = EntitiesGridSystem.GetCell(groundPos);
-        bool hasBlockingEntity = entityAtPos is IBlocksPathfinding;
+        // Only mark solid if terrain is unwalkable OR a non-walkable entity is here
+        var entitiesAtPos = EntitiesGridSystem.GetCell(groundPos);
+        bool hasBlockingEntity = entitiesAtPos?.Exists(e => e is IEntity { IsWalkable: false }) ?? false;
         AStarGrid?.SetPointSolid(groundPos, !tile.IsWalkable || hasBlockingEntity);
         AStarGrid?.SetPointWeightScale(groundPos, tile.WalkDifficulty);
 
@@ -163,9 +234,9 @@ public partial class Area(Vector2I worldSize): Node2D
 
         Entities.Add(entity);
 
-        // Mark entities that block pathfinding as solid in the A* grid.
-        // Beings are dynamic and can move/queue, so they shouldn't block pathing.
-        bool shouldMarkSolid = entity is IBlocksPathfinding;
+        // Mark non-walkable entities as solid in the A* grid.
+        // Beings are walkable (dynamic collision handled at runtime), so they don't block pathing.
+        bool shouldMarkSolid = entity is IEntity { IsWalkable: false };
 
         if (entitySize is Vector2I size)
         {
@@ -193,24 +264,17 @@ public partial class Area(Vector2I worldSize): Node2D
         }
     }
 
-    public void RemoveEntity(Vector2I entityPos, Vector2I? entitySize = null)
+    public void RemoveEntity(Node2D entity, Vector2I entityPos, Vector2I? entitySize = null)
     {
-        var foundEntity = EntitiesGridSystem.GetCell(entityPos);
-
-        if (foundEntity == null)
-        {
-            return; // No actual entity
-        }
-
-        if (foundEntity is Being)
+        if (entity is Being)
         {
             _beingNum--;
         }
 
-        Entities.Remove(foundEntity);
+        Entities.Remove(entity);
 
-        // Only IBlocksPathfinding entities were marked solid, so only unmark them
-        bool shouldUnmarkSolid = foundEntity is IBlocksPathfinding;
+        // Only non-walkable entities were marked solid, so only unmark them
+        bool shouldUnmarkSolid = entity is IEntity { IsWalkable: false };
 
         if (entitySize is Vector2I size)
         {
@@ -219,58 +283,99 @@ public partial class Area(Vector2I worldSize): Node2D
                 for (int y = 0; y < size.Y; y++)
                 {
                     var pos = new Vector2I(entityPos.X + x, entityPos.Y + y);
-                    EntitiesGridSystem.RemoveCell(new Vector2I(entityPos.X + x, entityPos.Y + y));
+                    EntitiesGridSystem.RemoveFromCell(pos, entity);
                     if (shouldUnmarkSolid)
                     {
-                        AStarGrid?.SetPointSolid(pos, false);
+                        // Only restore walkability if no other non-walkable entity remains
+                        var remaining = EntitiesGridSystem.GetCell(pos);
+                        bool stillBlocked = remaining?.Exists(e => e is IEntity { IsWalkable: false }) ?? false;
+                        if (!stillBlocked)
+                        {
+                            AStarGrid?.SetPointSolid(pos, false);
+                        }
                     }
                 }
             }
         }
         else
         {
+            EntitiesGridSystem.RemoveFromCell(entityPos, entity);
             if (shouldUnmarkSolid)
             {
-                AStarGrid?.SetPointSolid(entityPos, false);
+                // Only restore walkability if no other non-walkable entity remains
+                var remaining = EntitiesGridSystem.GetCell(entityPos);
+                bool stillBlocked = remaining?.Exists(e => e is IEntity { IsWalkable: false }) ?? false;
+                if (!stillBlocked)
+                {
+                    AStarGrid?.SetPointSolid(entityPos, false);
+                }
             }
-
-            EntitiesGridSystem.RemoveCell(entityPos);
         }
     }
 
-    // TODO: We need to handle unwalkable objects here if any
     public bool IsCellWalkable(Vector2I gridPos)
     {
-        bool entityOccupied = EntitiesGridSystem.IsCellOccupied(gridPos);
-        var groundTile = _groundGridSystem.GetCell(gridPos);
+        var entitiesAtPos = EntitiesGridSystem.GetCell(gridPos);
+        bool hasBlockingEntity = entitiesAtPos?.Exists(e => e is IEntity { IsWalkable: false }) ?? false;
+        var groundTile = _groundGridSystem.GetFirstCell(gridPos);
         bool groundWalkable = groundTile?.IsWalkable ?? false;
 
-        return !entityOccupied && groundWalkable;
+        return !hasBlockingEntity && groundWalkable;
+    }
+
+    /// <summary>
+    /// Check if a cell can be physically moved into at runtime.
+    /// Unlike IsCellWalkable (for A* where Beings are walkable), this method
+    /// treats Being occupants as blocking. Use this for runtime step-aside,
+    /// alternative position selection, and movement validation.
+    /// </summary>
+    /// <param name="gridPos">The grid position to check.</param>
+    /// <param name="excludeEntity">An entity to ignore when checking occupancy (typically the mover).</param>
+    /// <returns>True if the cell is terrain-walkable and not occupied by another Being.</returns>
+    public bool IsCellPassable(Vector2I gridPos, Being? excludeEntity = null)
+    {
+        if (!IsCellWalkable(gridPos))
+        {
+            return false;
+        }
+
+        var occupants = EntitiesGridSystem.GetCell(gridPos);
+        if (occupants?.Exists(e => e is Being being && being != excludeEntity) == true)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     public float GetTerrainDifficulty(Vector2I gridPos)
     {
-        return _groundGridSystem.GetCell(gridPos)?.WalkDifficulty ?? 1.0f;
+        return _groundGridSystem.GetFirstCell(gridPos)?.WalkDifficulty ?? 1.0f;
     }
 
     public void PopulateLayersFromGrid()
     {
         foreach (var kvp in _groundGridSystem.OccupiedCells)
         {
-            SetGroundCell(kvp.Key, kvp.Value);
+            SetGroundCell(kvp.Key, kvp.Value[0]);
         }
 
         if (_objectsLayer != null)
         {
             foreach (var kvp in _objectGridSystem.OccupiedCells)
             {
-                _objectsLayer.SetCell(kvp.Key, kvp.Value.SourceId, kvp.Value.AtlasCoords);
+                var tile = kvp.Value[0];
+                _objectsLayer.SetCell(kvp.Key, tile.SourceId, tile.AtlasCoords);
             }
         }
 
-        foreach (var (key, entity) in EntitiesGridSystem.OccupiedCells)
+        // Re-apply entity walkability to A* grid (entities are already registered in the grid system)
+        foreach (var (key, entities) in EntitiesGridSystem.OccupiedCells)
         {
-            AddEntity(key, entity);
+            if (entities.Exists(e => e is IEntity { IsWalkable: false }))
+            {
+                AStarGrid?.SetPointSolid(key, true);
+            }
         }
     }
 

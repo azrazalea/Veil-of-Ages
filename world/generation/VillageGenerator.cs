@@ -24,25 +24,36 @@ public class VillageGenerator
     private readonly EntityThinkingSystem _entityThinkingSystem;
     private readonly GameController? _gameController;
 
-    // Track placed farms for assigning farmers
-    private readonly List<Building> _placedFarms = [];
+    // Track placed farms for assigning farmers (stores default room)
+    private readonly List<Room> _placedFarms = [];
 
-    // Track placed houses for assigning villagers
-    private readonly List<Building> _placedHouses = [];
+    // Track placed houses for assigning villagers (stores default room)
+    private readonly List<Room> _placedHouses = [];
 
-    // Track placed granary for distributor assignment
-    private Building? _placedGranary;
+    // Track placed granary for distributor assignment (stores StampResult for GranaryTrait)
+    private StampResult? _placedGranaryResult;
 
-    // Track placed graveyard for player house placement
-    private Building? _placedGraveyard;
+    // Track placed graveyard for player house placement (stores default room)
+    private Room? _placedGraveyard;
 
-    // Track player's house
-    private Building? _playerHouse;
+    // Track player's house (stores default room)
+    private Room? _playerHouseRoom;
+
+    // Temporary: last StampResult from PlaceBuildingInLot, used to capture PlayerHouseStampResult
+    private StampResult? _lastStampResult;
+
+    // Track instance counts per building type for room naming disambiguation
+    private readonly Dictionary<string, int> _buildingTypeCounters = new ();
 
     /// <summary>
-    /// Gets the player's house building, placed near the graveyard during generation.
+    /// Gets the player's house room, placed near the graveyard during generation.
     /// </summary>
-    public Building? PlayerHouse => _playerHouse;
+    public Room? PlayerHouseRoom => _playerHouseRoom;
+
+    /// <summary>
+    /// Gets the player's house StampResult, needed for CellarGenerator.
+    /// </summary>
+    public StampResult? PlayerHouseStampResult { get; private set; }
 
     // Track spawned villagers for debug selection
     private readonly List<Being> _spawnedVillagers = [];
@@ -62,17 +73,10 @@ public class VillageGenerator
     public VillageGenerator(
         Area gridArea,
         Node entitiesContainer,
-        PackedScene buildingScene,
-        PackedScene genericBeingScene,
         EntityThinkingSystem entityThinkingSystem,
         Player? player = null,
         int? seed = null)
     {
-        // Scene parameters kept for API compatibility but not used:
-        // - buildingScene: Buildings use BuildingManager
-        // - genericBeingScene: Entities use GenericBeing.CreateFromDefinition()
-        _ = buildingScene;
-        _ = genericBeingScene;
         _gridArea = gridArea;
         _entitiesContainer = entitiesContainer;
         _entityThinkingSystem = entityThinkingSystem;
@@ -150,7 +154,7 @@ public class VillageGenerator
         // Log which villager was selected for debug
         LogDebugVillagerSelection();
 
-        Log.Print($"Village '{_currentVillage.VillageName}' created with {_currentVillage.Buildings.Count} buildings and {_currentVillage.Residents.Count} residents");
+        Log.Print($"Village '{_currentVillage.VillageName}' created with {_currentVillage.Rooms.Count} rooms and {_currentVillage.Residents.Count} residents");
 
         return _currentVillage;
     }
@@ -263,16 +267,27 @@ public class VillageGenerator
             return;
         }
 
-        // Place the well using BuildingManager
-        var well = _buildingManager.PlaceBuilding("Well", wellPosition, _gridArea);
-        if (well == null)
+        // Place the well using TemplateStamper via BuildingManager
+        var wellResult = _buildingManager.StampBuilding("Well", wellPosition, _gridArea);
+        if (wellResult == null)
         {
             Log.Warn($"VillageGenerator: Failed to place well at {wellPosition}");
             return;
         }
 
-        // Register the well with the village
-        _currentVillage.AddBuilding(well);
+        // Register the well's rooms with the village
+        foreach (var room in wellResult.Rooms)
+        {
+            _currentVillage.AddRoom(room, _gridArea);
+        }
+
+        // Register well facilities directly with village knowledge
+        // (well has no room/enclosure, so the RoomSystem won't pick it up automatically)
+        foreach (var facility in wellResult.Facilities)
+        {
+            var facilityPos = facility.GetAbsolutePositions().FirstOrDefault();
+            _currentVillage.Knowledge.RegisterFacility("Well", facility, _gridArea, facilityPos);
+        }
 
         Log.Print($"VillageGenerator: Placed well at {wellPosition}, centered on village center {villageCenter}");
     }
@@ -387,8 +402,13 @@ public class VillageGenerator
             return;
         }
 
-        // Get the graveyard position
-        var graveyardPos = _placedGraveyard.GetCurrentGridPosition();
+        // Get a reference position from the graveyard room's tiles
+        Vector2I graveyardPos = Vector2I.Zero;
+        foreach (var tile in _placedGraveyard.Tiles)
+        {
+            graveyardPos = tile;
+            break;
+        }
 
         // Find the nearest available lot to the graveyard
         var availableLots = _roadNetwork.GetAvailableLots();
@@ -406,19 +426,25 @@ public class VillageGenerator
         // Place the player's house (skip entity spawning - player lives alone)
         PlaceBuildingInLot("Scholar's House", nearestLot, skipEntitySpawn: true);
 
-        // Get the player's house directly from the lot (not from _placedHouses since we skipped entity spawning)
-        _playerHouse = nearestLot.OccupyingBuilding;
-        if (_playerHouse != null)
+        // Get the player's house room directly from the lot
+        _playerHouseRoom = nearestLot.OccupyingRoom;
+        if (_playerHouseRoom != null)
         {
-            Log.Print($"VillageGenerator: Player house placed at {_playerHouse.GetCurrentGridPosition()} near graveyard at {graveyardPos}");
+            // Store the StampResult for CellarGenerator
+            // We need to find it — the lot's room was set by PlaceBuildingInLot
+            // The StampResult is not stored on the lot, so we track it via a field set during PlaceBuildingInLot
+            PlayerHouseStampResult = _lastStampResult;
 
-            // Assign the player their home and register as resident
-            // This must happen BEFORE InitializeGranaryOrders() so scholar priority works
+            Log.Print($"VillageGenerator: Player house placed near graveyard at {graveyardPos}");
+
+            // Register the player as a village resident so they get shared knowledge
+            // and so GranaryTrait.InitializeOrdersFromVillage() can detect them via HasScholarResident().
+            // NOTE: Player home assignment (SetHome) happens later in World.InitializePlayerAfterGeneration()
+            // because player traits aren't loaded until Player.Initialize() runs.
             if (_player != null)
             {
-                _player.SetHome(_playerHouse);
                 _currentVillage?.AddResident(_player);
-                Log.Print($"VillageGenerator: Assigned player to their home and village");
+                Log.Print($"VillageGenerator: Registered player as village resident (home will be set after player initialization)");
             }
         }
         else
@@ -498,24 +524,58 @@ public class VillageGenerator
             return;
         }
 
-        var building = _buildingManager.PlaceBuilding(buildingType, position, _gridArea);
-        if (building == null)
+        var stampResult = _buildingManager.StampBuilding(buildingType, position, _gridArea);
+        if (stampResult == null)
         {
             Log.Warn($"Failed to place {buildingType} at {position}");
             lot.State = LotState.Reserved;
             return;
         }
 
-        RoadNetwork.MarkLotOccupied(lot, building);
-        _currentVillage?.AddBuilding(building);
+        // Track for PlayerHouseStampResult capture
+        _lastStampResult = stampResult;
 
-        // Register building storage tags from template (data-driven, not hardcoded)
-        RegisterBuildingStorageTagsFromTemplate(building, template);
+        // Disambiguate room names by numbering instances of the same building type
+        if (!_buildingTypeCounters.TryGetValue(buildingType, out int count))
+        {
+            count = 0;
+        }
+
+        count++;
+        _buildingTypeCounters[buildingType] = count;
+
+        // Rename all rooms in this stamp result to include building type and instance number,
+        // so the knowledge panel can distinguish e.g. "House 1" from "House 2".
+        string shortType = GetShortBuildingType(buildingType);
+        foreach (var room in stampResult.Rooms)
+        {
+            room.Name = $"{shortType} {count}";
+        }
+
+        // Use the first facility's containing room for lot tracking
+        var primaryRoom = stampResult.Facilities.Select(f => f.ContainingRoom).FirstOrDefault(r => r != null);
+        RoadNetwork.MarkLotOccupied(lot, primaryRoom);
+
+        // Register all rooms with the village
+        foreach (var room in stampResult.Rooms)
+        {
+            _currentVillage?.AddRoom(room, _gridArea);
+        }
+
+        // Register each storage facility with village knowledge for tag-based facility lookup
+        foreach (var facility in stampResult.Facilities)
+        {
+            if (facility.SelfAsEntity().HasTrait<StorageTrait>())
+            {
+                var facilityPos = facility.GetAbsolutePositions().FirstOrDefault();
+                _currentVillage?.Knowledge.RegisterFacility(facility.Id, facility, _gridArea, facilityPos);
+            }
+        }
 
         // Spawn entities based on building type (unless skipped, e.g., for player's house)
         if (!skipEntitySpawn)
         {
-            SpawnEntitiesForBuilding(building, buildingType);
+            SpawnEntitiesForStampResult(stampResult, buildingType);
         }
 
         Log.Print($"Placed {buildingType} in lot {lot.Id} at {position}");
@@ -572,111 +632,109 @@ public class VillageGenerator
     }
 
     /// <summary>
-    /// Registers building storage tags from the template's facility definitions.
-    /// This reads StorageTags from all facilities with storage configurations.
+    /// Spawns appropriate entities for a stamped building based on its type.
     /// </summary>
-    private void RegisterBuildingStorageTagsFromTemplate(Building building, BuildingTemplate template)
+    private void SpawnEntitiesForStampResult(StampResult stampResult, string buildingType)
     {
-        if (_currentVillage == null || template.Facilities == null)
-        {
-            return;
-        }
-
-        // Collect all tags from all facilities that have storage
-        var allTags = new HashSet<string>();
-        foreach (var facility in template.Facilities)
-        {
-            if (facility.Storage?.Tags != null)
-            {
-                foreach (var tag in facility.Storage.Tags)
-                {
-                    allTags.Add(tag);
-                }
-            }
-        }
-
-        // Register the collected tags
-        if (allTags.Count > 0)
-        {
-            _currentVillage.Knowledge.RegisterBuildingStorageTags(building, allTags);
-            Log.Print($"VillageGenerator: Registered {template.Name} with storage tags: [{string.Join(", ", allTags)}]");
-        }
-    }
-
-    /// <summary>
-    /// Spawns appropriate entities for a building based on its type.
-    /// </summary>
-    private void SpawnEntitiesForBuilding(Building building, string buildingType)
-    {
-        Vector2I buildingPos = building.GetCurrentGridPosition();
-        Vector2I buildingSize = building.GridSize;
+        Vector2I buildingPos = stampResult.Origin;
+        Vector2I buildingSize = stampResult.Size;
 
         switch (buildingType)
         {
             case "Simple House":
+            {
+                // Home is the room containing the storage facility (where food is kept)
+                var houseRoom = stampResult.Facilities
+                    .FirstOrDefault(f => f.SelfAsEntity().HasTrait<StorageTrait>())
+                    ?.ContainingRoom
+                    ?? stampResult.Facilities.Select(f => f.ContainingRoom).FirstOrDefault(r => r != null);
+
                 // Track house for villager assignment
-                _placedHouses.Add(building);
+                if (houseRoom != null)
+                {
+                    _placedHouses.Add(houseRoom);
+                }
 
                 // Add initial bread to house storage (3-5 loaves)
-                StockHouseWithFood(building);
+                StockRoomWithFood(houseRoom, stampResult.TemplateName);
 
                 // Spawn farmer if farms exist (distribute farmers across farms round-robin)
                 if (_placedFarms.Count > 0)
                 {
                     // Use house count to distribute farmers evenly across farms
                     int farmIndex = (_placedHouses.Count - 1) % _placedFarms.Count;
-                    SpawnVillagerNearBuilding(buildingPos, buildingSize,
-                        home: building, job: "farmer", workplace: _placedFarms[farmIndex]);
+                    SpawnVillagerNearStamp(buildingPos, buildingSize,
+                        home: houseRoom, job: "farmer", workplace: _placedFarms[farmIndex]);
                 }
                 else
                 {
                     // No farms available, spawn regular villager
-                    SpawnVillagerNearBuilding(buildingPos, buildingSize,
-                        home: building);
+                    SpawnVillagerNearStamp(buildingPos, buildingSize,
+                        home: houseRoom);
                 }
 
                 // Second villager: baker (works at home)
-                SpawnVillagerNearBuilding(buildingPos, buildingSize,
-                    home: building, job: "baker", workplace: building);
+                SpawnVillagerNearStamp(buildingPos, buildingSize,
+                    home: houseRoom, job: "baker", workplace: houseRoom);
                 break;
+            }
 
             case "Simple Farm":
-                // Track farm for assigning farmers later
-                _placedFarms.Add(building);
+            {
+                // Farm workplace is the room containing any facility (crops and storage share a room)
+                var farmRoom = stampResult.Facilities
+                    .FirstOrDefault(f => f.SelfAsEntity().HasTrait<StorageTrait>())
+                    ?.ContainingRoom
+                    ?? stampResult.Facilities.Select(f => f.ContainingRoom).FirstOrDefault(r => r != null);
 
-                // Storage tags are registered from template by RegisterBuildingStorageTagsFromTemplate
+                // Track farm for assigning farmers later
+                if (farmRoom != null)
+                {
+                    _placedFarms.Add(farmRoom);
+                }
+
+                // Storage tags are registered via RegisterFacility() in PlaceBuildingInLot
                 // Farm gets farmer assigned but farmer lives in house
                 break;
+            }
 
             case "Graveyard":
-                // Track graveyard for player house placement
-                _placedGraveyard = building;
+            {
+                // Graveyard tracking uses the storage room (where corpses are kept)
+                var graveyardRoom = stampResult.Facilities
+                    .FirstOrDefault(f => f.SelfAsEntity().HasTrait<StorageTrait>())
+                    ?.ContainingRoom
+                    ?? stampResult.Facilities.Select(f => f.ContainingRoom).FirstOrDefault(r => r != null);
 
-                // Storage tags are registered from template by RegisterBuildingStorageTagsFromTemplate
+                // Track graveyard for player house placement
+                _placedGraveyard = graveyardRoom;
+
+                // Storage tags are registered via RegisterFacility() in PlaceBuildingInLot
 
                 // Stock graveyard with initial corpses
-                StockGraveyardWithCorpses(building);
-
-                // Spawn undead near the Graveyard using data-driven definitions
-                SpawnUndeadNearBuilding(buildingPos, buildingSize, "mindless_skeleton", building);
-                SpawnUndeadNearBuilding(buildingPos, buildingSize, "mindless_zombie", building);
+                StockRoomWithCorpses(graveyardRoom, stampResult.TemplateName);
                 break;
+            }
 
             case "Granary":
+            {
                 // Track granary for order initialization
-                _placedGranary = building;
+                _placedGranaryResult = stampResult;
 
-                // Storage tags are registered from template by RegisterBuildingStorageTagsFromTemplate
+                // Granary stocking uses the storage room
+                var granaryRoom = stampResult.Facilities
+                    .FirstOrDefault(f => f.SelfAsEntity().HasTrait<StorageTrait>())
+                    ?.ContainingRoom
+                    ?? stampResult.Facilities.Select(f => f.ContainingRoom).FirstOrDefault(r => r != null);
 
-                // Add GranaryTrait to the building
-                var granaryTrait = new GranaryTrait();
-                building.Traits.Add(granaryTrait);
+                // Storage tags are registered via RegisterFacility() in PlaceBuildingInLot
 
                 // Stock granary with initial supplies
-                StockGranaryWithFood(building);
+                StockRoomWithGranaryFood(granaryRoom, stampResult.TemplateName);
 
                 // Distributor is spawned later in InitializeGranaryOrders() after houses are placed
                 break;
+            }
         }
     }
 
@@ -687,25 +745,29 @@ public class VillageGenerator
     /// </summary>
     private void InitializeGranaryOrders()
     {
-        if (_placedGranary == null || _currentVillage == null)
+        if (_placedGranaryResult == null || _currentVillage == null)
         {
             return;
         }
 
-        // Get granary trait and initialize orders from village
-        var granaryTrait = _placedGranary.Traits.OfType<GranaryTrait>().FirstOrDefault();
-        if (granaryTrait == null)
+        // Attach GranaryTrait to the granary's storage facility so distributors can find it
+        // Find the storage facility directly from the stamp result facilities
+        var granaryStorage = _placedGranaryResult.Facilities
+            .FirstOrDefault(f => f.SelfAsEntity().HasTrait<StorageTrait>());
+        if (granaryStorage == null)
         {
-            Log.Warn("VillageGenerator: Granary has no GranaryTrait");
+            Log.Warn("VillageGenerator: Granary has no storage facility, cannot initialize orders");
             return;
         }
 
+        var granaryTrait = new GranaryTrait();
+        granaryStorage.SelfAsEntity().AddTrait(granaryTrait, 0);
         granaryTrait.InitializeOrdersFromVillage(_currentVillage);
         Log.Print($"VillageGenerator: Initialized granary orders: {granaryTrait.GetOrdersSummary()}");
 
         // Spawn distributor now that houses are available
-        Vector2I granaryPos = _placedGranary.GetCurrentGridPosition();
-        Vector2I granarySize = _placedGranary.GridSize;
+        Vector2I granaryPos = _placedGranaryResult.Origin;
+        Vector2I granarySize = _placedGranaryResult.Size;
         SpawnDistributorNearGranary(granaryPos, granarySize);
     }
 
@@ -715,20 +777,19 @@ public class VillageGenerator
     /// </summary>
     private void SpawnDistributorNearGranary(Vector2I granaryPos, Vector2I granarySize)
     {
-        if (_placedGranary == null)
+        if (_placedGranaryResult == null)
         {
             return;
         }
 
-        // Find a house for the distributor to live in
-        Building? distributorHome = null;
-        foreach (var house in _placedHouses)
+        // Find a house room for the distributor to live in
+        Room? distributorHome = null;
+        foreach (var houseRoom in _placedHouses)
         {
             // Each house has capacity 2, check if there's room
-            var residents = house.GetResidents();
-            if (residents.Count < 2)
+            if (houseRoom.Residents.Count < 2)
             {
-                distributorHome = house;
+                distributorHome = houseRoom;
                 break;
             }
         }
@@ -745,13 +806,19 @@ public class VillageGenerator
             return;
         }
 
+        // Workplace is the room containing the granary's storage facility
+        var granaryRoom = _placedGranaryResult.Facilities
+            .FirstOrDefault(f => f.SelfAsEntity().HasTrait<StorageTrait>())
+            ?.ContainingRoom
+            ?? _placedGranaryResult.Facilities.Select(f => f.ContainingRoom).FirstOrDefault(r => r != null);
+
         // Spawn the distributor near the granary
-        SpawnVillagerNearBuilding(
+        SpawnVillagerNearStamp(
             granaryPos,
             granarySize,
             home: distributorHome,
             job: "distributor",
-            workplace: _placedGranary);
+            workplace: granaryRoom);
     }
 
     /// <summary>
@@ -788,13 +855,16 @@ public class VillageGenerator
             return false;
         }
 
-        // Use BuildingManager to place the building
-        Building? typedBuilding = _buildingManager.PlaceBuilding(newBuildingType, newBuildingPos, _gridArea);
+        // Use BuildingManager to stamp the building
+        var stampResult = _buildingManager.StampBuilding(newBuildingType, newBuildingPos, _gridArea);
 
-        if (typedBuilding != null)
+        if (stampResult != null)
         {
-            // Register building with village
-            _currentVillage?.AddBuilding(typedBuilding);
+            // Register rooms with village
+            foreach (var room in stampResult.Rooms)
+            {
+                _currentVillage?.AddRoom(room, _gridArea);
+            }
 
             Log.Print($"Placed {newBuildingType} at {newBuildingPos} near building at {baseBuildingPos}");
             return true;
@@ -807,20 +877,20 @@ public class VillageGenerator
     }
 
     /// <summary>
-    /// Spawns a villager near a building with an optional job.
+    /// Spawns a villager near a stamped building with an optional job.
     /// Uses the data-driven BeingResourceManager system for entity creation.
     /// </summary>
     /// <param name="buildingPos">Position of the building to spawn near.</param>
     /// <param name="buildingSize">Size of the building.</param>
-    /// <param name="home">Home building for the villager.</param>
+    /// <param name="home">Home room for the villager.</param>
     /// <param name="job">Job name: "farmer", "baker", "distributor", or null for no job.</param>
-    /// <param name="workplace">Workplace building for the job (farm for farmer, home for baker).</param>
-    private void SpawnVillagerNearBuilding(
+    /// <param name="workplace">Workplace room for the job (farm for farmer, home for baker).</param>
+    private void SpawnVillagerNearStamp(
         Vector2I buildingPos,
         Vector2I buildingSize,
-        Building? home,
+        Room? home,
         string? job = null,
-        Building? workplace = null)
+        Room? workplace = null)
     {
         Vector2I beingPos = FindPositionInFrontOfBuilding(buildingPos, buildingSize);
 
@@ -872,11 +942,11 @@ public class VillageGenerator
                 {
                     // Enable debug logging for distributor to verify behavior
                     being.DebugEnabled = true;
-                    Log.Print($"Spawned {definitionId} at {beingPos}, working at {workplace.BuildingName}, living at {home?.BuildingName ?? "unknown"} (DEBUG ENABLED)");
+                    Log.Print($"Spawned {definitionId} at {beingPos}, working at {workplace.Name}, living at {home?.Name ?? "unknown"} (DEBUG ENABLED)");
                 }
                 else
                 {
-                    Log.Print($"Spawned {definitionId} at {beingPos}, assigned to {workplace.BuildingName}");
+                    Log.Print($"Spawned {definitionId} at {beingPos}, assigned to {workplace.Name}");
                 }
             }
             else
@@ -903,14 +973,14 @@ public class VillageGenerator
     }
 
     /// <summary>
-    /// Stock a house with initial food supply.
+    /// Stock a house room with initial food supply.
     /// </summary>
-    private void StockHouseWithFood(Building house)
+    private void StockRoomWithFood(Room? room, string templateName)
     {
-        var storage = house.GetStorage();
+        var storage = room?.GetStorage();
         if (storage == null)
         {
-            Log.Warn($"House {house.BuildingName} has no storage for initial food");
+            Log.Warn($"House '{templateName}' has no storage for initial food");
             return;
         }
 
@@ -926,19 +996,31 @@ public class VillageGenerator
 
         if (storage.AddItem(bread))
         {
-            Log.Print($"Stocked {house.BuildingName} with {breadCount} bread");
+            Log.Print($"Stocked {templateName} with {breadCount} bread");
+        }
+
+        // Add initial wheat for baker households (bakers work at home)
+        var wheatDef = ItemResourceManager.Instance.GetDefinition("wheat");
+        if (wheatDef != null)
+        {
+            int wheatCount = _rng.RandiRange(5, 10);
+            var wheat = new Item(wheatDef, wheatCount);
+            if (storage.AddItem(wheat))
+            {
+                Log.Print($"Stocked {templateName} with {wheatCount} wheat");
+            }
         }
     }
 
     /// <summary>
-    /// Stock a granary with initial food supplies for distribution.
+    /// Stock a granary room with initial food supplies for distribution.
     /// </summary>
-    private void StockGranaryWithFood(Building granary)
+    private void StockRoomWithGranaryFood(Room? room, string templateName)
     {
-        var storage = granary.GetStorage();
+        var storage = room?.GetStorage();
         if (storage == null)
         {
-            Log.Warn($"Granary {granary.BuildingName} has no storage for initial food");
+            Log.Warn($"Granary '{templateName}' has no storage for initial food");
             return;
         }
 
@@ -949,7 +1031,7 @@ public class VillageGenerator
             int breadCount = _rng.RandiRange(20, 30);
             var bread = new Item(breadDef, breadCount);
             storage.AddItem(bread);
-            Log.Print($"Stocked {granary.BuildingName} with {breadCount} bread");
+            Log.Print($"Stocked {templateName} with {breadCount} bread");
         }
 
         // Add wheat for baker households
@@ -959,19 +1041,19 @@ public class VillageGenerator
             int wheatCount = _rng.RandiRange(30, 50);
             var wheat = new Item(wheatDef, wheatCount);
             storage.AddItem(wheat);
-            Log.Print($"Stocked {granary.BuildingName} with {wheatCount} wheat");
+            Log.Print($"Stocked {templateName} with {wheatCount} wheat");
         }
     }
 
     /// <summary>
-    /// Stock a graveyard with initial corpses.
+    /// Stock a graveyard room with initial corpses.
     /// </summary>
-    private void StockGraveyardWithCorpses(Building graveyard)
+    private void StockRoomWithCorpses(Room? room, string templateName)
     {
-        var storage = graveyard.GetStorage();
+        var storage = room?.GetStorage();
         if (storage == null)
         {
-            Log.Warn($"Graveyard {graveyard.BuildingName} has no storage for corpses");
+            Log.Warn($"Graveyard '{templateName}' has no storage for corpses");
             return;
         }
 
@@ -991,69 +1073,7 @@ public class VillageGenerator
             storage.AddItem(corpse);
         }
 
-        Log.Print($"Stocked {graveyard.BuildingName} with {corpseCount} corpses");
-    }
-
-    /// <summary>
-    /// Spawns an undead near a graveyard and sets it as their home.
-    /// Uses the data-driven BeingResourceManager system for entity creation.
-    /// </summary>
-    /// <param name="buildingPos">Position of the graveyard.</param>
-    /// <param name="buildingSize">Size of the graveyard.</param>
-    /// <param name="definitionId">The being definition ID (e.g., "mindless_skeleton", "mindless_zombie").</param>
-    /// <param name="homeGraveyard">The graveyard building to set as home.</param>
-    private void SpawnUndeadNearBuilding(Vector2I buildingPos, Vector2I buildingSize, string definitionId, Building homeGraveyard)
-    {
-        // Find a position in front of the building
-        Vector2I beingPos = FindPositionInFrontOfBuilding(buildingPos, buildingSize);
-
-        // Ensure the position is valid and not occupied
-        if (beingPos != buildingPos && _gridArea.IsCellWalkable(beingPos))
-        {
-            // Pass home graveyard as runtime parameter for zombie traits
-            var runtimeParams = new Dictionary<string, object?>
-            {
-                { "home", homeGraveyard }
-            };
-
-            var being = SpawnGenericBeing(definitionId, beingPos, runtimeParams);
-            if (being != null)
-            {
-                Log.Print($"Spawned {definitionId} at {beingPos} (home: {homeGraveyard.BuildingName})");
-            }
-        }
-        else
-        {
-            Log.Error($"Could not find valid position to spawn undead near building at {buildingPos}");
-        }
-    }
-
-    /// <summary>
-    /// Spawns a GenericBeing from a definition ID with optional runtime parameters.
-    /// </summary>
-    /// <param name="definitionId">The being definition ID (e.g., "mindless_skeleton", "mindless_zombie", "human_townsfolk").</param>
-    /// <param name="position">The grid position to spawn at.</param>
-    /// <param name="runtimeParams">Optional runtime parameters to pass to traits (e.g., home building).</param>
-    /// <returns>The spawned Being, or null if creation failed.</returns>
-    private Being? SpawnGenericBeing(string definitionId, Vector2I position, Dictionary<string, object?>? runtimeParams = null)
-    {
-        // Create from definition
-        var being = GenericBeing.CreateFromDefinition(definitionId, runtimeParams);
-        if (being == null)
-        {
-            Log.Error($"VillageGenerator: Failed to create being from definition '{definitionId}'");
-            return null;
-        }
-
-        // Initialize
-        being.Initialize(_gridArea, position, _gameController);
-
-        // Add to scene tree (triggers _Ready which loads traits from definition)
-        _gridArea.AddEntity(position, being);
-        _entitiesContainer.AddChild(being);
-        _entityThinkingSystem.RegisterEntity(being);
-
-        return being;
+        Log.Print($"Stocked {templateName} with {corpseCount} corpses");
     }
 
     /// <summary>
@@ -1255,7 +1275,7 @@ public class VillageGenerator
     private bool IsValidSpawnPosition(Vector2I pos)
     {
         // Check bounds and occupancy
-        return IsPositionInWorldBounds(pos) && _gridArea.IsCellWalkable(pos);
+        return IsPositionInWorldBounds(pos) && _gridArea.IsCellWalkable(pos) && !_gridArea.EntitiesGridSystem.IsCellOccupied(pos);
     }
 
     /// <summary>
@@ -1309,33 +1329,43 @@ public class VillageGenerator
     /// </summary>
     public void CreateVillagePaths(Vector2I villageCenter)
     {
-        List<(Vector2I position, Vector2I entrance, string type)> buildings = [];
+        List<(Vector2I position, Vector2I entrance, string type)> buildingInfos = [];
 
-        // Collect all buildings and their entrance positions
-        foreach (var entity in _entitiesContainer.GetChildren())
+        // Collect all rooms and their representative positions from the village
+        if (_currentVillage != null)
         {
-            if (entity is Building building)
+            foreach (var room in _currentVillage.Rooms)
             {
-                Vector2I buildingPos = building.GetCurrentGridPosition();
+                // Use the first tile of the room as representative position
+                Vector2I roomPos = Vector2I.Zero;
+                foreach (var tile in room.Tiles)
+                {
+                    roomPos = tile;
+                    break;
+                }
 
-                // Get entrance positions directly from the building
-                var entrancePositions = building.GetEntrancePositions();
+                // Use the first door position as entrance, or room position
+                Vector2I entrancePos = room.Doors.Count > 0
+                    ? room.Doors[0].GridPosition
+                    : roomPos;
 
-                // Use the first entrance position if available, otherwise use building position
-                Vector2I entrancePos = entrancePositions.Count > 0 ? entrancePositions[0] : buildingPos;
+                if (room.Type == null)
+                {
+                    Log.Warn($"VillageGenerator: Room '{room.Name}' has no Type during path creation");
+                }
 
-                buildings.Add((buildingPos, entrancePos, building.BuildingType));
+                buildingInfos.Add((roomPos, entrancePos, room.Type ?? string.Empty));
             }
         }
 
         // Create paths from each building to the village center
-        foreach (var building in buildings)
+        foreach (var info in buildingInfos)
         {
-            CreatePath(building.entrance, villageCenter);
+            CreatePath(info.entrance, villageCenter);
         }
 
         // Optionally, create paths between related buildings
-        ConnectRelatedBuildings(buildings);
+        ConnectRelatedBuildings(buildingInfos);
     }
 
     /// <summary>
@@ -1438,6 +1468,24 @@ public class VillageGenerator
         }
 
         return path;
+    }
+
+    /// <summary>
+    /// Returns a short localized display label for a building type, used when constructing
+    /// disambiguated room names such as "House 1" or "Farm 2".
+    /// </summary>
+    private static string GetShortBuildingType(string buildingType)
+    {
+        return buildingType switch
+        {
+            "Simple House" => L.Tr("building.short.HOUSE"),
+            "Scholar's House" => L.Tr("building.short.SCHOLARS_HOUSE"),
+            "Simple Farm" => L.Tr("building.short.FARM"),
+            "Granary" => L.Tr("building.short.GRANARY"),
+            "Graveyard" => L.Tr("building.short.GRAVEYARD"),
+            "Well" => L.Tr("building.short.WELL"),
+            _ => buildingType
+        };
     }
 
     /// <summary>

@@ -1,4 +1,5 @@
 using VeilOfAges.Entities.Items;
+using VeilOfAges.Entities.Traits;
 
 namespace VeilOfAges.Entities.Actions;
 
@@ -6,11 +7,11 @@ namespace VeilOfAges.Entities.Actions;
 /// Action to consume (remove) items from a building's storage for in-place processing.
 /// Unlike TakeFromStorageAction, the items are consumed directly at the workstation
 /// rather than being transferred to inventory. Used for crafting reactions.
-/// Requires entity to be adjacent to the building.
+/// Requires entity to be adjacent to the facility.
 /// </summary>
 public class ConsumeFromStorageAction : EntityAction
 {
-    private readonly Building _building;
+    private readonly Facility _facility;
     private readonly string _itemDefId;
     private readonly int _quantity;
     private Item? _consumedItem;
@@ -28,13 +29,13 @@ public class ConsumeFromStorageAction : EntityAction
     public ConsumeFromStorageAction(
         Being entity,
         object source,
-        Building building,
+        Facility facility,
         string itemDefId,
         int quantity,
         int priority = 0)
         : base(entity, source, priority: priority)
     {
-        _building = building;
+        _facility = facility;
         _itemDefId = itemDefId;
         _quantity = quantity;
     }
@@ -42,12 +43,12 @@ public class ConsumeFromStorageAction : EntityAction
     public override bool Execute()
     {
         // Check adjacency
-        if (!Entity.CanAccessBuildingStorage(_building))
+        if (!Entity.CanAccessFacility(_facility))
         {
             return false;
         }
 
-        var storage = _building.GetStorage();
+        var storage = _facility.SelfAsEntity().GetTrait<StorageTrait>();
         if (storage == null)
         {
             return false;
@@ -68,7 +69,7 @@ public class ConsumeFromStorageAction : EntityAction
         }
 
         // Update entity's memory about storage contents
-        Entity.Memory?.ObserveStorage(_building, storage);
+        Entity.Memory?.ObserveStorage(_facility, storage);
 
         return true;
     }

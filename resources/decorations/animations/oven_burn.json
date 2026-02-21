@@ -1,0 +1,18 @@
+{
+    "Id": "oven_burn",
+    "Name": "Oven Burning",
+    "SpriteSize": [32, 32],
+    "Animations": {
+        "idle": {
+            "TexturePath": "res://assets/custom/custom_atlas.png",
+            "FrameWidth": 32,
+            "FrameHeight": 32,
+            "FrameCount": 8,
+            "FrameRow": 1,
+            "StartColumn": 0,
+            "Speed": 8.0,
+            "Loop": true,
+            "Separation": 0
+        }
+    }
+}

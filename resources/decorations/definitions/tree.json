@@ -2,6 +2,6 @@
     "Id": "tree",
     "Name": "Tree",
     "AtlasSource": "dcss",
-    "AtlasCoords": [14, 13],
+    "AtlasCoords": [13, 13],
     "TileSize": [1, 1]
 }

@@ -126,40 +126,55 @@ Contains the `BuildingReference` class and `SharedKnowledge` base class:
 - `Position` - Cached entrance/origin position (thread-safe)
 - `BuildingType` - Cached type for filtering (thread-safe)
 - `BuildingName` - Cached name for display (thread-safe)
+- `Area` - The area this building is in (for cross-area routing)
 - `IsValid` - Whether building still exists
+
+**FacilityReference** - Lightweight reference to a facility:
+- `Facility` - The referenced `Facility` (may become invalid)
+- `Position` - Cached grid position (thread-safe)
+- `Area` - The area this facility is in (for cross-area routing)
+- `IsValid` - Whether facility still exists
 
 **SharedKnowledge** - Base class for shared knowledge scopes:
 - `Id`, `Name`, `ScopeType` - Identification properties
 - Building location registry (scope-appropriate granularity)
+- Facility registry (facility type -> `FacilityReference` list); also indexed by storage tag via `_facilitiesByStorageTag` (the only tag system — there is no room-level tag system)
+- Transition point registry (for cross-area routing)
 - Landmark storage (named positions like "town_square")
 - General facts (key-value for flexibility)
 - Query methods (all return thread-safe snapshot copies):
   - `GetBuildingsOfType()`, `GetAllBuildings()` - Building queries
   - `TryGetBuildingOfType()`, `GetNearestBuildingOfType()` - Building lookup
   - `GetKnownBuildingTypes()` - List known building types
+  - `GetFacilitiesOfType(facilityType)` - Get all valid facilities of a type
+  - `GetFacilitiesByTag(storageTag)` - Get all valid facilities whose `StorageTrait.Tags` includes the given tag
+  - `GetNearestFacilityOfType(facilityType, currentArea, fromPosition)` - Find nearest facility with same-area preference
+  - `GetAllFacilityReferences()` - Get all valid facility references across all facility types
+  - `GetAllTransitionPoints()`, `GetTransitionPointsInArea(area)` - Transition point queries
   - `TryGetLandmark()`, `GetAllLandmarkNames()` - Landmark queries
   - `TryGetFact()`, `GetAllFactKeys()` - Fact queries
-- Registration methods: `RegisterBuilding()`, `UnregisterBuilding()` (main thread only)
-- Cleanup: `CleanupInvalidReferences()` for removing destroyed buildings
+- Registration methods: `RegisterBuilding()`, `UnregisterBuilding()` (main thread only); `RegisterFacility(facility)` takes a `Facility` directly (main thread only)
+- Cleanup: `CleanupInvalidReferences()` for removing destroyed buildings and invalid facility references
 
 ### PersonalMemory.cs
 Per-entity memory storage with built-in data types:
 
 **Data Types** (defined in same file):
 - `ItemSnapshot` - Immutable record of item type/quantity observed
-- `StorageObservation` - What entity saw in a storage container with expiration
+- `StorageObservation` - What entity saw in a storage container with expiration. Has `Facility` property (keyed by `Facility`, not `Building`).
 - `EntitySighting` - Where entity last saw another entity with expiration
 - `LocationMemory` - Memory of visiting a location with expiration
+- `FacilityObservation` - Personally discovered facility with building, area, position, and expiration
 
 **PersonalMemory Class**:
 - Owner reference for context
 - Configurable expiration durations: `DefaultMemoryDuration`, `StorageMemoryDuration`, `EntitySightingDuration`
 
 **Storage Observation Methods**:
-- `ObserveStorage(building, storage)` - Record observation of storage contents
-- `RecallStorageContents(building)` - Get remembered contents for a building
-- `RecallStorageWithItem(itemTag)` - Find buildings with remembered item by tag
-- `RecallStorageWithItemById(itemDefId)` - Find buildings with remembered item by ID
+- `ObserveStorage(facility, storage)` - Record observation of storage contents (keyed by `Facility`)
+- `RecallStorageContents(facility)` - Get remembered contents for a facility
+- `RecallStorageWithItem(itemTag)` - Find facilities with remembered item by tag
+- `RecallStorageWithItemById(itemDefId)` - Find facilities with remembered item by ID
 - `RemembersItemAvailable(itemTag)` - Check if any storage had item by tag
 - `RemembersItemAvailableById(itemDefId)` - Check if any storage had item by ID
 - `GetAllStorageObservations()` - Get all valid storage observations
@@ -169,6 +184,10 @@ Per-entity memory storage with built-in data types:
 - `RecallEntityLocation(entity)` - Get last known location
 - `GetAllEntitySightings()` - Get all valid sightings
 - `GetSightingsOfType<T>()` - Get sightings filtered by entity type
+
+**Facility Observation Methods**:
+- `ObserveFacility(facilityType, building, area, position)` - Record discovering a facility
+- `RecallFacilitiesOfType(facilityType)` - Get remembered facilities of type (valid and not expired)
 
 **Location Memory Methods**:
 - `RememberLocation(position, description)` - Record visiting a place
@@ -191,20 +210,28 @@ Being.cs provides wrapper methods and combined lookup functionality for the memo
 
 ### Storage ACTION Methods (Require Physical Proximity)
 These methods REQUIRE the entity to be adjacent to the building (within 1 tile). They return null/false if the entity is not physically present:
+
+Building-based overloads internally resolve Building→Facility via `GetStorageFacility()`:
 - `AccessStorage(building)` - Get storage and observe contents (returns null if not adjacent)
 - `TakeFromStorage(building, itemDefId, quantity)` - Take item and observe (returns null if not adjacent)
 - `TakeFromStorageByTag(building, itemTag, quantity)` - Take by tag and observe (returns null if not adjacent)
 - `PutInStorage(building, item)` - Put item and observe (returns false if not adjacent)
 
+Facility-based overloads (preferred for post-Phase-2 code):
+- `CanAccessFacility(facility)` - Check if entity is physically adjacent to the facility
+- `TakeFromFacilityStorage(facility, itemDefId, quantity)` - Take and observe (returns null if not adjacent)
+- `TakeFromFacilityStorageByTag(facility, itemTag, quantity)` - Take by tag and observe (returns null if not adjacent)
+- `PutInFacilityStorage(facility, item)` - Put and observe (returns false if not adjacent)
+
 ### Storage CHECK Methods (Memory Only - No Proximity Required)
-These methods query MEMORY ONLY and do NOT access real storage. They can be called from anywhere:
+These methods query MEMORY ONLY and do NOT access real storage. They can be called from anywhere. Internally resolve Building→Facility via `GetStorageFacility()` for memory lookup:
 - `StorageHasItem(building, itemDefId, quantity)` - Check MEMORY for item
 - `StorageHasItemByTag(building, itemTag)` - Check MEMORY for item by tag
 - `GetStorageItemCount(building, itemDefId)` - Get REMEMBERED count (may be stale)
 
 ### Combined Knowledge Lookup
 These methods search both PersonalMemory and SharedKnowledge:
-- `FindItemLocations(itemTag)` - Find buildings with item by tag, personal memory first
+- `FindItemLocations(itemTag)` - Find buildings with item by tag, personal memory first. Internally uses Facility-keyed PersonalMemory observations but returns `(Building, int)` for callers.
 - `FindItemLocationsById(itemDefId)` - Find buildings with item by ID, personal memory first
 - `FindItemInBuildingType(itemTag, buildingType)` - Filter by building type
 - `HasIdeaWhereToFind(itemTag)` - Quick check if any leads exist

@@ -16,6 +16,8 @@ namespace VeilOfAges.UI.Commands;
 public class MoveToCommand(Being owner, Being commander, bool isComplex = false)
 : EntityCommand(owner, commander, isComplex)
 {
+    public override string DisplayName => L.Tr("command.MOVE_TO");
+
     private Vector2I? _targetPos;
     private Being? _targetEntity;
     private bool _goalSet;

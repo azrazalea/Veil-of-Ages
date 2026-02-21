@@ -5,7 +5,16 @@ using VeilOfAges.Grid;
 
 namespace VeilOfAges.Entities;
 
-public interface IEntity<TraitType> : ISensable
+/// <summary>
+/// Non-generic base interface for all grid entities.
+/// Provides walkability information used by the pathfinding system.
+/// </summary>
+public interface IEntity
+{
+    bool IsWalkable { get; }
+}
+
+public interface IEntity<TraitType> : IEntity, ISensable
     where TraitType : Trait
 {
     Area? GridArea { get; }

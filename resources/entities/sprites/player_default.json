@@ -1,15 +1,14 @@
 {
   "Id": "player_default",
   "Name": "Player Default Sprites",
-  "TexturePath": "res://assets/dcss/ProjectUtumno_full.png",
-  "SpriteSize": [32, 32],
+  "AtlasSource": "dcss",
   "Layers": [
-    { "Name": "body", "Row": 80, "Col": 8 },
-    { "Name": "boots", "Row": 84, "Col": 3 },
-    { "Name": "gloves", "Row": 84, "Col": 50 },
-    { "Name": "clothing_outer", "Row": 83, "Col": 13 },
-    { "Name": "hair", "Row": 85, "Col": 21 },
-    { "Name": "headwear", "Row": 93, "Col": 20 },
-    { "Name": "held_item", "Row": 86, "Col": 28 }
+    { "Name": "body", "Row": 79, "Col": 62 },
+    { "Name": "boots", "Row": 83, "Col": 57 },
+    { "Name": "gloves", "Row": 84, "Col": 40 },
+    { "Name": "clothing_outer", "Row": 83, "Col": 3 },
+    { "Name": "hair", "Row": 85, "Col": 11 },
+    { "Name": "headwear", "Row": 93, "Col": 10 },
+    { "Name": "held_item", "Row": 86, "Col": 18 }
   ]
 }

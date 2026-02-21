@@ -7,9 +7,7 @@ using VeilOfAges.Entities.Activities;
 using VeilOfAges.Entities.Beings.Health;
 using VeilOfAges.Entities.Items;
 using VeilOfAges.Entities.Memory;
-using VeilOfAges.Entities.Needs;
 using VeilOfAges.Entities.Sensory;
-using VeilOfAges.UI;
 
 namespace VeilOfAges.Entities.Traits;
 
@@ -25,15 +23,14 @@ public class VillagerTrait : BeingTrait
     {
         IdleAtHome,
         IdleAtSquare,
-        VisitingBuilding,
-        Sleeping
+        VisitingBuilding
     }
 
     private VillagerState _currentState = VillagerState.IdleAtHome;
 
     // Village knowledge
-    private Building? _wellBuilding;
-    private Building? _currentDestinationBuilding;
+    private RoomReference? _wellRoomRef;
+    private Room? _currentDestinationRoom;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="VillagerTrait"/> class.
@@ -45,9 +42,9 @@ public class VillagerTrait : BeingTrait
     }
 
     /// <summary>
-    /// Gets the home building from HomeTrait.
+    /// Gets the home room from HomeTrait.
     /// </summary>
-    private Building? GetHome() => _owner?.SelfAsEntity().GetTrait<HomeTrait>()?.Home;
+    private Room? GetHome() => _owner?.SelfAsEntity().GetTrait<HomeTrait>()?.Home;
 
     /// <summary>
     /// Validates that the trait has all required configuration.
@@ -72,14 +69,14 @@ public class VillagerTrait : BeingTrait
     {
         base.Initialize(owner, health, initQueue);
 
-        // Find the well building from SharedKnowledge (village gathering point)
+        // Find the well room from SharedKnowledge (village gathering point)
         if (owner != null)
         {
             foreach (var knowledge in owner.SharedKnowledge)
             {
-                if (knowledge.TryGetBuildingOfType("Well", out var wellRef) && wellRef?.Building != null)
+                if (knowledge.TryGetRoomOfType("Well", out var wellRef) && wellRef?.Room != null)
                 {
-                    _wellBuilding = wellRef.Building;
+                    _wellRoomRef = wellRef;
                     break;
                 }
             }
@@ -97,7 +94,7 @@ public class VillagerTrait : BeingTrait
         var home = GetHome();
         if (home != null)
         {
-            Log.Print($"{_owner?.Name}: Villager trait initialized with home {home.BuildingName}");
+            Log.Print($"{_owner?.Name}: Villager trait initialized with home {home.Name}");
         }
         else
         {
@@ -105,32 +102,6 @@ public class VillagerTrait : BeingTrait
         }
 
         IsInitialized = true;
-    }
-
-    /// <summary>
-    /// Check if the entity is currently inside their home building.
-    /// </summary>
-    private bool IsAtHome()
-    {
-        var home = GetHome();
-        if (_owner == null || home == null)
-        {
-            return false;
-        }
-
-        Vector2I entityPos = _owner.GetCurrentGridPosition();
-        Vector2I homePos = home.GetCurrentGridPosition();
-        var interiorPositions = home.GetInteriorPositions();
-
-        foreach (var relativePos in interiorPositions)
-        {
-            if (entityPos == homePos + relativePos)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     public override EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
@@ -148,35 +119,14 @@ public class VillagerTrait : BeingTrait
 
         // Get current activity for debugging
         var currentActivity = _owner.GetCurrentActivity();
-        var gameTime = _owner.GameController?.CurrentGameTime ?? new GameTime(0);
-
-        // Only sleep during Night phase - Dusk is evening idle time
-        bool shouldSleep = gameTime.CurrentDayPhase is DayPhaseType.Night;
 
         // Debug: Log current state periodically
-        DebugLog("SLEEP", $"State: {_currentState}, Phase: {gameTime.CurrentDayPhase}, ShouldSleep: {shouldSleep}, Activity: {currentActivity?.GetType().Name ?? "none"}");
+        DebugLog("VILLAGER", $"State: {_currentState}, Activity: {currentActivity?.GetType().Name ?? "none"}");
 
-        // If already sleeping, let the activity handle it
+        // If sleeping (managed by ScheduleTrait), don't suggest anything
         if (currentActivity is SleepActivity)
         {
-            DebugLog("SLEEP", "Already sleeping, returning null");
             return null;
-        }
-
-        // If nighttime and not already heading home or sleeping, go home
-        if (shouldSleep && _currentState != VillagerState.Sleeping &&
-            _currentState != VillagerState.IdleAtHome)
-        {
-            DebugLog("SLEEP", $"Night time but state is {_currentState}, changing to IdleAtHome");
-            ChangeState(VillagerState.IdleAtHome, "Night time, heading home");
-            _stateTimer = 0;
-        }
-
-        // If daytime and sleeping, wake up
-        if (!shouldSleep && _currentState == VillagerState.Sleeping)
-        {
-            ChangeState(VillagerState.IdleAtHome, "Woke up");
-            _stateTimer = IdleTime;
         }
 
         // Periodic storage debug logging
@@ -192,91 +142,80 @@ public class VillagerTrait : BeingTrait
         switch (_currentState)
         {
             case VillagerState.IdleAtHome:
-                return ProcessIdleAtHomeState(shouldSleep);
+                return ProcessIdleAtHomeState();
             case VillagerState.IdleAtSquare:
                 return ProcessIdleAtSquareState();
             case VillagerState.VisitingBuilding:
                 return ProcessVisitingBuildingState();
-            case VillagerState.Sleeping:
-                return ProcessSleepingState();
             default:
                 return new IdleAction(_owner, this);
         }
     }
 
-    private EntityAction? ProcessIdleAtHomeState(bool shouldSleep = false)
+    private EntityAction? ProcessIdleAtHomeState()
     {
-        var home = GetHome();
-        if (_owner == null || home == null)
+        var homeRoom = GetHome();
+        var homeTrait = _owner?.SelfAsEntity().GetTrait<HomeTrait>();
+        if (_owner == null || homeRoom == null)
         {
-            DebugLog("SLEEP", $"ProcessIdleAtHomeState: owner or home is null", 0);
+            DebugLog("VILLAGER", $"ProcessIdleAtHomeState: owner or home is null", 0);
             return null;
         }
 
         var currentActivity = _owner.GetCurrentActivity();
 
         // Check if already navigating via an activity (let it handle things)
-        if (currentActivity is GoToBuildingActivity)
+        if (currentActivity is GoToRoomActivity)
         {
-            DebugLog("SLEEP", $"ProcessIdleAtHomeState: Already navigating (GoToBuildingActivity), returning null");
+            DebugLog("VILLAGER", $"ProcessIdleAtHomeState: Already navigating (GoToRoomActivity), returning null");
             return null;
         }
 
         // If not at home, start navigation
-        if (!IsAtHome())
+        if (homeTrait != null && !homeTrait.IsEntityAtHome())
         {
-            DebugLog("SLEEP", $"ProcessIdleAtHomeState: Not at home, starting navigation. ShouldSleep={shouldSleep}");
-            var newGoHomeActivity = new GoToBuildingActivity(home, priority: 1);
+            DebugLog("VILLAGER", $"ProcessIdleAtHomeState: Not at home, starting navigation");
+            var newGoHomeActivity = new GoToRoomActivity(homeRoom, priority: 1);
             return new StartActivityAction(_owner, this, newGoHomeActivity, priority: 1);
         }
 
-        // We're at home - proceed with at-home logic
-        DebugLog("SLEEP", $"ProcessIdleAtHomeState: At home. ShouldSleep={shouldSleep}, CurrentActivity={currentActivity?.GetType().Name ?? "none"}");
-
-        // Should we sleep?
-        if (shouldSleep)
-        {
-            DebugLog("SLEEP", "ProcessIdleAtHomeState: Starting SleepActivity with priority -1", 0);
-            ChangeState(VillagerState.Sleeping, "Going to sleep");
-            var sleepActivity = new SleepActivity(priority: -1);
-            return new StartActivityAction(_owner, this, sleepActivity, priority: -1);
-        }
-
-        // Daytime behavior
+        // We're at home - daytime behavior
         if (_stateTimer == 0)
         {
             // Chance to go to the village well (gathering point)
-            if (_rng.Randf() < WanderProbability && _wellBuilding != null)
+            var wellRoom = _wellRoomRef?.Room;
+            if (_rng.Randf() < WanderProbability && wellRoom != null && !wellRoom.IsDestroyed)
             {
                 ChangeState(VillagerState.IdleAtSquare, "Going to village well");
                 _stateTimer = (uint)_rng.RandiRange(100, 200);
-                var goToWellActivity = new GoToBuildingActivity(_wellBuilding, priority: 1, requireInterior: false);
+                var goToWellActivity = new GoToRoomActivity(wellRoom, priority: 1, requireInterior: false);
                 return new StartActivityAction(_owner, this, goToWellActivity, priority: 1);
             }
 
-            // Chance to visit a building (using SharedKnowledge)
+            // Chance to visit a room (using SharedKnowledge)
             if (_rng.Randf() < VisitBuildingProbability)
             {
-                // Get all known buildings from SharedKnowledge (using thread-safe method)
-                // Note: 'home' is already defined at the start of this method
-                var knownBuildings = _owner.SharedKnowledge
-                    .SelectMany(k => k.GetAllBuildings())
-                    .Where(b => b.IsValid && b.Building != home) // Exclude home and invalid refs
+                // Get all known rooms from SharedKnowledge (using thread-safe method)
+                // Note: 'homeRoom' is already defined at the start of this method
+                var knownRooms = _owner.SharedKnowledge
+                    .SelectMany(k => k.GetAllRooms())
+                    .Where(r => r.IsValid && r.Room != homeRoom) // Exclude home and invalid refs
                     .ToList();
 
-                if (knownBuildings.Count > 0)
+                if (knownRooms.Count > 0)
                 {
-                    var selectedRef = knownBuildings[_rng.RandiRange(0, knownBuildings.Count - 1)];
-                    _currentDestinationBuilding = selectedRef.Building;
+                    var selectedRef = knownRooms[_rng.RandiRange(0, knownRooms.Count - 1)];
+                    var selectedRoom = selectedRef.Room;
 
-                    if (_currentDestinationBuilding != null)
+                    if (selectedRoom != null)
                     {
-                        ChangeState(VillagerState.VisitingBuilding, $"Visiting {_currentDestinationBuilding.BuildingType}");
+                        _currentDestinationRoom = selectedRoom;
+                        ChangeState(VillagerState.VisitingBuilding, $"Visiting {selectedRef.RoomType}");
                         _stateTimer = (uint)_rng.RandiRange(80, 150);
 
                         // Use requireInterior: false so villagers can visit buildings by standing nearby
                         // (e.g., gathering at the well doesn't require going inside)
-                        var visitActivity = new GoToBuildingActivity(_currentDestinationBuilding, priority: 1, requireInterior: false);
+                        var visitActivity = new GoToRoomActivity(selectedRoom, priority: 1, requireInterior: false);
                         return new StartActivityAction(_owner, this, visitActivity, priority: 1);
                     }
                 }
@@ -303,23 +242,27 @@ public class VillagerTrait : BeingTrait
             return null;
         }
 
-        // Check if GoToBuildingActivity is still running
-        if (_owner.GetCurrentActivity() is GoToBuildingActivity)
+        // Check if GoToRoomActivity is still running
+        if (_owner.GetCurrentActivity() is GoToRoomActivity)
         {
             // Let the activity handle navigation
             return null;
         }
 
         // Activity completed or not started - check if we're near the well
-        if (_wellBuilding != null)
+        if (_wellRoomRef != null && _wellRoomRef.IsValid)
         {
             Vector2I currentPos = _owner.GetCurrentGridPosition();
-            Vector2I wellPos = _wellBuilding.GetCurrentGridPosition();
+            Vector2I wellPos = _wellRoomRef.Position;
             if (currentPos.DistanceTo(wellPos) > 3)
             {
-                // Need to navigate to well (activity failed or wasn't started)
-                var goToWellActivity = new GoToBuildingActivity(_wellBuilding, priority: 1, requireInterior: false);
-                return new StartActivityAction(_owner, this, goToWellActivity, priority: 1);
+                var wellRoom = _wellRoomRef.Room;
+                if (wellRoom != null && !wellRoom.IsDestroyed)
+                {
+                    // Need to navigate to well (activity failed or wasn't started)
+                    var goToWellActivity = new GoToRoomActivity(wellRoom, priority: 1, requireInterior: false);
+                    return new StartActivityAction(_owner, this, goToWellActivity, priority: 1);
+                }
             }
         }
 
@@ -347,14 +290,14 @@ public class VillagerTrait : BeingTrait
             return null;
         }
 
-        if (_currentDestinationBuilding == null)
+        if (_currentDestinationRoom == null || _currentDestinationRoom.IsDestroyed)
         {
-            ChangeState(VillagerState.IdleAtHome, "No destination building");
+            ChangeState(VillagerState.IdleAtHome, "No destination room");
             return null;
         }
 
-        // Check if GoToBuildingActivity is still running
-        if (_owner.GetCurrentActivity() is GoToBuildingActivity)
+        // Check if GoToRoomActivity is still running
+        if (_owner.GetCurrentActivity() is GoToRoomActivity)
         {
             // Let the activity handle navigation
             return null;
@@ -370,26 +313,6 @@ public class VillagerTrait : BeingTrait
         }
 
         // We're at the building, idle until timer expires
-        return new IdleAction(_owner, this, priority: 1);
-    }
-
-    private EntityAction? ProcessSleepingState()
-    {
-        if (_owner == null)
-        {
-            return null;
-        }
-
-        // Check if sleep activity is still running
-        if (_owner.GetCurrentActivity() is SleepActivity)
-        {
-            // Let the activity handle things
-            return null;
-        }
-
-        // Activity completed or was interrupted - transition back to idle at home
-        ChangeState(VillagerState.IdleAtHome, "Sleep activity ended");
-        _stateTimer = IdleTime;
         return new IdleAction(_owner, this, priority: 1);
     }
 
@@ -416,20 +339,23 @@ public class VillagerTrait : BeingTrait
     /// </summary>
     private void LogHomeStorage()
     {
-        var home = GetHome();
-        if (_owner?.DebugEnabled != true || home == null || !GodotObject.IsInstanceValid(home))
+        var homeRoom = GetHome();
+        if (_owner?.DebugEnabled != true || homeRoom == null || homeRoom.IsDestroyed)
         {
             return;
         }
 
-        var homeStorage = home.GetStorage();
+        var homeStorage = homeRoom.GetStorage();
         if (homeStorage != null)
         {
             var realContents = homeStorage.GetContentsSummary();
 
             // Get remembered contents
             var memoryContents = "nothing (no memory)";
-            var storageMemory = _owner.Memory?.RecallStorageContents(home);
+            var homeStorageFacility = homeRoom.GetStorageFacility();
+            var storageMemory = homeStorageFacility != null
+                ? _owner.Memory?.RecallStorageContents(homeStorageFacility)
+                : null;
             if (storageMemory != null)
             {
                 var rememberedItems = storageMemory.Items
@@ -438,7 +364,7 @@ public class VillagerTrait : BeingTrait
                 memoryContents = rememberedItems.Count > 0 ? string.Join(", ", rememberedItems) : "empty";
             }
 
-            DebugLog("STORAGE", $"[{home.BuildingName}] Real: {realContents} | Remembered: {memoryContents}");
+            DebugLog("STORAGE", $"[{homeRoom.Name}] Real: {realContents} | Remembered: {memoryContents}");
         }
 
         var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();

@@ -9,9 +9,9 @@ Contains JSON definitions for sprite atlas sources. Each file defines a texture 
 | File | ID | Description | Texture Source |
 |------|-----|-------------|----------------|
 | `kenney_1bit.json` | `kenney` | Primary building and terrain tiles | Kenney 1-Bit Colored Pack (2x upscaled) |
-| `dcss_utumno.json` | `dcss` | Dungeon and environmental tiles | DCSS ProjectUtumno |
-| `dcss_supplemental.json` | `dcss_supplemental` | Player doll overlays, extra sprites | DCSS Supplemental Atlas |
-| `urizen_onebit.json` | `urizen` | UI elements and small props | Urizen OneBit V2 (upscaled to 32x32) |
+| `dcss_utumno.json` | `dcss` | Dungeon and environmental tiles | DCSS Combined Atlas |
+| `urizen_onebit.json` | `urizen` | Primary Urizen tiles (black bg) | Urizen OneBit V2 Black (upscaled to 32x32) |
+| `urizen_onebit_transparent.json` | `urizen_transparent` | Urizen tiles with transparent bg (unused) | Urizen OneBit V2 Transparent (upscaled to 32x32) |
 | `custom.json` | `custom` | Original pixel art for Veil of Ages | Custom atlas (native 32x32) |
 
 ## Atlas Pack Details
@@ -23,25 +23,30 @@ Contains JSON definitions for sprite atlas sources. Each file defines a texture 
 - **Margin/Separation**: None
 - **Index File**: `assets/kenney/kenney_atlas_index.json`
 
-### DCSS ProjectUtumno (Main Atlas)
+### DCSS Combined Atlas
 - **Atlas ID**: `dcss`
-- **Texture**: `ProjectUtumno_full.png` (native 32x32 tiles)
+- **Texture**: `dcss_combined_atlas.png` (native 32x32 tiles)
 - **Margin/Separation**: None
-- **Index File**: `assets/dcss/dcss_utumno_index.json`
+- **Index File**: `assets/dcss/dcss_combined_index.json`
+- **Contents**: All DCSS sprites — dungeon tiles, environmental tiles, monsters, items, player doll overlays, etc.
 
-### DCSS Supplemental Atlas
-- **Atlas ID**: `dcss_supplemental`
-- **Texture**: `supplemental_atlas.png` (native 32x32 tiles)
-- **Margin/Separation**: None
-- **Index File**: `assets/dcss/dcss_supplemental_index.json`
-- **Contents**: Player doll overlays (base bodies, clothing, cloaks, hair, headwear), additional sprites
+**IMPORTANT**: The `dcss` atlas ID now points to the combined atlas (`dcss_combined_atlas.png`). The old separate PNGs (`ProjectUtumno_full.png`, `supplemental_atlas.png`) and their index files (`dcss_utumno_index.json`, `dcss_supplemental_index.json`) exist only for visual reference during migration and will be removed. Always use `dcss_combined_index.json` to look up sprite positions.
 
-**IMPORTANT**: Every individual PNG file under `assets/dcss/` (dungeon/, player/, etc.) is packed into one of these two atlases. The individual files exist ONLY for visual inspection — the game loads from atlas PNGs only.
+Every individual PNG file under `assets/dcss/` (dungeon/, player/, etc.) is packed into the combined atlas. The individual files exist ONLY for visual inspection — the game loads from `dcss_combined_atlas.png` only.
 
-### Urizen OneBit V2
+### Urizen OneBit V2 (Two Variants)
+
+The Urizen tileset has two variants sharing the same tile layout but different backgrounds:
+
+**Black Background** (primary — used by all tile definitions):
 - **Atlas ID**: `urizen`
+- **Texture**: `urizen_onebit_tileset__v2d0_32x32.png` (32x32 tiles)
+
+**Transparent Background** (available but currently unused):
+- **Atlas ID**: `urizen_transparent`
+- **Texture**: `urizen_onebit_tileset__v2d0_32x32_transparent.png` (32x32 tiles)
+
 - **Original**: `urizen_onebit_tileset__v2d0.png` (12x12 tiles, 1px margin/separation)
-- **Used Texture**: `urizen_onebit_tileset__v2d0_32x32.png` (32x32 tiles, no margin/separation)
 - **Index File**: `assets/urizen/urizen_atlas_index.json`
 
 ### Custom Assets
@@ -113,23 +118,18 @@ These are developer reference files, NOT loaded by the game engine. Workflow:
 - **Margin**: `[0, 0]`
 - **Upscaling**: 2x from 16x16 original
 
-### DCSS ProjectUtumno (Main)
+### DCSS Combined Atlas
 - **TileSize**: `[32, 32]`
 - **Separation**: `[0, 0]`
 - **Margin**: `[0, 0]`
 - **Upscaling**: None (native 32x32)
 
-### DCSS Supplemental
-- **TileSize**: `[32, 32]`
-- **Separation**: `[0, 0]`
-- **Margin**: `[0, 0]`
-- **Upscaling**: None (native 32x32)
-
-### Urizen OneBit
+### Urizen OneBit (Both Variants)
 - **TileSize**: `[32, 32]`
 - **Separation**: `[0, 0]`
 - **Margin**: `[0, 0]`
 - **Upscaling**: From 12x12 original to native 32x32
+- **Variants**: `urizen` (black bg, primary), `urizen_transparent` (transparent bg, unused)
 
 ### Custom
 - **TileSize**: `[32, 32]`

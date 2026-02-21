@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using Godot;
 using VeilOfAges.Entities;
 
 namespace VeilOfAges.Entities.Memory;
@@ -8,12 +7,12 @@ namespace VeilOfAges.Entities.Memory;
 /// <summary>
 /// Represents a delivery target for the distributor.
 /// </summary>
-/// <param name="Household">The building to deliver to.</param>
+/// <param name="Household">The household room to deliver to.</param>
 /// <param name="ItemId">The item definition ID to deliver.</param>
 /// <param name="DesiredQuantity">How many items the household wants.</param>
 /// <param name="Priority">Delivery priority (lower = more urgent).</param>
 public record DeliveryTarget(
-    Building Household,
+    Room Household,
     string ItemId,
     int DesiredQuantity,
     int Priority = 0);
@@ -29,14 +28,14 @@ public class StandingOrders
 
     /// <summary>
     /// Get a snapshot of all delivery targets (thread-safe).
-    /// Returns only valid buildings, sorted by priority.
+    /// Returns only valid rooms, sorted by priority.
     /// </summary>
     public List<DeliveryTarget> GetDeliveryTargets()
     {
         lock (_lock)
         {
             return _targets
-                .Where(t => GodotObject.IsInstanceValid(t.Household))
+                .Where(t => !t.Household.IsDestroyed)
                 .OrderBy(t => t.Priority)
                 .ToList();
         }
@@ -45,7 +44,7 @@ public class StandingOrders
     /// <summary>
     /// Set or update a delivery target for a household.
     /// </summary>
-    public void SetDeliveryTarget(Building household, string itemId, int desiredQuantity, int priority = 0)
+    public void SetDeliveryTarget(Room household, string itemId, int desiredQuantity, int priority = 0)
     {
         lock (_lock)
         {
@@ -62,7 +61,7 @@ public class StandingOrders
     /// <summary>
     /// Remove all targets for a household.
     /// </summary>
-    public void RemoveTargetsForHousehold(Building household)
+    public void RemoveTargetsForHousehold(Room household)
     {
         lock (_lock)
         {
@@ -71,13 +70,13 @@ public class StandingOrders
     }
 
     /// <summary>
-    /// Remove targets pointing to destroyed buildings.
+    /// Remove targets pointing to destroyed rooms.
     /// </summary>
     public void CleanupInvalidTargets()
     {
         lock (_lock)
         {
-            _targets.RemoveAll(t => !GodotObject.IsInstanceValid(t.Household));
+            _targets.RemoveAll(t => t.Household.IsDestroyed);
         }
     }
 
@@ -90,7 +89,7 @@ public class StandingOrders
         {
             lock (_lock)
             {
-                return _targets.Count(t => GodotObject.IsInstanceValid(t.Household));
+                return _targets.Count(t => !t.Household.IsDestroyed);
             }
         }
     }

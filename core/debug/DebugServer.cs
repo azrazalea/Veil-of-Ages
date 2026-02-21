@@ -48,8 +48,10 @@ public partial class DebugServer : Node
 
     public override void _Ready()
     {
+        Core.Lib.MemoryProfiler.Checkpoint("DebugServer _Ready start");
         RefreshReferences();
         StartServer();
+        Core.Lib.MemoryProfiler.Checkpoint("DebugServer _Ready end");
     }
 
     private void RefreshReferences()
@@ -289,18 +291,70 @@ public partial class DebugServer : Node
             Height = _world.WorldSizeInTiles.Y
         };
 
-        // Capture buildings (they're children of the GridArea, not Entities)
-        foreach (Node child in gridArea.GetChildren())
+        // Capture rooms from villages in the entities container
+        var entitiesContainer = _world.GetNodeOrNull<Node>("Entities");
+        if (entitiesContainer != null)
         {
-            if (child is Building building)
+            foreach (Node child in entitiesContainer.GetChildren())
             {
-                snapshot.Buildings.Add(new BuildingSnapshot
+                if (child is Village village)
                 {
-                    Name = building.Name,
-                    Type = building.BuildingType,
-                    Position = building.GetCurrentGridPosition(),
-                    Size = building.GridSize
-                });
+                    foreach (var room in village.Rooms)
+                    {
+                        var roomSnapshot = new RoomSnapshot
+                        {
+                            Id = room.Id,
+                            Name = room.Name,
+                            Type = room.Type,
+                            Purpose = room.Purpose,
+                            IsSecret = room.IsSecret,
+                            ResidentCount = room.Residents.Count,
+                            Capacity = room.Capacity,
+                            TilePositions = new List<Vector2I>(room.Tiles)
+                        };
+
+                        // Also include wall/door tile positions for ASCII rendering
+                        foreach (var wall in room.Walls)
+                        {
+                            roomSnapshot.TilePositions.Add(wall.GridPosition);
+                        }
+
+                        foreach (var door in room.Doors)
+                        {
+                            roomSnapshot.TilePositions.Add(door.GridPosition);
+                        }
+
+                        foreach (var facility in room.Facilities)
+                        {
+                            var facilitySnapshot = new FacilitySnapshot
+                            {
+                                Id = facility.Id,
+                                Position = facility.GetCurrentGridPosition(),
+                                IsWalkable = facility.IsWalkable
+                            };
+
+                            var storageTrait = facility.SelfAsEntity().GetTrait<StorageTrait>();
+                            if (storageTrait != null)
+                            {
+                                facilitySnapshot.HasStorage = true;
+                                facilitySnapshot.StorageContents = [];
+                                foreach (var item in storageTrait.GetAllItems())
+                                {
+                                    facilitySnapshot.StorageContents.Add(new ItemSnapshot
+                                    {
+                                        Id = item.Definition.Id ?? string.Empty,
+                                        Name = item.Definition.Name ?? string.Empty,
+                                        Quantity = item.Quantity
+                                    });
+                                }
+                            }
+
+                            roomSnapshot.Facilities.Add(facilitySnapshot);
+                        }
+
+                        snapshot.Rooms.Add(roomSnapshot);
+                    }
+                }
             }
         }
 

@@ -1,15 +1,16 @@
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
+using VeilOfAges.Entities.Memory;
 using VeilOfAges.Entities.Needs;
 using VeilOfAges.Entities.Sensory;
 
 namespace VeilOfAges.Entities.Activities;
 
 /// <summary>
-/// Activity for studying necromancy and dark arts at home.
+/// Activity for studying necromancy and dark arts at a necromancy_altar facility.
 /// Phases:
-/// 1. Navigate to home building (if not already there)
+/// 1. Navigate to the necromancy_altar (cross-area if needed)
 /// 2. Study dark arts (idle, spend energy, gain necromancy + arcane_theory XP)
 /// Completes after study duration or if energy is low (to allow sleep).
 /// Drains energy faster than normal study (dark arts are demanding).
@@ -26,26 +27,26 @@ public class StudyNecromancyActivity : Activity
     // Necromantic study is more taxing than normal study - 0.015/tick
     private const float ENERGYCOSTPERTICK = 0.015f;
 
-    private readonly Building _home;
+    private readonly FacilityReference _facilityRef;
     private readonly uint _studyDuration;
 
-    private GoToBuildingActivity? _goToStudyPhase;
+    private Activity? _navigationActivity;
     private uint _studyTimer;
     private StudyPhase _currentPhase = StudyPhase.GoingToStudy;
     private Need? _energyNeed;
 
     public override string DisplayName => _currentPhase switch
     {
-        StudyPhase.GoingToStudy => "Going to study dark arts",
-        StudyPhase.Studying => "Studying dark arts",
-        _ => "Studying dark arts"
+        StudyPhase.GoingToStudy => L.Tr("activity.GOING_TO_STUDY_DARK_ARTS"),
+        StudyPhase.Studying => L.Tr("activity.STUDYING_DARK_ARTS"),
+        _ => L.Tr("activity.STUDYING_DARK_ARTS")
     };
 
-    public override Building? TargetBuilding => _home;
+    public override Room? TargetRoom => _facilityRef.Facility?.ContainingRoom;
 
-    public StudyNecromancyActivity(Building home, uint studyDuration = 400, int priority = 0)
+    public StudyNecromancyActivity(FacilityReference facilityRef, uint studyDuration = 400, int priority = 0)
     {
-        _home = home;
+        _facilityRef = facilityRef;
         _studyDuration = studyDuration;
         Priority = priority;
 
@@ -57,13 +58,13 @@ public class StudyNecromancyActivity : Activity
     {
         base.Initialize(owner);
         _energyNeed = owner.NeedsSystem?.GetNeed("energy");
-        DebugLog("ACTIVITY", $"Started StudyNecromancyActivity at {_home.BuildingName}, priority: {Priority}, study duration: {_studyDuration} ticks", 0);
+        DebugLog("ACTIVITY", $"Started StudyNecromancyActivity at altar in {_facilityRef.Facility?.ContainingRoom?.Name ?? "unknown"}, priority: {Priority}, study duration: {_studyDuration} ticks", 0);
     }
 
     protected override void OnResume()
     {
         base.OnResume();
-        _goToStudyPhase = null;
+        _navigationActivity = null;
         _currentPhase = StudyPhase.GoingToStudy;
     }
 
@@ -75,7 +76,9 @@ public class StudyNecromancyActivity : Activity
             return null;
         }
 
-        if (!GodotObject.IsInstanceValid(_home))
+        // Validate facility still exists (Facility is a GodotObject/Sprite2D)
+        var facility = _facilityRef.Facility;
+        if (facility == null || !GodotObject.IsInstanceValid(facility))
         {
             Fail();
             return null;
@@ -104,13 +107,20 @@ public class StudyNecromancyActivity : Activity
             return null;
         }
 
-        if (_goToStudyPhase == null)
+        if (_navigationActivity == null)
         {
-            _goToStudyPhase = new GoToBuildingActivity(_home, Priority);
-            _goToStudyPhase.Initialize(_owner);
+            var navFacility = _facilityRef.Facility;
+            if (navFacility == null || !Godot.GodotObject.IsInstanceValid(navFacility))
+            {
+                Fail();
+                return null;
+            }
+
+            _navigationActivity = new GoToFacilityActivity(navFacility, Priority);
+            _navigationActivity.Initialize(_owner);
         }
 
-        var (result, action) = RunSubActivity(_goToStudyPhase, position, perception);
+        var (result, action) = RunSubActivity(_navigationActivity, position, perception);
         switch (result)
         {
             case SubActivityResult.Failed:
@@ -122,8 +132,9 @@ public class StudyNecromancyActivity : Activity
                 break;
         }
 
-        Log.Print($"{_owner.Name}: Arrived at {_home.BuildingName} to study dark arts");
-        DebugLog("ACTIVITY", $"Arrived at home, starting necromancy study phase (duration: {_studyDuration} ticks)", 0);
+        var buildingName = _facilityRef.Facility?.ContainingRoom?.Name ?? "altar";
+        Log.Print($"{_owner.Name}: Arrived at {buildingName} to study dark arts");
+        DebugLog("ACTIVITY", $"Arrived at necromancy altar, starting study phase (duration: {_studyDuration} ticks)", 0);
 
         _currentPhase = StudyPhase.Studying;
         return new IdleAction(_owner, this, Priority);

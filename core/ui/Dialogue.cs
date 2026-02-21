@@ -8,7 +8,7 @@ using VeilOfAges.UI.Commands;
 
 namespace VeilOfAges.UI;
 
-public partial class Dialogue : CanvasLayer
+public partial class Dialogue : Control
 {
     [Export]
     private RichTextLabel? _nameLabel;
@@ -16,20 +16,20 @@ public partial class Dialogue : CanvasLayer
     private RichTextLabel? _dialogueText;
     [Export]
     private GridContainer? _optionsContainer;
-    [Export]
-    private PanelContainer? _minimap;
-    [Export]
-    private PanelContainer? _quickActions;
 
     private Being? _currentTarget;
     private Being? _currentSpeaker;
     private List<DialogueOption> _currentOptions = new ();
+    private bool _isFacilityDialogue;
 
     // DialogueController is used via static methods, instance not needed
     // private readonly DialogueController _dialogueController = new ();
     public override void _Ready()
     {
         Visible = false; // Start hidden
+
+        // Full-rect anchors so this fills its parent container
+        SetAnchorsPreset(LayoutPreset.FullRect);
     }
 
     public bool ShowDialogue(Being speaker, Being target)
@@ -68,8 +68,47 @@ public partial class Dialogue : CanvasLayer
 
         // Show the dialogue UI
         Visible = true;
+        GameEvents.FireDialogueStateChanged(true);
 
         return true;
+    }
+
+    /// <summary>
+    /// Show a facility interaction dialogue (not a conversation with an entity).
+    /// The speaker interacts with the facility directly.
+    /// </summary>
+    public void ShowFacilityDialogue(Being speaker, IFacilityInteractable facility)
+    {
+        _currentSpeaker = speaker;
+        _currentTarget = speaker; // Speaker is also the "target" for command assignment
+        _isFacilityDialogue = true;
+
+        if (_nameLabel != null)
+        {
+            _nameLabel.Text = facility.FacilityDisplayName;
+        }
+
+        if (_dialogueText != null)
+        {
+            _dialogueText.Text = L.TrFmt("ui.dialogue.EXAMINE_FACILITY", facility.FacilityDisplayName);
+        }
+
+        // Convert facility options to dialogue options
+        _currentOptions = new List<DialogueOption>();
+        foreach (var facilityOption in facility.GetInteractionOptions(speaker))
+        {
+            _currentOptions.Add(DialogueOption.CreateFacilityOption(
+                facilityOption.Label,
+                facilityOption.Command,
+                facilityOption.Enabled,
+                facilityOption.DisabledReason,
+                facilityOption.FacilityAction));
+        }
+
+        RefreshOptions();
+
+        Visible = true;
+        GameEvents.FireDialogueStateChanged(true);
     }
 
     private void RefreshOptions()
@@ -88,11 +127,18 @@ public partial class Dialogue : CanvasLayer
                 Text = option.Text
             };
 
-            // Disable commands that the entity will refuse
-            if (option.Command != null && _currentTarget?.WillRefuseCommand(option.Command) != false)
+            // Check explicit disabled state (facility options)
+            if (option.IsExplicitlyDisabled)
             {
                 button.Disabled = true;
-                button.TooltipText = "I will refuse this command.";
+                button.TooltipText = option.DisabledReason ?? Tr("ui.dialogue.NOT_AVAILABLE");
+            }
+
+            // Disable commands that the entity will refuse
+            else if (!_isFacilityDialogue && option.Command != null && _currentTarget?.WillRefuseCommand(option.Command) != false)
+            {
+                button.Disabled = true;
+                button.TooltipText = Tr("ui.dialogue.WILL_REFUSE");
             }
 
             button.Pressed += () => OnOptionSelected(option);
@@ -117,6 +163,21 @@ public partial class Dialogue : CanvasLayer
     {
         if (_currentSpeaker == null || _currentTarget == null)
         {
+            return;
+        }
+
+        // Handle facility action callbacks
+        if (option.FacilityAction != null)
+        {
+            option.FacilityAction(_currentSpeaker);
+            Close();
+            return;
+        }
+
+        // Handle "Cancel" or closing options (no command, no facility action) in facility dialogue
+        if (_isFacilityDialogue && option.Command == null)
+        {
+            Close();
             return;
         }
 
@@ -166,15 +227,15 @@ public partial class Dialogue : CanvasLayer
 
     public void Close()
     {
-        _currentTarget?.EndDialogue(_currentSpeaker);
+        if (!_isFacilityDialogue)
+        {
+            _currentTarget?.EndDialogue(_currentSpeaker);
+        }
 
         _currentTarget = null;
         _currentSpeaker = null;
+        _isFacilityDialogue = false;
+        GameEvents.FireDialogueStateChanged(false);
         Visible = false;
-        if (_minimap != null && _quickActions != null)
-        {
-            _minimap.Visible = true;
-            _quickActions.Visible = true;
-        }
     }
 }

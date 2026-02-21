@@ -53,10 +53,12 @@ public abstract partial class ResourceManager<TManager, TDefinition> : Node
 
     public override void _Ready()
     {
+        MemoryProfiler.Checkpoint($"{typeof(TManager).Name} _Ready start");
         _instance = (TManager)this;
         LoadDefinitions();
         OnDefinitionsLoaded();
         LogInitialized();
+        MemoryProfiler.Checkpoint($"{typeof(TManager).Name} _Ready end");
     }
 
     /// <summary>

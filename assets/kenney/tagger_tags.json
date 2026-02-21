@@ -1,0 +1,38 @@
+{
+  "tags": {
+    "w": "wall",
+    "f": "floor",
+    "d": "door",
+    "g": "window",
+    "r": "roof",
+    "s": "climbable",
+    "t": "terrain",
+    "v": "vegetation",
+    "a": "water",
+    "c": "character",
+    "j": "creature",
+    "p": "prop",
+    "e": "equipment",
+    "k": "container",
+    "n": "corner",
+    "q": "damaged",
+    "x": "exterior",
+    "1": "wood",
+    "2": "stone",
+    "3": "metal",
+    "4": "dirt",
+    "5": "fabric",
+    "h": "hazard",
+    "u": "ui",
+    "y": "icon",
+    "m": "path"
+  },
+  "empty_rects": [
+    {
+      "r0": 0,
+      "c0": 0,
+      "r1": 0,
+      "c1": 0
+    }
+  ]
+}

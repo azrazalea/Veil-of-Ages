@@ -103,7 +103,9 @@ State snapshot models for JSON serialization:
 - `HealthSnapshot` - Health percentage, status string, efficiency
 - `ItemSnapshot` - Inventory item (id, name, quantity)
 - `GridSnapshot` - Grid visualization with `ToAscii()` method
-- `BuildingSnapshot` - Building info (name, type, position, size)
+- `BuildingSnapshot` - Building info (name, type, position, size, rooms)
+- `RoomSnapshot` - Room info (id, name, purpose, isSecret, residentCount, facilities). Nested inside `BuildingSnapshot.Rooms`.
+- `FacilitySnapshot` - Facility info (id, position, isWalkable, hasStorage, storageContents). Nested inside `RoomSnapshot.Facilities`.
 - `AutonomyRuleSnapshot` - Autonomy rule state (id, displayName, traitType, priority, enabled, activeDuringPhases)
 
 ### DebugCommand.cs
@@ -281,7 +283,9 @@ curl -s "http://localhost:8765/entity/Lilith%20Galonadel" | jq '.autonomyRules'
 | `GameStateSnapshot` | Full game state for JSON serialization |
 | `EntitySnapshot` | Entity state (position, activity, needs, skills, attributes, health, inventory, traits) |
 | `GridSnapshot` | Grid with ASCII rendering |
-| `BuildingSnapshot` | Building information |
+| `BuildingSnapshot` | Building information (includes rooms) |
+| `RoomSnapshot` | Room info within a building (id, name, purpose, secret flag, facilities) |
+| `FacilitySnapshot` | Facility info within a room (id, position, walkable, storage contents) |
 | `AutonomyRuleSnapshot` | Autonomy rule state for serialization |
 | `PlayerMoveToCommand` | Move player to grid position |
 | `PlayerFollowCommand` | Make player follow entity |

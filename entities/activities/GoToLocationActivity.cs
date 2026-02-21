@@ -12,7 +12,7 @@ public class GoToLocationActivity : NavigationActivity
 {
     private readonly Vector2I _targetPosition;
 
-    public override string DisplayName => $"Going to ({_targetPosition.X}, {_targetPosition.Y})";
+    public override string DisplayName => L.TrFmt("activity.GOING_TO_LOCATION", _targetPosition.X, _targetPosition.Y);
 
     public GoToLocationActivity(Vector2I targetPosition, int priority = 0)
     {

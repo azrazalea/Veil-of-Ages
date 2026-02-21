@@ -8,12 +8,13 @@ Contains building-related resources. Currently houses the `templates/` subdirect
 
 ```
 buildings/
-└── templates/    # Building layout templates
+├── palettes/     # Shared palette JSON files (tile alias definitions)
+└── templates/    # Building layout templates (GridFab directories + legacy JSON)
 ```
 
 ## Files
 
-This directory contains no JSON files directly. All building definitions are in the `templates/` subdirectory.
+This directory contains no JSON files directly. Building definitions live in `templates/` and shared palette definitions live in `palettes/`.
 
 ## Dependencies
 

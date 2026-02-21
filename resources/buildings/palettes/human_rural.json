@@ -1,0 +1,17 @@
+{
+    "Inherits": ["base"],
+    "Aliases": {
+        "WW": { "Type": "Wall", "Material": "Wood" },
+        "WD": { "Type": "Wall", "Material": "Dirt" },
+        "FW": { "Type": "Floor", "Material": "Wood" },
+        "FD": { "Type": "Floor", "Material": "Dirt" },
+        "DW": { "Type": "Door", "Material": "Wood" },
+        "GW": { "Type": "Window", "Material": "Glass" },
+        "NW": { "Type": "Fence", "Material": "Wood" },
+        "NS": { "Type": "Fence", "Material": "Stone" },
+        "TW": { "Type": "Gate", "Material": "Wood" },
+        "TS": { "Type": "Gate", "Material": "Stone" },
+        "CP": { "Type": "Crop", "Material": "Plant" },
+        "WL": { "Type": "Well", "Material": "Stone" }
+    }
+}

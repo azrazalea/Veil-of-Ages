@@ -1,0 +1,4 @@
+# Stone cross palette
+OL=#1A1A2E
+SM=#8B8278
+SD=#6B635A

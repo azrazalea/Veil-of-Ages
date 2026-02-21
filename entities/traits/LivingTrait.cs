@@ -5,20 +5,6 @@ using VeilOfAges.Entities.Beings.Health;
 namespace VeilOfAges.Entities.Traits;
 
 /// <summary>
-/// Configuration for a single need, used to deserialize from JSON.
-/// DEPRECATED: Needs should now be defined at entity level in BeingDefinition.Needs.
-/// This record is kept for backwards compatibility but LivingTrait no longer creates needs.
-/// </summary>
-public record NeedConfiguration(
-    string Id,
-    string Name,
-    float Initial = 100f,
-    float DecayRate = 0.01f,
-    float Critical = 10f,
-    float Low = 30f,
-    float High = 90f);
-
-/// <summary>
 /// Marker trait indicating this entity is a living being.
 /// Living entities have biological needs (hunger, energy) and can die from starvation or exhaustion.
 ///

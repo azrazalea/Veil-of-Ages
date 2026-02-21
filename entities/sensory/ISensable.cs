@@ -6,7 +6,8 @@ namespace VeilOfAges.Entities.Sensory;
 public enum SensableType
 {
     Being,
-    Building
+    Structure,
+    WorldObject
 }
 
 public enum SenseType

@@ -9,8 +9,8 @@ public class System<T>
 {
     public Vector2I GridSize = new (100, 100);
 
-    // Dictionary to track which grid cells are occupied
-    public virtual Dictionary<Vector2I, T> OccupiedCells { get; protected set; } = [];
+    // Dictionary to track which grid cells are occupied (supports multiple items per cell)
+    public virtual Dictionary<Vector2I, List<T>> OccupiedCells { get; protected set; } = [];
 
     public System(Vector2I? gridSize)
     {
@@ -22,26 +22,52 @@ public class System<T>
         Log.Print($"Grid system initialized with size {GridSize.X}x{GridSize.Y}");
     }
 
-    public T? GetCell(Vector2I gridPos)
+    /// <summary>
+    /// Returns all items at the given cell, or null if empty.
+    /// </summary>
+    public List<T>? GetCell(Vector2I gridPos)
     {
         return OccupiedCells.GetValueOrDefault(gridPos);
     }
 
-    // Set a cell as occupied or free
-    public void SetCell(Vector2I gridPos, T item)
+    /// <summary>
+    /// Returns the first item at the given cell, or default if empty.
+    /// Use for grid systems that store one item per cell (ground, objects).
+    /// </summary>
+    public T? GetFirstCell(Vector2I gridPos)
+    {
+        var list = OccupiedCells.GetValueOrDefault(gridPos);
+        return list is { Count: > 0 } ? list[0] : default;
+    }
+
+    // Set a cell as occupied. Base implementation replaces existing content (single item per cell).
+    public virtual void SetCell(Vector2I gridPos, T item)
     {
         if (gridPos.X >= 0 && gridPos.X < GridSize.X &&
             gridPos.Y >= 0 && gridPos.Y < GridSize.Y)
         {
-            OccupiedCells[gridPos] = item;
+            OccupiedCells[gridPos] = [item];
         }
     }
 
-    public T RemoveCell(Vector2I gridPos)
+    /// <summary>
+    /// Remove a specific item from a cell. Returns true if the item was found and removed.
+    /// If the cell becomes empty, the key is removed from the dictionary.
+    /// </summary>
+    public bool RemoveFromCell(Vector2I gridPos, T item)
     {
-        var item = OccupiedCells[gridPos];
-        OccupiedCells.Remove(gridPos);
-        return item;
+        if (!OccupiedCells.TryGetValue(gridPos, out var list))
+        {
+            return false;
+        }
+
+        bool removed = list.Remove(item);
+        if (list.Count == 0)
+        {
+            OccupiedCells.Remove(gridPos);
+        }
+
+        return removed;
     }
 
     // Set multiple cells as occupied or free (for multi-tile objects)

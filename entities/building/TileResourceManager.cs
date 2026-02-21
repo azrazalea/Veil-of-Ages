@@ -33,18 +33,32 @@ public partial class TileResourceManager : Node
     // Loaded texture resources
     private readonly Dictionary<string, Texture2D> _loadedTextures = new ();
 
+    // Shared TileSet instance — created once, reused by all TileMapLayers
+    private TileSet? _sharedTileSet;
+
+    // Global AtlasTexture cache — avoids creating duplicate native objects for the same sprite region
+    private readonly Dictionary<(string atlasSourceId, int row, int col, int widthInTiles, int heightInTiles), AtlasTexture> _atlasTextureCache = new ();
+
+    // Cached SpriteFrames for animated decorations — shared across all instances of the same animation
+    private readonly Dictionary<string, SpriteFrames> _spriteFramesCache = new ();
+
     public override void _Ready()
     {
+        MemoryProfiler.Checkpoint("TileResourceManager _Ready start");
         _instance = this;
 
         LoadAllMaterials();
+        MemoryProfiler.Checkpoint("TileResourceManager after LoadAllMaterials");
         LoadAllAtlasSources();
+        MemoryProfiler.Checkpoint("TileResourceManager after LoadAllAtlasSources");
         LoadAllTileDefinitions();
+        MemoryProfiler.Checkpoint("TileResourceManager after LoadAllTileDefinitions");
         LoadAllDecorationDefinitions();
         LoadAllDecorationAnimations();
         LoadAllTerrainDefinitions();
 
         Log.Print($"TileResourceManager initialized with {_materials.Count} materials, {_atlasSources.Count} atlas sources, {_tileDefinitions.Count} tile definitions, {_decorationDefinitions.Count} decoration definitions, and {_terrainDefinitions.Count} terrain definitions");
+        MemoryProfiler.Checkpoint("TileResourceManager _Ready end");
     }
 
     /// <summary>
@@ -263,18 +277,97 @@ public partial class TileResourceManager : Node
     }
 
     /// <summary>
-    /// Setup a TileSet with all required atlas sources for the given TileMap.
+    /// Get a cached AtlasTexture by atlas source ID and grid coordinates.
+    /// Creates the AtlasTexture once; subsequent calls with the same parameters return the same instance.
     /// </summary>
-    /// <param name="tileMap">The TileMap to configure.</param>
-    public void SetupTileSet(TileMapLayer tileMap)
+    /// <param name="atlasSourceId">The atlas source ID (e.g., "kenney_1bit", "dcss_utumno").</param>
+    /// <param name="row">Row in the atlas grid (Y coordinate).</param>
+    /// <param name="col">Column in the atlas grid (X coordinate).</param>
+    /// <param name="widthInTiles">Width in tiles (default 1). For multi-tile sprites.</param>
+    /// <param name="heightInTiles">Height in tiles (default 1). For multi-tile sprites.</param>
+    /// <returns>The cached AtlasTexture, or null if the atlas source could not be found.</returns>
+    public AtlasTexture? GetCachedAtlasTexture(string atlasSourceId, int row, int col, int widthInTiles = 1, int heightInTiles = 1)
     {
-        // Create a new TileSet if needed
-        tileMap.TileSet ??= new TileSet
+        var key = (atlasSourceId, row, col, widthInTiles, heightInTiles);
+        if (_atlasTextureCache.TryGetValue(key, out var cached))
+        {
+            return cached;
+        }
+
+        if (!_atlasSources.TryGetValue(atlasSourceId, out var atlasDef))
+        {
+            Log.Error($"Atlas source not found for AtlasTexture cache: {atlasSourceId}");
+            return null;
+        }
+
+        // Load or retrieve the backing texture
+        if (!_loadedTextures.TryGetValue(atlasDef.TexturePath, out var texture))
+        {
+            texture = ResourceLoader.Load<Texture2D>(atlasDef.TexturePath);
+            if (texture == null)
+            {
+                Log.Error($"Failed to load texture for AtlasTexture cache: {atlasDef.TexturePath}");
+                return null;
+            }
+
+            _loadedTextures[atlasDef.TexturePath] = texture;
+        }
+
+        var m = atlasDef.Margin;
+        var s = atlasDef.Separation;
+        var ts = atlasDef.TileSize;
+
+        int pw = (widthInTiles * ts.X) + ((widthInTiles - 1) * s.X);
+        int ph = (heightInTiles * ts.Y) + ((heightInTiles - 1) * s.Y);
+
+        var atlasTexture = new AtlasTexture
+        {
+            Atlas = texture,
+            Region = new Rect2(
+                m.X + (col * (ts.X + s.X)),
+                m.Y + (row * (ts.Y + s.Y)),
+                pw,
+                ph)
+        };
+
+        _atlasTextureCache[key] = atlasTexture;
+        return atlasTexture;
+    }
+
+    /// <summary>
+    /// Get a cached SpriteFrames for a decoration animation.
+    /// Built once per animation ID, shared across all instances.
+    /// </summary>
+    /// <param name="animationId">The animation definition ID.</param>
+    /// <returns>The cached SpriteFrames, or null if the animation is not found.</returns>
+    public SpriteFrames? GetCachedSpriteFrames(string animationId)
+    {
+        if (_spriteFramesCache.TryGetValue(animationId, out var cached))
+        {
+            return cached;
+        }
+
+        var animDef = GetDecorationAnimation(animationId);
+        if (animDef == null)
+        {
+            return null;
+        }
+
+        var spriteFrames = animDef.CreateSpriteFrames();
+        _spriteFramesCache[animationId] = spriteFrames;
+        return spriteFrames;
+    }
+
+    /// <summary>
+    /// Build the shared TileSet with all atlas sources. Called once on first use.
+    /// </summary>
+    private TileSet BuildSharedTileSet()
+    {
+        var tileSet = new TileSet
         {
             TileSize = new Vector2I((int)Grid.Utils.TileSize, (int)Grid.Utils.TileSize)
         };
 
-        // Add each atlas source
         foreach (var atlasSource in _atlasSources.Values)
         {
             try
@@ -287,8 +380,7 @@ public partial class TileResourceManager : Node
                 }
 
                 // Load the texture
-                Texture2D? texture;
-                if (!_loadedTextures.TryGetValue(atlasSource.TexturePath, out texture))
+                if (!_loadedTextures.TryGetValue(atlasSource.TexturePath, out var texture))
                 {
                     texture = ResourceLoader.Load<Texture2D>(atlasSource.TexturePath);
                     if (texture != null)
@@ -305,16 +397,10 @@ public partial class TileResourceManager : Node
                 // Create the atlas source
                 var tileSetAtlasSource = new TileSetAtlasSource
                 {
-                    // Set texture
                     Texture = texture,
-
-                    // Set tile size
                     TextureRegionSize = atlasSource.TileSize,
-
-                    // Set margin and separation
                     Margins = atlasSource.Margin,
                     Separation = atlasSource.Separation,
-
                     ResourceName = atlasSource.Id
                 };
 
@@ -324,9 +410,7 @@ public partial class TileResourceManager : Node
                     tileSetAtlasSource.UseTexturePadding = true;
                 }
 
-                // Add the source to the tileset
-                tileMap.TileSet.AddSource(tileSetAtlasSource, sourceId);
-
+                tileSet.AddSource(tileSetAtlasSource, sourceId);
                 Log.Print($"Added atlas source {atlasSource.Id} as source ID {sourceId} with texture {texture.GetSize()}");
             }
             catch (Exception e)
@@ -334,19 +418,29 @@ public partial class TileResourceManager : Node
                 Log.Error($"Error adding atlas source {atlasSource.Id}: {e.Message}");
             }
         }
+
+        return tileSet;
     }
 
     /// <summary>
-    /// Create and return a standalone TileSet with all atlas sources configured.
+    /// Assign the shared TileSet to a TileMapLayer.
+    /// The TileSet is created once and reused by all layers to avoid duplicating atlas sources.
+    /// </summary>
+    /// <param name="tileMap">The TileMapLayer to configure.</param>
+    public void SetupTileSet(TileMapLayer tileMap)
+    {
+        _sharedTileSet ??= BuildSharedTileSet();
+        tileMap.TileSet = _sharedTileSet;
+    }
+
+    /// <summary>
+    /// Get the shared TileSet instance.
     /// Used for programmatic areas (e.g., cellars) that don't have a scene-defined TileMapLayer.
     /// </summary>
     public TileSet GetTileSet()
     {
-        var tempLayer = new TileMapLayer();
-        SetupTileSet(tempLayer);
-        var tileSet = tempLayer.TileSet!;
-        tempLayer.Free();
-        return tileSet;
+        _sharedTileSet ??= BuildSharedTileSet();
+        return _sharedTileSet;
     }
 
     /// <summary>
@@ -519,116 +613,5 @@ public partial class TileResourceManager : Node
         }
 
         return result;
-    }
-
-    /// <summary>
-    /// Create building tiles from a tile definition.
-    /// </summary>
-    /// <param name="tileId">The tile definition ID.</param>
-    /// <param name="position">The position in the building.</param>
-    /// <param name="parent">The parent building.</param>
-    /// <param name="gridPosition">The absolute grid position.</param>
-    /// <param name="materialId">The material ID to use (optional).</param>
-    /// <param name="variantName">The variant name to use (optional).</param>
-    /// <param name="categoryName">The category name to use (optional).</param>
-    /// <returns>A BuildingTile instance.</returns>
-    /// <exception cref="System.InvalidOperationException">Thrown when a required resource is not found.</exception>
-    public BuildingTile CreateBuildingTile(string tileId, Vector2I position, Building parent, Vector2I gridPosition, string materialId, string? variantName = null, string? categoryName = null)
-    {
-        if (!_tileDefinitions.TryGetValue(tileId, out var tileDef))
-        {
-            var errorMessage = $"Tile definition not found: {tileId}";
-            Log.Error(errorMessage);
-            throw new System.InvalidOperationException(errorMessage);
-        }
-
-        // If no material was specified, use the default from the tile definition
-        if (string.IsNullOrEmpty(materialId) && !string.IsNullOrEmpty(tileDef.DefaultMaterial))
-        {
-            materialId = tileDef.DefaultMaterial;
-        }
-
-        // If no variant specified, use "Default"
-        if (string.IsNullOrEmpty(variantName))
-        {
-            variantName = "Default";
-        }
-
-        // Process variant information for merged atlas settings
-        var processedVariant = GetProcessedVariant(tileDef, materialId, variantName, categoryName);
-
-        string? atlasSource = (string?)processedVariant["AtlasSource"];
-        var atlasCoords = (Vector2I?)processedVariant["AtlasCoords"];
-
-        if (atlasSource == null || atlasCoords == null)
-        {
-            throw new InvalidOperationException("Atlas coords/source null");
-        }
-
-        // Get source ID from atlas name
-        int sourceId = GetTileSetSourceId(atlasSource);
-        if (sourceId == -1)
-        {
-            var errorMessage = $"Atlas source not found: {atlasSource}";
-            Log.Error(errorMessage);
-            throw new System.InvalidOperationException(errorMessage);
-        }
-
-        // Parse the tile type
-        TileType tileType;
-        if (!Enum.TryParse(tileDef.Type, out tileType))
-        {
-            var errorMessage = $"Invalid tile type: {tileDef.Type}";
-            Log.Error(errorMessage);
-            throw new System.InvalidOperationException(errorMessage);
-        }
-
-        // Get material properties if specified
-        TileMaterialDefinition? material = null;
-        if (!string.IsNullOrEmpty(materialId))
-        {
-            material = GetMaterial(materialId);
-            if (material == null)
-            {
-                var errorMessage = $"Material definition not found: {materialId}";
-                Log.Error(errorMessage);
-                throw new System.InvalidOperationException(errorMessage);
-            }
-        }
-
-        // Adjust durability based on material
-        int durability = tileDef.BaseDurability;
-        if (material != null)
-        {
-            durability = (int)(durability * material.DurabilityModifier);
-        }
-
-        // Create the building tile
-        var tile = new BuildingTile(
-            tileType,
-            materialId ?? "default",
-            variantName,
-            tileDef.IsWalkable,
-            durability,
-            (Vector2I)atlasCoords,
-            sourceId,
-            parent,
-            gridPosition);
-
-        // Apply custom detection difficulties based on tile definition and material
-        foreach (SenseType senseType in Enum.GetValues<SenseType>())
-        {
-            float baseDifficulty = tileDef.GetDefaultSensoryDifficulty(senseType);
-            float materialModifier = material?.GetSensoryModifier(senseType) ?? 1.0f;
-
-            tile.DetectionDifficulties[senseType] = baseDifficulty * materialModifier;
-        }
-
-        // Populate tint cascade data from tile definition and variant
-        tile.DefinitionDefaultTint = tileDef.DefaultTint;
-        var resolvedVariantTint = (string?)processedVariant.GetValueOrDefault("Tint");
-        tile.VariantTint = resolvedVariantTint;
-
-        return tile;
     }
 }

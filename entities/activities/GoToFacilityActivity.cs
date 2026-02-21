@@ -5,17 +5,19 @@ using VeilOfAges.Core.Lib;
 namespace VeilOfAges.Entities.Activities;
 
 /// <summary>
-/// Activity for navigating to be adjacent to a facility in a building.
+/// Activity for navigating to be adjacent to a facility in a room.
 /// Completes when the entity reaches a position adjacent to the specified facility.
-/// Fails if the building no longer exists, facility not found, or no path can be found.
+/// Fails if the facility/room no longer exists, or no path can be found.
 /// </summary>
 public class GoToFacilityActivity : NavigationActivity
 {
-    private readonly Building _building;
     private readonly string _facilityId;
 
-    public override string DisplayName => $"Going to {_facilityId}";
-    public override Building? TargetBuilding => _building;
+    // Optional direct facility reference — used by the Facility constructor overload.
+    private readonly Facility? _facility;
+
+    public override string DisplayName => L.TrFmt("activity.GOING_TO_FACILITY", _facilityId);
+    public override Room? TargetRoom => _facility?.ContainingRoom;
     public override string? TargetFacilityId => _facilityId;
 
     protected override bool ShouldCheckQueue => true;
@@ -27,15 +29,15 @@ public class GoToFacilityActivity : NavigationActivity
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GoToFacilityActivity"/> class.
-    /// Create an activity to navigate adjacent to a specific facility in a building.
+    /// Create an activity to navigate adjacent to a specific facility using the
+    /// <see cref="Facility"/> object directly.
     /// </summary>
-    /// <param name="building">The building containing the facility.</param>
-    /// <param name="facilityId">The facility ID (e.g., "oven", "quern", "storage", "crop").</param>
+    /// <param name="facility">The facility to navigate to.</param>
     /// <param name="priority">Action priority (default 0).</param>
-    public GoToFacilityActivity(Building building, string facilityId, int priority = 0)
+    public GoToFacilityActivity(Facility facility, int priority = 0)
     {
-        _building = building;
-        _facilityId = facilityId;
+        _facility = facility;
+        _facilityId = facility.Id;
         Priority = priority;
     }
 
@@ -44,18 +46,36 @@ public class GoToFacilityActivity : NavigationActivity
         base.Initialize(owner);
 
         _pathFinder = new PathFinder();
-        if (!_pathFinder.SetFacilityGoal(_building, _facilityId))
+
+        bool goalSet;
+        if (_facility != null)
         {
-            Log.Warn($"{owner.Name}: No accessible {_facilityId} in {_building.BuildingName}");
+            goalSet = _pathFinder.SetFacilityGoal(owner, _facility);
+        }
+        else
+        {
+            Log.Warn($"{owner.Name}: GoToFacilityActivity has no facility reference");
+            Fail();
+            return;
+        }
+
+        if (!goalSet)
+        {
+            Log.Warn($"{owner.Name}: No accessible {_facilityId} in {_facility?.ContainingRoom?.Name ?? "(unknown)"}");
             Fail();
         }
     }
 
     protected override bool ValidateTarget()
     {
-        if (!GodotObject.IsInstanceValid(_building))
+        if (_facility == null)
         {
-            Log.Warn($"{_owner!.Name}: Building destroyed while navigating to {_facilityId}");
+            return true; // facilityId-only mode, no runtime validation needed
+        }
+
+        if (!GodotObject.IsInstanceValid(_facility))
+        {
+            Log.Warn($"{_owner!.Name}: Facility destroyed while navigating to {_facilityId}");
             return false;
         }
 

@@ -33,8 +33,8 @@ public class VillageLot
     /// <summary>Gets which side of the lot faces the road.</summary>
     public CardinalDirection RoadSide { get; }
 
-    /// <summary>Gets or sets the building occupying this lot, if any.</summary>
-    public Building? OccupyingBuilding { get; set; }
+    /// <summary>Gets or sets the default room of the building occupying this lot, if any.</summary>
+    public Room? OccupyingRoom { get; set; }
 
     /// <summary>Gets setback from road edge in tiles.</summary>
     public int Setback { get; }

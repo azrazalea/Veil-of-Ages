@@ -42,6 +42,9 @@ public class BeingDefinition : IResourceDefinition
     /// </summary>
     public string? Description { get; set; }
 
+    public string LocalizedName => L.Tr($"being.name.{Id!.ToUpperInvariant()}");
+    public string LocalizedDescription => L.Tr($"being.desc.{Id!.ToUpperInvariant()}");
+
     /// <summary>
     /// Gets or sets primary category of this being (e.g., "Human", "Undead").
     /// </summary>
@@ -51,15 +54,6 @@ public class BeingDefinition : IResourceDefinition
     /// Gets or sets reference to SpriteDefinition for this being's visuals.
     /// </summary>
     public string? SpriteId { get; set; }
-
-    /// <summary>
-    /// Gets or sets legacy animation reference. Mapped to SpriteId for backwards compatibility.
-    /// </summary>
-    public string? AnimationId
-    {
-        get => SpriteId;
-        set => SpriteId ??= value;
-    }
 
     /// <summary>
     /// Gets or sets attribute block defining base stats.

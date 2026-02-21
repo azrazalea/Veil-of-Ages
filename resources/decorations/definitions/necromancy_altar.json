@@ -1,0 +1,7 @@
+{
+    "Id": "necromancy_altar",
+    "Name": "Necromancy Altar",
+    "AtlasSource": "dcss",
+    "AtlasCoords": [44, 0],
+    "TileSize": [1, 1]
+}

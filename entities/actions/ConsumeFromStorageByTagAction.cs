@@ -4,14 +4,14 @@ using VeilOfAges.Entities.Traits;
 namespace VeilOfAges.Entities.Actions;
 
 /// <summary>
-/// Action to take items from a building's storage by tag for consumption.
+/// Action to take items from a facility's storage by tag for consumption.
 /// If the entity has inventory, the item is transferred there (making it portable
 /// during interruption). Otherwise, the item is consumed directly from storage.
-/// Requires entity to be adjacent to the building.
+/// Requires entity to be adjacent to the facility.
 /// </summary>
 public class ConsumeFromStorageByTagAction : EntityAction
 {
-    private readonly Building _building;
+    private readonly Facility _facility;
     private readonly string _itemTag;
     private readonly int _quantity;
     private Item? _consumedItem;
@@ -35,24 +35,24 @@ public class ConsumeFromStorageByTagAction : EntityAction
     public ConsumeFromStorageByTagAction(
         Being entity,
         object source,
-        Building building,
+        Facility facility,
         string itemTag,
         int quantity,
         int priority = 0)
         : base(entity, source, priority: priority)
     {
-        _building = building;
+        _facility = facility;
         _itemTag = itemTag;
         _quantity = quantity;
     }
 
     public override bool Execute()
     {
-        // Use TakeFromStorageByTag which handles:
+        // Use TakeFromFacilityStorageByTag which handles:
         // - Adjacency check (returns null if not adjacent)
         // - Memory observation (updates entity's memory)
         // - Finding item by tag and removing it
-        _consumedItem = Entity.TakeFromStorageByTag(_building, _itemTag, _quantity);
+        _consumedItem = Entity.TakeFromFacilityStorageByTag(_facility, _itemTag, _quantity);
 
         if (_consumedItem == null)
         {
@@ -71,7 +71,7 @@ public class ConsumeFromStorageByTagAction : EntityAction
             else
             {
                 // Inventory full - put back in storage
-                Entity.PutInStorage(_building, _consumedItem);
+                Entity.PutInFacilityStorage(_facility, _consumedItem);
                 _consumedItem = null;
                 return false;
             }

@@ -21,6 +21,10 @@ JSON-serializable item template that defines the properties of an item type.
 - `StackLimit` - Maximum stack size (default 100)
 - `Tags` - List of string tags for categorization
 
+**Localization:**
+- `LocalizedName` - Computed property returning `L.Tr($"item.{Id}.NAME")`. Display code should use this instead of `Name`.
+- `LocalizedDescription` - Computed property returning `L.Tr($"item.{Id}.DESCRIPTION")`.
+
 **Key Methods:**
 - `LoadFromJson(path)` - Load definition from JSON file
 - `Validate()` - Validate required fields and constraints

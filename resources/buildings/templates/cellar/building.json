@@ -1,0 +1,46 @@
+{
+    "Name": "Scholar's Cellar",
+    "Description": "A hidden cellar beneath the scholar's house, used for dark rituals",
+    "BuildingType": "Cellar",
+    "Size": [7, 8],
+    "Culture": "Human",
+    "Style": "Underground",
+    "Capacity": 0,
+    "Facilities": [
+        {
+            "Id": "necromancy_altar",
+            "Positions": [[3, 4]],
+            "RequireAdjacent": true,
+            "InteractableType": "NecromancyAltarInteraction",
+            "DecorationId": "necromancy_altar",
+            "IsWalkable": false,
+            "Storage": {
+                "VolumeCapacity": 0.5,
+                "WeightCapacity": 400,
+                "DecayRateModifier": 1.0,
+                "Tags": ["corpse"]
+            }
+        }
+    ],
+    "Decorations": [
+        {
+            "Id": "ladder",
+            "Position": [1, 6],
+            "PixelOffset": [0, 0]
+        }
+    ],
+    "EntrancePositions": [[1, 6]],
+    "Rooms": [
+        {
+            "Name": "Cellar Chamber",
+            "Purpose": "Workshop",
+            "TopLeft": [1, 1],
+            "Size": [5, 6],
+            "IsSecret": true,
+            "Properties": {
+                "Atmosphere": "Dark"
+            }
+        }
+    ],
+    "Metadata": {}
+}

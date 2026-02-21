@@ -5,18 +5,20 @@ using VeilOfAges.Entities.Beings.Health;
 namespace VeilOfAges.Entities.Traits;
 
 /// <summary>
-/// Trait that provides home building reference for entities.
+/// Trait that provides home room reference for entities.
 /// Centralizes home storage so other traits can query it at runtime.
 /// Home is typically set during entity spawning via SetHome().
+///
+/// Stores a Room reference internally.
 /// </summary>
 public class HomeTrait : BeingTrait
 {
-    private Building? _home;
+    private Room? _home;
 
     /// <summary>
-    /// Gets the entity's home building.
+    /// Gets the entity's home room.
     /// </summary>
-    public Building? Home => _home;
+    public Room? Home => _home;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HomeTrait"/> class.
@@ -33,7 +35,10 @@ public class HomeTrait : BeingTrait
         // Register as resident now that _owner is available.
         // Configure() may have set _home before _owner was set,
         // so we need to do the AddResident call here.
-        _home?.AddResident(_owner!);
+        if (_home != null && _owner != null)
+        {
+            _home.AddResident(_owner);
+        }
 
         IsInitialized = true;
     }
@@ -44,7 +49,7 @@ public class HomeTrait : BeingTrait
     /// </summary>
     public override void Configure(TraitConfiguration config)
     {
-        var home = config.GetBuilding("home");
+        var home = config.GetRoom("home");
         if (home != null)
         {
             SetHome(home);
@@ -52,21 +57,35 @@ public class HomeTrait : BeingTrait
     }
 
     /// <summary>
-    /// Sets the entity's home building.
-    /// Called during entity spawning when assigning homes.
+    /// Check if the entity is currently inside their home room.
+    /// Returns false if owner or home is null.
     /// </summary>
-    public void SetHome(Building home)
+    public bool IsEntityAtHome()
     {
-        _home = home;
-        Log.Print($"{_owner?.Name}: Home set to {home.BuildingName}");
+        if (_owner == null || _home == null)
+        {
+            return false;
+        }
 
-        // Register as a resident of the home.
+        return _home.ContainsAbsolutePosition(_owner.GetCurrentGridPosition());
+    }
+
+    /// <summary>
+    /// Sets the entity's home room directly.
+    /// Called when assigning a specific room as home.
+    /// </summary>
+    public void SetHome(Room room)
+    {
+        _home = room;
+        Log.Print($"{_owner?.Name}: Home set to room '{room.Name}'");
+
+        // Register as a resident of the home room directly.
         // Only call AddResident if _owner is already set (i.e., Initialize has run).
         // If called from Configure() before Initialize(), the registration is
         // deferred to Initialize() where _owner becomes available.
         if (_owner != null)
         {
-            home.AddResident(_owner);
+            room.AddResident(_owner);
         }
     }
 }

@@ -212,6 +212,13 @@ public class RoomData
     public Vector2I TopLeft { get; set; }
     public Vector2I Size { get; set; }
     public Dictionary<string, string> Properties { get; set; } = new ();
+
+    /// <summary>
+    /// Gets or sets a value indicating whether gets or sets whether this room is secret.
+    /// Secret rooms create their own SharedKnowledge scope — their facilities are
+    /// NOT registered in village SharedKnowledge.
+    /// </summary>
+    public bool IsSecret { get; set; }
 }
 
 /// <summary>
@@ -231,10 +238,34 @@ public class FacilityData
     public bool RequireAdjacent { get; set; }
 
     /// <summary>
+    /// Gets or sets the class name of the IFacilityInteractable implementation for this facility.
+    /// Resolved via reflection at building initialization (e.g., "NecromancyAltarInteraction").
+    /// </summary>
+    public string? InteractableType { get; set; }
+
+    /// <summary>
     /// Gets or sets the storage configuration for this facility.
     /// If set, this facility acts as a storage container with its own capacity and items.
     /// </summary>
     public StorageConfig? Storage { get; set; }
+
+    /// <summary>
+    /// Gets or sets the decoration definition ID to use for this facility's sprite.
+    /// References a DecorationDefinition loaded by TileResourceManager.
+    /// When set, the facility renders its own sprite (replacing the need for a separate Decoration).
+    /// </summary>
+    public string? DecorationId { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether gets or sets whether entities can walk through this facility's tiles.
+    /// Default is true for backward compatibility.
+    /// </summary>
+    public bool IsWalkable { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets an optional pixel offset for fine-tuning the facility sprite position.
+    /// </summary>
+    public Vector2I PixelOffset { get; set; } = new (0, 0);
 }
 
 /// <summary>
@@ -296,13 +327,25 @@ public class StorageConfig
 
 /// <summary>
 /// Data structure for a decoration placement in a building template.
-/// Decorations are purely visual sprites, divorced from the tile/walkability system.
+/// Decorations are purely visual sprites that can optionally block walkability.
 /// </summary>
 public class DecorationPlacement
 {
     public string Id { get; set; } = string.Empty;
     public Vector2I Position { get; set; }
     public Vector2I PixelOffset { get; set; } = new (0, 0);
+
+    /// <summary>
+    /// Gets or sets a value indicating whether gets or sets whether entities can walk through this decoration's tiles.
+    /// Default is true for backward compatibility.
+    /// </summary>
+    public bool IsWalkable { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets additional tile positions this decoration occupies beyond its primary Position.
+    /// When IsWalkable is false, all positions (Position + AdditionalPositions) are marked solid.
+    /// </summary>
+    public List<Vector2I> AdditionalPositions { get; set; } = new ();
 }
 
 /// <summary>

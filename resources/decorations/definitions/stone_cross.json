@@ -1,0 +1,7 @@
+{
+    "Id": "stone_cross",
+    "Name": "Stone Cross",
+    "AtlasSource": "custom",
+    "AtlasCoords": [2, 0],
+    "TileSize": [1, 1]
+}

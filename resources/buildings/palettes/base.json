@@ -1,0 +1,6 @@
+{
+    "Aliases": {
+        ".": { "Type": "Empty" },
+        "DF": { "Type": "Floor", "Material": "Dirt", "Layer": "Ground" }
+    }
+}

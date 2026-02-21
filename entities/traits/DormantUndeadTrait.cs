@@ -110,13 +110,13 @@ public class DormantUndeadTrait : BeingTrait
                 return null;
             }
 
-            if (home == null || !GodotObject.IsInstanceValid(home))
+            if (home == null || home.IsDestroyed)
             {
                 DebugLog("DORMANT", $"Should hide but no valid home graveyard", 0);
                 return null;
             }
 
-            DebugLog("DORMANT", $"Time to hide ({currentPhase}), retreating to {home.BuildingName}", 0);
+            DebugLog("DORMANT", $"Time to hide ({currentPhase}), retreating to {home.Name}", 0);
             var hideActivity = new HideInBuildingActivity(home, priority: -1);
             return new StartActivityAction(_owner, this, hideActivity, priority: -1);
         }

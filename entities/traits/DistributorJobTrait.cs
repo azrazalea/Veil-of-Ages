@@ -1,4 +1,4 @@
-using Godot;
+using System.Linq;
 using VeilOfAges.Core;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
@@ -14,21 +14,21 @@ namespace VeilOfAges.Entities.Traits;
 /// </summary>
 public class DistributorJobTrait : BeingTrait
 {
-    private Building? _workplace; // The granary
+    private Room? _workplace; // The granary room
 
     public DistributorJobTrait()
     {
     }
 
-    public DistributorJobTrait(Building workplace)
+    public DistributorJobTrait(Room workRoom)
     {
-        _workplace = workplace;
+        _workplace = workRoom;
     }
 
     /// <summary>
     /// Validates that the trait has all required configuration.
     /// Expected parameters:
-    /// - "workplace" (Building): The granary building to work at (recommended but optional).
+    /// - "workplace" (Room): The granary room to work at (recommended but optional).
     /// </summary>
     /// <remarks>
     /// If no workplace is provided, the trait will be non-functional but won't crash.
@@ -42,7 +42,7 @@ public class DistributorJobTrait : BeingTrait
         }
 
         // workplace is recommended but we handle null gracefully in SuggestAction()
-        if (config.GetBuilding("workplace") == null)
+        if (config.GetRoom("workplace") == null)
         {
             Log.Warn("DistributorJobTrait: 'workplace' parameter recommended for proper function");
         }
@@ -57,12 +57,12 @@ public class DistributorJobTrait : BeingTrait
             return;
         }
 
-        _workplace = config.GetBuilding("workplace");
+        _workplace = config.GetRoom("workplace");
     }
 
-    public override EntityAction? SuggestAction(Vector2I currentOwnerGridPosition, Perception currentPerception)
+    public override EntityAction? SuggestAction(Godot.Vector2I currentOwnerGridPosition, Perception currentPerception)
     {
-        if (_owner == null || _workplace == null || !GodotObject.IsInstanceValid(_workplace))
+        if (_owner == null || _workplace == null || _workplace.IsDestroyed)
         {
             return null;
         }
@@ -87,7 +87,7 @@ public class DistributorJobTrait : BeingTrait
         }
 
         // Check if granary has standing orders
-        var orders = _workplace.GetStandingOrders();
+        var orders = _workplace.GetStorageFacility()?.SelfAsEntity().GetTrait<GranaryTrait>()?.Orders;
         if (orders == null || orders.Count == 0)
         {
             DebugLog("DISTRIBUTOR", "No standing orders at granary");

@@ -18,6 +18,10 @@ JSON-serializable skill template that defines the properties of a skill type. Co
 - **AttributeInfluences**: Dictionary mapping attribute names to weight values (e.g., {"Intelligence": 0.5})
 - **Tags**: List of strings for categorization and filtering (e.g., ["knowledge", "academic"])
 
+**Localization:**
+- `LocalizedName` - Computed property returning `L.Tr($"skill.{Id}.NAME")`. Display code should use this instead of `Name`.
+- `LocalizedDescription` - Computed property returning `L.Tr($"skill.{Id}.DESCRIPTION")`.
+
 **Key Methods:**
 - `GetXpForLevel(level)`: Calculate XP required to advance from given level to next. Formula: `BaseXpPerLevel * XpScaling^(level-1)`
 - `HasTag(tag)`: Check if skill has a specific tag (case-insensitive)

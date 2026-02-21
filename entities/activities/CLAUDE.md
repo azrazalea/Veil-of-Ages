@@ -26,7 +26,7 @@ This directory contains the Activity system - the execution layer between trait 
 Work activities (farming, baking, crafting) MUST use phase-based state machines to ensure storage access only happens when the entity has physically arrived at the location.
 
 **Required Pattern:**
-1. **Navigation phases** use `RunSubActivity()` with `GoToBuildingActivity`
+1. **Navigation phases** use `RunSubActivity()` with `GoToRoomActivity` or `GoToFacilityActivity`
 2. **Storage access phases** only run AFTER navigation completes
 3. Activities handle ALL work logic - traits just start them
 
@@ -34,8 +34,8 @@ Work activities (farming, baking, crafting) MUST use phase-based state machines 
 Storage access (`AccessStorage`, `TakeFromStorage`, etc.) requires physical proximity (within 1 tile). If a trait tries to access storage before navigation completes, the access returns null/fails. This was the root cause of the baker bug where baking failed because the trait checked storage while the entity was still walking.
 
 **Canonical Examples:**
-- `WorkFieldActivity.cs` - Phases: GoingToWork -> Working -> TakingWheat -> GoingHome -> DepositingWheat
-- `ProcessReactionActivity.cs` - Phases: GoToWorkplace -> GoToFacility -> VerifyInputs -> ConsumeInputs -> Process -> ProduceOutputs
+- `WorkFieldActivity.cs` - States: GoingToWork -> GoingToCrop -> Working -> TakingBreak? -> TakingWheat -> GoingHome -> DepositingWheat
+- `ProcessReactionActivity.cs` - States: GoingToBuilding -> GoingToStorageForInputs -> TakingInputs -> GoingToFacility -> ExecutingReaction -> Processing -> GoingToStorageForOutputs -> DepositingOutputs
 
 **Phase Transition Pattern:**
 ```csharp
@@ -47,7 +47,7 @@ public override EntityAction? GetNextAction(...)
     switch (_currentPhase)
     {
         case Phase.GoingToWork:
-            // Use RunSubActivity for navigation
+            // Use RunSubActivity for navigation — GoToRoomActivity or GoToFacilityActivity
             var (result, action) = RunSubActivity(_goToWorkActivity, position, perception);
             if (result == SubActivityResult.Failed) { Fail(); return null; }
             if (result == SubActivityResult.Continue) return action;
@@ -57,7 +57,7 @@ public override EntityAction? GetNextAction(...)
 
         case Phase.Working:
             // Safe to access storage here - we've arrived
-            var storage = _owner.AccessStorage(_workplace);
+            var storage = _owner.TakeFromFacilityStorage(_workplaceFacility, "wheat", 1);
             // ... do work ...
             break;
     }
@@ -66,7 +66,28 @@ public override EntityAction? GetNextAction(...)
 
 See `/entities/traits/CLAUDE.md` "Job Trait Pattern (CRITICAL)" section for the trait-side requirements.
 
+### Room and Facility: The Navigation Targets
+
+All activities navigate to **Rooms** and **Facilities** directly. The `Building` abstraction is no longer used in activities.
+
+- `GoToRoomActivity` — navigates to a room (replaces the old `GoToBuildingActivity`)
+- `GoToFacilityActivity` — navigates adjacent to a specific facility within a room
+
+Activities expose a `TargetRoom` property (returns `Room?`) for HUD and pathfinding inspection. The old `TargetBuilding` property is gone.
+
 ## Files
+
+### ISubActivityRunner.cs
+Shared interface for running sub-activities. Implemented by both `Activity` (for activity composition) and `EntityCommand` (for command-driven activities).
+
+- **Namespace**: `VeilOfAges.Entities.Activities`
+- **Interface**: `ISubActivityRunner`
+- **Key Properties**:
+  - `SubActivityOwner`: The Being that owns this runner
+- **Default Method**: `RunSubActivity(subActivity, position, perception, priority)` — single source of truth for the sub-activity driving pattern. Handles immediate completion, null actions, state transitions, and returns an IdleAction to hold the action slot when needed.
+- **Implementors**:
+  - `Activity` — delegates existing `RunSubActivity(subActivity, position, perception)` to the interface, passing its own `Priority`
+  - `EntityCommand` — adds `RunSubActivity(subActivity, position, perception, priority = -1)` wrapper and `InitializeSubActivity(subActivity)` helper
 
 ### Activity.cs
 Abstract base class for all activities.
@@ -75,6 +96,8 @@ Abstract base class for all activities.
 - `State` - ActivityState enum (Running, Completed, Failed)
 - `DisplayName` - Human-readable name for UI ("Eating at Farm")
 - `Priority` - Default priority for actions returned
+- `TargetRoom` - The Room this activity is navigating toward (returns `Room?`, replaces old `TargetBuilding`)
+- `TargetFacilityId` - Optional facility ID within the target room (for HUD display)
 
 **Key Methods:**
 - `Initialize(Being owner)` - Called when activity starts
@@ -118,7 +141,7 @@ DebugLog("SLEEP", $"Energy: {_energyNeed.CurrentValue:F1}", 50);
 
 **Sub-Activity Helper (RunSubActivity):**
 
-When activities compose other activities (e.g., ConsumeItemActivity uses GoToBuildingActivity), the sub-activity may complete immediately on the same tick if the goal is already reached. Without proper handling, this can cause the parent activity to return `null`, allowing other traits to overwrite it.
+When activities compose other activities (e.g., `ConsumeItemActivity` uses `GoToFacilityActivity`), the sub-activity may complete immediately on the same tick if the goal is already reached. Without proper handling, this can cause the parent activity to return `null`, allowing other traits to overwrite it.
 
 The `RunSubActivity` helper method handles this pattern safely:
 
@@ -139,7 +162,7 @@ protected (SubActivityResult result, EntityAction? action) RunSubActivity(
 // Initialize sub-activity if needed
 if (_goToPhase == null)
 {
-    _goToPhase = new GoToBuildingActivity(_building, Priority);
+    _goToPhase = new GoToFacilityActivity(_storageFacility, Priority);
     _goToPhase.Initialize(_owner);
 }
 
@@ -177,36 +200,58 @@ new GoToLocationActivity(targetPosition, priority: 0)
 - Completes when IsGoalReached()
 - Fails if stuck for MAX_STUCK_TICKS
 
-### GoToBuildingActivity.cs
-Moves an entity to a building (adjacent position or storage access position).
+### GoToRoomActivity.cs
+Moves an entity to a room (adjacent position, room interior, or storage access position). Replaces the deleted `GoToBuildingActivity`. Cross-area capable.
+
+**Cross-Area Capable**: PathFinder handles cross-area routing internally. When the target room is in a different area, PathFinder plans the route via known transition points and signals area transitions automatically.
 
 **Usage:**
 ```csharp
-// Basic navigation to building
-new GoToBuildingActivity(farmBuilding, priority: 0)
+// Navigate to room interior (default)
+new GoToRoomActivity(room, priority: 0)
 
-// Navigate to storage access position (handles RequireAdjacentToFacility automatically)
-new GoToBuildingActivity(homeBuilding, priority: 0, targetStorage: true)
+// Navigate to storage access position (handles RequireAdjacent automatically)
+new GoToRoomActivity(room, priority: 0, targetStorage: true)
+
+// Navigate to room perimeter only (don't require interior)
+new GoToRoomActivity(room, priority: 0, requireInterior: false)
 ```
 
 **Parameters:**
-- `targetBuilding` - The building to navigate to
+- `targetRoom` (Room) - The room to navigate to
 - `priority` - Action priority (default 0)
-- `targetStorage` - If true, navigate to storage access position (default false)
+- `targetStorage` - If true, navigate to the storage facility's access position (default false)
+- `requireInterior` - If false, entity can stop at the room perimeter (default true)
 
 **Behavior:**
-- Creates PathFinder with building goal or facility goal (when targetStorage=true)
-- When `targetStorage` is true and building has `RequireAdjacentToFacility` storage, uses `SetFacilityGoal("storage")` to navigate to a position adjacent to the storage facility
-- When `targetStorage` is true but `RequireAdjacentToFacility` is false (e.g., wells), uses `SetBuildingGoal` with `requireInterior: false` to navigate to building perimeter
-- Validates building still exists each tick
+- When `targetStorage` is true and room's storage facility has `RequireAdjacent` set, uses `SetFacilityGoal` on the storage facility
+- When `targetStorage` is true but storage doesn't require adjacency (e.g., wells), uses `SetRoomGoal` with `requireInterior: false`
+- Validates room's `IsDestroyed` flag each tick (Room is a plain C# object, not a GodotObject)
 - Completes when at goal position
-- Fails if building destroyed or stuck for MAX_STUCK_TICKS (50 ticks)
+- Fails if room destroyed or stuck for MAX_STUCK_TICKS (50 ticks)
+- Exposes `TargetRoom` property for HUD and pathfinding inspection
 
-**Storage Navigation:**
-When `targetStorage=true`, the activity automatically handles buildings with storage that requires facility adjacency. This removes the need for traits to know about storage configuration - they simply set `targetStorage: true` when navigating to access storage.
+### GoToFacilityActivity.cs
+Moves an entity to be adjacent to a specific facility. Cross-area capable.
+
+**Usage:**
+```csharp
+new GoToFacilityActivity(facility, priority: 0)
+```
+
+**Parameters:**
+- `facility` (Facility) - The facility to navigate adjacent to
+- `priority` - Action priority (default 0)
+
+**Behavior:**
+- Uses `PathFinder.SetFacilityGoal()` to navigate to a position adjacent to the facility
+- Validates the facility with `GodotObject.IsInstanceValid()` each tick (Facility is a GodotObject)
+- Completes when adjacent to the facility
+- Fails if facility destroyed or stuck for MAX_STUCK_TICKS
+- Exposes `TargetRoom` via `_facility.ContainingRoom` and `TargetFacilityId` for HUD
 
 ### SleepActivity.cs
-Sleeping at home during night. Restores energy, reduces hunger decay.
+Sleeping activity that restores energy. Targets 100% energy with smart wake conditions.
 
 **Usage:**
 ```csharp
@@ -214,59 +259,77 @@ new SleepActivity(priority: 0)
 ```
 
 **Behavior:**
-- Completes automatically when Dawn arrives
-- Restores energy at 0.15/tick (full restore in ~84 seconds)
+- Can start during Dusk or Night phases
+- Can continue sleeping through Dawn if energy hasn't reached 100%
+- Restores energy at 0.025/tick (full restore in ~4000 ticks)
 - Sets energy decay to 0 (no energy loss while sleeping)
 - Sets hunger decay to 0.25x (slow hunger while sleeping)
+
+**Wake Conditions:**
+1. Energy reaches 100% (fully rested)
+2. Day phase starts — but only for normal sleep (priority >= 0), NOT emergency sleep (priority < 0)
+3. Emergency sleep (priority < 0) wakes when energy reaches LOW_ENERGY_THRESHOLD (40f)
+
+Critical non-energy needs no longer cause self-termination. The priority system handles this: if a critical need can be addressed, the responsible trait produces a higher-priority action that replaces sleep via the priority queue. If it can't be addressed, sleeping is the best option.
 
 **Need Effects:**
 ```csharp
 NeedDecayMultipliers["hunger"] = 0.25f;  // Slow hunger
 NeedDecayMultipliers["energy"] = 0f;      // No energy decay
-// Plus direct restoration: _energyNeed.Restore(0.15f) each tick
+// Plus direct restoration: _energyNeed.Restore(0.025f) each tick
 ```
 
 ### WorkFieldActivity.cs
-Multi-phase work activity at a farm/field. Produces wheat, brings harvest home.
+Multi-phase work activity at a farm/field. Uses a `StatefulActivity` state machine. Produces wheat, brings harvest home. Uses `Room` and `Facility` directly — no Building references.
 
 **Usage:**
 ```csharp
-new WorkFieldActivity(workplace: farm, home: house, workDuration: 400, priority: 0)
+new WorkFieldActivity(workRoom: farmRoom, homeStorage: homeStorageFacility, workDuration: 400, priority: 0)
 ```
 
-**Phases:**
-1. **GoingToWork** - Navigate to workplace using GoToBuildingActivity
-2. **Working** - Idle at location, spend energy (0.05/tick), produce wheat
-3. **TakingWheat** - Gather 4-6 wheat from farm storage into inventory
-4. **GoingHome** - Navigate home using GoToBuildingActivity
-5. **DepositingWheat** - Transfer wheat from inventory to home storage
+**Parameters:**
+- `workRoom` (Room) - The farm room to work at
+- `homeStorage` (Facility?) - The home storage facility to deposit wheat into (can be null)
+- `workDuration` (uint) - Base ticks per work segment (varied ±15% at runtime)
+
+**States (state machine):**
+1. **GoingToWork** - Navigate to workplace room using `GoToRoomActivity`
+2. **GoingToCrop** - Navigate adjacent to crop facility using `GoToFacilityActivity`; falls back to `GoToRoomActivity` if no crop facility
+3. **Working** - Work at crops, spend energy (0.01/tick), produce wheat gradually via `ProduceToStorageAction`
+4. **TakingBreak** - Optional short break (18% probability after work segment, 30–60 ticks)
+5. **TakingWheat** - Take 2 wheat from farm storage via `TakeFromStorageActivity`
+6. **GoingHome** - Navigate adjacent to home storage facility using `GoToFacilityActivity`
+7. **DepositingWheat** - Transfer wheat from inventory to home storage via `DepositToStorageActivity`
+
+**Interruption behavior (two-zone regression):**
+- Work zone (GoingToCrop through TakingWheat): interruption regresses to GoingToWork
+- Home zone (DepositingWheat): interruption regresses to GoingHome
+- GoingToWork and GoingHome: `PermitReentry` to force fresh pathfinder on resume
 
 **Behavior:**
 - Automatically transitions to TakingWheat when day phase becomes Dusk/Night
-- Produces WHEAT_PRODUCED_PER_SHIFT (3) wheat when work duration completes
-- Takes MIN_WHEAT_TO_BRING_HOME to MAX_WHEAT_TO_BRING_HOME (4-6) wheat home
+- Farm storage resolved from `workRoom.GetStorageFacility()` in `Initialize()`
+- `TargetRoom` returns home storage's `ContainingRoom` during GoingHome, workplace room otherwise
 - Completes after depositing wheat or if no home exists
 
 **Need Effects:**
 ```csharp
 NeedDecayMultipliers["hunger"] = 1.2f;  // Hungry faster while working
-// Direct cost: _energyNeed.Restore(-0.05f) each tick while in Working phase
+// Direct cost: _energyNeed.Restore(-0.01f) each tick while in Working state
 ```
-
-**Design Decision:** Work uses direct energy cost rather than decay multiplier.
-This creates a clearer "work spends energy" mental model and avoids confusing
-compounding effects. Decay multipliers are reserved for passive effects.
 
 ### ConsumeItemActivity.cs
 Consumes food items from inventory or home storage to restore a need.
-Uses `ConsumeFromInventoryAction` for inventory food and `ConsumeFromStorageByTagAction` for home storage food.
+Uses `TakeFromStorageActivity` to fetch food (cross-area capable) and
+`ConsumeFromInventoryAction` for consumption. Hidden entities use
+`ConsumeFromStorageByTagAction` directly (they're already inside the building).
 
 **Usage:**
 ```csharp
 new ConsumeItemActivity(
     foodTag: "food",           // Tag to identify food items
     need: hungerNeed,          // Need to restore
-    home: houseBuilding,       // Home with storage (can be null)
+    homeStorage: storageFacility, // Home storage facility (can be null)
     restoreAmount: 50f,        // Amount to restore
     consumptionDuration: 24,   // Ticks to consume
     priority: 0
@@ -274,102 +337,223 @@ new ConsumeItemActivity(
 ```
 
 **Phases:**
-1. **Check Inventory** - If entity has food in inventory, start consuming immediately
-2. **Go to Home** - If no food in inventory, travel to home using GoToBuildingActivity
-3. **Check Home Storage** - Look for food in home storage (uses memory check)
-4. **Issue Consume Action** - Return `ConsumeFromInventoryAction` or `ConsumeFromStorageByTagAction`
-5. **Consumption Timer** - Idle for consumption duration, then restore need
+1. **Check Inventory** - If entity has food in inventory, skip to consuming
+2. **Hidden Entity** - If hidden, use ConsumeFromStorageByTagAction directly (no navigation)
+3. **Fetch from Storage** - TakeFromStorageActivity(home, foodTag, 1) handles cross-area navigation + local navigation + taking into inventory
+4. **Consume** - ConsumeFromInventoryAction + timer + need restoration
 
 **Behavior:**
 - Checks inventory first (no travel needed if food found)
-- Validates home building still exists during travel
-- Uses `ConsumeFromInventoryAction` for inventory consumption (by item ID)
-- Uses `ConsumeFromStorageByTagAction` for home storage consumption (by tag)
+- Hidden entities consume directly from storage (no navigation needed)
+- Non-hidden entities use TakeFromStorageActivity for cross-area capable food fetching
+- Always consumes from inventory via ConsumeFromInventoryAction after fetching
+- Validates home facility still exists during travel
 - Applies need restoration only after consumption duration completes
 - Fails if no food found in inventory and no home, or home has no food
 
-### CheckHomeStorageActivity.cs
-Goes to a building and observes its storage to refresh memory.
+### CheckStorageActivity.cs
+Goes to a facility and observes its storage to refresh memory. Cross-area capable.
 
 **Usage:**
 ```csharp
-new CheckHomeStorageActivity(homeBuilding, priority: 0)
+new CheckStorageActivity(storageFacility, priority: 0)
 ```
 
+**Parameters:**
+- `storageFacility` (Facility) - The storage facility to observe
+
 **Phases:**
-1. **Navigate** - Travel to target building using GoToBuildingActivity with `targetStorage: true`
-2. **Observe** - Call AccessStorage to observe and update personal memory
+1. **Navigate** - GoToFacilityActivity to reach facility access position (cross-area capable)
+2. **Observing** - Call AccessFacilityStorage to observe and update personal memory, then complete
 
 **Behavior:**
-- Uses `GoToBuildingActivity` with `targetStorage: true` to handle RequireAdjacentToFacility automatically
-- Used by ItemConsumptionBehaviorTrait when entity is hungry but has no memory of food
-- Validates building still exists during travel
-- Calls `_owner.AccessStorage()` which automatically updates PersonalMemory
+- Uses `GoToFacilityActivity` for navigation (cross-area capable via PathFinder)
+- Used by ItemConsumptionBehaviorTrait, BakerJobTrait, and DistributorRoundActivity
+- Validates facility still exists during travel
+- Calls `_owner.AccessFacilityStorage()` which automatically updates PersonalMemory
 - Completes immediately after observing (single tick observation)
-- After completion, the consuming trait can act on the updated memory
+- OnResume() nulls navigation, regresses to Navigate phase
 
 **Integration with ItemConsumptionBehaviorTrait:**
 When an entity is hungry but has no memory of food locations:
 1. Trait checks `HasFoodAvailable()` -> returns false (no inventory, no memory)
-2. Trait starts `CheckHomeStorageActivity` to go home and observe storage
-3. Activity navigates to home, calls `AccessStorage()`, completes
-4. On next think cycle, `HasFoodAvailable()` may now return true (if home had food)
+2. Trait starts `CheckStorageActivity` to go to building and observe storage
+3. Activity navigates (cross-area if needed), calls `AccessStorage()`, completes
+4. On next think cycle, `HasFoodAvailable()` may now return true (if building had food)
 5. Trait then starts `ConsumeItemActivity` as normal
+
+### TakeFromStorageActivity.cs
+Takes specified items from a facility's storage into the entity's inventory. Cross-area capable.
+Supports both item-by-ID and tag-based modes.
+
+**Usage:**
+```csharp
+// Take specific items by ID
+new TakeFromStorageActivity(facility, new List<(string, int)> { ("wheat", 5) }, priority: 0)
+
+// Take items by tag (resolves to item ID after arriving)
+new TakeFromStorageActivity(facility, tag: "food", quantity: 1, priority: 0)
+```
+
+**Parameters:**
+- `facility` (Facility) - The storage facility to take items from
+
+**Phases:**
+1. **Navigate** - GoToFacilityActivity to reach facility access position (cross-area capable)
+2. **Taking** - TakeFromStorageAction per item (tag mode resolves tag to item ID first)
+
+**Behavior:**
+- Uses `GoToFacilityActivity` for navigation (cross-area capable via PathFinder)
+- Tag mode: after arriving, calls AccessFacilityStorage to observe, FindItemByTag to resolve tag → item ID
+- ID mode: takes items directly using TakeFromStorageAction
+- OnResume() nulls navigation, regresses to Navigate phase. Taking progress (items already taken) is preserved.
+- Backward compatible: existing callers that already navigate will see navigation phases complete immediately
+
+**Used By:**
+- ConsumeItemActivity (tag mode: fetch food from home)
+- FetchResourceActivity, WorkFieldActivity, ProcessReactionActivity (ID mode)
+
+### DepositToStorageActivity.cs
+Deposits items from the entity's inventory into a facility's storage. One action per item type per tick.
+
+**Usage:**
+```csharp
+new DepositToStorageActivity(storageFacility, itemsToDeposit, priority: 0)
+```
+
+**Parameters:**
+- `storageFacility` (Facility) - The storage facility to deposit items into
+- `itemsToDeposit` (List<(string itemId, int quantity)>) - Items and quantities to deposit
+
+**Behavior:**
+- Returns a `DepositToStorageAction` per item type each tick (iterates through the list)
+- Validates facility with `GodotObject.IsInstanceValid()` each tick
+- Display name uses `_storageFacility.ContainingRoom?.Name` (no Building reference)
+- Completes when all items have been deposited
+- Fails if facility becomes invalid
+
+**Used By:**
+- WorkFieldActivity (depositing wheat at home)
+- DistributorRoundActivity (depositing collected items at granary)
 
 ### ProcessReactionActivity.cs
 Processes a crafting reaction (input items -> output items) at a workplace.
-Uses `ConsumeFromStorageAction` and `ProduceToStorageAction` for storage operations.
+Uses a `StatefulActivity` state machine. Uses `Room` and `Facility` directly — no Building references.
 
 **Usage:**
 ```csharp
 new ProcessReactionActivity(
-    reaction: breadReaction,    // ReactionDefinition to process
-    workplace: bakery,          // Building with facilities (can be null)
-    storage: storageTrait,      // Storage for inputs/outputs
+    reaction: breadReaction,         // ReactionDefinition to process
+    workplaceStorage: storageFacility, // Storage facility for inputs/outputs (can be null)
     priority: 0
 )
 ```
 
-**Phases:**
-1. **Go to Workplace** - Navigate to workplace if specified (skipped if null)
-2. **Go to Facility** - Navigate to specific facility if reaction requires one
-3. **Verify Inputs** - Check all required inputs are available in storage
-4. **Consume Inputs** - Remove input items from storage using `ConsumeFromStorageAction` (one action per input type)
-5. **Process** - Wait for reaction duration (idle), spend energy based on EnergyCostMultiplier
-6. **Produce Outputs** - Create output items and add to storage using `ProduceToStorageAction` (one action per output type)
+**Parameters:**
+- `reaction` (ReactionDefinition) - The reaction to process
+- `workplaceStorage` (Facility?) - The storage facility containing inputs and receiving outputs. Room derived from `workplaceStorage.ContainingRoom`.
+
+**States (state machine):**
+1. **GoingToBuilding** - Navigate to workplace room (skipped if null)
+2. **GoingToStorageForInputs** - Navigate adjacent to storage facility
+3. **TakingInputs** - Take input items from storage
+4. **GoingToFacility** - Navigate to reaction facility if required
+5. **ExecutingReaction** - Fire reaction action (single tick)
+6. **Processing** - Wait for reaction duration, spend energy per `EnergyCostMultiplier`
+7. **GoingToStorageForOutputs** - Navigate adjacent to storage facility for deposit
+8. **DepositingOutputs** - Deposit output items to storage
+
+**Interruption behavior (two-zone regression):**
+- Pre-reaction zone (GoingToBuilding through Processing): interruption regresses to GoingToBuilding
+- Post-reaction zone (GoingToStorageForOutputs, DepositingOutputs): interruption regresses to GoingToStorageForOutputs
+- Navigation states use `PermitReentry` for Interrupted and Resumed to force fresh pathfinder
 
 **Behavior:**
-- Validates workplace exists during travel
+- Validates workplace room still exists during travel
 - Verifies all inputs available before consuming any
-- Consumes inputs one at a time using `ConsumeFromStorageAction`
-- Creates output items one at a time using `ProduceToStorageAction`
-- Updates entity's memory about storage contents via actions
-- Warns if storage is full and outputs are lost
 - Works with any ReactionDefinition that specifies inputs, outputs, and duration
-- Falls back to direct storage manipulation if workplace is null (legacy behavior)
+- `TargetRoom` returns `_workplaceRoom` (derived from `workplaceStorage.ContainingRoom`)
+
+### StudyNecromancyActivity.cs
+Studying necromancy and dark arts at a necromancy_altar facility.
+
+**Usage:**
+```csharp
+new StudyNecromancyActivity(facilityRef, studyDuration: 400, priority: 0)
+```
+
+**Phases:**
+1. **GoingToStudy** - Navigate to necromancy_altar (cross-area capable via GoToFacilityActivity)
+2. **Studying** - Study dark arts, spend energy, gain necromancy + arcane_theory XP
+
+**Behavior:**
+- Dynamically finds necromancy_altar via FacilityReference (cross-area capable)
+- Uses GoToFacilityActivity for navigation (cross-area capable via PathFinder)
+- Drains energy at 0.015/tick (more taxing than normal study)
+- Grants XP in both "necromancy" and "arcane_theory" skills
+- Completes after study duration or if energy is low
+- Validates facility building exists throughout activity
+
+**Energy Cost:**
+```csharp
+const float ENERGYCOSTPERTICK = 0.015f;  // Necromantic study is demanding
+```
+
+### WorkOnOrderActivity.cs
+Generic activity for working on a facility's active work order. Navigates directly to the facility.
+
+**Usage:**
+```csharp
+new WorkOnOrderActivity(facilityRef, facility, priority: 0)
+```
+
+**Parameters:**
+- `facilityRef` (FacilityReference) - Reference used to re-validate facility each navigation attempt
+- `facility` (Facility) - The facility with the active work order
+- `allowedPhases` (DayPhaseType[]?) - Day phases when work is allowed (null = any time)
+
+**Phases:**
+1. **Navigating** - Travel directly to facility via `GoToFacilityActivity` (cross-area capable)
+2. **Working** - Work each tick, advance progress, grant XP, drain energy
+
+**Behavior:**
+- Uses `GoToFacilityActivity` for navigation — navigates directly to the facility, not via a Building or Room
+- Calls `workOrder.Advance(worker)` each tick in Working phase (increments progress, grants XP, drains energy)
+- Exits early if energy becomes critical or time phase changes (necromancy is night-only)
+- Completes when work order finishes or conditions no longer met (work order stays on facility)
+- Calls `facility.CompleteWorkOrder()` when work order reaches 100%
+- OnResume() nulls `_navigationActivity` and stays in Navigating phase to re-navigate
+
+**Integration:**
+Used by NecromancyStudyJobTrait when altar has an active work order.
 
 ### FetchResourceActivity.cs
-Fetches resources from one building (source) and brings them to another (destination).
+Fetches resources from one facility (source) and brings them to another (destination).
 
 **Usage:**
 ```csharp
 new FetchResourceActivity(
-    sourceBuilding: well,        // Building to take items from
-    destinationBuilding: bakery, // Building to deposit items to
-    itemId: "water",             // Item ID to fetch
-    desiredQuantity: 5,          // How many items to fetch
+    sourceFacility: wellStorage,     // Source storage facility
+    destinationFacility: bakeryStorage, // Destination storage facility
+    itemId: "water",                 // Item ID to fetch
+    desiredQuantity: 5,              // How many items to fetch
     priority: 0
 )
 ```
 
+**Parameters:**
+- `sourceFacility` (Facility) - The storage facility to take items from
+- `destinationFacility` (Facility) - The storage facility to deposit items into
+
 **Phases:**
-1. **GoingToSource** - Navigate to source building using GoToBuildingActivity with targetStorage: true
+1. **GoingToSource** - Navigate to source facility (cross-area capable via GoToFacilityActivity)
 2. **TakingResource** - Take items from source storage into inventory
-3. **GoingToDestination** - Navigate to destination building using GoToBuildingActivity with targetStorage: true
+3. **GoingToDestination** - Navigate to destination facility (cross-area capable via GoToFacilityActivity)
 4. **DepositingResource** - Transfer items from inventory to destination storage
 
 **Behavior:**
-- Validates both buildings exist throughout the activity
+- Validates both facilities exist throughout the activity
+- Uses GoToFacilityActivity for navigation (cross-area capable via PathFinder)
 - Takes up to desiredQuantity, or all available if less
 - Uses Being wrapper methods for storage access (auto-observes contents)
 - Completes even if destination storage is full (keeps items in inventory)
@@ -377,20 +561,65 @@ new FetchResourceActivity(
 
 **Used By:**
 - BakerJobTrait - Fetches water from Well to Bakery for baking bread
+- FetchCorpseCommand - Fetches corpse from Graveyard to necromancy altar (cross-area, driven as sub-activity from command)
+
+### DistributorRoundActivity.cs
+One complete distribution round: visit granary, load items, deliver to households, collect excess, return to granary. Uses a `StatefulActivity` state machine. Uses `Room` and `Facility` directly — no Building references.
+
+**Usage:**
+```csharp
+new DistributorRoundActivity(granaryRoom, priority: 0)
+```
+
+**Parameters:**
+- `granaryRoom` (Room) - The room containing the granary storage
+
+**States (state machine):**
+1. **CheckingGranaryStock** - Navigate to granary and observe storage via `CheckStorageActivity`
+2. **ReadingOrders** - Read standing orders (timed, ~30 ticks); reads `GranaryTrait` via `room.GetStorageFacility()?.SelfAsEntity().GetTrait<GranaryTrait>()`
+3. **LoadingDeliveryItems** - Transfer needed items from granary to inventory
+4. **CheckingHousehold** - Navigate to next household and observe storage via `CheckStorageActivity`
+5. **ExchangingItems** - Deliver items and collect excess bread/wheat at current household
+6. **TakingBreak** - Optional short rest (15% probability, 20–50 ticks)
+7. **ReturningToGranary** - Navigate back to granary room via `GoToRoomActivity`
+8. **DepositingCollected** - Deposit collected items at granary
+
+**Interruption behavior (three-zone regression):**
+- Granary zone (ReadingOrders, LoadingDeliveryItems): regress to CheckingGranaryStock
+- Household zone (ExchangingItems, TakingBreak): regress to CheckingHousehold
+- Return zone (DepositingCollected): regress to ReturningToGranary
+- Navigation states (CheckingGranaryStock, CheckingHousehold, ReturningToGranary): `PermitReentry` for fresh sub-activity creation
+
+**GranaryTrait lookup pattern (Room-based):**
+```csharp
+// Find GranaryTrait via Room -> storage Facility -> entity -> trait
+var granaryTrait = _granaryRoom.GetStorageFacility()?.SelfAsEntity().GetTrait<GranaryTrait>();
+```
+
+**Need Effects:**
+```csharp
+NeedDecayMultipliers["hunger"] = 1.3f;  // Distributors get hungry faster (lots of walking)
+```
 
 ## Key Classes
 
 | Class | Description |
 |-------|-------------|
-| `Activity` | Abstract base with state, lifecycle |
+| `ISubActivityRunner` | Interface for shared sub-activity driving |
+| `Activity` | Abstract base with state, lifecycle, `TargetRoom` property |
 | `GoToLocationActivity` | Navigate to grid position |
-| `GoToBuildingActivity` | Navigate to building |
-| `CheckHomeStorageActivity` | Go to building and observe storage to refresh memory |
+| `GoToRoomActivity` | Navigate to room (replaces deleted GoToBuildingActivity, cross-area capable via PathFinder) |
+| `GoToFacilityActivity` | Navigate adjacent to a facility (cross-area capable via PathFinder) |
+| `CheckStorageActivity` | Navigate to facility (cross-area) and observe storage to refresh memory |
+| `TakeFromStorageActivity` | Navigate to facility (cross-area) and take items by ID or tag |
+| `DepositToStorageActivity` | Deposit items from inventory to a facility's storage |
 | `SleepActivity` | Sleep at night, restore energy |
-| `WorkFieldActivity` | Work at building, produce/transport wheat |
-| `ConsumeItemActivity` | Eat food from inventory/home storage |
-| `ProcessReactionActivity` | Craft items via reaction system |
-| `FetchResourceActivity` | Fetch items from one building to another |
+| `WorkFieldActivity` | Work at room (uses Room + Facility), produce/transport wheat |
+| `WorkOnOrderActivity` | Work on facility's active work order (navigates directly to Facility, cross-area capable) |
+| `ConsumeItemActivity` | Eat food from inventory/home storage (cross-area capable) |
+| `ProcessReactionActivity` | Craft items via reaction system (uses Room + Facility) |
+| `FetchResourceActivity` | Fetch items from one facility to another (cross-area capable) |
+| `DistributorRoundActivity` | Full distribution round visiting households (uses Room + Facility) |
 
 ## Integration with Being
 
@@ -426,10 +655,14 @@ Traits don't call SetCurrentActivity directly (threading). They return a StartAc
 
 ```csharp
 // In a trait's SuggestAction():
-var farm = FindNearestFarm(perception);
-if (farm != null)
+if (entity.TryFindBuildingOfType("Farm", out var farm))
 {
-    return new StartActivityAction(_owner, this, new EatActivity(farm), priority: 0);
+    // Resolve to Room via GetDefaultRoom()
+    var farmRoom = farm.GetDefaultRoom();
+    if (farmRoom != null)
+    {
+        return new StartActivityAction(_owner, this, new WorkFieldActivity(farmRoom, homeStorage, 400), priority: 0);
+    }
 }
 ```
 
@@ -440,16 +673,16 @@ StartActivityAction executes on main thread and calls SetCurrentActivity.
 Activities can use other activities as components:
 
 ```csharp
-public class EatActivity : Activity
+public class ConsumeItemActivity : Activity
 {
-    private GoToBuildingActivity? _goToPhase;
+    private GoToFacilityActivity? _goToPhase;
 
     public override EntityAction? GetNextAction(...)
     {
-        // Phase 1: Get to the farm
-        if (!IsAtFarm())
+        // Phase 1: Get to the storage facility
+        if (!IsAtFacility())
         {
-            _goToPhase ??= new GoToBuildingActivity(_farm);
+            _goToPhase ??= new GoToFacilityActivity(_homeStorage, Priority);
             _goToPhase.Initialize(_owner);
 
             var action = _goToPhase.GetNextAction(position, perception);
@@ -537,7 +770,8 @@ Each consumption type has different enough mechanics that separate activity clas
 - `VeilOfAges.Core.Lib.PathFinder` - Navigation
 - `VeilOfAges.Entities.Items` - Item, ItemResourceManager
 - `VeilOfAges.Entities.Reactions` - ReactionDefinition
-- `VeilOfAges.Entities.Traits` - InventoryTrait, StorageTrait
+- `VeilOfAges.Entities.Traits` - InventoryTrait, StorageTrait, GranaryTrait
+- `VeilOfAges.Entities.Building` - Room, Facility (no Building class used directly in activities)
 
 ### Depended On By
 - `VeilOfAges.Entities.Being` - Manages _currentActivity

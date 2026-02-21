@@ -76,9 +76,12 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
     private const uint MAXBREAKDURATION = 60;  // ~8 seconds
     private const float BREAKPROBABILITY = 0.18f;  // 18% chance after work segment
 
-    private readonly Building _workplace;
-    private readonly Building? _home;
+    private readonly Room _workRoom;
+    private readonly Facility? _homeStorage;
     private readonly uint _workDuration;
+
+    // Resolved in Initialize() from _workRoom's storage facility
+    private Facility? _workplaceStorage;
 
     // Progress variables preserved across interruptions
     private uint _workTimer;
@@ -95,17 +98,17 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
 
     public override string DisplayName => _machine.State switch
     {
-        WorkState.GoingToWork => "Going to work",
-        WorkState.GoingToCrop => "Going to crops",
-        WorkState.Working => $"Working at {_workplace.BuildingType}",
-        WorkState.TakingBreak => "Taking a break",
-        WorkState.TakingWheat => "Gathering harvest",
-        WorkState.GoingHome => "Bringing harvest home",
-        WorkState.DepositingWheat => "Storing harvest",
-        _ => "Working"
+        WorkState.GoingToWork => L.Tr("activity.GOING_TO_WORK"),
+        WorkState.GoingToCrop => L.Tr("activity.GOING_TO_CROPS"),
+        WorkState.Working => L.TrFmt("activity.WORKING_AT", _workRoom.Type ?? _workRoom.Name),
+        WorkState.TakingBreak => L.Tr("activity.TAKING_BREAK"),
+        WorkState.TakingWheat => L.Tr("activity.GATHERING_HARVEST"),
+        WorkState.GoingHome => L.Tr("activity.BRINGING_HARVEST_HOME"),
+        WorkState.DepositingWheat => L.Tr("activity.STORING_HARVEST"),
+        _ => L.Tr("activity.WORKING")
     };
 
-    public override Building? TargetBuilding => _machine.State == WorkState.GoingHome ? _home : _workplace;
+    public override Room? TargetRoom => _machine.State == WorkState.GoingHome ? _homeStorage?.ContainingRoom : _workRoom;
 
     public override string? TargetFacilityId => _machine.State is WorkState.Working or WorkState.TakingBreak ? "crop" : null;
 
@@ -122,17 +125,17 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
 
     /// <summary>
     /// Initializes a new instance of the <see cref="WorkFieldActivity"/> class.
-    /// Create an activity to work at a building and bring harvest home.
+    /// Create an activity to work at a room and bring harvest home.
     /// </summary>
-    /// <param name="workplace">The building to work at (farm, etc.)</param>
-    /// <param name="home">The home building to deposit harvest (can be null).</param>
+    /// <param name="workRoom">The room to work at (farm, etc.)</param>
+    /// <param name="homeStorage">The home storage facility to deposit harvest (can be null).</param>
     /// <param name="workDuration">How many ticks to work before taking a break.</param>
     /// <param name="priority">Action priority (default 0).</param>
-    public WorkFieldActivity(Building workplace, Building? home, uint workDuration, int priority = 0)
+    public WorkFieldActivity(Room workRoom, Facility? homeStorage, uint workDuration, int priority = 0)
         : base(WorkState.GoingToWork)
     {
-        _workplace = workplace;
-        _home = home;
+        _workRoom = workRoom;
+        _homeStorage = homeStorage;
         _workDuration = workDuration;
         Priority = priority;
 
@@ -201,10 +204,13 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
         // Get energy need - work directly costs energy (not via decay multiplier)
         _energyNeed = owner.NeedsSystem?.GetNeed("energy");
 
+        // Resolve workplace storage facility from the work room
+        _workplaceStorage = _workRoom.GetStorageFacility();
+
         // Apply variance to work duration for more natural behavior
         _variedWorkDuration = ActivityTiming.GetVariedDuration(_workDuration, 0.15f);
 
-        DebugLog("ACTIVITY", $"Started WorkFieldActivity at {_workplace.BuildingName}, home: {_home?.BuildingName ?? "none"}, priority: {Priority}, work duration: {_variedWorkDuration} ticks (base: {_workDuration})", 0);
+        DebugLog("ACTIVITY", $"Started WorkFieldActivity at {_workRoom.Name}, home: {_homeStorage?.ContainingRoom?.Name ?? "none"}, priority: {Priority}, work duration: {_variedWorkDuration} ticks (base: {_workDuration})", 0);
     }
 
     public override EntityAction? GetNextAction(Vector2I position, Perception perception)
@@ -215,8 +221,8 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
             return null;
         }
 
-        // Check if workplace still exists
-        if (!GodotObject.IsInstanceValid(_workplace))
+        // Check if workplace room still exists (Room is plain C#, not GodotObject)
+        if (_workRoom.IsDestroyed)
         {
             Fail();
             return null;
@@ -258,8 +264,8 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
         var (result, action) = RunCurrentSubActivity(
             () =>
             {
-                DebugLog("ACTIVITY", $"Starting navigation to workplace: {_workplace.BuildingName}", 0);
-                return new GoToBuildingActivity(_workplace, Priority);
+                DebugLog("ACTIVITY", $"Starting navigation to workplace: {_workRoom.Name}", 0);
+                return new GoToRoomActivity(_workRoom, Priority);
             },
             position, perception);
         switch (result)
@@ -274,12 +280,12 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
                 break;
         }
 
-        // We've arrived at building
-        Log.Print($"{_owner.Name}: Arrived at {_workplace.BuildingType}");
+        // We've arrived at room
+        Log.Print($"{_owner.Name}: Arrived at {_workRoom.Type ?? _workRoom.Name}");
         DebugLog("ACTIVITY", $"Arrived at workplace, now navigating to crop facility", 0);
 
         // If the workplace has a crop facility, navigate to it; otherwise start working directly
-        if (_workplace.HasFacility("crop"))
+        if (_workRoom.HasFacility("crop"))
         {
             _machine.Fire(WorkTrigger.ArrivedAtWork);
         }
@@ -289,7 +295,7 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
             // then immediately fire ArrivedAtCrop to skip to Working
             _machine.Fire(WorkTrigger.ArrivedAtWork);
             _machine.Fire(WorkTrigger.ArrivedAtCrop);
-            Log.Print($"{_owner.Name}: Started working at {_workplace.BuildingType}");
+            Log.Print($"{_owner.Name}: Started working at {_workRoom.Type ?? _workRoom.Name}");
             DebugLog("ACTIVITY", $"No crop facility, starting work phase directly (duration: {_workDuration} ticks)", 0);
             LogStorageInfo();
         }
@@ -308,8 +314,17 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
         var (result, action) = RunCurrentSubActivity(
             () =>
             {
-                DebugLog("ACTIVITY", $"Starting navigation to crop facility at {_workplace.BuildingName}", 0);
-                return new GoToFacilityActivity(_workplace, "crop", Priority);
+                DebugLog("ACTIVITY", $"Starting navigation to crop facility at {_workRoom.Name}", 0);
+
+                // Find crop facility in the work room and navigate directly to it
+                var cropFacility = _workRoom.GetFacility("crop");
+                if (cropFacility != null)
+                {
+                    return new GoToFacilityActivity(cropFacility, Priority);
+                }
+
+                // Fall back: go to room
+                return new GoToRoomActivity(_workRoom, Priority);
             },
             position, perception);
         switch (result)
@@ -330,7 +345,7 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
 
         // We've arrived at crop
         _machine.Fire(WorkTrigger.ArrivedAtCrop);
-        Log.Print($"{_owner.Name}: Started working at crops in {_workplace.BuildingType}");
+        Log.Print($"{_owner.Name}: Started working at crops in {_workRoom.Type ?? _workRoom.Name}");
         DebugLog("ACTIVITY", $"Arrived at crop facility, starting work phase (duration: {_workDuration} ticks)", 0);
         LogStorageInfo();
         return new IdleAction(_owner, this, Priority);
@@ -349,8 +364,8 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
             // Action was executed on main thread - check result
             if (_pendingProduceAction.ActualProduced > 0)
             {
-                var storage = _workplace.GetStorage();
-                Log.Print($"{_owner.Name}: Harvested 1 wheat at {_workplace.BuildingName} (Farm: {storage?.GetContentsSummary() ?? "unknown"})");
+                var storage = _workplaceStorage?.SelfAsEntity().GetTrait<StorageTrait>();
+                Log.Print($"{_owner.Name}: Harvested 1 wheat at {_workRoom.Name} (Farm: {storage?.GetContentsSummary() ?? "unknown"})");
             }
             else
             {
@@ -381,10 +396,16 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
 
             // Return a ProduceToStorageAction to add wheat on the main thread
             // This is thread-safe because actions execute on main thread
+            if (_workplaceStorage == null)
+            {
+                DebugLog("ACTIVITY", "Workplace has no storage facility, cannot produce wheat", 0);
+                return null;
+            }
+
             _pendingProduceAction = new ProduceToStorageAction(
                 _owner,
                 this,
-                _workplace,
+                _workplaceStorage,
                 "wheat",
                 1,
                 Priority);
@@ -452,13 +473,13 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
         if (_currentSubActivity == null)
         {
             // Check how much is available using memory (auto-observes when accessed)
-            int available = _owner.GetStorageItemCount(_workplace, "wheat");
+            int available = _workplaceStorage != null ? _owner.GetStorageItemCount(_workplaceStorage, "wheat") : 0;
             if (available == 0)
             {
                 Log.Print($"{_owner.Name}: No wheat at farm to bring home");
 
                 // If no home, just complete here
-                if (_home == null || !GodotObject.IsInstanceValid(_home))
+                if (_homeStorage == null || !GodotObject.IsInstanceValid(_homeStorage))
                 {
                     Log.Print($"{_owner.Name}: No home to bring harvest to, shift complete");
                     DebugLog("ACTIVITY", "No wheat and no home, completing activity", 0);
@@ -473,15 +494,26 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
             }
         }
 
+        // Guard: _workplaceStorage must exist for TakeFromStorageActivity
+        if (_workplaceStorage == null)
+        {
+            DebugLog("ACTIVITY", "Workplace has no storage facility, cannot take wheat", 0);
+            Fail();
+            return null;
+        }
+
+        // Capture in local for use in lambda (guaranteed non-null by check above)
+        var workplaceStorage = _workplaceStorage;
+
         // Run the take sub-activity (created lazily via factory)
         var (result, action) = RunCurrentSubActivity(
             () =>
             {
-                int available = _owner!.GetStorageItemCount(_workplace, "wheat");
+                int available = _owner.GetStorageItemCount(workplaceStorage, "wheat");
                 int actualAmount = System.Math.Min(WHEATTOBRINGHOME, available);
                 var itemsToTake = new List<(string itemId, int quantity)> { ("wheat", actualAmount) };
                 DebugLog("ACTIVITY", $"Taking up to {actualAmount} wheat from farm", 0);
-                return new TakeFromStorageActivity(_workplace, itemsToTake, Priority);
+                return new TakeFromStorageActivity(workplaceStorage, itemsToTake, Priority);
             },
             position, perception);
         switch (result)
@@ -491,7 +523,7 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
                 Log.Warn($"{_owner.Name}: Failed to take wheat from farm storage");
 
                 // If no home, just complete here
-                if (_home == null || !GodotObject.IsInstanceValid(_home))
+                if (_homeStorage == null || !GodotObject.IsInstanceValid(_homeStorage))
                 {
                     Log.Print($"{_owner.Name}: No home to bring harvest to, shift complete");
                     DebugLog("ACTIVITY", "No home to bring harvest to, completing activity", 0);
@@ -513,12 +545,12 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
 
                 if (wheatInInventory > 0)
                 {
-                    var farmStorage = _workplace.GetStorage();
+                    var farmStorage = _workplaceStorage?.SelfAsEntity().GetTrait<StorageTrait>();
                     Log.Print($"{_owner.Name}: Took {wheatInInventory} wheat to bring home (Farm: {farmStorage?.GetContentsSummary() ?? "unknown"}, Inventory: {inventory?.GetContentsSummary() ?? "unknown"})");
                 }
 
                 // If no home, just complete here
-                if (_home == null || !GodotObject.IsInstanceValid(_home))
+                if (_homeStorage == null || !GodotObject.IsInstanceValid(_homeStorage))
                 {
                     Log.Print($"{_owner.Name}: No home to bring harvest to, shift complete");
                     DebugLog("ACTIVITY", "No home to bring harvest to, completing activity", 0);
@@ -536,18 +568,21 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
 
     private EntityAction? ProcessGoingHome(Vector2I position, Perception perception)
     {
-        if (_owner == null || _home == null)
+        if (_owner == null || _homeStorage == null)
         {
             Complete();
             return null;
         }
 
+        // Capture in local for use in lambda (guaranteed non-null by check above)
+        var homeStorage = _homeStorage;
+
         // Run the navigation sub-activity (created lazily via factory)
         var (result, action) = RunCurrentSubActivity(
             () =>
             {
-                DebugLog("ACTIVITY", $"Starting navigation to home: {_home!.BuildingName}", 0);
-                return new GoToBuildingActivity(_home, Priority, targetStorage: true);
+                DebugLog("ACTIVITY", $"Starting navigation to home: {homeStorage.ContainingRoom?.Name ?? "home"}", 0);
+                return new GoToFacilityActivity(homeStorage, Priority);
             },
             position, perception);
         switch (result)
@@ -572,11 +607,14 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
 
     private EntityAction? ProcessDepositingWheat(Vector2I position, Perception perception)
     {
-        if (_owner == null || _home == null)
+        if (_owner == null || _homeStorage == null)
         {
             Complete();
             return null;
         }
+
+        // Capture in local for use in lambda (guaranteed non-null by check above)
+        var homeStorage = _homeStorage;
 
         // Check inventory before creating sub-activity (only when _currentSubActivity is null)
         if (_currentSubActivity == null)
@@ -604,11 +642,11 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
         var (result, action) = RunCurrentSubActivity(
             () =>
             {
-                var inventory = _owner!.SelfAsEntity().GetTrait<InventoryTrait>();
+                var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
                 int wheatCount = inventory?.GetItemCount("wheat") ?? 0;
                 var itemsToDeposit = new List<(string itemId, int quantity)> { ("wheat", wheatCount) };
                 DebugLog("ACTIVITY", $"Depositing {wheatCount} wheat to home", 0);
-                return new DepositToStorageActivity(_home!, itemsToDeposit, Priority);
+                return new DepositToStorageActivity(homeStorage, itemsToDeposit, Priority);
             },
             position, perception);
         switch (result)
@@ -626,8 +664,8 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
                 return action;
 
             case SubActivityResult.Completed:
-                var homeStorage = _home.GetStorage();
-                Log.Print($"{_owner.Name}: Stored wheat at home (Home: {homeStorage?.GetContentsSummary() ?? "unknown"})");
+                var homeStorageTrait = _homeStorage?.SelfAsEntity().GetTrait<StorageTrait>();
+                Log.Print($"{_owner.Name}: Stored wheat at home (Home: {homeStorageTrait?.GetContentsSummary() ?? "unknown"})");
                 Log.Print($"{_owner.Name}: Work day complete, harvest stored at home");
                 DebugLog("ACTIVITY", "Wheat deposited at home, activity complete", 0);
                 LogStorageInfo();
@@ -650,37 +688,17 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
             return;
         }
 
-        // Farm storage info - use wrapper to auto-observe
-        var farmStorage = _owner.AccessStorage(_workplace);
-        if (farmStorage != null)
+        // Farm storage info - use _workplaceStorage directly
+        if (_workplaceStorage != null)
         {
-            var realContents = farmStorage.GetContentsSummary();
-
-            // Get remembered contents for farm
-            var memoryContents = "nothing (no memory)";
-            var storageMemory = _owner.Memory?.RecallStorageContents(_workplace);
-            if (storageMemory != null)
+            var farmStorageTrait = _workplaceStorage.SelfAsEntity().GetTrait<StorageTrait>();
+            if (farmStorageTrait != null)
             {
-                var rememberedItems = storageMemory.Items
-                    .Select(i => $"{i.Quantity} {i.Name}")
-                    .ToList();
-                memoryContents = rememberedItems.Count > 0 ? string.Join(", ", rememberedItems) : "empty";
-            }
+                var realContents = farmStorageTrait.GetContentsSummary();
 
-            DebugLog("STORAGE", $"[{_workplace.BuildingName}] Real: {realContents} | Remembered: {memoryContents}", 0);
-        }
-
-        // Home storage info - use wrapper to auto-observe
-        if (_home != null && GodotObject.IsInstanceValid(_home))
-        {
-            var homeStorage = _owner.AccessStorage(_home);
-            if (homeStorage != null)
-            {
-                var realContents = homeStorage.GetContentsSummary();
-
-                // Get remembered contents for home
+                // Get remembered contents for farm
                 var memoryContents = "nothing (no memory)";
-                var storageMemory = _owner.Memory?.RecallStorageContents(_home);
+                var storageMemory = _owner.Memory?.RecallStorageContents(_workplaceStorage);
                 if (storageMemory != null)
                 {
                     var rememberedItems = storageMemory.Items
@@ -689,7 +707,30 @@ public class WorkFieldActivity : StatefulActivity<WorkFieldActivity.WorkState, W
                     memoryContents = rememberedItems.Count > 0 ? string.Join(", ", rememberedItems) : "empty";
                 }
 
-                DebugLog("STORAGE", $"[{_home.BuildingName}] Real: {realContents} | Remembered: {memoryContents}", 0);
+                DebugLog("STORAGE", $"[{_workRoom.Name}] Real: {realContents} | Remembered: {memoryContents}", 0);
+            }
+        }
+
+        // Home storage info - use _homeStorage directly
+        if (_homeStorage != null && GodotObject.IsInstanceValid(_homeStorage))
+        {
+            var homeStorageTrait = _homeStorage.SelfAsEntity().GetTrait<StorageTrait>();
+            if (homeStorageTrait != null)
+            {
+                var realContents = homeStorageTrait.GetContentsSummary();
+
+                // Get remembered contents for home
+                var memoryContents = "nothing (no memory)";
+                var storageMemory = _owner.Memory?.RecallStorageContents(_homeStorage);
+                if (storageMemory != null)
+                {
+                    var rememberedItems = storageMemory.Items
+                        .Select(i => $"{i.Quantity} {i.Name}")
+                        .ToList();
+                    memoryContents = rememberedItems.Count > 0 ? string.Join(", ", rememberedItems) : "empty";
+                }
+
+                DebugLog("STORAGE", $"[{_homeStorage.ContainingRoom?.Name ?? "home"}] Real: {realContents} | Remembered: {memoryContents}", 0);
             }
         }
 

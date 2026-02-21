@@ -2,11 +2,12 @@ using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
+using VeilOfAges.Entities.Activities;
 using VeilOfAges.Entities.Sensory;
 
 namespace VeilOfAges.UI;
 
-public abstract class EntityCommand(Being owner, Being commander, bool isComplex = true)
+public abstract class EntityCommand(Being owner, Being commander, bool isComplex = true): ISubActivityRunner
 {
     /// <summary>
     /// Gets or sets any extra data the command needs to be able to function properly.
@@ -28,6 +29,8 @@ public abstract class EntityCommand(Being owner, Being commander, bool isComplex
     /// </summary>
     public bool IsComplex { get; protected set; } = isComplex;
     public PathFinder MyPathfinder = new ();
+
+    public virtual string DisplayName => GetType().Name.Replace("Command", string.Empty);
 
     /// <summary>
     /// Add a parameter to the command.
@@ -52,4 +55,29 @@ public abstract class EntityCommand(Being owner, Being commander, bool isComplex
     /// <param name="currentPerception">The current perception of _owner.</param>
     /// <returns></returns>
     public abstract EntityAction? SuggestAction(Vector2I currentGridPos, Perception currentPerception);
+
+    /// <summary>
+    /// Gets explicit ISubActivityRunner implementation — exposes _owner for the interface's default RunSubActivity.
+    /// </summary>
+    Being? ISubActivityRunner.SubActivityOwner => _owner;
+
+    /// <summary>
+    /// Runs a sub-activity from within a command. Delegates to the shared ISubActivityRunner
+    /// default implementation. Commands default to priority -1 (higher than activities).
+    /// </summary>
+    protected (Activity.SubActivityResult result, EntityAction? action) RunSubActivity(
+        Activity subActivity, Vector2I position, Perception perception, int priority = -1)
+    {
+        return ((ISubActivityRunner)this).RunSubActivity(subActivity, position, perception, priority);
+    }
+
+    /// <summary>
+    /// Initializes a sub-activity with this command's owner. Call this after creating
+    /// a sub-activity before passing it to RunSubActivity.
+    /// </summary>
+    protected Activity InitializeSubActivity(Activity subActivity)
+    {
+        subActivity.Initialize(_owner);
+        return subActivity;
+    }
 }

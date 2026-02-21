@@ -1,20 +1,33 @@
+using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Core.Lib;
+using VeilOfAges.Entities.Sensory;
 
 namespace VeilOfAges.Entities.Terrain;
 
-public partial class Tree : Node2D, IBlocksPathfinding
+public partial class Tree : Node2D, IEntity<Trait>
 {
     private const string DEFINITIONID = "tree";
 
     public Vector2I GridSize = new (1, 1);
 
     private Vector2I _gridPosition;
-    private VeilOfAges.Grid.Area? _gridArea;
+
+    public bool IsWalkable => false;
+    public SortedSet<Trait> Traits { get; } = [];
+    public VeilOfAges.Grid.Area? GridArea { get; private set; }
+
+    /// <summary>
+    /// Gets trees block line of sight.
+    /// </summary>
+    public Dictionary<SenseType, float> DetectionDifficulties { get; } = new ()
+    {
+        { SenseType.Sight, 1.0f }
+    };
 
     public void Initialize(VeilOfAges.Grid.Area gridArea, Vector2I gridPos)
     {
-        _gridArea = gridArea;
+        GridArea = gridArea;
         _gridPosition = gridPos;
 
         ZIndex = 1;
@@ -33,29 +46,31 @@ public partial class Tree : Node2D, IBlocksPathfinding
 
     private void CreateSprite(DecorationDefinition definition)
     {
-        var atlasInfo = TileResourceManager.Instance.GetAtlasInfo(definition.AtlasSource!);
-        if (atlasInfo == null)
+        var atlasTexture = TileResourceManager.Instance.GetCachedAtlasTexture(
+            definition.AtlasSource!, definition.AtlasCoords.Y, definition.AtlasCoords.X);
+        if (atlasTexture == null)
         {
-            Log.Error($"Tree atlas source '{definition.AtlasSource}' not found");
+            Log.Error($"Tree: Failed to get atlas texture for '{definition.AtlasSource}'");
             return;
         }
-
-        var (texture, tileSize, margin, separation) = atlasInfo.Value;
-        int px = margin.X + (definition.AtlasCoords.X * (tileSize.X + separation.X));
-        int py = margin.Y + (definition.AtlasCoords.Y * (tileSize.Y + separation.Y));
-        var atlasTexture = new AtlasTexture
-        {
-            Atlas = texture,
-            Region = new Rect2(px, py, tileSize.X, tileSize.Y),
-        };
 
         var sprite = new Sprite2D { Texture = atlasTexture };
         AddChild(sprite);
     }
 
+    public Vector2I GetCurrentGridPosition()
+    {
+        return _gridPosition;
+    }
+
+    public SensableType GetSensableType()
+    {
+        return SensableType.WorldObject;
+    }
+
     public override void _ExitTree()
     {
-        _gridArea?.RemoveEntity(_gridPosition, GridSize);
+        GridArea?.RemoveEntity(this, _gridPosition, GridSize);
     }
 
     public static void Interact()

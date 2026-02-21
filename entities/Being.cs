@@ -82,15 +82,15 @@ public record EntityEvent(EntityEventType Type, Being? Sender, object? Data = nu
 /// Data for MoveRequest event - "I need to pass through your position"
 /// </summary>
 /// <param name="TargetPosition">The position the sender is trying to reach.</param>
-/// <param name="TargetBuilding">The building the sender is heading to, if any.</param>
+/// <param name="TargetRoom">The room the sender is heading to, if any.</param>
 /// <param name="TargetFacilityId">The facility the sender wants to use, if any.</param>
-public record MoveRequestData(Vector2I TargetPosition, Building? TargetBuilding = null, string? TargetFacilityId = null);
+public record MoveRequestData(Vector2I TargetPosition, Room? TargetRoom = null, string? TargetFacilityId = null);
 
 /// <summary>
 /// Data for QueueRequest event - "Please queue behind me"
 /// </summary>
-/// <param name="Destination">The building/facility being queued for (if any).</param>
-public record QueueResponseData(Building? Destination);
+/// <param name="Destination">The room/facility being queued for (if any).</param>
+public record QueueResponseData(Room? Destination);
 
 /// <summary>
 /// Data for EntityPushed event - physical push in a direction
@@ -141,7 +141,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         // Update grid occupancy - hidden entities don't block pathfinding
         if (_isHidden)
         {
-            GridArea?.RemoveEntity(GetCurrentGridPosition());
+            GridArea?.RemoveEntity(this, GetCurrentGridPosition());
         }
         else
         {
@@ -204,6 +204,12 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
 
     // Reference to the grid system
     public Area? GridArea { get; protected set; }
+
+    /// <summary>
+    /// Gets a value indicating whether beings are always walkable — they don't permanently block pathfinding.
+    /// Dynamic collision is handled by the blocking response system at runtime.
+    /// </summary>
+    public bool IsWalkable => true;
 
     // Reference to the game controller (cached to avoid repeated tree lookups)
     public GameController? GameController { get; protected set; }
@@ -326,8 +332,8 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         /// <summary>Gets or sets who I'm queuing behind.</summary>
         public Being? InFrontOf { get; set; }
 
-        /// <summary>Gets or sets what facility/building I'm queuing for (if any).</summary>
-        public Building? Destination { get; set; }
+        /// <summary>Gets or sets what room/facility I'm queuing for (if any).</summary>
+        public Room? Destination { get; set; }
 
         /// <summary>Gets or sets when I started waiting (game tick).</summary>
         public uint StartTick { get; set; }
@@ -347,6 +353,11 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     /// <summary>Whether we're blocked by an entity that reported it can't move.</summary>
     private bool _blockedByStuckEntity;
 
+    /// <summary>Track the last entity we sent a RequestMoveAction to, for escalation.</summary>
+    private Being? _lastRequestTarget;
+    private int _requestsSentToSameEntity;
+    private const int MAXREQUESTSBEFOREPUSH = 3;
+
     /// <summary>
     /// Set the side-step target position. This will be converted to a MoveAction
     /// at the start of the next Think() cycle, respecting the action queue architecture.
@@ -362,8 +373,8 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     /// Enter a queue behind another entity.
     /// </summary>
     /// <param name="inFrontOf">The entity in front of us.</param>
-    /// <param name="destination">The facility/building being queued for.</param>
-    public void EnterQueue(Being inFrontOf, Building? destination)
+    /// <param name="destination">The room/facility being queued for.</param>
+    public void EnterQueue(Being inFrontOf, Room? destination)
     {
         _queueState = new QueueState
         {
@@ -437,7 +448,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             if (_currentActivity != null)
             {
                 var moveData = evt.Data as MoveRequestData;
-                if (_currentActivity.RequesterWantsSameTarget(moveData?.TargetBuilding, moveData?.TargetFacilityId))
+                if (_currentActivity.RequesterWantsSameTarget(moveData?.TargetRoom, moveData?.TargetFacilityId))
                 {
                     evt.Sender.QueueEvent(EntityEventType.QueueRequest, this, new QueueResponseData(_queueState.Destination));
                     return;
@@ -456,7 +467,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         if (_currentActivity != null)
         {
             var moveData = evt.Data as MoveRequestData;
-            if (_currentActivity.HandleMoveRequest(evt.Sender, moveData?.TargetBuilding, moveData?.TargetFacilityId))
+            if (_currentActivity.HandleMoveRequest(evt.Sender, moveData?.TargetRoom, moveData?.TargetFacilityId))
             {
                 // Activity handled it
                 return;
@@ -504,9 +515,9 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
 
         // DISTANCE CHECK: Only enter queue if we're actually close to the destination
         // Don't queue from far away - keep trying to navigate closer first
-        if (data?.Destination != null && !IsAdjacentToBuilding(data.Destination, tolerance: 2))
+        if (data?.Destination != null && !IsAdjacentToRoom(data.Destination, tolerance: 2))
         {
-            DebugLog("QUEUE", $"Ignoring queue request - too far from {data.Destination.BuildingName}");
+            DebugLog("QUEUE", $"Ignoring queue request - too far from {data.Destination.Name}");
             return;
         }
 
@@ -593,7 +604,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
 
         foreach (var pos in candidates)
         {
-            if (GridArea?.IsCellWalkable(pos) == true)
+            if (GridArea?.IsCellPassable(pos, this) == true)
             {
                 _sideStepTarget = pos;
                 return true;
@@ -644,15 +655,6 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
 
         DebugLog("PATHFIND", "No alternate path around blocker - will interact", 0);
         return false;
-    }
-
-    /// <summary>
-    /// Get the building/facility we're currently using (if any).
-    /// Used to tell other entities what we're queuing for.
-    /// </summary>
-    private Building? GetCurrentFacilityBuilding()
-    {
-        return _currentActivity?.TargetBuilding;
     }
 
     /// <summary>
@@ -932,7 +934,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
 
         if (_currentCommand != null)
         {
-            options.Add(new ("Cancel current orders.", new CancelCommand(this, speaker)));
+            options.Add(new (L.Tr("dialogue.CANCEL_ORDERS"), new CancelCommand(this, speaker)));
         }
     }
 
@@ -981,13 +983,13 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             var target = _sideStepTarget.Value;
             _sideStepTarget = null; // Clear after use
 
-            // Try to move to the side-step target
-            if (GridArea?.IsCellWalkable(target) == true)
+            // Try to move to the side-step target (must be passable — no Being occupant)
+            if (GridArea?.IsCellPassable(target, this) == true)
             {
                 return new MoveAction(this, this, target, priority: 0);
             }
 
-            // If target is no longer walkable, just continue with normal behavior
+            // If target is no longer passable, just continue with normal behavior
         }
 
         // Process queue state
@@ -1094,13 +1096,37 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
                     }
                 }
 
+                // Track how many times we've requested the same entity to move
+                if (blockingEntity == _lastRequestTarget)
+                {
+                    _requestsSentToSameEntity++;
+                }
+                else
+                {
+                    _lastRequestTarget = blockingEntity;
+                    _requestsSentToSameEntity = 1;
+                }
+
+                // After MAX_REQUESTS_BEFORE_PUSH unanswered requests, escalate to push
+                // This handles entities that ignore requests (e.g., mindless beings)
+                if (_requestsSentToSameEntity > MAXREQUESTSBEFOREPUSH)
+                {
+                    var myPos = GetCurrentGridPosition();
+                    var pushDirection = (blockedTarget - myPos).Sign();
+                    _requestsSentToSameEntity = 0;
+                    DebugLog("BLOCKING", $"Escalating to push after {MAXREQUESTSBEFOREPUSH} ignored requests", 0);
+                    return new Actions.PushAction(this, this, blockingEntity, pushDirection, priority: 0);
+                }
+
                 // Default behavior: politely request them to move
                 return new Actions.RequestMoveAction(this, this, blockingEntity, blockedTarget, priority: 0);
             }
         }
 
-        // Clear stuck flag if no blocking entity
+        // Clear stuck flag and escalation tracking if no blocking entity
         _blockedByStuckEntity = false;
+        _lastRequestTarget = null;
+        _requestsSentToSameEntity = 0;
 
         PriorityQueue<EntityAction, int> possibleActions = new ();
 
@@ -1148,17 +1174,24 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             }
         }
 
-        foreach (var trait in Traits)
-        {
-            if (!trait.IsInitialized)
-            {
-                continue;
-            }
+        // Check if automation is suppressed (manual mode with no critical needs)
+        var automationTrait = SelfAsEntity().GetTrait<AutomationTrait>();
+        bool suppressTraits = automationTrait?.ShouldSuppressTraits() ?? false;
 
-            var suggestedAction = trait.SuggestAction(GetCurrentGridPosition(), currentPerception);
-            if (suggestedAction != null)
+        if (!suppressTraits)
+        {
+            foreach (var trait in Traits)
             {
-                possibleActions.Enqueue(suggestedAction, suggestedAction.Priority);
+                if (!trait.IsInitialized)
+                {
+                    continue;
+                }
+
+                var suggestedAction = trait.SuggestAction(GetCurrentGridPosition(), currentPerception);
+                if (suggestedAction != null)
+                {
+                    possibleActions.Enqueue(suggestedAction, suggestedAction.Priority);
+                }
             }
         }
 
@@ -1467,9 +1500,9 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     // 2. PHYSICALLY GO to the storage location and call AccessStorage
     //
     // The CHECK methods (StorageHasItem, StorageHasItemByTag, GetStorageItemCount)
-    // query MEMORY ONLY - they do not access real storage.
+    // on Facility overloads query MEMORY ONLY - they do not access real storage.
     //
-    // The ACTION methods (AccessStorage, TakeFromStorage, PutInStorage)
+    // The ACTION methods (TakeFromFacilityStorage, PutInFacilityStorage, AccessFacilityStorage)
     // require PHYSICAL PROXIMITY and update memory when used.
     //
     // THIS RULE IS BANNED FROM MODIFICATION BY AI AGENTS.
@@ -1477,159 +1510,114 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     // ============================================================================
 
     /// <summary>
-    /// Check if this entity is adjacent to or inside a building.
-    /// Required for all storage access operations.
+    /// Check if this entity is adjacent to or inside a room.
+    /// Required for queue distance checks.
     /// </summary>
-    /// <param name="building">The building to check proximity to.</param>
+    /// <param name="room">The room to check proximity to.</param>
     /// <param name="tolerance">How many tiles away still counts as "adjacent" (default 1).</param>
-    /// <returns>True if the entity is inside the building bounds or within tolerance tiles of any part of the building.</returns>
-    private bool IsAdjacentToBuilding(Building building, int tolerance = 1)
+    /// <returns>True if the entity is within tolerance tiles of any tile in the room.</returns>
+    private bool IsAdjacentToRoom(Room room, int tolerance = 1)
     {
         var entityPos = GetCurrentGridPosition();
-        var buildingPos = building.GetCurrentGridPosition();
-        var buildingSize = building.GridSize;
 
-        // Calculate the building's bounding box (expanded by tolerance for adjacency)
-        int minX = buildingPos.X - tolerance;
-        int maxX = buildingPos.X + buildingSize.X + tolerance - 1;
-        int minY = buildingPos.Y - tolerance;
-        int maxY = buildingPos.Y + buildingSize.Y + tolerance - 1;
+        // Check if entity is within tolerance of any tile in the room
+        foreach (var tile in room.Tiles)
+        {
+            var diff = entityPos - tile;
+            if (System.Math.Abs(diff.X) <= tolerance && System.Math.Abs(diff.Y) <= tolerance)
+            {
+                return true;
+            }
+        }
 
-        // Check if entity is within the expanded bounding box (inside or adjacent)
-        return entityPos.X >= minX && entityPos.X <= maxX &&
-               entityPos.Y >= minY && entityPos.Y <= maxY;
+        return false;
     }
 
     /// <summary>
-    /// Check if this entity can access a building's storage based on proximity rules.
-    /// If the building's storage facility has RequireAdjacent set, the entity must
-    /// be adjacent to the actual storage facility position. Otherwise, being adjacent
-    /// to any part of the building is sufficient.
+    /// Check if this entity can access a specific facility based on proximity rules.
+    /// The entity must be adjacent to the facility's grid position (within 1 tile).
     /// </summary>
-    /// <param name="building">The building to check storage access for.</param>
-    /// <returns>True if the entity can access the building's storage.</returns>
-    public bool CanAccessBuildingStorage(Building building)
+    /// <param name="facility">The facility to check access for.</param>
+    /// <returns>True if the entity can access the facility.</returns>
+    public bool CanAccessFacility(Facility facility)
     {
-        // First check basic building adjacency
-        if (!IsAdjacentToBuilding(building))
+        var entityPos = GetCurrentGridPosition();
+
+        // Check adjacency against ALL facility positions (multi-tile facilities)
+        foreach (var facilityPos in facility.Positions)
         {
-            return false;
+            var diff = entityPos - facilityPos;
+            if (System.Math.Abs(diff.X) <= 1 && System.Math.Abs(diff.Y) <= 1)
+            {
+                return true;
+            }
         }
 
-        // Check if storage exists
-        var storage = building.GetStorage();
-        if (storage == null)
-        {
-            return false;
-        }
-
-        // Check if storage facility requires adjacent positioning
-        var storageFacilities = building.GetFacilities("storage");
-        if (storageFacilities.Count > 0 && storageFacilities[0].RequireAdjacent)
-        {
-            return building.IsAdjacentToStorageFacility(GetCurrentGridPosition());
-        }
-
-        // Otherwise, being adjacent to building is sufficient
-        return true;
+        return false;
     }
 
     /// <summary>
-    /// Access a building's storage and automatically observe its contents.
-    /// Use this instead of building.GetStorage() to ensure the entity
-    /// remembers what they saw in the storage.
-    /// REQUIRES PHYSICAL PROXIMITY - returns null if not adjacent to building.
-    /// If the building's storage facility has RequireAdjacent set, entity must
-    /// be adjacent to the storage facility position (not just anywhere in the building).
+    /// Take an item from a facility's storage and automatically observe contents.
+    /// REQUIRES PHYSICAL PROXIMITY - returns null if not adjacent to the facility.
+    /// Used by the action layer (TakeFromStorageAction) which is already Facility-based.
     /// </summary>
-    /// <param name="building">The building to access storage from.</param>
-    /// <returns>The storage container, or null if the building has no storage or entity is not adjacent.</returns>
-    public StorageTrait? AccessStorage(Building building)
-    {
-        // ENTITIES CANNOT REMOTELY ACCESS STORAGE
-        // They must be physically present at the building (and potentially at the storage facility)
-        if (!CanAccessBuildingStorage(building))
-        {
-            // Not adjacent - cannot access storage
-            // This is INTENTIONAL. Entities must physically go to storage.
-            return null;
-        }
-
-        var storage = building.GetStorage();
-        if (storage != null)
-        {
-            Memory?.ObserveStorage(building, storage);
-        }
-
-        return storage;
-    }
-
-    /// <summary>
-    /// Take an item from a building's storage and automatically observe contents.
-    /// REQUIRES PHYSICAL PROXIMITY - returns null if not adjacent to building.
-    /// </summary>
-    /// <param name="building">The building to take from.</param>
+    /// <param name="facility">The facility to take from.</param>
     /// <param name="itemDefId">The item definition ID to take.</param>
     /// <param name="quantity">The quantity to take.</param>
-    /// <returns>The removed item, or null if not available, building has no storage, or entity is not adjacent.</returns>
-    public Item? TakeFromStorage(Building building, string itemDefId, int quantity)
+    /// <returns>The removed item, or null if not available, facility has no storage, or entity is not adjacent.</returns>
+    public Item? TakeFromFacilityStorage(Facility facility, string itemDefId, int quantity)
     {
         // ENTITIES CANNOT REMOTELY ACCESS STORAGE
-        // They must be physically present at the building (and potentially at the storage facility)
-        if (!CanAccessBuildingStorage(building))
+        if (!CanAccessFacility(facility))
         {
-            // Not adjacent - cannot access storage
-            // This is INTENTIONAL. Entities must physically go to storage.
             return null;
         }
 
-        var storage = building.GetStorage();
+        var storage = facility.SelfAsEntity().GetTrait<StorageTrait>();
         if (storage == null)
         {
             return null;
         }
 
         // Observe before taking (entity looks at storage to find the item)
-        Memory?.ObserveStorage(building, storage);
+        Memory?.ObserveStorage(facility, storage);
 
         var item = storage.RemoveItem(itemDefId, quantity);
 
         // Observe after taking (entity sees updated contents)
         if (item != null)
         {
-            Memory?.ObserveStorage(building, storage);
+            Memory?.ObserveStorage(facility, storage);
         }
 
         return item;
     }
 
     /// <summary>
-    /// Take an item by tag from a building's storage and automatically observe contents.
-    /// REQUIRES PHYSICAL PROXIMITY - returns null if not adjacent to building.
+    /// Take an item by tag from a facility's storage and automatically observe contents.
+    /// REQUIRES PHYSICAL PROXIMITY - returns null if not adjacent to the facility.
+    /// Used by the action layer (ConsumeFromStorageByTagAction) which is Facility-based.
     /// </summary>
-    /// <param name="building">The building to take from.</param>
+    /// <param name="facility">The facility to take from.</param>
     /// <param name="itemTag">The tag to search for.</param>
     /// <param name="quantity">The quantity to take.</param>
-    /// <returns>The removed item, or null if not available, building has no storage, or entity is not adjacent.</returns>
-    public Item? TakeFromStorageByTag(Building building, string itemTag, int quantity)
+    /// <returns>The removed item, or null if not available, facility has no storage, or entity is not adjacent.</returns>
+    public Item? TakeFromFacilityStorageByTag(Facility facility, string itemTag, int quantity)
     {
         // ENTITIES CANNOT REMOTELY ACCESS STORAGE
-        // They must be physically present at the building (and potentially at the storage facility)
-        if (!CanAccessBuildingStorage(building))
+        if (!CanAccessFacility(facility))
         {
-            // Not adjacent - cannot access storage
-            // This is INTENTIONAL. Entities must physically go to storage.
             return null;
         }
 
-        var storage = building.GetStorage();
+        var storage = facility.SelfAsEntity().GetTrait<StorageTrait>();
         if (storage == null)
         {
             return null;
         }
 
         // Observe before taking (entity looks at storage to find the item)
-        Memory?.ObserveStorage(building, storage);
+        Memory?.ObserveStorage(facility, storage);
 
         // Find the item by tag
         var foundItem = storage.FindItemByTag(itemTag);
@@ -1643,31 +1631,29 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         // Observe after taking (entity sees updated contents)
         if (item != null)
         {
-            Memory?.ObserveStorage(building, storage);
+            Memory?.ObserveStorage(facility, storage);
         }
 
         return item;
     }
 
     /// <summary>
-    /// Put an item into a building's storage and automatically observe contents.
-    /// REQUIRES PHYSICAL PROXIMITY - returns false if not adjacent to building.
+    /// Put an item into a facility's storage and automatically observe contents.
+    /// REQUIRES PHYSICAL PROXIMITY - returns false if not adjacent to the facility.
+    /// Used by the action layer (TakeFromStorageAction, ConsumeFromStorageByTagAction) for rollback.
     /// </summary>
-    /// <param name="building">The building to put the item into.</param>
+    /// <param name="facility">The facility to put the item into.</param>
     /// <param name="item">The item to add.</param>
-    /// <returns>True if the item was added, false if the building has no storage, it's full, or entity is not adjacent.</returns>
-    public bool PutInStorage(Building building, Item item)
+    /// <returns>True if the item was added, false if the facility has no storage, it's full, or entity is not adjacent.</returns>
+    public bool PutInFacilityStorage(Facility facility, Item item)
     {
         // ENTITIES CANNOT REMOTELY ACCESS STORAGE
-        // They must be physically present at the building (and potentially at the storage facility)
-        if (!CanAccessBuildingStorage(building))
+        if (!CanAccessFacility(facility))
         {
-            // Not adjacent - cannot access storage
-            // This is INTENTIONAL. Entities must physically go to storage.
             return false;
         }
 
-        var storage = building.GetStorage();
+        var storage = facility.SelfAsEntity().GetTrait<StorageTrait>();
         if (storage == null)
         {
             return false;
@@ -1676,70 +1662,89 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         var result = storage.AddItem(item);
 
         // Observe after putting (entity sees updated contents)
-        Memory?.ObserveStorage(building, storage);
+        Memory?.ObserveStorage(facility, storage);
 
         return result;
     }
 
     /// <summary>
-    /// Check if a building's storage has an item based on MEMORY only.
+    /// Access a facility's storage and automatically observe its contents.
+    /// Use this instead of directly getting StorageTrait to ensure the entity
+    /// remembers what they saw in the storage.
+    /// REQUIRES PHYSICAL PROXIMITY - returns null if not adjacent to facility.
+    /// </summary>
+    /// <param name="facility">The facility to access storage from.</param>
+    /// <returns>The storage container, or null if the facility has no storage or entity is not adjacent.</returns>
+    public StorageTrait? AccessFacilityStorage(Facility facility)
+    {
+        // ENTITIES CANNOT REMOTELY ACCESS STORAGE
+        if (!CanAccessFacility(facility))
+        {
+            return null;
+        }
+
+        var storage = facility.SelfAsEntity().GetTrait<StorageTrait>();
+        if (storage != null)
+        {
+            Memory?.ObserveStorage(facility, storage);
+        }
+
+        return storage;
+    }
+
+    /// <summary>
+    /// Check if a facility's storage has an item based on MEMORY only.
     /// This is for decision-making ("do I think there's food here?").
     /// Does NOT access real storage - only queries personal memory.
-    /// Use AccessStorage() if entity is physically present and needs real data.
     /// </summary>
-    /// <param name="building">The building to check.</param>
+    /// <param name="facility">The facility to check.</param>
     /// <param name="itemDefId">The item definition ID to check for.</param>
     /// <param name="quantity">The minimum quantity required (default 1).</param>
-    /// <returns>True if memory indicates at least the specified quantity, false if no memory or insufficient.</returns>
-    public bool StorageHasItem(Building building, string itemDefId, int quantity = 1)
+    /// <returns>True if memory indicates at least the specified quantity.</returns>
+    public bool StorageHasItem(Facility facility, string itemDefId, int quantity = 1)
     {
-        // MEMORY ONLY - does NOT access real storage
-        var observation = Memory?.RecallStorageContents(building);
+        var observation = Memory?.RecallStorageContents(facility);
         if (observation == null)
         {
-            return false; // No memory = don't know
+            return false;
         }
 
         return observation.GetQuantityById(itemDefId) >= quantity;
     }
 
     /// <summary>
-    /// Check if a building's storage has an item by tag based on MEMORY only.
+    /// Check if a facility's storage has an item by tag based on MEMORY only.
     /// This is for decision-making ("do I think there's food here?").
     /// Does NOT access real storage - only queries personal memory.
-    /// Use AccessStorage() if entity is physically present and needs real data.
     /// </summary>
-    /// <param name="building">The building to check.</param>
+    /// <param name="facility">The facility to check.</param>
     /// <param name="itemTag">The tag to search for.</param>
-    /// <returns>True if memory indicates an item with the specified tag exists, false if no memory or not found.</returns>
-    public bool StorageHasItemByTag(Building building, string itemTag)
+    /// <returns>True if memory indicates an item with the specified tag exists.</returns>
+    public bool StorageHasItemByTag(Facility facility, string itemTag)
     {
-        // MEMORY ONLY - does NOT access real storage
-        var observation = Memory?.RecallStorageContents(building);
+        var observation = Memory?.RecallStorageContents(facility);
         if (observation == null)
         {
-            return false; // No memory = don't know
+            return false;
         }
 
         return observation.HasItemWithTag(itemTag);
     }
 
     /// <summary>
-    /// Get the count of an item in a building's storage based on MEMORY only.
+    /// Get the count of an item in a facility's storage based on MEMORY only.
     /// This is for decision-making ("how much food do I think is here?").
     /// Does NOT access real storage - only queries personal memory.
-    /// Use AccessStorage() if entity is physically present and needs real data.
     /// </summary>
-    /// <param name="building">The building to check.</param>
+    /// <param name="facility">The facility to check.</param>
     /// <param name="itemDefId">The item definition ID to count.</param>
     /// <returns>The remembered quantity, or 0 if no memory or not found.</returns>
-    public int GetStorageItemCount(Building building, string itemDefId)
+    public int GetStorageItemCount(Facility facility, string itemDefId)
     {
-        // MEMORY ONLY - does NOT access real storage
-        var observation = Memory?.RecallStorageContents(building);
+        var observation = Memory?.RecallStorageContents(facility);
         if (observation == null)
         {
-            return 0; // No memory = assume 0
+            return 0;
         }
 
         return observation.GetQuantityById(itemDefId);
@@ -1754,33 +1759,33 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     }
 
     /// <summary>
-    /// Find a building of specified type from any shared knowledge source.
+    /// Find a room of specified type from any shared knowledge source.
     /// </summary>
-    public bool TryFindBuildingOfType(string buildingType, out BuildingReference? building)
+    public bool TryFindRoomOfType(string roomType, out RoomReference? room)
     {
         foreach (var knowledge in _sharedKnowledge)
         {
-            if (knowledge.TryGetBuildingOfType(buildingType, out building))
+            if (knowledge.TryGetRoomOfType(roomType, out room))
             {
                 return true;
             }
         }
 
-        building = null;
+        room = null;
         return false;
     }
 
     /// <summary>
-    /// Find the nearest building of specified type from any shared knowledge source.
+    /// Find the nearest room of specified type from any shared knowledge source.
     /// </summary>
-    public BuildingReference? FindNearestBuildingOfType(string buildingType, Vector2I fromPosition)
+    public RoomReference? FindNearestRoomOfType(string roomType, Vector2I fromPosition)
     {
-        BuildingReference? nearest = null;
+        RoomReference? nearest = null;
         float nearestDist = float.MaxValue;
 
         foreach (var knowledge in _sharedKnowledge)
         {
-            var candidate = knowledge.GetNearestBuildingOfType(buildingType, fromPosition);
+            var candidate = knowledge.GetNearestRoomOfType(roomType, fromPosition);
             if (candidate != null)
             {
                 float dist = fromPosition.DistanceSquaredTo(candidate.Position);
@@ -1796,50 +1801,122 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     }
 
     /// <summary>
-    /// Get all buildings of specified type from all shared knowledge sources.
+    /// Get all rooms of specified type from all shared knowledge sources.
     /// </summary>
-    public IEnumerable<BuildingReference> GetAllBuildingsOfType(string buildingType)
+    public IEnumerable<RoomReference> GetAllRoomsOfType(string roomType)
     {
-        return _sharedKnowledge.SelectMany(k => k.GetBuildingsOfType(buildingType));
+        return _sharedKnowledge.SelectMany(k => k.GetRoomsOfType(roomType));
     }
 
     /// <summary>
-    /// Find potential locations for an item, combining personal observations with shared knowledge.
-    /// Returns buildings sorted by confidence (observed locations first, then known storage buildings).
+    /// Find the nearest facility of a given type, checking SharedKnowledge first then PersonalMemory.
+    /// Returns the facility reference if found, null otherwise.
     /// </summary>
-    /// <param name="itemTag">Tag to search for (e.g., "food", "raw_grain").</param>
-    /// <returns>List of buildings that might have the item, with observed quantity (-1 if unknown).</returns>
-    public List<(Building building, int rememberedQuantity)> FindItemLocations(string itemTag)
+    public FacilityReference? FindFacilityOfType(string facilityType)
     {
-        var results = new List<(Building building, int rememberedQuantity)>();
-        var addedBuildings = new HashSet<Building>();
+        var currentArea = GridArea;
+        var currentPos = GetCurrentGridPosition();
 
-        // First: Check personal memory for observed storage with this item
-        if (Memory != null)
+        // Check SharedKnowledge first (permanent village knowledge)
+        FacilityReference? best = null;
+        float bestDist = float.MaxValue;
+
+        foreach (var knowledge in _sharedKnowledge)
         {
-            foreach (var (building, quantity) in Memory.RecallStorageWithItem(itemTag))
+            var candidate = knowledge.GetNearestFacilityOfType(facilityType, currentArea, currentPos);
+            if (candidate != null)
             {
-                if (GodotObject.IsInstanceValid(building) && addedBuildings.Add(building))
+                float dist = currentPos.DistanceSquaredTo(candidate.Position);
+                if (candidate.Area != currentArea)
                 {
-                    results.Add((building, quantity));
+                    dist += WorldNavigator.CROSSAREAPENALTY;
+                }
+
+                if (dist < bestDist)
+                {
+                    bestDist = dist;
+                    best = candidate;
                 }
             }
         }
 
-        // Second: Check shared knowledge for storage buildings that MIGHT have the item
+        if (best != null)
+        {
+            return best;
+        }
+
+        // Fall back to PersonalMemory (discovered facilities)
+        if (Memory != null)
+        {
+            var recalled = Memory.RecallFacilitiesOfType(facilityType);
+            Memory.FacilityObservation? nearest = null;
+            float nearestDist = float.MaxValue;
+
+            foreach (var obs in recalled)
+            {
+                float dist = currentPos.DistanceSquaredTo(obs.Position);
+                if (obs.Area != currentArea)
+                {
+                    dist += WorldNavigator.CROSSAREAPENALTY;
+                }
+
+                if (dist < nearestDist)
+                {
+                    nearestDist = dist;
+                    nearest = obs;
+                }
+            }
+
+            if (nearest != null)
+            {
+                // Convert FacilityObservation to FacilityReference for consistent API
+                var facility = nearest.Facility;
+                return new FacilityReference(nearest.FacilityType, facility, nearest.Area, nearest.Position, nearest.StorageTags);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Find potential locations for an item, combining personal observations with shared knowledge.
+    /// Returns rooms sorted by confidence (observed locations first, then known storage rooms).
+    /// </summary>
+    /// <param name="itemTag">Tag to search for (e.g., "food", "raw_grain").</param>
+    /// <returns>List of rooms that might have the item, with observed quantity (-1 if unknown).</returns>
+    public List<(Room room, int rememberedQuantity)> FindItemLocations(string itemTag)
+    {
+        var results = new List<(Room room, int rememberedQuantity)>();
+        var addedRooms = new HashSet<Room>();
+
+        // First: Check personal memory for observed storage with this item
+        // Memory is keyed by Facility; use facility.ContainingRoom to get the Room for callers.
+        if (Memory != null)
+        {
+            foreach (var (facility, quantity) in Memory.RecallStorageWithItem(itemTag))
+            {
+                var room = facility.ContainingRoom;
+                if (room != null && addedRooms.Add(room))
+                {
+                    results.Add((room, quantity));
+                }
+            }
+        }
+
+        // Second: Check shared knowledge for storage rooms that MIGHT have the item
         // We don't know what's in them, but they're places to look
         foreach (var knowledge in _sharedKnowledge)
         {
-            // Get buildings that typically store things (storage buildings, relevant production buildings)
-            // For now, get all buildings - traits can filter by type if needed
-            foreach (var buildingType in knowledge.GetKnownBuildingTypes())
+            // Get rooms that typically store things (storage rooms, relevant production rooms)
+            // For now, get all rooms - traits can filter by type if needed
+            foreach (var roomType in knowledge.GetKnownRoomTypes())
             {
-                foreach (var buildingRef in knowledge.GetBuildingsOfType(buildingType))
+                foreach (var roomRef in knowledge.GetRoomsOfType(roomType))
                 {
-                    if (buildingRef.IsValid && buildingRef.Building != null && addedBuildings.Add(buildingRef.Building))
+                    if (roomRef.IsValid && roomRef.Room != null && addedRooms.Add(roomRef.Room))
                     {
-                        // -1 indicates "unknown quantity, just know this building exists"
-                        results.Add((buildingRef.Building, -1));
+                        // -1 indicates "unknown quantity, just know this room exists"
+                        results.Add((roomRef.Room, -1));
                     }
                 }
             }
@@ -1852,7 +1929,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     /// Quick check if entity has any idea where to find an item.
     /// </summary>
     /// <param name="itemTag">Tag to search for (e.g., "food", "raw_grain").</param>
-    /// <returns>True if entity remembers seeing the item or knows of any buildings to check.</returns>
+    /// <returns>True if entity remembers seeing the item or knows of any rooms to check.</returns>
     public bool HasIdeaWhereToFind(string itemTag)
     {
         // Check personal memory
@@ -1861,48 +1938,50 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             return true;
         }
 
-        // Check if we know of any buildings at all (might have the item)
-        return _sharedKnowledge.Any(k => k.GetKnownBuildingTypes().Any());
+        // Check if we know of any rooms at all (might have the item)
+        return _sharedKnowledge.Any(k => k.GetKnownRoomTypes().Any());
     }
 
     /// <summary>
     /// Find potential locations for a specific item by its definition ID.
     /// Checks personal memory for observed storage with this exact item.
-    /// Falls back to shared knowledge for buildings that might have it.
+    /// Falls back to shared knowledge for rooms that might have it.
     /// </summary>
     /// <param name="itemDefId">Item definition ID to search for (e.g., "wheat", "bread").</param>
-    /// <returns>List of buildings that might have the item, with observed quantity (-1 if unknown).</returns>
-    public List<(Building building, int rememberedQuantity)> FindItemLocationsById(string itemDefId)
+    /// <returns>List of rooms that might have the item, with observed quantity (-1 if unknown).</returns>
+    public List<(Room room, int rememberedQuantity)> FindItemLocationsById(string itemDefId)
     {
-        var results = new List<(Building building, int rememberedQuantity)>();
-        var addedBuildings = new HashSet<Building>();
+        var results = new List<(Room room, int rememberedQuantity)>();
+        var addedRooms = new HashSet<Room>();
 
         // First: Check personal memory for observed storage with this item by ID
+        // Memory is keyed by Facility; use facility.ContainingRoom to get the Room for callers.
         if (Memory != null)
         {
-            foreach (var (building, quantity) in Memory.RecallStorageWithItemById(itemDefId))
+            foreach (var (facility, quantity) in Memory.RecallStorageWithItemById(itemDefId))
             {
-                if (GodotObject.IsInstanceValid(building) && addedBuildings.Add(building))
+                var room = facility.ContainingRoom;
+                if (room != null && addedRooms.Add(room))
                 {
-                    results.Add((building, quantity));
+                    results.Add((room, quantity));
                 }
             }
         }
 
-        // Second: Check shared knowledge for storage buildings that MIGHT have the item
+        // Second: Check shared knowledge for storage rooms that MIGHT have the item
         // We don't know what's in them, but they're places to look
         foreach (var knowledge in _sharedKnowledge)
         {
-            // Get buildings that typically store things (storage buildings, relevant production buildings)
-            // For now, get all buildings - traits can filter by type if needed
-            foreach (var buildingType in knowledge.GetKnownBuildingTypes())
+            // Get rooms that typically store things (storage rooms, relevant production rooms)
+            // For now, get all rooms - traits can filter by type if needed
+            foreach (var roomType in knowledge.GetKnownRoomTypes())
             {
-                foreach (var buildingRef in knowledge.GetBuildingsOfType(buildingType))
+                foreach (var roomRef in knowledge.GetRoomsOfType(roomType))
                 {
-                    if (buildingRef.IsValid && buildingRef.Building != null && addedBuildings.Add(buildingRef.Building))
+                    if (roomRef.IsValid && roomRef.Room != null && addedRooms.Add(roomRef.Room))
                     {
-                        // -1 indicates "unknown quantity, just know this building exists"
-                        results.Add((buildingRef.Building, -1));
+                        // -1 indicates "unknown quantity, just know this room exists"
+                        results.Add((roomRef.Room, -1));
                     }
                 }
             }
@@ -1912,40 +1991,42 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     }
 
     /// <summary>
-    /// Find buildings of a specific type that might have an item.
+    /// Find rooms of a specific type that might have an item.
     /// Checks personal memory first, then shared knowledge.
     /// </summary>
     /// <param name="itemTag">Tag to search for (e.g., "food", "raw_grain").</param>
-    /// <param name="buildingType">The building type to filter by (e.g., "Farm", "Storage").</param>
-    /// <returns>List of buildings of the specified type that might have the item, with observed quantity (-1 if unknown).</returns>
-    public List<(Building building, int rememberedQuantity)> FindItemInBuildingType(string itemTag, string buildingType)
+    /// <param name="roomType">The room type to filter by (e.g., "Farm", "Storage").</param>
+    /// <returns>List of rooms of the specified type that might have the item, with observed quantity (-1 if unknown).</returns>
+    public List<(Room room, int rememberedQuantity)> FindItemInRoomType(string itemTag, string roomType)
     {
-        var results = new List<(Building building, int rememberedQuantity)>();
-        var addedBuildings = new HashSet<Building>();
+        var results = new List<(Room room, int rememberedQuantity)>();
+        var addedRooms = new HashSet<Room>();
 
         // First: Check personal memory for observed storage with this item
+        // Memory is keyed by Facility; use facility.ContainingRoom to get the Room for callers.
         if (Memory != null)
         {
-            foreach (var (building, quantity) in Memory.RecallStorageWithItem(itemTag))
+            foreach (var (facility, quantity) in Memory.RecallStorageWithItem(itemTag))
             {
-                if (GodotObject.IsInstanceValid(building) &&
-                    string.Equals(building.BuildingType, buildingType, StringComparison.OrdinalIgnoreCase) &&
-                    addedBuildings.Add(building))
+                var room = facility.ContainingRoom;
+                if (room != null &&
+                    string.Equals(room.Type, roomType, StringComparison.OrdinalIgnoreCase) &&
+                    addedRooms.Add(room))
                 {
-                    results.Add((building, quantity));
+                    results.Add((room, quantity));
                 }
             }
         }
 
-        // Second: Check shared knowledge for buildings of this type
+        // Second: Check shared knowledge for rooms of this type
         foreach (var knowledge in _sharedKnowledge)
         {
-            foreach (var buildingRef in knowledge.GetBuildingsOfType(buildingType))
+            foreach (var roomRef in knowledge.GetRoomsOfType(roomType))
             {
-                if (buildingRef.IsValid && buildingRef.Building != null && addedBuildings.Add(buildingRef.Building))
+                if (roomRef.IsValid && roomRef.Room != null && addedRooms.Add(roomRef.Room))
                 {
-                    // -1 indicates "unknown quantity, just know this building exists"
-                    results.Add((buildingRef.Building, -1));
+                    // -1 indicates "unknown quantity, just know this room exists"
+                    results.Add((roomRef.Room, -1));
                 }
             }
         }
@@ -1988,29 +2069,12 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     /// Must be called from the main thread.
     /// </summary>
     /// <param name="layerName">The layer name (e.g., "clothing_outer", "held_item").</param>
-    /// <param name="texturePath">Path to the texture atlas resource.</param>
+    /// <param name="atlasSourceId">Atlas source ID (e.g., "dcss", "kenney").</param>
     /// <param name="row">Row index in the atlas.</param>
     /// <param name="col">Column index in the atlas.</param>
-    public void SetSpriteLayer(string layerName, string texturePath, int row, int col)
+    public void SetSpriteLayer(string layerName, string atlasSourceId, int row, int col)
     {
-        int width = 32;
-        int height = 32;
-
-        // Try to get sprite size from first existing layer
-        if (SpriteLayers.Count > 0)
-        {
-            foreach (var existing in SpriteLayers.Values)
-            {
-                if (existing.Texture is AtlasTexture existingAtlas)
-                {
-                    width = (int)existingAtlas.Region.Size.X;
-                    height = (int)existingAtlas.Region.Size.Y;
-                    break;
-                }
-            }
-        }
-
-        var atlasTexture = Beings.SpriteDefinition.CreateAtlasTexture(texturePath, row, col, width, height);
+        var atlasTexture = TileResourceManager.Instance.GetCachedAtlasTexture(atlasSourceId, row, col);
         if (atlasTexture == null)
         {
             return;

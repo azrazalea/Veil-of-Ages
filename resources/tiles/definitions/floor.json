@@ -6,7 +6,7 @@
     "IsWalkable": true,
     "BaseDurability": 50,
     "AtlasSource": "urizen",
-    "AtlasCoords": [10, 4],
+    "AtlasCoords": [12, 5],
     "DefaultSensoryDifficulties": {
         "Sight": 0.0,
         "Hearing": 0.1,
@@ -17,10 +17,10 @@
     },
     "Variants": {
         "wood": {
-            "Default": { "AtlasCoords": [10, 4] }
+            "Default": { "AtlasSource": "urizen", "AtlasCoords": [5, 6] }
         },
         "dirt": {
-            "Default": { "AtlasSource": "dcss", "AtlasCoords": [19, 3] }
+            "Default": { "AtlasSource": "dcss", "AtlasCoords": [18, 3] }
         }
     }
 }

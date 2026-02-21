@@ -1,8 +1,7 @@
 {
   "Id": "zombie",
   "Name": "Zombie",
-  "TexturePath": "res://assets/dcss/supplemental_atlas.png",
-  "SpriteSize": [32, 32],
-  "Row": 20,
-  "Col": 4
+  "AtlasSource": "dcss",
+  "Row": 75,
+  "Col": 54
 }

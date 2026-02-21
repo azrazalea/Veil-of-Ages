@@ -47,7 +47,7 @@ Grid system specialized for item storage with metadata.
 All three systems follow the same pattern:
 - Primary constructor with `Vector2I? gridSize` parameter
 - Inherit all functionality from `System<T>`
-- No additional methods or overrides
+- No additional methods or overrides (except `Node2DSystem` — see below)
 
 This pattern provides:
 - Type safety for grid operations
@@ -55,13 +55,17 @@ This pattern provides:
 - Easy to add new specialized systems
 
 ### Inherited Capabilities (from System<T>)
-- `GetCell(Vector2I)`: Retrieve cell content
-- `SetCell(Vector2I, T)`: Set cell content
-- `RemoveCell(Vector2I)`: Remove and return cell content
+- `GetCell(Vector2I)`: Returns `List<T>?` — all items at the cell (supports multiple entities per cell)
+- `GetFirstCell(Vector2I)`: Returns the first item at the cell (`T?`), for grid systems that store one item per cell
+- `SetCell(Vector2I, T)`: Set cell content (base class replaces; see Node2DSystem note below)
+- `RemoveFromCell(Vector2I, T)`: Removes a specific item from the cell; removes the key entirely if the cell becomes empty
 - `SetMultipleCellsOccupied(Vector2I, Vector2I, T)`: Multi-tile placement
 - `IsCellOccupied(Vector2I)`: Check occupancy
 - `FindNearestFreeCell(Vector2I, int)`: Find nearby empty cell
-- `OccupiedCells`: Direct dictionary access
+- `OccupiedCells`: `Dictionary<Vector2I, List<T>>` — each cell holds a list of items
+
+### Node2DSystem: Multiple Entities Per Cell
+`Node2DSystem` overrides `SetCell` to **append** the new entity to the cell's list rather than replacing it. This allows multiple entities (e.g. beings) to occupy the same grid cell simultaneously. The base `System<T>.SetCell` replaces the entire cell value and is appropriate for grid systems that store at most one item per cell (such as `GroundSystem`).
 
 ### Usage in Area
 ```csharp

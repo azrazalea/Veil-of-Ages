@@ -19,7 +19,7 @@ Complex logic including pathfinding calculations must happen during `Think()` on
 Current suspected bug: PathFinder.CalculatePathForCurrentGoal is called lazily from TryFollowPath, which may execute on main thread during action execution. NEEDS VERIFICATION.
 
 ### 3. A* Grid Does Not Include Beings (By Design)
-The A* grid only marks `IBlocksPathfinding` entities (buildings) as solid. Beings are dynamic and handled via:
+The A* grid only marks non-walkable entities (`IEntity { IsWalkable: false }` — buildings, facilities, trees) as solid. Beings are dynamic and handled via:
 - Blocking response when movement fails
 - Perception-aware path recalculation (NOT YET IMPLEMENTED)
 

@@ -15,6 +15,7 @@ The central abstract class for all living and undead entities. Extends Godot's `
 - AI decision-making via `Think()` method with priority queue
 - Dialogue system integration
 - Perception and sensory capabilities
+- Automation trait suppression (manual mode with critical need override)
 
 ### BeingTrait.cs
 Specialized trait base class for Being entities. Provides:
@@ -41,7 +42,7 @@ Multi-threaded AI processing system. A Godot Node that:
 - Handles movement tick processing after action execution
 
 ### IEntity.cs
-Generic interface for trait-based entities. Provides:
+Non-generic `IEntity` base interface with `IsWalkable` property for grid walkability. The generic `IEntity<TraitType>` extends both `IEntity` and `ISensable`, providing:
 - Trait collection management (`_traits` SortedSet)
 - `AddTrait<T>()` and `AddTraitToQueue<T>()` methods for trait registration
 - `GetTrait<T>()` and `HasTrait<T>()` for trait queries
@@ -66,6 +67,7 @@ World-level sensory coordination system. Manages:
 | Type | Description |
 |------|-------------|
 | `Being` | Abstract base for all living/undead entities |
+| `Room` | Organizational unit grouping tiles/facilities/residents within a building (see building/CLAUDE.md) |
 | `BeingTrait` | Specialized trait with Being-specific helpers |
 | `EntityAction` | Base class for executable actions |
 | `EntityThinkingSystem` | Multi-threaded AI coordinator |
@@ -101,13 +103,13 @@ Being.cs provides a complete memory system integration with PersonalMemory and S
 1. **Inventory** - What they're carrying (immediate, always accurate)
 2. **Personal Memory** - What they've personally observed (may be stale)
 
-Entities do NOT omnisciently know what's in any storage container. If memory is empty or stale, the entity must go observe the storage to update their memory (see `CheckHomeStorageActivity`).
+Entities do NOT omnisciently know what's in any storage container. If memory is empty or stale, the entity must go observe the storage to update their memory (see `CheckStorageActivity`).
 
 ### BANNED: Remote Storage Access
 
 **AI AGENTS ARE BANNED FROM ADDING REMOTE STORAGE ACCESS.**
 
-All ACTION methods (AccessStorage, TakeFromStorage, TakeFromStorageByTag, PutInStorage) require physical proximity to the building (within 1 tile). They return null/false if the entity is too far away.
+All ACTION methods (AccessFacilityStorage, TakeFromFacilityStorage, TakeFromFacilityStorageByTag, PutInFacilityStorage) require physical proximity to the facility (within 1 tile). They return null/false if the entity is too far away.
 
 All CHECK methods (StorageHasItem, StorageHasItemByTag, GetStorageItemCount) query MEMORY ONLY. They never access real storage.
 
@@ -122,60 +124,78 @@ This is intentional. Entities must physically travel to storage locations to obs
 - `RemoveSharedKnowledge(knowledge)` - Remove a source (called when leaving)
 - `GetSharedKnowledgeByScope(scopeType)` - Get specific source by scope
 
-**Building Lookup (from SharedKnowledge):**
-- `TryFindBuildingOfType(type, out building)` - Find any building of type
-- `FindNearestBuildingOfType(type, position)` - Find nearest building
-- `GetAllBuildingsOfType(type)` - Get all buildings of type
+**Room Lookup (from SharedKnowledge):**
+- `TryFindRoomOfType(type, out room)` - Find any room of type (returns `RoomReference?`)
+- `FindNearestRoomOfType(type, position)` - Find nearest room (returns `RoomReference?`)
+- `GetAllRoomsOfType(type)` - Get all rooms of type (returns `IEnumerable<RoomReference>`)
 
 **Storage ACTION Methods (Require Physical Proximity):**
-- `AccessStorage(building)` - Get storage and observe (returns null if not adjacent)
-- `TakeFromStorage(building, itemDefId, quantity)` - Take and observe (returns null if not adjacent)
-- `TakeFromStorageByTag(building, itemTag, quantity)` - Take by tag and observe (returns null if not adjacent)
-- `PutInStorage(building, item)` - Put and observe (returns false if not adjacent)
+
+Only Facility-based overloads exist. There are no Building-based overloads. All callers must resolve the Facility themselves (e.g., via `FindFacilityOfType` or a `RoomReference`):
+- `CanAccessFacility(facility)` - Check if entity is physically adjacent to the facility
+- `AccessFacilityStorage(facility)` - Get storage and observe (returns null if not adjacent)
+- `TakeFromFacilityStorage(facility, itemDefId, quantity)` - Take and observe (returns null if not adjacent)
+- `TakeFromFacilityStorageByTag(facility, itemTag, quantity)` - Take by tag and observe (returns null if not adjacent)
+- `PutInFacilityStorage(facility, item)` - Put and observe (returns false if not adjacent)
 
 **Storage CHECK Methods (Memory Only - No Real Storage Access):**
-- `StorageHasItem(building, itemDefId, quantity)` - Check MEMORY for item
-- `StorageHasItemByTag(building, itemTag)` - Check MEMORY for item by tag
-- `GetStorageItemCount(building, itemDefId)` - Get REMEMBERED count (may be stale)
+
+All overloads are Facility-based. They query PersonalMemory keyed by Facility, never real storage:
+- `StorageHasItem(facility, itemDefId, quantity)` - Check MEMORY for item
+- `StorageHasItemByTag(facility, itemTag)` - Check MEMORY for item by tag
+- `GetStorageItemCount(facility, itemDefId)` - Get REMEMBERED count (may be stale)
+
+**Facility Lookup:**
+- `FindFacilityOfType(facilityType)` - Find nearest facility of type, checks SharedKnowledge first then PersonalMemory, prefers same-area facilities (cross-area gets distance penalty)
 
 **Combined Item Search (PersonalMemory + SharedKnowledge):**
-- `FindItemLocations(itemTag)` - Find buildings with item, personal memory first
+
+All search methods return `(Room room, int rememberedQuantity)` tuples. Internally the methods are keyed by Facility in PersonalMemory; `facility.ContainingRoom` is used to return the Room to callers:
+- `FindItemLocations(itemTag)` - Find rooms with item, personal memory first
 - `FindItemLocationsById(itemDefId)` - Find by item ID
-- `FindItemInBuildingType(itemTag, buildingType)` - Filter by building type
+- `FindItemInRoomType(itemTag, roomType)` - Filter by room type
 - `HasIdeaWhereToFind(itemTag)` - Quick check for any leads
 
 **Usage Example:**
 ```csharp
-// CORRECT: Access storage when physically adjacent (updates memory)
-var storage = entity.AccessStorage(building);
+// CORRECT: Access facility storage when physically adjacent (updates memory)
+var storage = entity.AccessFacilityStorage(facility);
 if (storage == null)
 {
     // Either no storage, or NOT ADJACENT - must travel there first
 }
 
 // CORRECT: Check memory for what I remember (no proximity needed)
-if (entity.StorageHasItemByTag(building, "food"))
+if (entity.StorageHasItemByTag(facility, "food"))
 {
     // I REMEMBER seeing food here (may be stale)
 }
 
 // CORRECT: Find food combining personal memory and shared knowledge
 var foodLocations = entity.FindItemLocations("food");
-foreach (var (building, rememberedQty) in foodLocations)
+foreach (var (room, rememberedQty) in foodLocations)
 {
-    // rememberedQty = -1 means "I know building exists but haven't observed"
+    // rememberedQty = -1 means "I know this room exists but haven't observed its storage"
     if (rememberedQty > 0)
     {
         // High confidence - I saw food here
     }
 }
 
-// CORRECT: Query shared knowledge for buildings (locations, not contents)
-if (entity.TryFindBuildingOfType("Farm", out var farm))
+// CORRECT: Query shared knowledge for rooms (locations, not contents)
+if (entity.TryFindRoomOfType("Farm", out var farmRef))
 {
-    // Navigate to farm - SharedKnowledge tells us WHERE, not WHAT's inside
+    // Navigate to farmRef.Position - SharedKnowledge tells us WHERE, not WHAT's inside
 }
 ```
+
+### Activity.TargetRoom
+
+`Activity` has a virtual property `TargetRoom` (returns `Room?`). Activities that navigate to a specific room override this to return their destination room. This is used by the queue/blocking system (`RequestMoveAction`, `HandleMoveRequest`) and replaces the old `TargetBuilding` property that no longer exists.
+
+### MoveRequestData.TargetRoom
+
+`MoveRequestData` (the event data for `EntityEventType.MoveRequest`) has a `TargetRoom` field (`Room?`). There is no `TargetBuilding` field — the Building class has been eliminated from the entity system entirely.
 
 ### Legacy Memory (BeingTrait)
 BeingTrait includes an older position-based memory system with timestamps:
@@ -231,22 +251,24 @@ The entity AI system intentionally mimics human cognition using a **Belief-Desir
 **Two-Tier Memory System (Implemented)**:
 
 *PersonalMemory* (`Being.Memory`):
-- Storage observations: "I saw 5 bread at bakery at tick 12000"
+- Storage observations: "I saw 5 bread at bakery storage facility at tick 12000"
 - Entity sightings: "I saw Bob at town square at tick 11500"
 - Location memories: Places visited with timestamps
 - Must personally observe to know - no omniscient knowledge
 - Configurable expiration durations per memory type
+- Keyed by **Facility** (not Building or Room); use `facility.ContainingRoom` to get the Room
 
 *SharedKnowledge* (`Being.SharedKnowledge`):
 - Common knowledge shared by community/faction by reference
 - All villagers know where the well, town hall, and farms are
-- Village scope: exact building coordinates
-- Kingdom scope (future): "Village X has a bakery"
+- Village scope: exact room coordinates (via `RoomReference`)
+- Kingdom scope (future): "Village X has a bakery room"
+- Room scope (personal): secret rooms create their own SharedKnowledge scope, given only to authorized entities (e.g., cellar knowledge given to player only)
 - New members inherit community knowledge when added to village
 - Does NOT contain storage contents (that's PersonalMemory)
 
 This architecture creates realistic behavior where entities:
-- Use shared knowledge for navigation to known buildings
+- Use shared knowledge for navigation to known rooms
 - Use personal memory for observed storage contents and entity sightings
 - Act on beliefs that may become outdated
 - Stay focused unless urgently interrupted

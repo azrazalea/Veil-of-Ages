@@ -106,4 +106,4 @@ Contributions are welcome! Please see our [Contributing Guidelines](CONTRIBUTING
 - Vurmux for the Urizen OneBit V2 tileset
 - [gridfab](https://github.com/azrazalea/gridfab) for custom pixel art creation and atlas building
 - The Godot Engine community for their invaluable resources and support
-- Inspiration from KeeperRL, RimWorld, Dwarf Fortress, Oxygen Not Included, Heroes of Might and Magic, Age of Wonders, Cultist Simulator, Faster Than Light, and Battlezone 2
+- Inspiration from KeeperRL, RimWorld, Dwarf Fortress, Oxygen Not Included, Heroes of Might and Magic, Age of Wonders, Cultist Simulator, Faster Than Light, Battlezone 2, and X4: Foundations

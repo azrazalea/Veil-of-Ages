@@ -1,5 +1,6 @@
 using System;
 using Godot;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Sensory;
@@ -17,6 +18,8 @@ namespace VeilOfAges.UI.Commands;
 public class TalkCommand(Being owner, Being commander, bool isComplex = false)
 : EntityCommand(owner, commander, isComplex)
 {
+    public override string DisplayName => L.Tr("command.TALK");
+
     public const int Priority = -1;
 
     public override EntityAction? SuggestAction(Vector2I currentGridPos, Perception currentPerception)

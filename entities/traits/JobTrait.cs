@@ -9,7 +9,7 @@ using VeilOfAges.Entities.Sensory;
 namespace VeilOfAges.Entities.Traits;
 
 /// <summary>
-/// Base class for job traits that work at a building during specific hours.
+/// Base class for job traits that work at a facility during specific hours.
 /// Job traits DECIDE when to work by starting activities - they never access storage
 /// or manage navigation directly.
 ///
@@ -24,11 +24,11 @@ namespace VeilOfAges.Entities.Traits;
 public abstract class JobTrait : BeingTrait, IDesiredResources
 {
     /// <summary>
-    /// The workplace building. Set via configuration or constructor.
+    /// The workplace facility. Set via configuration or constructor.
     /// For most jobs, this is the place of work (farm, bakery, etc.).
     /// ScholarJobTrait overrides GetWorkplace() to use home instead.
     /// </summary>
-    protected Building? _workplace;
+    protected Facility? _workplace;
 
     /// <summary>
     /// Gets default work phases are Dawn and Day. Override to customize.
@@ -37,9 +37,20 @@ public abstract class JobTrait : BeingTrait, IDesiredResources
 
     /// <summary>
     /// Gets the activity type that represents "working" for this job.
-    /// Used to check if the entity is already engaged in work.
+    /// Used by the default IsWorkActivity() check.
     /// </summary>
     protected abstract Type WorkActivityType { get; }
+
+    /// <summary>
+    /// Check if the given activity counts as "working" for this job.
+    /// Default checks WorkActivityType. Override for jobs that produce
+    /// multiple activity types (e.g., NecromancyStudyJobTrait can produce
+    /// both StudyNecromancyActivity and WorkOnOrderActivity).
+    /// </summary>
+    protected virtual bool IsWorkActivity(Activity activity)
+    {
+        return WorkActivityType.IsInstanceOfType(activity);
+    }
 
     /// <summary>
     /// Create the work activity for this job. This is the ONLY way to define
@@ -49,13 +60,13 @@ public abstract class JobTrait : BeingTrait, IDesiredResources
     protected abstract Activity? CreateWorkActivity();
 
     /// <summary>
-    /// Gets the workplace for this job. Default returns _workplace field.
+    /// Gets the workplace facility for this job. Default returns _workplace field.
     /// Override for special cases like ScholarJobTrait which uses home.
     /// </summary>
-    protected virtual Building? GetWorkplace() => _workplace;
+    protected virtual Facility? GetWorkplace() => _workplace;
 
     /// <summary>
-    /// Gets the configuration key used to get the workplace from TraitConfiguration.
+    /// Gets the configuration key used to get the workplace room from TraitConfiguration.
     /// Default is "workplace". FarmerJobTrait overrides to "farm".
     /// </summary>
     protected virtual string WorkplaceConfigKey => "workplace";
@@ -93,7 +104,7 @@ public abstract class JobTrait : BeingTrait, IDesiredResources
 
         // Check if already in work activity
         var currentActivity = _owner.GetCurrentActivity();
-        if (currentActivity != null && WorkActivityType.IsInstanceOfType(currentActivity))
+        if (currentActivity != null && IsWorkActivity(currentActivity))
         {
             return null;
         }
@@ -120,7 +131,7 @@ public abstract class JobTrait : BeingTrait, IDesiredResources
     /// <summary>
     /// Check if the current day phase is a work phase.
     /// </summary>
-    protected bool IsWorkHours(DayPhaseType currentPhase)
+    public bool IsWorkHours(DayPhaseType currentPhase)
     {
         foreach (var phase in WorkPhases)
         {
@@ -161,7 +172,8 @@ public abstract class JobTrait : BeingTrait, IDesiredResources
         }
 
         // Check for workplace in config
-        if (config.GetBuilding(WorkplaceConfigKey) == null && config.GetBuilding("workplace") == null)
+        var workRoom = config.GetRoom(WorkplaceConfigKey) ?? config.GetRoom("workplace");
+        if (workRoom == null)
         {
             Log.Warn($"{GetType().Name}: '{WorkplaceConfigKey}' or 'workplace' parameter recommended for proper function");
         }
@@ -171,7 +183,8 @@ public abstract class JobTrait : BeingTrait, IDesiredResources
 
     /// <summary>
     /// Configures the trait from a TraitConfiguration.
-    /// Default implementation sets workplace. Override for custom configuration.
+    /// Default implementation resolves workplace room to its storage facility.
+    /// Override for custom configuration.
     /// </summary>
     public override void Configure(TraitConfiguration config)
     {
@@ -182,6 +195,8 @@ public abstract class JobTrait : BeingTrait, IDesiredResources
         }
 
         // Try custom key first, then "workplace" as fallback
-        _workplace = config.GetBuilding(WorkplaceConfigKey) ?? config.GetBuilding("workplace");
+        // Resolve Room -> Facility via room's storage facility
+        var room = config.GetRoom(WorkplaceConfigKey) ?? config.GetRoom("workplace");
+        _workplace = room?.GetStorageFacility();
     }
 }

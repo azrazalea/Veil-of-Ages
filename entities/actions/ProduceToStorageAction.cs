@@ -1,17 +1,18 @@
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Items;
+using VeilOfAges.Entities.Traits;
 
 namespace VeilOfAges.Entities.Actions;
 
 /// <summary>
-/// Action to produce (create and add) items to a building's storage from in-place processing.
+/// Action to produce (create and add) items to a facility's storage from in-place processing.
 /// Unlike DepositToStorageAction, items are created from an item definition rather than
 /// being transferred from inventory. Used for crafting reactions.
-/// Requires entity to be adjacent to the building.
+/// Requires entity to be adjacent to the facility.
 /// </summary>
 public class ProduceToStorageAction : EntityAction
 {
-    private readonly Building _building;
+    private readonly Facility _facility;
     private readonly string _itemDefId;
     private readonly int _quantity;
     private int _actualProduced;
@@ -25,13 +26,13 @@ public class ProduceToStorageAction : EntityAction
     public ProduceToStorageAction(
         Being entity,
         object source,
-        Building building,
+        Facility facility,
         string itemDefId,
         int quantity,
         int priority = 0)
         : base(entity, source, priority: priority)
     {
-        _building = building;
+        _facility = facility;
         _itemDefId = itemDefId;
         _quantity = quantity;
     }
@@ -39,12 +40,12 @@ public class ProduceToStorageAction : EntityAction
     public override bool Execute()
     {
         // Check adjacency
-        if (!Entity.CanAccessBuildingStorage(_building))
+        if (!Entity.CanAccessFacility(_facility))
         {
             return false;
         }
 
-        var storage = _building.GetStorage();
+        var storage = _facility.SelfAsEntity().GetTrait<StorageTrait>();
         if (storage == null)
         {
             return false;
@@ -76,7 +77,7 @@ public class ProduceToStorageAction : EntityAction
         }
 
         // Update entity's memory about storage contents
-        Entity.Memory?.ObserveStorage(_building, storage);
+        Entity.Memory?.ObserveStorage(_facility, storage);
 
         return true;
     }

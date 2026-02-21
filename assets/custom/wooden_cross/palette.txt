@@ -1,0 +1,4 @@
+# Wooden cross palette
+OL=#1A1A2E
+WM=#A0784B
+WD=#7A5C32

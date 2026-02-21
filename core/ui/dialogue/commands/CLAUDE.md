@@ -42,6 +42,22 @@ Dummy command used to check if an entity will accept dialogue.
 - **IsComplex**: `false`
 - **Behavior**: Always returns `null`. Exists solely so entities can refuse dialogue via `WillRefuseCommand()`.
 
+#### FetchCorpseCommand.cs
+Fetches a corpse from the nearest graveyard and brings it to the necromancy altar.
+
+- **Namespace**: `VeilOfAges.UI.Commands`
+- **Class**: `FetchCorpseCommand : EntityCommand`
+- **IsComplex**: `false` (mindless entities can perform this)
+- **Parameters**:
+  - `altarFacility` (Facility): The altar facility to deposit the corpse at
+- **Behavior**:
+  - Resolves altar facility from Parameters on first call
+  - Finds graveyard via SharedKnowledge building lookup (FindNearestBuildingOfType)
+  - Resolves graveyard and altar buildings to their storage Facilities for FetchResourceActivity
+  - Creates FetchResourceActivity(graveyardStorage, altarStorage) as a sub-activity and drives it via RunSubActivity
+  - FetchResourceActivity handles the full go→take→return→deposit pattern including cross-area navigation
+  - Command completes when sub-activity completes or fails
+
 ### Stub Commands (Not Yet Implemented)
 
 These commands exist with the interface but return `null` from `SuggestAction()`:
@@ -65,6 +81,7 @@ These commands exist with the interface but return `null` from `SuggestAction()`
 | `MoveToCommand` | Implemented | Position/entity navigation |
 | `FollowCommand` | Implemented | Follow with search behavior |
 | `TalkCommand` | Implemented | Dialogue permission check |
+| `FetchCorpseCommand` | Implemented | Fetch corpse from graveyard to altar |
 | `GuardCommand` | Stub | Area defense |
 | `ReturnHomeCommand` | Stub | Navigate to home |
 | `PatrolCommand` | Stub | Patrol routes |

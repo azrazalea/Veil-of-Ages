@@ -40,7 +40,7 @@ public class RequestMoveAction : EntityAction
         _targetEntity.QueueEvent(
             EntityEventType.MoveRequest,
             Entity,
-            new MoveRequestData(_targetPosition, activity?.TargetBuilding, activity?.TargetFacilityId));
+            new MoveRequestData(_targetPosition, activity?.TargetRoom, activity?.TargetFacilityId));
 
         return true;
     }

@@ -29,7 +29,13 @@ corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
-[node name="Dialogue" type="CanvasLayer" unique_id=62828557]
+[node name="Dialogue" type="Control" unique_id=62828557]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 
 [node name="Dialogue Panel" type="PanelContainer" parent="." unique_id=838021345]
 anchors_preset = 7
@@ -37,9 +43,10 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -450.0
-offset_top = -152.0
-offset_right = 450.0
+offset_left = -400.0
+offset_top = -232.0
+offset_right = 400.0
+offset_bottom = -72.0
 grow_horizontal = 2
 grow_vertical = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_w7syl")
@@ -60,10 +67,13 @@ theme_override_constants/v_separation = 10
 columns = 6
 
 [node name="Name Container" type="PanelContainer" parent="." unique_id=518573004]
-offset_left = 171.0
-offset_top = 461.0
-offset_right = 340.0
-offset_bottom = 513.0
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = -400.0
+offset_top = -288.0
+offset_right = -230.0
+offset_bottom = -236.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_s5pgg")
 
 [node name="Name Label" type="RichTextLabel" parent="Name Container" unique_id=2056335408]

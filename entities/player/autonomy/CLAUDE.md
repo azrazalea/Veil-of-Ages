@@ -25,7 +25,7 @@ The autonomy system manages trait presence and configuration on the player entit
 |---|---|---|---|
 | study_research | ScholarJobTrait | Dawn, Day | player.json |
 
-Sleep and idle are handled by `PlayerBehaviorTrait` (in player.json), not by autonomy rules.
+Sleep is handled by `ScheduleTrait` (in player.json), not by autonomy rules.
 
 ## Files
 

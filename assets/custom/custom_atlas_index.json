@@ -1,6 +1,91 @@
 {
-  "quern": {
-    "row": 0,
-    "col": 0
+  "tile_size": [
+    32,
+    32
+  ],
+  "columns": 8,
+  "sprites": {
+    "logo": {
+      "row": 0,
+      "col": 1,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "GridFab application logo",
+      "tags": [
+        "ui",
+        "logo"
+      ],
+      "tile_type": "icon"
+    },
+    "quern": {
+      "row": 0,
+      "col": 0,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Hand-operated stone grain mill",
+      "tags": [
+        "crafting",
+        "furniture",
+        "medieval"
+      ],
+      "tile_type": "prop"
+    },
+    "stone_cross": {
+      "row": 0,
+      "col": 2,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Stone cross grave marker",
+      "tags": [
+        "graveyard",
+        "decoration",
+        "medieval"
+      ],
+      "tile_type": "prop"
+    },
+    "tombstone": {
+      "row": 0,
+      "col": 3,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Upright stone tombstone with carved cross",
+      "tags": [
+        "graveyard",
+        "decoration",
+        "medieval"
+      ],
+      "tile_type": "prop"
+    },
+    "wooden_cross": {
+      "row": 0,
+      "col": 4,
+      "tiles_x": 1,
+      "tiles_y": 1,
+      "description": "Wooden cross grave marker",
+      "tags": [
+        "graveyard",
+        "decoration",
+        "medieval"
+      ],
+      "tile_type": "prop"
+    },
+    "stone_hearth/burn": {
+      "row": 1,
+      "col": 0,
+      "tiles_x": 8,
+      "tiles_y": 1,
+      "description": "Traditional stone oven with burning fire and coals",
+      "tags": [
+        "crafting",
+        "furniture",
+        "fire",
+        "medieval"
+      ],
+      "tile_type": "prop",
+      "animated": true,
+      "frame_count": 8,
+      "fps": 8,
+      "loop": true
+    }
   }
 }

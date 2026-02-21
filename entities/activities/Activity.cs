@@ -15,7 +15,7 @@ namespace VeilOfAges.Entities.Activities;
 ///
 /// Traits DECIDE what to do, Activities EXECUTE multi-step behaviors, Actions are ATOMIC.
 /// </summary>
-public abstract class Activity
+public abstract class Activity : ISubActivityRunner
 {
     public enum ActivityState
     {
@@ -56,11 +56,11 @@ public abstract class Activity
     public int Priority { get; protected set; }
 
     /// <summary>
-    /// Gets the building this activity is using, if any.
+    /// Gets the room this activity is targeting, if any.
     /// Used for queue communication - when another entity asks us to move,
-    /// we tell them what building we're using so they can queue.
+    /// we tell them what room we're using so they can queue.
     /// </summary>
-    public virtual Building? TargetBuilding => null;
+    public virtual Room? TargetRoom => null;
 
     /// <summary>
     /// Gets the facility ID this activity is using within the building, if any.
@@ -161,28 +161,31 @@ public abstract class Activity
     public virtual bool TryFindAlternatePath(Perception perception) => false;
 
     /// <summary>
-    /// Check if a requester wants to access the same building and facility as this activity.
+    /// Check if a requester wants to access the same room and facility as this activity.
     /// Used to determine if they should queue behind us or find another path.
     /// </summary>
-    /// <param name="requesterBuilding">The building the requester is heading to.</param>
+    /// <param name="requesterRoom">The room the requester is heading to.</param>
     /// <param name="requesterFacility">The facility the requester wants to use.</param>
     /// <returns>True if they want the same target and should queue.</returns>
-    public bool RequesterWantsSameTarget(Building? requesterBuilding, string? requesterFacility)
+    public bool RequesterWantsSameTarget(Room? requesterRoom, string? requesterFacility)
     {
-        return TargetBuilding != null &&
-               requesterBuilding == TargetBuilding &&
+        // Both must target a specific facility — null == null means neither is using
+        // a facility, so they're just in the same room and not competing for a resource.
+        return TargetRoom != null &&
+               requesterRoom == TargetRoom &&
+               TargetFacilityId != null &&
                requesterFacility == TargetFacilityId;
     }
 
     /// <summary>
     /// Handle a move request from another entity trying to pass through our position.
-    /// Default behavior: if same building+facility, they queue. Otherwise try to step aside.
+    /// Default behavior: if same room+facility, they queue. Otherwise try to step aside.
     /// </summary>
     /// <param name="requester">The entity requesting us to move.</param>
-    /// <param name="requesterBuilding">The building the requester is heading to.</param>
+    /// <param name="requesterRoom">The room the requester is heading to.</param>
     /// <param name="requesterFacility">The facility the requester wants to use.</param>
     /// <returns>True if handled, false if Being should use default step-aside.</returns>
-    public virtual bool HandleMoveRequest(Being requester, Building? requesterBuilding, string? requesterFacility)
+    public virtual bool HandleMoveRequest(Being requester, Room? requesterRoom, string? requesterFacility)
     {
         if (_owner == null)
         {
@@ -192,9 +195,9 @@ public abstract class Activity
         // If not interruptible, only queue them if they want the same target
         if (!IsInterruptible)
         {
-            if (RequesterWantsSameTarget(requesterBuilding, requesterFacility))
+            if (RequesterWantsSameTarget(requesterRoom, requesterFacility))
             {
-                requester.QueueEvent(EntityEventType.QueueRequest, _owner, new QueueResponseData(TargetBuilding));
+                requester.QueueEvent(EntityEventType.QueueRequest, _owner, new QueueResponseData(TargetRoom));
             }
             else
             {
@@ -204,10 +207,10 @@ public abstract class Activity
             return true;
         }
 
-        // If requester wants the same building AND facility, they must queue
-        if (RequesterWantsSameTarget(requesterBuilding, requesterFacility))
+        // If requester wants the same room AND facility, they must queue
+        if (RequesterWantsSameTarget(requesterRoom, requesterFacility))
         {
-            requester.QueueEvent(EntityEventType.QueueRequest, _owner, new QueueResponseData(TargetBuilding));
+            requester.QueueEvent(EntityEventType.QueueRequest, _owner, new QueueResponseData(TargetRoom));
             return true;
         }
 
@@ -221,15 +224,15 @@ public abstract class Activity
             return true;
         }
 
-        // Can't step aside - only tell them to queue if they want the same building AND facility
+        // Can't step aside - only tell them to queue if they want the same room AND facility
         // (Don't queue random passers-by who are going somewhere else)
-        if (RequesterWantsSameTarget(requesterBuilding, requesterFacility))
+        if (RequesterWantsSameTarget(requesterRoom, requesterFacility))
         {
-            requester.QueueEvent(EntityEventType.QueueRequest, _owner, new QueueResponseData(TargetBuilding));
+            requester.QueueEvent(EntityEventType.QueueRequest, _owner, new QueueResponseData(TargetRoom));
             return true;
         }
 
-        // Either no building, or requester wants different destination - let Being handle step-aside
+        // Either no room, or requester wants different destination - let Being handle step-aside
         return false;
     }
 
@@ -254,6 +257,11 @@ public abstract class Activity
     /// The entity performing this activity.
     /// </summary>
     protected Being? _owner;
+
+    /// <summary>
+    /// Gets explicit ISubActivityRunner implementation — exposes _owner for the interface's default RunSubActivity.
+    /// </summary>
+    Being? ISubActivityRunner.SubActivityOwner => _owner;
 
     /// <summary>
     /// Called when the activity is started. Sets up initial state.
@@ -322,54 +330,7 @@ public abstract class Activity
         Vector2I position,
         Perception perception)
     {
-        // Already failed
-        if (subActivity.State == ActivityState.Failed)
-        {
-            return (SubActivityResult.Failed, null);
-        }
-
-        // Already completed
-        if (subActivity.State == ActivityState.Completed)
-        {
-            return (SubActivityResult.Completed, null);
-        }
-
-        // Propagate entity events to sub-activity (may change state)
-        subActivity.ProcessEntityEvents(perception);
-
-        // Check state after event processing
-        if (subActivity.State == ActivityState.Failed)
-        {
-            return (SubActivityResult.Failed, null);
-        }
-
-        if (subActivity.State == ActivityState.Completed)
-        {
-            return (SubActivityResult.Completed, null);
-        }
-
-        // Try to get next action
-        var action = subActivity.GetNextAction(position, perception);
-
-        // Got an action - sub-activity is running
-        if (action != null)
-        {
-            return (SubActivityResult.Continue, action);
-        }
-
-        // Action was null - state may have changed during GetNextAction
-        if (subActivity.State == ActivityState.Completed)
-        {
-            return (SubActivityResult.Completed, null);
-        }
-
-        if (subActivity.State == ActivityState.Failed)
-        {
-            return (SubActivityResult.Failed, null);
-        }
-
-        // Still running but returned null - return idle to hold our slot
-        return (SubActivityResult.Continue, new IdleAction(_owner!, this, Priority));
+        return ((ISubActivityRunner)this).RunSubActivity(subActivity, position, perception, Priority);
     }
 
     /// <summary>

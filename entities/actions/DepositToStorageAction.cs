@@ -4,13 +4,13 @@ using VeilOfAges.Entities.Traits;
 namespace VeilOfAges.Entities.Actions;
 
 /// <summary>
-/// Action to deposit items from entity's inventory to a building's storage.
-/// Requires entity to be adjacent to the building.
+/// Action to deposit items from entity's inventory to a facility's storage.
+/// Requires entity to be adjacent to the facility.
 /// Uses safe transfer that won't lose items.
 /// </summary>
 public class DepositToStorageAction : EntityAction
 {
-    private readonly Building _building;
+    private readonly Facility _facility;
     private readonly string _itemDefId;
     private readonly int _quantity;
     private int _actualDeposited;
@@ -23,13 +23,13 @@ public class DepositToStorageAction : EntityAction
     public DepositToStorageAction(
         Being entity,
         object source,
-        Building building,
+        Facility facility,
         string itemDefId,
         int quantity,
         int priority = 0)
         : base(entity, source, priority: priority)
     {
-        _building = building;
+        _facility = facility;
         _itemDefId = itemDefId;
         _quantity = quantity;
     }
@@ -43,12 +43,12 @@ public class DepositToStorageAction : EntityAction
         }
 
         // Check adjacency
-        if (!Entity.CanAccessBuildingStorage(_building))
+        if (!Entity.CanAccessFacility(_facility))
         {
             return false;
         }
 
-        var storage = _building.GetStorage();
+        var storage = _facility.SelfAsEntity().GetTrait<StorageTrait>();
         if (storage == null)
         {
             return false;
@@ -59,7 +59,7 @@ public class DepositToStorageAction : EntityAction
         _actualDeposited = ((IStorageContainer)inventory).TransferTo(storage, _itemDefId, _quantity);
 
         // Update entity's memory about storage contents
-        Entity.Memory?.ObserveStorage(_building, storage);
+        Entity.Memory?.ObserveStorage(_facility, storage);
 
         return _actualDeposited > 0;
     }

@@ -1,0 +1,9 @@
+{
+  "Id": "urizen_transparent",
+  "Name": "Urizen OneBit V2 Transparent (32x32)",
+  "Description": "Urizen 1-bit tileset v2.0 upscaled to 32x32, transparent background",
+  "TexturePath": "res://assets/urizen/urizen_onebit_tileset__v2d0_32x32_transparent.png",
+  "TileSize": [32, 32],
+  "Separation": [0, 0],
+  "Margin": [0, 0]
+}

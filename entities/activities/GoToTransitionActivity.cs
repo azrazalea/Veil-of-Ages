@@ -16,7 +16,7 @@ public class GoToTransitionActivity : Activity
     private GoToLocationActivity? _navigationPhase;
     private bool _navigationComplete;
 
-    public override string DisplayName => $"Going to {_transitionPoint.Label}";
+    public override string DisplayName => L.TrFmt("activity.GOING_TO_TRANSITION", _transitionPoint.Label);
 
     public GoToTransitionActivity(TransitionPoint transitionPoint, int priority = 0)
     {

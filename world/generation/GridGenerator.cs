@@ -12,9 +12,6 @@ namespace VeilOfAges.WorldGeneration;
 public partial class GridGenerator : Node
 {
     [Export]
-    public PackedScene? BuildingScene;
-
-    [Export]
     public int NumberOfTrees = 20;
 
     [Export]
@@ -30,14 +27,22 @@ public partial class GridGenerator : Node
     private GameController? _gameController;
 
     /// <summary>
-    /// Gets the player's house building, placed near the graveyard during village generation.
-    /// Only valid after Generate() has been called.
+    /// Gets the player's house StampResult, placed near the graveyard during village generation.
+    /// Only valid after Generate() has been called. Used by CellarGenerator.
     /// </summary>
-    public Building? PlayerHouse { get; private set; }
+    public StampResult? PlayerHouseStampResult { get; private set; }
+
+    /// <summary>
+    /// Gets the player's house Room, captured from VillageGenerator after generation.
+    /// Only valid after Generate() has been called. Used by World to call player.SetHome()
+    /// after player traits are initialized.
+    /// </summary>
+    public Room? PlayerHouseRoom { get; private set; }
 
     // Main generation method
     public void Generate(World world)
     {
+        MemoryProfiler.Checkpoint("GridGenerator.Generate start");
         _entityThinkingSystem = GetNode<EntityThinkingSystem>("/root/World/EntityThinkingSystem");
         _gameController = GetNode<GameController>("/root/World/GameController");
         _rng.Randomize();
@@ -50,7 +55,7 @@ public partial class GridGenerator : Node
 
         // Ensure we have all required nodes
         if (_entitiesContainer == null || _activeGridArea == null ||
-            BuildingScene == null || GenericBeingScene == null)
+            GenericBeingScene == null)
         {
             Log.Error("WorldGenerator: Missing required nodes!");
             return;
@@ -58,31 +63,43 @@ public partial class GridGenerator : Node
 
         // Generate terrain
         GenerateTerrain();
+        MemoryProfiler.Checkpoint("GridGenerator after GenerateTerrain");
+
+        // Populate visual tile layers from the ground grid now that terrain is set up.
+        // This must happen before buildings are placed so that building/facility
+        // walkability markings aren't overwritten by ground tile A* resets.
+        _activeGridArea.PopulateLayersFromGrid();
+        MemoryProfiler.Checkpoint("GridGenerator after PopulateLayersFromGrid");
 
         var villageGenerator = new VillageGenerator(
             _activeGridArea,
             _entitiesContainer,
-            BuildingScene,
-            GenericBeingScene,
             _entityThinkingSystem,
             player);
 
         // Generate village at the center of the map
         // Player home is assigned during generation, before granary orders are initialized
         villageGenerator.GenerateVillage();
+        MemoryProfiler.Checkpoint("GridGenerator after GenerateVillage");
 
-        // Store the player's house reference (already assigned to player in VillageGenerator)
-        PlayerHouse = villageGenerator.PlayerHouse;
+        // Store the player's house StampResult and Room for use after player initialization.
+        // NOTE: Player home assignment intentionally happens in World.InitializePlayerAfterGeneration()
+        // (via player.SetHome) rather than here, because player traits aren't loaded until
+        // Player.Initialize() runs — which is deferred after generation.
+        PlayerHouseStampResult = villageGenerator.PlayerHouseStampResult;
+        PlayerHouseRoom = villageGenerator.PlayerHouseRoom;
 
         // Generate cellar beneath player's house if it was placed
-        if (PlayerHouse != null)
+        if (PlayerHouseStampResult != null)
         {
-            CellarGenerator.CreateCellar(world, PlayerHouse);
+            CellarGenerator.CreateCellar(world, PlayerHouseStampResult);
+            MemoryProfiler.Checkpoint("GridGenerator after CellarGenerator");
         }
 
         // Then add trees in unoccupied spaces
         GenerateTrees();
 
+        MemoryProfiler.Checkpoint("GridGenerator.Generate end");
         Log.Print("Done generating!");
     }
 
@@ -181,26 +198,26 @@ public partial class GridGenerator : Node
     }
 
     /// <summary>
-    /// Collects all building entrance positions from entities in the container.
+    /// Collects all building entrance positions by checking door positions of rooms
+    /// in the active grid area's structural entities.
     /// </summary>
     /// <returns>A list of absolute grid positions representing building entrances.</returns>
     private List<Vector2I> GetAllBuildingEntrancePositions()
     {
         var entrances = new List<Vector2I>();
 
-        if (_entitiesContainer == null)
+        if (_activeGridArea == null)
         {
             return entrances;
         }
 
-        // Iterate through all children in the entities container
-        foreach (Node child in _entitiesContainer.GetChildren())
+        // Iterate through all children of the grid area looking for StructuralEntity door markers
+        foreach (Node child in _activeGridArea.GetChildren())
         {
-            if (child is Building building)
+            if (child is StructuralEntity entity && entity.IsRoomDivider)
             {
-                // Get all entrance positions from this building
-                var buildingEntrances = building.GetEntrancePositions();
-                entrances.AddRange(buildingEntrances);
+                // Door/gate positions are entrance-adjacent positions
+                entrances.Add(entity.GridPosition);
             }
         }
 

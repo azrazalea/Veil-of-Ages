@@ -23,13 +23,12 @@ public class PathFinder
     private AStarGrid2D? _cachedPathfindingGrid;
 
     // Pooled HashSet for perceived entity positions - reused to reduce GC pressure
-    private readonly HashSet<Vector2I> _perceivedBlockedPositions = [];
+    private readonly HashSet<Vector2I> _perceivedEntityPositions = [];
 
     // Path state tracking
     private PathGoalType _goalType = PathGoalType.None;
     private Being? _targetEntity;
     private Vector2I _targetPosition;
-    private Building? _targetBuilding;
     private int _proximityRange = 1;
     private bool _pathNeedsCalculation = true;
     private int _recalculationAttempts;
@@ -43,13 +42,42 @@ public class PathFinder
     private int _stepsSinceLastRecalculation;
     private const int STEPSBEFOREPERIODICRECALC = 5;
 
-    // Facility goal tracking - stores the facility position to check adjacency in IsGoalReached
+    // Facility goal tracking - stores the facility position(s) to check adjacency in IsGoalReached
     private Vector2I? _targetFacilityPosition;
-    private Building? _targetFacilityBuilding;
-    private string? _targetFacilityId;
+    private List<Vector2I>? _targetFacilityPositions;
 
-    // Building goal: if true, entity must be inside; if false, adjacent is acceptable
+    // Room goal: if true, entity must be inside; if false, adjacent is acceptable
     private bool _requireInterior;
+
+    // Room goal tracking (new Rimworld-style architecture)
+    private Room? _targetRoom;
+
+    // Cross-area navigation state
+    // When the target building/facility is in a different area, PathFinder internally
+    // plans the route (via WorldNavigator.FindRouteToArea which uses entity's knowledge —
+    // NO god knowledge), walks to transition points, and signals when a transition is needed.
+    private List<TransitionPoint>? _crossAreaRoute;
+    private int _crossAreaRouteIndex;
+    private bool _needsAreaTransition;
+    private TransitionPoint? _pendingTransition;
+
+    // Final goal storage — the real goal, restored after all area transitions complete.
+    // While cross-area navigation is active, _goalType is set to intermediate Position goals.
+    private PathGoalType _finalGoalType = PathGoalType.None;
+    private Room? _finalGoalRoom;
+    private string? _finalGoalFacilityId;
+    private bool _finalRequireInterior;
+
+    /// <summary>
+    /// Gets a value indicating whether true when the entity has reached a transition point and needs to change area.
+    /// NavigationActivity checks this and returns a ChangeAreaAction.
+    /// </summary>
+    public bool NeedsAreaTransition => _needsAreaTransition;
+
+    /// <summary>
+    /// Gets the transition point the entity needs to traverse. Only valid when NeedsAreaTransition is true.
+    /// </summary>
+    public TransitionPoint? PendingTransition => _pendingTransition;
 
     // Simple enum to track goal type
     public enum PathGoalType
@@ -58,8 +86,8 @@ public class PathFinder
         Position,
         EntityProximity,
         Area,
-        Building,
-        Facility
+        Facility,
+        Room
     }
 
     /// <summary>
@@ -92,28 +120,13 @@ public class PathFinder
                 sb.AppendLine(culture, $"HasValidPath: {HasValidPath()}");
             }
 
-            if (_goalType == PathGoalType.Building && _targetBuilding != null)
+            if (_goalType == PathGoalType.Room && _targetRoom != null)
             {
-                var buildingPos = _targetBuilding.GetCurrentGridPosition();
-                var buildingSize = _targetBuilding.GridSize;
-                sb.AppendLine(culture, $"--- Building Goal Details ---");
-                sb.AppendLine(culture, $"Building: {_targetBuilding.BuildingType} at {buildingPos}, size {buildingSize}");
+                sb.AppendLine(culture, $"--- Room Goal Details ---");
+                sb.AppendLine(culture, $"Room: {_targetRoom.Name} (Id: {_targetRoom.Id})");
                 sb.AppendLine(culture, $"RequireInterior: {_requireInterior}");
-
-                // Interior positions (from tile definitions)
-                var interiorPositions = _targetBuilding.GetInteriorPositions();
-                sb.AppendLine(culture, $"Interior positions ({interiorPositions.Count}): [{string.Join(", ", interiorPositions.Select(p => $"{p}->abs{buildingPos + p}"))}]");
-
-                // Walkable interior positions (filtered by walkability)
-                var walkableInterior = _targetBuilding.GetWalkableInteriorPositions();
-                sb.AppendLine(culture, $"Walkable interior ({walkableInterior.Count}): [{string.Join(", ", walkableInterior.Select(p => $"{p}->abs{buildingPos + p}"))}]");
-
-                // Perimeter positions if adjacency allowed
-                if (!_requireInterior)
-                {
-                    var perimeterPositions = GetBuildingPerimeterPositions(buildingPos, buildingSize).ToList();
-                    sb.AppendLine(culture, $"Perimeter positions ({perimeterPositions.Count}): [{string.Join(", ", perimeterPositions)}]");
-                }
+                sb.AppendLine(culture, $"Tiles: {_targetRoom.Tiles.Count}");
+                sb.AppendLine(culture, $"Doors: {_targetRoom.Doors.Count}");
             }
 
             return sb.ToString();
@@ -124,12 +137,47 @@ public class PathFinder
         }
     }
 
+    /// <summary>
+    /// Returns a compact one-line summary of the current goal state for log messages.
+    /// </summary>
+    public string GetGoalSummary()
+    {
+        var goal = _goalType.ToString();
+        if (_goalType == PathGoalType.Facility)
+        {
+            var positions = _targetFacilityPositions != null
+                ? string.Join(",", _targetFacilityPositions)
+                : _targetFacilityPosition?.ToString() ?? "none";
+            goal += $"[{positions}]";
+        }
+        else if (_goalType == PathGoalType.Room && _targetRoom != null)
+        {
+            goal += $"[{_targetRoom.Name}]";
+        }
+        else if (_goalType == PathGoalType.Position)
+        {
+            goal += $"[{_targetPosition}]";
+        }
+
+        return $"goal={goal}, recalcAttempts={_recalculationAttempts}/{MAXRECALCULATIONATTEMPTS}, " +
+               $"pathNodes={CurrentPath.Count}, pathIdx={PathIndex}, needsCalc={_pathNeedsCalculation}";
+    }
+
     public void ClearPath()
     {
         CurrentPath = [];
         PathIndex = 0;
         _pathNeedsCalculation = true;
+        _recalculationAttempts = 0;
+        _lastRecalculationTick = 0;
         _stepsSinceLastRecalculation = 0;
+
+        // Clear cross-area route state — HandleCrossAreaPlanning will re-plan if needed.
+        // Keep _finalGoalType and stored goal params so it knows what to plan toward.
+        _crossAreaRoute = null;
+        _crossAreaRouteIndex = 0;
+        _needsAreaTransition = false;
+        _pendingTransition = null;
     }
 
     public void Reset()
@@ -137,6 +185,13 @@ public class PathFinder
         ClearPath();
         _goalType = PathGoalType.None;
         _firstGoalCalculation = false;
+        _targetFacilityPositions = null;
+
+        // Clear final goal storage (ClearPath preserves these)
+        _finalGoalType = PathGoalType.None;
+        _finalGoalRoom = null;
+        _finalGoalFacilityId = null;
+        _finalRequireInterior = false;
     }
 
     // Check if path is valid
@@ -246,10 +301,35 @@ public class PathFinder
         _recalculationAttempts = 0;
     }
 
-    public void SetBuildingGoal(Being entity, Building targetBuilding, bool requireInterior = true)
+    /// <summary>
+    /// Set goal to navigate into a room (Rimworld-style architecture).
+    /// Uses room's walkable tiles as candidates, with doors as entrance points.
+    /// Cross-area capable via WorldNavigator.
+    /// </summary>
+    /// <param name="entity">The entity navigating (used for cross-area detection).</param>
+    /// <param name="room">The room to navigate to.</param>
+    /// <param name="requireInterior">If true, entity must reach interior; if false, adjacent to door is acceptable.</param>
+    public void SetRoomGoal(Being entity, Room room, bool requireInterior = true)
     {
-        _goalType = PathGoalType.Building;
-        _targetBuilding = targetBuilding;
+        // Cross-area detection: if entity and room are in different areas,
+        // store the final goal and defer route planning to CalculatePathIfNeeded.
+        if (entity.GridArea != null && room.GridArea != null
+            && entity.GridArea != room.GridArea)
+        {
+            _finalGoalType = PathGoalType.Room;
+            _finalGoalRoom = room;
+            _finalRequireInterior = requireInterior;
+            _finalGoalFacilityId = null;
+            _goalType = PathGoalType.None;
+            _pathNeedsCalculation = true;
+            _firstGoalCalculation = true;
+            _recalculationAttempts = 0;
+            return;
+        }
+
+        // Same-area: set room goal directly
+        _goalType = PathGoalType.Room;
+        _targetRoom = room;
         _requireInterior = requireInterior;
         _firstGoalCalculation = true;
         _pathNeedsCalculation = true;
@@ -257,30 +337,39 @@ public class PathFinder
     }
 
     /// <summary>
-    /// Set goal to navigate adjacent to a specific facility in a building.
+    /// Set goal to navigate adjacent to a specific facility.
+    /// Cross-area capable: detects if facility is in a different area and defers routing.
     /// </summary>
-    /// <param name="building">The building containing the facility.</param>
-    /// <param name="facilityId">The facility ID (e.g., "oven", "quern", "storage", "crop").</param>
-    /// <returns>True if a valid facility position was found, false otherwise.</returns>
-    public bool SetFacilityGoal(Building building, string facilityId)
+    /// <param name="entity">The entity navigating (used for cross-area detection).</param>
+    /// <param name="facility">The facility to navigate to.</param>
+    /// <returns>True if a valid facility goal was established, false otherwise.</returns>
+    public bool SetFacilityGoal(Being entity, Facility facility)
     {
-        // Get facility positions from building
-        var facilityPositions = building.GetFacilityPositions(facilityId);
-        if (facilityPositions.Count == 0)
+        var facilityArea = facility.ContainingRoom?.GridArea ?? facility.GridArea;
+
+        // Cross-area detection: if entity and facility are in different areas,
+        // store the final goal and defer route planning to CalculatePathIfNeeded.
+        if (entity.GridArea != null && facilityArea != null
+            && entity.GridArea != facilityArea)
         {
-            return false;
+            _finalGoalType = PathGoalType.Facility;
+            _finalGoalRoom = facility.ContainingRoom;
+            _finalGoalFacilityId = facility.Id;
+            _finalRequireInterior = false;
+            _goalType = PathGoalType.None;
+            _pathNeedsCalculation = true;
+            _firstGoalCalculation = true;
+            _recalculationAttempts = 0;
+            return true;
         }
 
-        // Store the building and facility ID for smart recalculation
-        _targetFacilityBuilding = building;
-        _targetFacilityId = facilityId;
+        // Same-area: set position(s) directly for pathfinding.
+        _targetFacilityPositions = new List<Vector2I>(facility.Positions);
+        _targetFacilityPosition = facility.GridPosition;
         _goalType = PathGoalType.Facility;
         _firstGoalCalculation = true;
         _pathNeedsCalculation = true;
         _recalculationAttempts = 0;
-
-        // Actual facility selection happens in CalculatePathForCurrentGoal
-        // which tries all facilities and finds one with a valid path
         return true;
     }
 
@@ -288,6 +377,13 @@ public class PathFinder
     public bool IsGoalReached(Being entity)
     {
         if (entity == null)
+        {
+            return false;
+        }
+
+        // During cross-area navigation, the real goal hasn't been reached yet —
+        // we're still navigating intermediate positions or waiting for transitions.
+        if (_finalGoalType != PathGoalType.None)
         {
             return false;
         }
@@ -314,39 +410,43 @@ public class PathFinder
             case PathGoalType.Area:
                 result = Utils.WithinProximityRangeOf(entityPos, _targetPosition, _proximityRange);
                 break;
-            case PathGoalType.Building:
-                if (_targetBuilding != null)
+            case PathGoalType.Facility:
+                if (_targetFacilityPositions is { Count: > 0 })
                 {
-                    Vector2I buildingPos = _targetBuilding.GetCurrentGridPosition();
-                    Vector2I buildingSize = _targetBuilding.GridSize;
-
-                    // Build list of valid positions - interior, plus perimeter if adjacency allowed
-                    var validPositions = new HashSet<Vector2I>();
-
-                    // Interior positions (based on tile definitions, ignores current occupancy)
-                    foreach (var relativePos in _targetBuilding.GetInteriorPositions())
+                    // Check if entity is adjacent to ANY facility position (including diagonals)
+                    foreach (var facilityPos in _targetFacilityPositions)
                     {
-                        validPositions.Add(buildingPos + relativePos);
-                    }
-
-                    // Perimeter positions if adjacency is acceptable
-                    if (!_requireInterior)
-                    {
-                        foreach (var pos in GetBuildingPerimeterPositions(buildingPos, buildingSize))
+                        if (DirectionUtils.IsAdjacent(entityPos, facilityPos))
                         {
-                            validPositions.Add(pos);
+                            result = true;
+                            break;
                         }
                     }
-
-                    result = validPositions.Contains(entityPos);
+                }
+                else if (_targetFacilityPosition.HasValue)
+                {
+                    result = DirectionUtils.IsAdjacent(entityPos, _targetFacilityPosition.Value);
                 }
 
                 break;
-            case PathGoalType.Facility:
-                if (_targetFacilityPosition.HasValue)
+            case PathGoalType.Room:
+                if (_targetRoom != null)
                 {
-                    // Check if entity is adjacent to the facility (including diagonals)
-                    result = DirectionUtils.IsAdjacent(entityPos, _targetFacilityPosition.Value);
+                    // Check if entity is inside the room
+                    result = _targetRoom.ContainsAbsolutePosition(entityPos);
+
+                    // If adjacency is acceptable, also check adjacent to any door
+                    if (!result && !_requireInterior)
+                    {
+                        foreach (var door in _targetRoom.Doors)
+                        {
+                            if (DirectionUtils.IsAdjacent(entityPos, door.GridPosition))
+                            {
+                                result = true;
+                                break;
+                            }
+                        }
+                    }
                 }
 
                 break;
@@ -385,25 +485,40 @@ public class PathFinder
                 return false;
             case PathGoalType.Area:
                 return entityPos.DistanceSquaredTo(_targetPosition) <= (closeDistance + _proximityRange) * (closeDistance + _proximityRange);
-            case PathGoalType.Building:
-                if (_targetBuilding != null)
+            case PathGoalType.Facility:
+                if (_targetFacilityPositions is { Count: > 0 })
                 {
-                    // Use IsAdjacentToBuilding-style check with larger tolerance
-                    Vector2I buildingPos = _targetBuilding.GetCurrentGridPosition();
-                    Vector2I buildingSize = _targetBuilding.GridSize;
-                    int minX = buildingPos.X - closeDistance;
-                    int maxX = buildingPos.X + buildingSize.X + closeDistance - 1;
-                    int minY = buildingPos.Y - closeDistance;
-                    int maxY = buildingPos.Y + buildingSize.Y + closeDistance - 1;
-                    return entityPos.X >= minX && entityPos.X <= maxX &&
-                           entityPos.Y >= minY && entityPos.Y <= maxY;
+                    foreach (var facilityPos in _targetFacilityPositions)
+                    {
+                        if (entityPos.DistanceSquaredTo(facilityPos) <= closeDistance * closeDistance)
+                        {
+                            return true;
+                        }
+                    }
+
+                    return false;
                 }
 
-                return false;
-            case PathGoalType.Facility:
                 if (_targetFacilityPosition.HasValue)
                 {
                     return entityPos.DistanceSquaredTo(_targetFacilityPosition.Value) <= closeDistance * closeDistance;
+                }
+
+                return false;
+            case PathGoalType.Room:
+                if (_targetRoom != null)
+                {
+                    // Check if close to any door (primary entrance points)
+                    foreach (var door in _targetRoom.Doors)
+                    {
+                        if (entityPos.DistanceSquaredTo(door.GridPosition) <= closeDistance * closeDistance)
+                        {
+                            return true;
+                        }
+                    }
+
+                    // Also check if already inside the room
+                    return _targetRoom.ContainsAbsolutePosition(entityPos);
                 }
 
                 return false;
@@ -432,7 +547,23 @@ public class PathFinder
         switch (_goalType)
         {
             case PathGoalType.Facility:
-                if (_targetFacilityPosition.HasValue)
+                if (_targetFacilityPositions is { Count: > 0 })
+                {
+                    var seen = new HashSet<Vector2I>();
+                    foreach (var facilityPos in _targetFacilityPositions)
+                    {
+                        // Adjacent positions to the facility (cardinal + diagonal)
+                        foreach (var dir in DirectionUtils.All)
+                        {
+                            var pos = facilityPos + dir;
+                            if (pos != entityPos && gridArea != null && gridArea.IsCellWalkable(pos) && seen.Add(pos))
+                            {
+                                result.Add(pos);
+                            }
+                        }
+                    }
+                }
+                else if (_targetFacilityPosition.HasValue)
                 {
                     // Adjacent positions to the facility (cardinal + diagonal)
                     foreach (var dir in DirectionUtils.All)
@@ -441,23 +572,6 @@ public class PathFinder
                         if (pos != entityPos && gridArea != null && gridArea.IsCellWalkable(pos))
                         {
                             result.Add(pos);
-                        }
-                    }
-                }
-
-                break;
-
-            case PathGoalType.Building:
-                if (_targetBuilding != null)
-                {
-                    var walkableInterior = _targetBuilding.GetWalkableInteriorPositions();
-                    var buildingPos = _targetBuilding.GetCurrentGridPosition();
-                    foreach (var relPos in walkableInterior)
-                    {
-                        var absPos = buildingPos + relPos;
-                        if (absPos != entityPos && gridArea != null && gridArea.IsCellWalkable(absPos))
-                        {
-                            result.Add(absPos);
                         }
                     }
                 }
@@ -477,6 +591,21 @@ public class PathFinder
                             {
                                 result.Add(pos);
                             }
+                        }
+                    }
+                }
+
+                break;
+
+            case PathGoalType.Room:
+                if (_targetRoom != null)
+                {
+                    // Walkable tiles inside the room
+                    foreach (var tile in _targetRoom.Tiles)
+                    {
+                        if (tile != entityPos && gridArea != null && gridArea.IsCellWalkable(tile))
+                        {
+                            result.Add(tile);
                         }
                     }
                 }
@@ -503,6 +632,30 @@ public class PathFinder
         {
             Log.Error("CalculatePathIfNeeded: Entity is null");
             return false;
+        }
+
+        // Cross-area: if waiting for area transition, let NavigationActivity handle it
+        if (_needsAreaTransition)
+        {
+            return true;
+        }
+
+        // Cross-area: if we have a final goal in another area, handle route planning.
+        // Uses WorldNavigator.FindRouteToArea which queries entity's knowledge (BDI-compliant).
+        if (_finalGoalType != PathGoalType.None)
+        {
+            if (!HandleCrossAreaPlanning(entity))
+            {
+                return false;
+            }
+
+            // If HandleCrossAreaPlanning signaled a transition, we're done for this tick
+            if (_needsAreaTransition)
+            {
+                return true;
+            }
+
+            // Otherwise it set an intermediate goal — fall through to normal path calc
         }
 
         // If goal is already reached, no path needed
@@ -533,6 +686,16 @@ public class PathFinder
                 Log.Error($"Failed to calculate path for {entity.Name} with goal type {_goalType}");
                 return false;
             }
+        }
+        else if (_pathNeedsCalculation && _recalculationAttempts >= MAXRECALCULATIONATTEMPTS)
+        {
+            // Log once when we've exhausted all recalculation attempts (silent failure otherwise)
+            var facilityInfo = _targetFacilityPositions != null
+                ? string.Join(",", _targetFacilityPositions)
+                : _targetFacilityPosition?.ToString() ?? "none";
+            var msg = $"Gave up pathfinding: goal={_goalType}, pos={entity.GetCurrentGridPosition()}, " +
+                $"attempts={_recalculationAttempts}/{MAXRECALCULATIONATTEMPTS}, facilityPositions={facilityInfo}";
+            Log.EntityDebug(entity.Name, "PATHFIND_STUCK", msg, tickInterval: 50);
         }
 
         return HasValidPath() || IsGoalReached(entity);
@@ -591,6 +754,16 @@ public class PathFinder
             nextPos = CurrentPath[PathIndex];
         }
 
+        // If the entity is not adjacent to the next path point, the path is stale.
+        // This happens when the entity was displaced (e.g., side-step from a move request)
+        // while the PathFinder still holds the old path. Force recalculation.
+        float distToNext = entity.GetCurrentGridPosition().DistanceSquaredTo(nextPos);
+        if (distToNext > 2) // > sqrt(2) means not adjacent (cardinal=1, diagonal=2)
+        {
+            _pathNeedsCalculation = true;
+            return false;
+        }
+
         bool moveSuccessful = entity.TryMoveToGridPosition(nextPos);
 
         if (moveSuccessful)
@@ -627,6 +800,20 @@ public class PathFinder
             if (!entity.IsInQueue)
             {
                 _pathNeedsCalculation = true;
+            }
+
+            // If blocked by a Being (temporary obstacle), reset recalculation budget.
+            // Beings are dynamic — they may move at any time via the step-aside system.
+            // Only terrain/structure blocks should exhaust the recalculation limit.
+            var gridArea = entity.GetGridArea();
+            if (gridArea != null)
+            {
+                var occupants = gridArea.EntitiesGridSystem.GetCell(nextPos);
+                bool hasBeing = occupants?.OfType<Being>().Any(b => b != entity) == true;
+                if (hasBeing)
+                {
+                    _recalculationAttempts = 0;
+                }
             }
 
             return false;
@@ -688,7 +875,7 @@ public class PathFinder
                     }
 
                     // Early exit: Check if entity can leave current position
-                    if (!CanLeavePosition(astar, startPos, perceivedEntityPositions))
+                    if (!CanLeavePosition(astar, startPos))
                     {
                         Log.Error($"Entity at {startPos} is surrounded - cannot leave position");
                         return false;
@@ -782,68 +969,85 @@ public class PathFinder
 
                     break;
 
-                case PathGoalType.Building:
-                    if (_targetBuilding == null)
-                    {
-                        Log.Error("Target building is null");
-                        return false;
-                    }
-
-                    Vector2I buildingPos = _targetBuilding.GetCurrentGridPosition();
-                    Vector2I buildingSize = _targetBuilding.GridSize;
-
-                    // Collect candidates - interior positions, plus perimeter if allowed
-                    var buildingCandidates = CollectBuildingCandidates(
-                        astar, buildingPos, _targetBuilding.GetWalkableInteriorPositions(),
-                        buildingSize, _requireInterior, perceivedEntityPositions);
-
-                    var buildingResult = TryPathToCandidates(astar, startPos, buildingCandidates, perceivedEntityPositions);
-                    if (!buildingResult.Found)
-                    {
-                        Log.Error($"No path to building {_targetBuilding.BuildingType} at {buildingPos}: {buildingResult.FailureReason} (tried {buildingResult.CandidatesTried}/{buildingCandidates.Count} candidates)");
-                        return false;
-                    }
-
-                    CurrentPath = buildingResult.Path;
-
-                    break;
-
                 case PathGoalType.Facility:
-                    if (_targetFacilityBuilding == null || _targetFacilityId == null)
+                    if (_targetFacilityPositions is not { Count: > 0 } && !_targetFacilityPosition.HasValue)
                     {
-                        Log.Error("Facility goal missing building or facility ID");
+                        Log.Error("Facility goal missing target position");
                         return false;
                     }
 
-                    // Collect facility candidates with entrance-blocking info
-                    var (facilityCandidates, facilityPositionMap) = CollectFacilityCandidates(
-                        astar, _targetFacilityBuilding, _targetFacilityId, perceivedEntityPositions);
-
-                    // Extract just the adjacent positions for pathfinding
-                    var facilityAdjacentPositions = facilityCandidates.Select(c => c.adjacentPos).ToList();
+                    // Collect adjacent tiles from ALL facility positions (multi-position support).
+                    var facilityAdjacentPositions = new List<Vector2I>();
+                    var seenAdjacentPositions = new HashSet<Vector2I>();
+                    var positionsToCheck = _targetFacilityPositions ?? (_targetFacilityPosition.HasValue ? [_targetFacilityPosition.Value] : []);
+                    foreach (var facPos in positionsToCheck)
+                    {
+                        foreach (var adjPos in GetAdjacentPositions(facPos))
+                        {
+                            if (IsValidCandidate(astar, adjPos, perceivedEntityPositions) && seenAdjacentPositions.Add(adjPos))
+                            {
+                                facilityAdjacentPositions.Add(adjPos);
+                            }
+                        }
+                    }
 
                     var facilityResult = TryPathToCandidates(astar, startPos, facilityAdjacentPositions, perceivedEntityPositions);
                     if (!facilityResult.Found)
                     {
-                        Log.Error($"No path to '{_targetFacilityId}' facility: {facilityResult.FailureReason}");
+                        Log.Error($"No path to facility: {facilityResult.FailureReason}");
                         return false;
                     }
 
-                    // Set the facility position based on which candidate succeeded
-                    if (facilityResult.SuccessIndex >= 0 && facilityResult.SuccessIndex < facilityCandidates.Count)
+                    if (facilityResult.SuccessIndex >= 0 && facilityResult.SuccessIndex < facilityAdjacentPositions.Count)
                     {
-                        var (facilityPos, adjacentPos, _) = facilityCandidates[facilityResult.SuccessIndex];
-                        _targetFacilityPosition = facilityPos;
-                        _targetPosition = adjacentPos;
-                    }
-                    else if (facilityCandidates.Count > 0)
-                    {
-                        // Partial path - use first candidate's facility position
-                        _targetFacilityPosition = facilityCandidates[0].facilityPos;
-                        _targetPosition = facilityCandidates[0].adjacentPos;
+                        _targetPosition = facilityAdjacentPositions[facilityResult.SuccessIndex];
                     }
 
                     CurrentPath = facilityResult.Path;
+
+                    break;
+
+                case PathGoalType.Room:
+                    if (_targetRoom == null)
+                    {
+                        Log.Error("Target room is null");
+                        return false;
+                    }
+
+                    // Collect walkable tiles in the room as candidates
+                    var roomCandidates = new List<Vector2I>();
+                    foreach (var tile in _targetRoom.Tiles)
+                    {
+                        if (IsValidCandidate(astar, tile, perceivedEntityPositions))
+                        {
+                            roomCandidates.Add(tile);
+                        }
+                    }
+
+                    // If not requiring interior, also add positions adjacent to doors
+                    if (!_requireInterior)
+                    {
+                        foreach (var door in _targetRoom.Doors)
+                        {
+                            foreach (var adjacentPos in GetAdjacentPositions(door.GridPosition))
+                            {
+                                if (!_targetRoom.ContainsAbsolutePosition(adjacentPos) &&
+                                    IsValidCandidate(astar, adjacentPos, perceivedEntityPositions))
+                                {
+                                    roomCandidates.Add(adjacentPos);
+                                }
+                            }
+                        }
+                    }
+
+                    var roomResult = TryPathToCandidates(astar, startPos, roomCandidates, perceivedEntityPositions);
+                    if (!roomResult.Found)
+                    {
+                        Log.Error($"No path to room {_targetRoom.Name}: {roomResult.FailureReason} (tried {roomResult.CandidatesTried}/{roomCandidates.Count} candidates)");
+                        return false;
+                    }
+
+                    CurrentPath = roomResult.Path;
 
                     break;
             }
@@ -905,9 +1109,10 @@ public class PathFinder
 
     // Check if entity can leave their current position (has at least one non-blocked neighbor)
     // This is a quick early-exit check to avoid expensive A* when completely surrounded
-    private static bool CanLeavePosition(AStarGrid2D astar, Vector2I pos, HashSet<Vector2I>? blockedPositions)
+    private static bool CanLeavePosition(AStarGrid2D astar, Vector2I pos)
     {
         // Check all 8 directions (diagonal movement is allowed)
+        // Only real solids (walls, terrain) count — entity-occupied tiles are just expensive, not blocking
         for (int dx = -1; dx <= 1; dx++)
         {
             for (int dy = -1; dy <= 1; dy++)
@@ -931,12 +1136,6 @@ public class PathFinder
                     continue;
                 }
 
-                // Must not be blocked by perceived entity
-                if (blockedPositions != null && blockedPositions.Contains(neighbor))
-                {
-                    continue;
-                }
-
                 // Found at least one valid exit
                 return true;
             }
@@ -951,21 +1150,6 @@ public class PathFinder
         foreach (var dir in DirectionUtils.All)
         {
             yield return pos + dir;
-        }
-    }
-
-    // Get perimeter positions around a building (one tile outside the building bounds)
-    private static IEnumerable<Vector2I> GetBuildingPerimeterPositions(Vector2I buildingPos, Vector2I buildingSize)
-    {
-        for (int x = -1; x <= buildingSize.X; x++)
-        {
-            for (int y = -1; y <= buildingSize.Y; y++)
-            {
-                if (x == -1 || y == -1 || x == buildingSize.X || y == buildingSize.Y)
-                {
-                    yield return new Vector2I(buildingPos.X + x, buildingPos.Y + y);
-                }
-            }
         }
     }
 
@@ -1031,7 +1215,7 @@ public class PathFinder
         AStarGrid2D astar,
         Vector2I startPos,
         List<Vector2I> candidates,
-        HashSet<Vector2I>? perceivedBlocked)
+        HashSet<Vector2I>? perceivedWeights)
     {
         if (candidates.Count == 0)
         {
@@ -1047,8 +1231,8 @@ public class PathFinder
             }
         }
 
-        // Early exit if surrounded
-        if (!CanLeavePosition(astar, startPos, perceivedBlocked))
+        // Early exit if surrounded by real solids
+        if (!CanLeavePosition(astar, startPos))
         {
             return PathSearchResult.Fail("surrounded", 0);
         }
@@ -1056,7 +1240,7 @@ public class PathFinder
         // Try exact paths first (fast fail if unreachable)
         for (int i = 0; i < candidates.Count; i++)
         {
-            var path = ThreadSafeAStar.GetPath(astar, startPos, candidates[i], false, perceivedBlocked);
+            var path = ThreadSafeAStar.GetPath(astar, startPos, candidates[i], false, perceivedWeights);
             if (path.Count > 0)
             {
                 return PathSearchResult.Success(path, i);
@@ -1064,51 +1248,13 @@ public class PathFinder
         }
 
         // All exact paths failed - try partial path to first candidate
-        var partialPath = ThreadSafeAStar.GetPath(astar, startPos, candidates[0], true, perceivedBlocked);
+        var partialPath = ThreadSafeAStar.GetPath(astar, startPos, candidates[0], true, perceivedWeights);
         if (partialPath.Count > 1) // Must make progress
         {
             return PathSearchResult.PartialSuccess(partialPath, candidates.Count);
         }
 
         return PathSearchResult.Fail($"no path to any of {candidates.Count} candidates", candidates.Count);
-    }
-
-    /// <summary>
-    /// Collect valid candidate positions for a building goal.
-    /// </summary>
-    private static List<Vector2I> CollectBuildingCandidates(
-        AStarGrid2D astar,
-        Vector2I buildingPos,
-        List<Vector2I> walkableInterior,
-        Vector2I buildingSize,
-        bool requireInterior,
-        HashSet<Vector2I>? perceivedBlocked)
-    {
-        var candidates = new List<Vector2I>();
-
-        // Add walkable interior positions
-        foreach (var relativePos in walkableInterior)
-        {
-            Vector2I absolutePos = buildingPos + relativePos;
-            if (IsValidCandidate(astar, absolutePos, perceivedBlocked))
-            {
-                candidates.Add(absolutePos);
-            }
-        }
-
-        // Add perimeter positions if adjacency is acceptable
-        if (!requireInterior)
-        {
-            foreach (var pos in GetBuildingPerimeterPositions(buildingPos, buildingSize))
-            {
-                if (IsValidCandidate(astar, pos, perceivedBlocked))
-                {
-                    candidates.Add(pos);
-                }
-            }
-        }
-
-        return candidates;
     }
 
     /// <summary>
@@ -1135,50 +1281,143 @@ public class PathFinder
     }
 
     /// <summary>
-    /// Collect valid candidate positions for a facility goal.
-    /// Returns candidates sorted by entrance-blocking priority (non-blocking first).
+    /// Called by NavigationActivity after it returns a ChangeAreaAction.
+    /// Advances to the next step in the cross-area route.
+    /// The entity hasn't actually transitioned yet — ChangeAreaAction handles that.
+    /// On the next tick, HandleCrossAreaPlanning will determine the next step.
     /// </summary>
-    private static (List<(Vector2I facilityPos, Vector2I adjacentPos, bool blocksEntrance)> candidates,
-                    Dictionary<Vector2I, Vector2I> positionMap)
-        CollectFacilityCandidates(
-            AStarGrid2D astar,
-            Building building,
-            string facilityId,
-            HashSet<Vector2I>? perceivedBlocked)
+    public void CompleteTransition(Being entity)
     {
-        var candidates = new List<(Vector2I facilityPos, Vector2I adjacentPos, bool blocksEntrance)>();
-        var positionMap = new Dictionary<Vector2I, Vector2I>(); // adjacentPos -> facilityPos
+        _needsAreaTransition = false;
+        _pendingTransition = null;
+        _crossAreaRouteIndex++;
 
-        var facilityPositions = building.GetFacilityPositions(facilityId);
-        Vector2I buildingPos = building.GetCurrentGridPosition();
+        // Clear current path data — entity will be in a new area after ChangeAreaAction executes
+        CurrentPath = [];
+        PathIndex = 0;
+        _pathNeedsCalculation = true;
+        _firstGoalCalculation = true;
+        _stepsSinceLastRecalculation = 0;
+        _recalculationAttempts = 0;
+        _goalType = PathGoalType.None; // HandleCrossAreaPlanning sets this on next tick
+    }
 
-        // Get entrance positions to avoid blocking doorways
-        var entrancePositions = new HashSet<Vector2I>(building.GetEntrancePositions());
-        var entranceAdjacentPositions = building.GetEntranceAdjacentPositions();
-
-        foreach (var relativePos in facilityPositions)
+    /// <summary>
+    /// Handles cross-area route planning when the final goal is in another area.
+    /// Called from CalculatePathIfNeeded when _finalGoalType != None.
+    /// Uses WorldNavigator.FindRouteToArea which queries entity's SharedKnowledge (BDI-compliant).
+    /// </summary>
+    /// <returns>True if planning succeeded (may have set an intermediate goal or signaled transition),
+    /// false if no route could be found.</returns>
+    private bool HandleCrossAreaPlanning(Being entity)
+    {
+        var targetArea = _finalGoalRoom?.GridArea;
+        if (targetArea == null)
         {
-            Vector2I absoluteFacilityPos = buildingPos + relativePos;
+            Log.Error("HandleCrossAreaPlanning: final goal has no GridArea");
+            return false;
+        }
 
-            foreach (var adjacentPos in GetAdjacentPositions(absoluteFacilityPos))
+        // 1. Entity now in target area? Restore the real goal and let normal calc handle it.
+        if (entity.GridArea == targetArea)
+        {
+            SetFinalGoal(entity);
+            return true;
+        }
+
+        var currentArea = entity.GridArea;
+        if (currentArea == null)
+        {
+            Log.Error("HandleCrossAreaPlanning: entity has no GridArea");
+            return false;
+        }
+
+        // 2. No route planned? Plan one using entity's knowledge (no god knowledge).
+        if (_crossAreaRoute == null)
+        {
+            _crossAreaRoute = WorldNavigator.FindRouteToArea(entity, currentArea, targetArea);
+            _crossAreaRouteIndex = 0;
+
+            if (_crossAreaRoute == null)
             {
-                if (!IsValidCandidate(astar, adjacentPos, perceivedBlocked))
-                {
-                    continue;
-                }
-
-                bool blocksEntrance = entrancePositions.Contains(adjacentPos) ||
-                                      entranceAdjacentPositions.Contains(adjacentPos);
-
-                candidates.Add((absoluteFacilityPos, adjacentPos, blocksEntrance));
-                positionMap[adjacentPos] = absoluteFacilityPos;
+                Log.Error($"No cross-area route from {currentArea.Name} to {targetArea.Name} (entity lacks knowledge?)");
+                return false;
             }
         }
 
-        // Sort: non-entrance-blocking positions first
-        candidates.Sort((a, b) => a.blocksEntrance.CompareTo(b.blocksEntrance));
+        // 3. All transitions traversed but still not in target area? Re-plan.
+        if (_crossAreaRouteIndex >= _crossAreaRoute.Count)
+        {
+            _crossAreaRoute = null;
+            return HandleCrossAreaPlanning(entity);
+        }
 
-        return (candidates, positionMap);
+        var currentTransition = _crossAreaRoute[_crossAreaRouteIndex];
+
+        // 4. Entity at the current transition point? Signal that NavigationActivity
+        //    should return a ChangeAreaAction.
+        if (entity.GetCurrentGridPosition() == currentTransition.SourcePosition
+            && entity.GridArea == currentTransition.SourceArea)
+        {
+            _needsAreaTransition = true;
+            _pendingTransition = currentTransition;
+            return true;
+        }
+
+        // 5. Set intermediate position goal to walk to the transition point.
+        _goalType = PathGoalType.Position;
+        _targetPosition = currentTransition.SourcePosition;
+        _pathNeedsCalculation = true;
+        _firstGoalCalculation = true;
+        _recalculationAttempts = 0;
+        return true;
+    }
+
+    /// <summary>
+    /// Restores the real goal (Room or Facility) after all area transitions are done.
+    /// Called from HandleCrossAreaPlanning when entity has arrived in the target area.
+    /// </summary>
+    private void SetFinalGoal(Being entity)
+    {
+        var goalType = _finalGoalType;
+        var room = _finalGoalRoom;
+        var facilityId = _finalGoalFacilityId;
+        var requireInterior = _finalRequireInterior;
+
+        // Clear all cross-area state
+        _finalGoalType = PathGoalType.None;
+        _finalGoalRoom = null;
+        _finalGoalFacilityId = null;
+        _finalRequireInterior = false;
+        _crossAreaRoute = null;
+        _crossAreaRouteIndex = 0;
+
+        // Set the real goal — entity is now in the same area as the target,
+        // so these will NOT detect cross-area and will use normal pathfinding.
+        switch (goalType)
+        {
+            case PathGoalType.Facility:
+                // Resolve the facility from the room to restore the position-based goal
+                if (room != null && facilityId != null)
+                {
+                    var facility = room.GetFacility(facilityId);
+                    if (facility != null)
+                    {
+                        SetFacilityGoal(entity, facility);
+                        return;
+                    }
+                }
+
+                Log.Error($"SetFinalGoal: Could not resolve facility '{facilityId}' in room '{room?.Name}'");
+                break;
+            case PathGoalType.Room:
+                if (room != null)
+                {
+                    SetRoomGoal(entity, room, requireInterior);
+                }
+
+                break;
+        }
     }
 
     /// <summary>
@@ -1253,19 +1492,19 @@ public class PathFinder
     /// <returns>HashSet of positions occupied by perceived beings, or null if none.</returns>
     private HashSet<Vector2I>? GetPerceivedEntityPositions(Being entity, Perception perception)
     {
-        _perceivedBlockedPositions.Clear();
+        _perceivedEntityPositions.Clear();
 
         foreach (var (sensable, position) in perception.GetAllDetected())
         {
-            // Only block positions of other Beings (not buildings or other sensables)
+            // Only add weight penalties for other Beings (not buildings or other sensables)
             if (sensable is Being otherBeing && otherBeing != entity)
             {
-                _perceivedBlockedPositions.Add(position);
+                _perceivedEntityPositions.Add(position);
             }
         }
 
-        // Return null if no blocked positions (optimization for ThreadSafeAStar)
-        return _perceivedBlockedPositions.Count > 0 ? _perceivedBlockedPositions : null;
+        // Return null if no weighted positions (optimization for ThreadSafeAStar)
+        return _perceivedEntityPositions.Count > 0 ? _perceivedEntityPositions : null;
     }
 
     /// <summary>

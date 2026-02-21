@@ -114,7 +114,7 @@ public class AutonomyConfig
                 Parameters = new Dictionary<string, object?>(rule.Parameters)
             };
 
-            // Build runtime config with home building if available
+            // Build runtime config with home room if available
             var runtimeConfig = new TraitConfiguration();
             var home = player.SelfAsEntity().GetTrait<HomeTrait>()?.Home;
             if (home != null)

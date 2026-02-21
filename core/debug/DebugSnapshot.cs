@@ -206,10 +206,10 @@ public class GridSnapshot
     public int Height { get; set; }
 
     /// <summary>
-    /// Gets or sets building locations.
+    /// Gets or sets room snapshots from villages in the active area.
     /// </summary>
-    [JsonPropertyName("buildings")]
-    public List<BuildingSnapshot> Buildings { get; set; } = [];
+    [JsonPropertyName("rooms")]
+    public List<RoomSnapshot> Rooms { get; set; } = [];
 
     /// <summary>
     /// Gets or sets set of water positions for ASCII visualization.
@@ -219,17 +219,17 @@ public class GridSnapshot
     public HashSet<Vector2I> WaterPositions { get; set; } = [];
 
     /// <summary>
-    /// Set of building positions for ASCII visualization.
-    /// Not serialized - computed from Buildings.
+    /// Set of structural positions for ASCII visualization.
+    /// Not serialized - computed from room tile positions.
     /// </summary>
     [JsonIgnore]
-    private HashSet<Vector2I>? _buildingPositions;
+    private HashSet<Vector2I>? _structurePositions;
 
     /// <summary>
     /// Generate ASCII visualization of the grid.
     /// Characters used:
     /// - '.' = empty/grass
-    /// - '#' = building
+    /// - '#' = structure (room tile)
     /// - '@' = idle entity
     /// - 'W' = walking entity
     /// - 'H' = hidden entity
@@ -240,18 +240,15 @@ public class GridSnapshot
     /// <returns>ASCII string representation of the grid.</returns>
     public string ToAscii(List<EntitySnapshot> entities)
     {
-        // Build building positions set if not already done
-        if (_buildingPositions == null)
+        // Build structure positions set if not already done
+        if (_structurePositions == null)
         {
-            _buildingPositions = [];
-            foreach (var building in Buildings)
+            _structurePositions = [];
+            foreach (var room in Rooms)
             {
-                for (int bx = 0; bx < building.Size.X; bx++)
+                foreach (var tile in room.TilePositions)
                 {
-                    for (int by = 0; by < building.Size.Y; by++)
-                    {
-                        _buildingPositions.Add(new Vector2I(building.Position.X + bx, building.Position.Y + by));
-                    }
+                    _structurePositions.Add(tile);
                 }
             }
         }
@@ -293,7 +290,7 @@ public class GridSnapshot
                         sb.Append('@');
                     }
                 }
-                else if (_buildingPositions.Contains(pos))
+                else if (_structurePositions.Contains(pos))
                 {
                     sb.Append('#');
                 }
@@ -346,31 +343,99 @@ public class AutonomyRuleSnapshot
 }
 
 /// <summary>
-/// Building info snapshot for debug server.
+/// Room info snapshot for debug server.
+/// Rooms are the primary structural unit (buildings no longer exist as entities).
 /// </summary>
-public class BuildingSnapshot
+public class RoomSnapshot
 {
     /// <summary>
-    /// Gets or sets building name.
+    /// Gets or sets room identifier.
+    /// </summary>
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets room name.
     /// </summary>
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets building type.
+    /// Gets or sets room type (e.g., "House", "Farm", "Graveyard").
     /// </summary>
     [JsonPropertyName("type")]
-    public string Type { get; set; } = string.Empty;
+    public string? Type { get; set; }
 
     /// <summary>
-    /// Gets or sets grid position.
+    /// Gets or sets room purpose (e.g., "Living", "Kitchen", "Workshop").
+    /// </summary>
+    [JsonPropertyName("purpose")]
+    public string? Purpose { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this room is secret.
+    /// </summary>
+    [JsonPropertyName("isSecret")]
+    public bool IsSecret { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of residents assigned to this room.
+    /// </summary>
+    [JsonPropertyName("residentCount")]
+    public int ResidentCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the room capacity (max residents, 0 = unlimited).
+    /// </summary>
+    [JsonPropertyName("capacity")]
+    public int Capacity { get; set; }
+
+    /// <summary>
+    /// Gets or sets facilities contained in this room.
+    /// </summary>
+    [JsonPropertyName("facilities")]
+    public List<FacilitySnapshot> Facilities { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets absolute tile positions for this room.
+    /// Used internally for ASCII grid rendering.
+    /// </summary>
+    [JsonIgnore]
+    public List<Vector2I> TilePositions { get; set; } = [];
+}
+
+/// <summary>
+/// Facility info snapshot for debug server.
+/// </summary>
+public class FacilitySnapshot
+{
+    /// <summary>
+    /// Gets or sets facility identifier.
+    /// </summary>
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the absolute grid position of this facility's primary tile.
     /// </summary>
     [JsonPropertyName("position")]
     public Vector2I Position { get; set; }
 
     /// <summary>
-    /// Gets or sets building size in tiles.
+    /// Gets or sets a value indicating whether entities can walk through this facility.
     /// </summary>
-    [JsonPropertyName("size")]
-    public Vector2I Size { get; set; }
+    [JsonPropertyName("isWalkable")]
+    public bool IsWalkable { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this facility has a storage trait.
+    /// </summary>
+    [JsonPropertyName("hasStorage")]
+    public bool HasStorage { get; set; }
+
+    /// <summary>
+    /// Gets or sets the items stored in this facility's storage, if any.
+    /// </summary>
+    [JsonPropertyName("storageContents")]
+    public List<ItemSnapshot>? StorageContents { get; set; }
 }

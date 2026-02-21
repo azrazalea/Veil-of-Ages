@@ -14,11 +14,13 @@ assets/
 │   ├── colored-transparent_packed.png        # Original 16x16
 │   ├── colored-transparent_packed_2x.png     # 2x upscaled (32x32) - USED BY GAME
 │   └── kenney_atlas_index.json              # Row/col position reference
-├── dcss/                             # DCSS ProjectUtumno (TWO atlases)
-│   ├── ProjectUtumno_full.png               # Main 32x32 atlas - USED BY GAME
-│   ├── supplemental_atlas.png               # Supplemental 32x32 atlas - USED BY GAME
-│   ├── dcss_utumno_index.json               # Main atlas index (name → row/col)
-│   ├── dcss_supplemental_index.json         # Supplemental atlas index (name → row/col)
+├── dcss/                             # DCSS ProjectUtumno (combined atlas)
+│   ├── dcss_combined_atlas.png              # Combined 32x32 atlas - USED BY GAME
+│   ├── dcss_combined_index.json             # Combined atlas index (name → row/col) - USE THIS
+│   ├── ProjectUtumno_full.png               # Old main atlas - REFERENCE ONLY (being phased out)
+│   ├── supplemental_atlas.png               # Old supplemental atlas - REFERENCE ONLY (being phased out)
+│   ├── dcss_utumno_index.json               # Old main index - REFERENCE ONLY (being phased out)
+│   ├── dcss_supplemental_index.json         # Old supplemental index - REFERENCE ONLY (being phased out)
 │   ├── LICENSE.txt
 │   ├── dungeon/                             # Individual PNGs (REFERENCE ONLY, not loaded)
 │   │   ├── floor/
@@ -56,27 +58,25 @@ assets/
 - **Atlas Definition**: `resources/tiles/atlases/kenney_1bit.json` (ID: `kenney`)
 - **Usage**: Primary atlas for building tiles, terrain, and entity placeholders
 
-### DCSS ProjectUtumno (Two Atlases)
-**Every individual PNG file under `dcss/` is packed into one of these two atlases and indexed. The individual files exist ONLY for easy inspection/search — the game always loads from the atlas PNGs.**
+### DCSS ProjectUtumno (Combined Atlas)
+**Every individual PNG file under `dcss/` is packed into the combined atlas and indexed. The individual files exist ONLY for easy inspection/search — the game always loads from `dcss_combined_atlas.png`.**
 
-#### Main Atlas
-- **Game Path**: `res://assets/dcss/ProjectUtumno_full.png`
+#### Combined Atlas (Primary — always use this)
+- **Game Path**: `res://assets/dcss/dcss_combined_atlas.png`
 - **Native Size**: 32x32 pixel tiles, no margin/separation
-- **Index File**: `dcss_utumno_index.json` — maps names to `{row, col}` positions
+- **Index File**: `dcss_combined_index.json` — maps names to `{row, col}` positions
 - **Atlas Definition**: `resources/tiles/atlases/dcss_utumno.json` (ID: `dcss`)
-- **Contents**: Dungeon tiles, environmental tiles, monsters, items, etc.
+- **Contents**: All DCSS sprites — dungeon tiles, environmental tiles, monsters, items, player doll overlays, etc.
 
-#### Supplemental Atlas
-- **Game Path**: `res://assets/dcss/supplemental_atlas.png`
-- **Native Size**: 32x32 pixel tiles, no margin/separation
-- **Index File**: `dcss_supplemental_index.json` — maps names to `{row, col}` positions
-- **Atlas Definition**: `resources/tiles/atlases/dcss_supplemental.json` (ID: `dcss_supplemental`)
-- **Contents**: Player doll overlays (base bodies, hair, clothing, cloaks, armor, headwear, etc.), additional sprites not in the main atlas
+#### Old Atlases (Reference Only — being phased out)
+- `ProjectUtumno_full.png` and `supplemental_atlas.png` exist for visual reference only
+- `dcss_utumno_index.json` and `dcss_supplemental_index.json` exist for reference only during migration
+- These will be removed once migration is complete. Do not use them for new work.
 
 #### Individual Files (Reference Only)
 - `dcss/dungeon/` — dungeon tiles organized by category (floor, wall, etc.)
 - `dcss/player/` — player doll overlay layers (base, body, cloak, hair, head, boots, etc.)
-- **These files are NOT loaded by the game.** They exist solely for developer reference to visually inspect sprites and find what's available. Always look up sprites by name in the index JSON files, then use row/col from there.
+- **These files are NOT loaded by the game.** They exist solely for developer reference to visually inspect sprites and find what's available. Always look up sprites by name in `dcss_combined_index.json`, then use row/col from there.
 
 - **Usage**: Primary tileset for dungeon/environmental tiles; player doll system for layered entity sprites
 
@@ -125,8 +125,7 @@ This ensures crisp rendering at the game's grid scale.
 ### Atlas JSON Definitions
 The game loads atlases from JSON files in `/resources/tiles/atlases/`:
 - `kenney_1bit.json` - ID: `kenney`, references `colored-transparent_packed_2x.png`
-- `dcss_utumno.json` - ID: `dcss`, references `ProjectUtumno_full.png`
-- `dcss_supplemental.json` - ID: `dcss_supplemental`, references `supplemental_atlas.png`
+- `dcss_utumno.json` - ID: `dcss`, references `dcss_combined_atlas.png`
 - `urizen_onebit.json` - ID: `urizen`, references `urizen_onebit_tileset__v2d0_32x32.png`
 - `custom.json` - ID: `custom`, references `custom_atlas.png`
 

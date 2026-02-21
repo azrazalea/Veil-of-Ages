@@ -40,6 +40,9 @@ public class SkillDefinition : IResourceDefinition
     /// </summary>
     public string? Description { get; set; }
 
+    public string LocalizedName => L.Tr($"skill.name.{Id!.ToUpperInvariant()}");
+    public string LocalizedDescription => L.Tr($"skill.desc.{Id!.ToUpperInvariant()}");
+
     /// <summary>
     /// Gets or sets primary category of this skill.
     /// </summary>
@@ -75,7 +78,7 @@ public class SkillDefinition : IResourceDefinition
     /// Calculate the XP required to advance from the given level to the next level.
     /// Level 1 requires BaseXpPerLevel. Each subsequent level scales exponentially.
     /// </summary>
-    /// <param name="level">The current level (1-based).</param>
+    /// <param name="level">The current level (0-based minimum).</param>
     /// <returns>XP needed to go from level to level+1.</returns>
     public float GetXpForLevel(int level)
     {

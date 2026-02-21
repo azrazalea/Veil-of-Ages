@@ -1,0 +1,39 @@
+{
+    "Name": "Granary",
+    "Description": "A stone-fenced storage facility for grain and food, with cool storage to reduce decay",
+    "BuildingType": "Granary",
+    "Size": [8, 8],
+    "Culture": "Human",
+    "Style": "Rural",
+    "Capacity": 0,
+    "Facilities": [
+        {
+            "Id": "storage",
+            "Positions": [[4, 4]],
+            "Storage": {
+                "VolumeCapacity": 10.0,
+                "WeightCapacity": -1,
+                "DecayRateModifier": 0.5,
+                "Tags": ["food", "grain"]
+            }
+        }
+    ],
+    "EntrancePositions": [[3, 7], [4, 7]],
+    "Metadata": {
+        "ConstructionTime": "4d",
+        "RequiredMaterials": "Stone:40,Wood:10",
+        "Value": "200"
+    },
+    "Rooms": [
+        {
+            "Name": "Storage Area",
+            "Purpose": "Storage",
+            "TopLeft": [1, 1],
+            "Size": [6, 6],
+            "Properties": {
+                "Quality": "Basic",
+                "Climate": "Cool"
+            }
+        }
+    ]
+}
