@@ -138,7 +138,7 @@ Contains the `BuildingReference` class and `SharedKnowledge` base class:
 **SharedKnowledge** - Base class for shared knowledge scopes:
 - `Id`, `Name`, `ScopeType` - Identification properties
 - Building location registry (scope-appropriate granularity)
-- Facility registry (facility type -> `FacilityReference` list); also indexed by storage tag via `_facilitiesByStorageTag`
+- Facility registry (facility type -> `FacilityReference` list); also indexed by storage tag via `_facilitiesByStorageTag` (the only tag system — there is no room-level tag system)
 - Transition point registry (for cross-area routing)
 - Landmark storage (named positions like "town_square")
 - General facts (key-value for flexibility)

@@ -267,8 +267,10 @@ new SleepActivity(priority: 0)
 
 **Wake Conditions:**
 1. Energy reaches 100% (fully rested)
-2. Any non-energy need reaches critical level (e.g., starvation)
-3. Day phase starts (must wake regardless of energy)
+2. Day phase starts — but only for normal sleep (priority >= 0), NOT emergency sleep (priority < 0)
+3. Emergency sleep (priority < 0) wakes when energy reaches LOW_ENERGY_THRESHOLD (40f)
+
+Critical non-energy needs no longer cause self-termination. The priority system handles this: if a critical need can be addressed, the responsible trait produces a higher-priority action that replaces sleep via the priority queue. If it can't be addressed, sleeping is the best option.
 
 **Need Effects:**
 ```csharp

@@ -278,9 +278,6 @@ public class VillageGenerator
             _currentVillage.AddRoom(room, _gridArea);
         }
 
-        // Register storage tags from template
-        RegisterStorageTagsFromStampResult(wellResult, wellTemplate);
-
         // Register well facilities directly with village knowledge
         // (well has no room/enclosure, so the RoomSystem won't pick it up automatically)
         foreach (var facility in wellResult.Facilities)
@@ -545,8 +542,15 @@ public class VillageGenerator
             _currentVillage?.AddRoom(room, _gridArea);
         }
 
-        // Register building storage tags from template (data-driven, not hardcoded)
-        RegisterStorageTagsFromStampResult(stampResult, template);
+        // Register each storage facility with village knowledge for tag-based facility lookup
+        foreach (var facility in stampResult.Facilities)
+        {
+            if (facility.SelfAsEntity().HasTrait<StorageTrait>())
+            {
+                var facilityPos = facility.GetAbsolutePositions().FirstOrDefault();
+                _currentVillage?.Knowledge.RegisterFacility(facility.Id, facility, _gridArea, facilityPos);
+            }
+        }
 
         // Spawn entities based on building type (unless skipped, e.g., for player's house)
         if (!skipEntitySpawn)
@@ -605,44 +609,6 @@ public class VillageGenerator
         lot.State = LotState.Occupied;
 
         Log.Print($"Placed pond in lot {lot.Id} at center {pondCenter}, created {waterTilesCount} water tiles");
-    }
-
-    /// <summary>
-    /// Registers storage tags for each room in a StampResult from the template's facility definitions.
-    /// This reads StorageTags from all facilities with storage configurations.
-    /// </summary>
-    private void RegisterStorageTagsFromStampResult(StampResult stampResult, BuildingTemplate template)
-    {
-        if (_currentVillage == null || template.Facilities == null)
-        {
-            return;
-        }
-
-        // Collect all tags from all facilities that have storage
-        var allTags = new HashSet<string>();
-        foreach (var facility in template.Facilities)
-        {
-            if (facility.Storage?.Tags != null)
-            {
-                foreach (var tag in facility.Storage.Tags)
-                {
-                    allTags.Add(tag);
-                }
-            }
-        }
-
-        // Register the collected tags for the room that contains the storage facility
-        if (allTags.Count > 0)
-        {
-            var storageRoom = stampResult.Facilities
-                .FirstOrDefault(f => f.SelfAsEntity().HasTrait<StorageTrait>())
-                ?.ContainingRoom;
-            if (storageRoom != null)
-            {
-                _currentVillage.Knowledge.RegisterRoomStorageTags(storageRoom, allTags, _gridArea);
-                Log.Print($"VillageGenerator: Registered {template.Name} with storage tags: [{string.Join(", ", allTags)}]");
-            }
-        }
     }
 
     /// <summary>
@@ -707,7 +673,7 @@ public class VillageGenerator
                     _placedFarms.Add(farmRoom);
                 }
 
-                // Storage tags are registered from template by RegisterStorageTagsFromStampResult
+                // Storage tags are registered via RegisterFacility() in PlaceBuildingInLot
                 // Farm gets farmer assigned but farmer lives in house
                 break;
             }
@@ -723,7 +689,7 @@ public class VillageGenerator
                 // Track graveyard for player house placement
                 _placedGraveyard = graveyardRoom;
 
-                // Storage tags are registered from template by RegisterStorageTagsFromStampResult
+                // Storage tags are registered via RegisterFacility() in PlaceBuildingInLot
 
                 // Stock graveyard with initial corpses
                 StockRoomWithCorpses(graveyardRoom, stampResult.TemplateName);
@@ -741,7 +707,7 @@ public class VillageGenerator
                     ?.ContainingRoom
                     ?? stampResult.Facilities.Select(f => f.ContainingRoom).FirstOrDefault(r => r != null);
 
-                // Storage tags are registered from template by RegisterStorageTagsFromStampResult
+                // Storage tags are registered via RegisterFacility() in PlaceBuildingInLot
 
                 // Stock granary with initial supplies
                 StockRoomWithGranaryFood(granaryRoom, stampResult.TemplateName);

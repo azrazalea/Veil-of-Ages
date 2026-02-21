@@ -14,13 +14,13 @@ Trait that handles need satisfaction by consuming items from inventory or home s
 - Priority-based action generation (critical hunger interrupts sleep)
 - Starts ConsumeItemActivity when food is available
 - Starts CheckStorageActivity when hungry but no food memory (refreshes memory)
-- Tag-based food identification
+- Facility-based food source lookup via `GetFacilitiesByTag(_foodTag)` on SharedKnowledge
 
 **Behavior Flow:**
 1. Entity becomes hungry (need is low)
 2. Check `HasFoodAvailable()`:
    - Has food in inventory? -> Start ConsumeItemActivity
-   - Remembers food in storage? -> Start ConsumeItemActivity
+   - Remembers food in a storage facility matching the food tag? -> Start ConsumeItemActivity (uses `GetFacilitiesByTag` on SharedKnowledge to find candidate facilities)
    - No memory of food? -> Start CheckStorageActivity (go home and observe storage)
 3. After CheckStorageActivity completes, memory is updated
 4. On next think cycle, if home had food, ConsumeItemActivity can now start
@@ -367,6 +367,7 @@ Job trait for bakers who work at bakeries during daytime.
 - Starts BakingActivity during Dawn/Day phases
 - Returns null at night (VillagerTrait handles sleep)
 - Context-aware dialogue based on time of day
+- Wheat source lookup uses `GetFacilitiesByTag("grain")` on SharedKnowledge (facility-level tag system)
 
 **JobTrait Overrides:**
 - `WorkActivityType`: `BakingActivity`

@@ -229,7 +229,7 @@ World._Ready()
 3. The default room is retrieved via `stampResult.GetDefaultRoom()`
 4. `RoadNetwork.MarkLotOccupied(lot, defaultRoom)` sets `lot.OccupyingRoom`
 5. All rooms from the stamp result are registered with the village: `_currentVillage.AddRoom(room, _gridArea)`
-6. Storage tags are read from the building template's facility definitions and registered via `Knowledge.RegisterRoomStorageTags()`
+6. Each storage facility is individually registered via `Knowledge.RegisterFacility()` for tag-based facility lookup
 7. `GranaryTrait` is attached directly to the granary's storage `Facility` (retrieved via `granaryRoom.GetStorageFacility()`)
 
 ### Entity Spawning

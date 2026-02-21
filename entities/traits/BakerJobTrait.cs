@@ -362,11 +362,10 @@ public class BakerJobTrait : JobTrait
         // Strategy 1: Check personal memory for facilities where we saw wheat
         var rememberedWheatLocations = _owner.Memory?.RecallStorageWithItemById("wheat") ?? [];
 
-        // Strategy 2: Check SharedKnowledge for rooms tagged as storing grain
-        // (Farmer homes with IDesiredResources wheat would be tagged as "grain" storage)
-        var grainRoomRefs = _owner.SharedKnowledge
-            .SelectMany(k => k.GetRoomsByTag("grain"))
-            .Where(r => r.IsValid && r.Room != null && r.Room != _workplace?.ContainingRoom)
+        // Strategy 2: Check SharedKnowledge for storage facilities tagged as storing grain
+        var grainFacilityRefs = _owner.SharedKnowledge
+            .SelectMany(k => k.GetFacilitiesByTag("grain"))
+            .Where(f => f.Facility != null && f.Facility != _workplace)
             .ToList();
 
         // Build list of candidate facilities to fetch from
@@ -419,31 +418,23 @@ public class BakerJobTrait : JobTrait
             return new FetchResourceActivity(sourceFacility, workplace, "wheat", amountToFetch, priority: 0);
         }
 
-        // No remembered wheat - check if there are grain rooms we haven't observed
-        foreach (var roomRef in grainRoomRefs)
+        // No remembered wheat - check if there are grain facilities we haven't observed
+        foreach (var facilityRef in grainFacilityRefs)
         {
-            var room = roomRef.Room;
-            if (room == null)
+            var facility = facilityRef.Facility;
+            if (facility == null)
             {
                 continue;
             }
 
-            // Check if we have any memory of this room's storage
-            // Storage observations are keyed by Facility — look up the storage facility first
-            var storageFacility = room.GetStorageFacility();
-            var observation = storageFacility != null
-                ? _owner.Memory?.RecallStorageContents(storageFacility)
-                : null;
+            // Check if we have any memory of this facility's storage
+            var observation = _owner.Memory?.RecallStorageContents(facility);
             if (observation == null)
             {
-                if (storageFacility == null)
-                {
-                    continue; // No storage facility, skip
-                }
-
-                // No memory of this room - go check it
-                DebugLog("BAKER", $"Need wheat, no memory of {room.Name} storage, going to check", 0);
-                return new CheckStorageActivity(storageFacility, priority: 0);
+                // No memory of this facility - go check it
+                var facilityName = facility.ContainingRoom?.Name ?? facility.Id;
+                DebugLog("BAKER", $"Need wheat, no memory of {facilityName} storage, going to check", 0);
+                return new CheckStorageActivity(facility, priority: 0);
             }
 
             // We have memory but it showed no wheat (or we already checked above)

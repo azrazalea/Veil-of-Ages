@@ -16,6 +16,8 @@ namespace VeilOfAges.Entities.Traits;
 /// <summary>
 /// Trait that handles need satisfaction by consuming items.
 /// Checks inventory first, then personal memory for remembered food locations.
+/// When no memory of food exists, queries SharedKnowledge for storage facilities
+/// tagged with the food tag and sends the entity to check them.
 /// Entities only know what's in their inventory (immediate access) or what they
 /// remember observing in storage (decays over time). They do NOT omnisciently
 /// know what's in any storage container.
@@ -142,55 +144,47 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
             // Determine priority - use same logic as eating
             int checkPriority = _need.IsCritical() ? -2 : -1;
 
-            // Build list of potential food source rooms to check (home first, then known food rooms)
-            var roomsToCheck = new List<Room>();
+            // Build list of storage facilities to check (home first, then known food facilities)
+            var facilitiesToCheck = new List<Facility>();
 
-            // Add home if exists
+            // Add home storage facility if exists
             var homeRoom = GetHome();
-            if (homeRoom != null && !homeRoom.IsDestroyed)
+            var homeFacility = homeRoom is { IsDestroyed: false } ? homeRoom.GetStorageFacility() : null;
+            if (homeFacility != null)
             {
-                roomsToCheck.Add(homeRoom);
+                facilitiesToCheck.Add(homeFacility);
             }
 
-            // Add rooms that SharedKnowledge says store food
-            var foodRoomRefs = _owner.SharedKnowledge
-                .SelectMany(k => k.GetRoomsByTag(_foodTag))
-                .Where(r => r.IsValid && r.Room != null)
+            // Add storage facilities that SharedKnowledge says store food
+            var foodFacilityRefs = _owner.SharedKnowledge
+                .SelectMany(k => k.GetFacilitiesByTag(_foodTag))
+                .Where(f => f.Facility != null)
                 .ToList();
 
-            foreach (var roomRef in foodRoomRefs)
+            foreach (var facilityRef in foodFacilityRefs)
             {
-                var room = roomRef.Room;
-                if (room != null && !roomsToCheck.Contains(room))
+                if (facilityRef.Facility != null && !facilitiesToCheck.Contains(facilityRef.Facility))
                 {
-                    roomsToCheck.Add(room);
+                    facilitiesToCheck.Add(facilityRef.Facility);
                 }
             }
 
-            // Find a room we haven't recently checked (no observation or observation expired)
+            // Find a facility we haven't recently checked (no observation or observation expired)
             // This prevents infinite loops when home is empty - we'll try granary next
-            foreach (var room in roomsToCheck)
+            foreach (var facility in facilitiesToCheck)
             {
-                // Storage observations are keyed by Facility — check via the room's storage facility
-                var storageFacility = room.GetStorageFacility();
-                var observation = storageFacility != null
-                    ? _owner.Memory?.RecallStorageContents(storageFacility)
-                    : null;
+                var observation = _owner.Memory?.RecallStorageContents(facility);
                 if (observation == null)
                 {
-                    if (storageFacility == null)
-                    {
-                        continue; // No storage facility in this room, skip
-                    }
-
-                    // Never checked this room or observation expired - go check it
-                    DebugLog("EATING", $"No food memory, going to check {room.Name} (priority {checkPriority})", 0);
-                    var checkActivity = new CheckStorageActivity(storageFacility, priority: checkPriority);
+                    // Never checked this facility or observation expired - go check it
+                    var roomName = facility.ContainingRoom?.Name ?? facility.Id;
+                    DebugLog("EATING", $"No food memory, going to check {roomName} (priority {checkPriority})", 0);
+                    var checkActivity = new CheckStorageActivity(facility, priority: checkPriority);
                     return new StartActivityAction(_owner, this, checkActivity, priority: checkPriority);
                 }
 
                 // If observation exists, we already checked it and found no food (or we'd have food memory)
-                // Skip to next room
+                // Skip to next facility
             }
 
             // All known food sources were recently checked and found no food

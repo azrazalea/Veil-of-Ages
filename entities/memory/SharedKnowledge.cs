@@ -95,17 +95,11 @@ public class SharedKnowledge
     // Room locations by type - scope-appropriate granularity
     private readonly Dictionary<string, List<RoomReference>> _rooms = new ();
 
-    // Storage tag tracking - what tags each room stores
-    // This is common knowledge about what types of items each room is INTENDED to store
-    // (e.g., "granary stores food", "well provides water"), NOT current contents
-    private readonly Dictionary<string, HashSet<string>> _roomStorageTags = new ();  // roomId -> tags
-    private readonly Dictionary<string, List<RoomReference>> _roomsByStorageTag = new ();  // tag -> rooms
-
     // Facility tracking - facilities by type
     private readonly Dictionary<string, List<FacilityReference>> _facilities = new ();
 
     // Facility storage tag tracking - what tags each facility stores
-    // Parallel to _roomsByStorageTag but at facility granularity for precise targeting
+    // Indexed automatically when RegisterFacility() is called, from the facility's StorageTrait.Tags
     private readonly Dictionary<string, List<FacilityReference>> _facilitiesByStorageTag = new ();  // tag -> facilities
 
     // Transition point tracking
@@ -157,98 +151,6 @@ public class SharedKnowledge
         {
             list.RemoveAll(r => r.Room == room);
         }
-
-        // Also clean up storage tag registrations
-        var roomId = room.Id;
-        if (_roomStorageTags.TryGetValue(roomId, out var tags))
-        {
-            foreach (var tag in tags)
-            {
-                if (_roomsByStorageTag.TryGetValue(tag, out var taggedRooms))
-                {
-                    taggedRooms.RemoveAll(r => r.Room == room);
-                }
-            }
-
-            _roomStorageTags.Remove(roomId);
-        }
-    }
-
-    /// <summary>
-    /// Register a room's storage tags indicating what types of items it stores.
-    /// This represents common knowledge about what a room is INTENDED to store,
-    /// not the actual current contents (use PersonalMemory for that).
-    /// Example: Granary stores "food", "grain"; Well provides "water".
-    /// Main thread only.
-    /// </summary>
-    /// <param name="room">The room to register.</param>
-    /// <param name="tags">Tags indicating what this room stores (e.g., "food", "grain", "water").</param>
-    /// <param name="area">The area this room is in (optional, defaults to room.GridArea).</param>
-    public void RegisterRoomStorageTags(Room room, IEnumerable<string> tags, Area? area = null)
-    {
-        // First ensure the room is registered normally
-        RegisterRoom(room, area);
-
-        var roomId = room.Id;
-        var reference = new RoomReference(room, area);
-
-        // Store the tags for this room
-        if (!_roomStorageTags.TryGetValue(roomId, out var existingTags))
-        {
-            existingTags = new HashSet<string>();
-            _roomStorageTags[roomId] = existingTags;
-        }
-
-        foreach (var tag in tags)
-        {
-            existingTags.Add(tag);
-
-            // Add to the reverse lookup
-            if (!_roomsByStorageTag.TryGetValue(tag, out var taggedRooms))
-            {
-                taggedRooms = new List<RoomReference>();
-                _roomsByStorageTag[tag] = taggedRooms;
-            }
-
-            // Only add if not already present
-            if (!taggedRooms.Any(r => r.Room == room))
-            {
-                taggedRooms.Add(reference);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Get all rooms known to store items with a specific tag.
-    /// This is common knowledge about what rooms are INTENDED to store,
-    /// not whether they actually have items right now.
-    /// Returns a snapshot copy safe for background thread access.
-    /// </summary>
-    /// <param name="tag">The tag to search for (e.g., "food", "water").</param>
-    /// <returns>List of room references that store this type of item.</returns>
-    public IReadOnlyList<RoomReference> GetRoomsByTag(string tag)
-    {
-        if (_roomsByStorageTag.TryGetValue(tag, out var rooms))
-        {
-            return rooms.Where(r => r.IsValid).ToList(); // Return a copy for thread safety
-        }
-
-        return Array.Empty<RoomReference>();
-    }
-
-    /// <summary>
-    /// Get all tags registered for a specific room's storage.
-    /// Returns a snapshot copy safe for background thread access.
-    /// </summary>
-    public IReadOnlyList<string> GetRoomTags(Room room)
-    {
-        var roomId = room.Id;
-        if (_roomStorageTags.TryGetValue(roomId, out var tags))
-        {
-            return tags.ToList(); // Return a copy for thread safety
-        }
-
-        return Array.Empty<string>();
     }
 
     /// <summary>
@@ -543,38 +445,6 @@ public class SharedKnowledge
     public void CleanupInvalidReferences()
     {
         foreach (var list in _rooms.Values)
-        {
-            list.RemoveAll(r => !r.IsValid);
-        }
-
-        // Also clean up storage tag references
-        var invalidRoomIds = new List<string>();
-        foreach (var (roomId, _) in _roomStorageTags)
-        {
-            // Check if any room reference with this ID is still valid
-            bool isValid = false;
-            foreach (var taggedList in _roomsByStorageTag.Values)
-            {
-                if (taggedList.Any(r => r.IsValid && r.Room?.Id == roomId))
-                {
-                    isValid = true;
-                    break;
-                }
-            }
-
-            if (!isValid)
-            {
-                invalidRoomIds.Add(roomId);
-            }
-        }
-
-        foreach (var roomId in invalidRoomIds)
-        {
-            _roomStorageTags.Remove(roomId);
-        }
-
-        // Clean up invalid references in the tagged rooms lists
-        foreach (var list in _roomsByStorageTag.Values)
         {
             list.RemoveAll(r => !r.IsValid);
         }

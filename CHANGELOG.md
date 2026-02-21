@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Welcome overlay on game start showing controls and introduction (press Escape or click "Got it!" to dismiss)
 
 ### Fixed
+- Emergency sleep now works during daytime — entities with critical energy no longer oscillate between sleeping and waking every 2 ticks
+- Sleep no longer self-terminates for unresolvable critical needs (e.g., hunger when no food exists) — the priority system handles interruption correctly
+- All village storage facilities now registered in SharedKnowledge for tag-based lookup — entities can find the granary and other food sources when hungry
 - Building floor tiles now render above ground tiles — wood floors were hidden behind dirt ground layer due to identical Z-index
 - Corrected sprites for dirt terrain, well, and dirt wall tiles
 - Entity collision system now triggers correctly — entities no longer walk through each other
