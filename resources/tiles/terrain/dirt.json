@@ -1,7 +1,7 @@
 {
     "Id": "dirt",
     "AtlasSource": "dcss",
-    "AtlasCoords": [19, 3],
+    "AtlasCoords": [18, 3],
     "IsWalkable": true,
     "WalkDifficulty": 0.8
 }

@@ -55,6 +55,12 @@ public partial class StructuralEntity : Sprite2D, IEntity<Trait>
     public int SourceId { get; }
     public Color? TintColor { get; }
 
+    /// <summary>
+    /// Gets the template layer this tile came from (e.g., "Ground", null for default).
+    /// Used to determine Z-ordering: ground layer tiles render below normal floor tiles.
+    /// </summary>
+    public string? Layer { get; }
+
     public StructuralEntity(
         TileType type,
         string material,
@@ -65,7 +71,8 @@ public partial class StructuralEntity : Sprite2D, IEntity<Trait>
         Vector2I atlasCoords,
         int sourceId,
         Dictionary<SenseType, float> detectionDifficulties,
-        Color? tintColor = null)
+        Color? tintColor = null,
+        string? layer = null)
     {
         Type = type;
         Material = material;
@@ -78,6 +85,7 @@ public partial class StructuralEntity : Sprite2D, IEntity<Trait>
         SourceId = sourceId;
         DetectionDifficulties = detectionDifficulties;
         TintColor = tintColor;
+        Layer = layer;
 
         // Determine room boundary/divider based on tile type
         IsRoomBoundary = type is TileType.Wall or TileType.Fence or TileType.Window or TileType.Column;
@@ -102,8 +110,15 @@ public partial class StructuralEntity : Sprite2D, IEntity<Trait>
             GridPosition.X * VeilOfAges.Grid.Utils.TileSize,
             GridPosition.Y * VeilOfAges.Grid.Utils.TileSize);
 
-        // Z-ordering: floors below, walls/doors at normal level
-        ZIndex = Type == TileType.Floor ? 2 : 3;
+        // Z-ordering: ground layer=1, floors=2, walls/doors/other=3, facilities/decorations=4
+        if (string.Equals(Layer, "Ground", StringComparison.OrdinalIgnoreCase))
+        {
+            ZIndex = 1;
+        }
+        else
+        {
+            ZIndex = Type == TileType.Floor ? 2 : 3;
+        }
 
         // Apply tint if configured
         if (TintColor.HasValue)

@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Fixed
+- Building floor tiles now render above ground tiles — wood floors were hidden behind dirt ground layer due to identical Z-index
+- Corrected sprites for dirt terrain, well, and dirt wall tiles
 - Entity collision system now triggers correctly — entities no longer walk through each other
 - TryStepAside picks genuinely empty cells instead of stepping into other entities
 - Sapient beings escalate to push after repeated ignored move requests (fixes deadlock with mindless beings)

@@ -36,7 +36,7 @@ public static class StructuralEntityFactory
 
         Vector2I absolutePos = buildingOrigin + tileData.Position;
 
-        return CreateFromDefinition(tileDefId, materialId, variantName, absolutePos, tileData.Tint);
+        return CreateFromDefinition(tileDefId, materialId, variantName, absolutePos, tileData.Tint, tileData.Layer);
     }
 
     /// <summary>
@@ -53,7 +53,8 @@ public static class StructuralEntityFactory
         string materialId,
         string variantName,
         Vector2I absoluteGridPosition,
-        string? tintOverride = null)
+        string? tintOverride = null,
+        string? layer = null)
     {
         var tileDef = TileResourceManager.Instance.GetTileDefinition(tileDefId);
         if (tileDef == null)
@@ -141,7 +142,8 @@ public static class StructuralEntityFactory
             (Vector2I)atlasCoords,
             sourceId,
             detectionDifficulties,
-            tintColor);
+            tintColor,
+            layer);
 
         // Initialize visual using cached atlas texture
         var texture = TileResourceManager.Instance.GetCachedAtlasTexture(

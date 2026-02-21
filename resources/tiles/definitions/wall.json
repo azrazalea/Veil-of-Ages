@@ -17,7 +17,7 @@
     },
     "Variants": {
         "dirt": {
-            "Default": { "AtlasSource": "dcss", "AtlasCoords": [52, 16] }
+            "Default": { "AtlasSource": "dcss", "AtlasCoords": [46, 15] }
         }
     }
 }

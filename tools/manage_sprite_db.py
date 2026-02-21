@@ -87,8 +87,8 @@ END;
 
 -- Flattened view for easy querying
 CREATE VIEW IF NOT EXISTS sprite_search AS
-SELECT s.id, a.name AS atlas, s.key, tt.name AS tile_type,
-       s.description, GROUP_CONCAT(t.tag) AS tags
+SELECT s.id, a.name AS atlas, s.key, s.row, s.col,
+       tt.name AS tile_type, s.description, GROUP_CONCAT(t.tag) AS tags
 FROM sprites s
 JOIN atlases a ON a.id = s.atlas_id
 LEFT JOIN tile_types tt ON tt.id = s.tile_type_id
@@ -325,7 +325,7 @@ def cmd_find(conn: sqlite3.Connection, query: str, tag: list[str] | None = None,
     order = "ORDER BY rank" if use_fts else "ORDER BY s.key"
 
     sql = f"""
-        SELECT a.name, s.key, tt.name, s.description, GROUP_CONCAT(t.tag) as tags
+        SELECT a.name, s.key, s.row, s.col, tt.name, s.description, GROUP_CONCAT(t.tag) as tags
         FROM sprites s
         {fts_join}
         JOIN atlases a ON a.id = s.atlas_id
@@ -353,11 +353,11 @@ def cmd_find(conn: sqlite3.Connection, query: str, tag: list[str] | None = None,
         print(f"No results for: {', '.join(parts)}")
         return
 
-    for atlas_name, key, tt, desc, tags in rows:
+    for atlas_name, key, row, col, tt, desc, tags in rows:
         tt_str = f" ({tt})" if tt else ""
         tg_str = f" [{tags}]" if tags else ""
         desc_str = f" \u2014 {desc}" if desc else ""
-        print(f"[{atlas_name}] {key}{tt_str}{tg_str}{desc_str}")
+        print(f"[{atlas_name}] {key} @[{row},{col}]{tt_str}{tg_str}{desc_str}")
 
     print(f"\n{len(rows)} result(s)")
 

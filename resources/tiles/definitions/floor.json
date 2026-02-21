@@ -17,10 +17,10 @@
     },
     "Variants": {
         "wood": {
-            "Default": { "AtlasCoords": [12, 5] }
+            "Default": { "AtlasSource": "urizen", "AtlasCoords": [5, 6] }
         },
         "dirt": {
-            "Default": { "AtlasSource": "dcss", "AtlasCoords": [18, 2] }
+            "Default": { "AtlasSource": "dcss", "AtlasCoords": [18, 3] }
         }
     }
 }
