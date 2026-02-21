@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Entity collision system now triggers correctly — entities no longer walk through each other
 - TryStepAside picks genuinely empty cells instead of stepping into other entities
 - Sapient beings escalate to push after repeated ignored move requests (fixes deadlock with mindless beings)
+- Bakers now check home storage before seeking external sources, avoiding unnecessary granary trips
 
 ### Added
 - Rimworld-style architecture: walls, floors, doors, and fences are now individual StructuralEntity sprites instead of TileMapLayer-based rendering

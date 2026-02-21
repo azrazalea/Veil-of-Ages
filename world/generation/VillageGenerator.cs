@@ -1012,6 +1012,18 @@ public class VillageGenerator
         {
             Log.Print($"Stocked {templateName} with {breadCount} bread");
         }
+
+        // Add initial wheat for baker households (bakers work at home)
+        var wheatDef = ItemResourceManager.Instance.GetDefinition("wheat");
+        if (wheatDef != null)
+        {
+            int wheatCount = _rng.RandiRange(5, 10);
+            var wheat = new Item(wheatDef, wheatCount);
+            if (storage.AddItem(wheat))
+            {
+                Log.Print($"Stocked {templateName} with {wheatCount} wheat");
+            }
+        }
     }
 
     /// <summary>

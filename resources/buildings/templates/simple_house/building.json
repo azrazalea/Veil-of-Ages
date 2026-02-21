@@ -29,7 +29,7 @@
                 "VolumeCapacity": 2.0,
                 "WeightCapacity": -1,
                 "DecayRateModifier": 1.0,
-                "Tags": ["food"]
+                "Tags": ["food", "wheat", "water"]
             }
         }
     ],

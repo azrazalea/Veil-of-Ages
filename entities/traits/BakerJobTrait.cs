@@ -173,8 +173,17 @@ public class BakerJobTrait : JobTrait
             return new ProcessReactionActivity(selectedReaction, _workplace, priority: 0);
         }
 
-        // No reaction available - check if water is needed and we can fetch it
-        // This takes priority because it's proactive resource gathering
+        // No reaction available - first check if we should observe our own workplace storage
+        // This must happen BEFORE external fetch activities so we discover home supplies first
+        var currentTick = GameController.CurrentTick;
+        if (missingInputItemIds.Count > 0 && ShouldCheckStorage(missingInputItemIds, currentTick))
+        {
+            DebugLog("BAKER", $"No memory of required inputs ({string.Join(", ", missingInputItemIds)}), going to check workplace storage", 0);
+            _lastStorageCheckTick = currentTick;
+            return new CheckStorageActivity(_workplace, priority: 0);
+        }
+
+        // Home storage checked/remembered - now try external resource fetching
         var waterFetchActivity = TryCreateWaterFetchActivity(missingInputItemIds);
         if (waterFetchActivity != null)
         {
@@ -187,16 +196,6 @@ public class BakerJobTrait : JobTrait
         if (wheatFetchActivity != null)
         {
             return wheatFetchActivity;
-        }
-
-        // No reaction, no water fetch, no wheat fetch - check if we should observe the workplace storage
-        // This happens when we don't remember any of the input items we need
-        var currentTick = GameController.CurrentTick;
-        if (missingInputItemIds.Count > 0 && ShouldCheckStorage(missingInputItemIds, currentTick))
-        {
-            DebugLog("BAKER", $"No memory of required inputs ({string.Join(", ", missingInputItemIds)}), going to check workplace storage", 0);
-            _lastStorageCheckTick = currentTick;
-            return new CheckStorageActivity(_workplace, priority: 0);
         }
 
         // Nothing to do - return null to let VillagerTrait handle idle behavior
