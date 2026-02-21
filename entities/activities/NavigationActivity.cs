@@ -16,6 +16,7 @@ public abstract class NavigationActivity : Activity
     protected PathFinder? _pathFinder;
     private int _stuckTicks;
     private const int MAXSTUCKTICKS = 50;
+    private int _lastPathIndex = -1;
 
     /// <summary>
     /// Gets a value indicating whether whether GetNextAction should check IsInQueue and idle while queued.
@@ -45,6 +46,7 @@ public abstract class NavigationActivity : Activity
     {
         base.OnResume();
         _stuckTicks = 0;
+        _lastPathIndex = -1;
         _pathFinder?.ClearPath(); // Force recalculation from current position
     }
 
@@ -68,6 +70,7 @@ public abstract class NavigationActivity : Activity
         if (foundPath && _pathFinder.HasValidPath())
         {
             _stuckTicks = 0; // Reset stuck counter on finding alternate path
+            _lastPathIndex = -1; // Reset progress tracking for new path
             return true;
         }
 
@@ -126,6 +129,14 @@ public abstract class NavigationActivity : Activity
                 _stuckTicks++;
             }
 
+            // Throttled diagnostic logging during stuck accumulation
+            if (_stuckTicks > 0 && _stuckTicks % 10 == 0)
+            {
+                var stuckMsg = $"Stuck {_stuckTicks}/{MAXSTUCKTICKS} at {position}, " +
+                    $"activity={GetType().Name}, goal={_pathFinder.GetGoalSummary()}";
+                DebugLog("NAV_STUCK", stuckMsg, 0);
+            }
+
             if (_stuckTicks > MAXSTUCKTICKS)
             {
                 OnStuckFailed(position);
@@ -137,8 +148,39 @@ public abstract class NavigationActivity : Activity
             return new IdleAction(_owner, this, Priority);
         }
 
-        // Reset stuck counter on successful path
-        _stuckTicks = 0;
+        // Track whether we're actually making progress along the path.
+        // Path calculation can succeed (A* finds a route through walkable Being cells),
+        // but FollowPath may fail every tick if a Being blocks at runtime.
+        // Without this check, _stuckTicks stays at 0 and NAV_STUCK never fires.
+        if (_lastPathIndex >= 0 && _pathFinder.PathIndex == _lastPathIndex)
+        {
+            // Path hasn't advanced since last tick — entity is blocked at runtime
+            if (!WasInterrupted)
+            {
+                _stuckTicks++;
+            }
+
+            if (_stuckTicks > 0 && _stuckTicks % 10 == 0)
+            {
+                var stuckMsg = $"Stuck {_stuckTicks}/{MAXSTUCKTICKS} at {position}, " +
+                    $"activity={GetType().Name}, goal={_pathFinder.GetGoalSummary()}";
+                DebugLog("NAV_STUCK", stuckMsg, 0);
+            }
+
+            if (_stuckTicks > MAXSTUCKTICKS)
+            {
+                OnStuckFailed(position);
+                Fail();
+                return null;
+            }
+        }
+        else
+        {
+            // Making progress — reset stuck counter
+            _stuckTicks = 0;
+        }
+
+        _lastPathIndex = _pathFinder.PathIndex;
 
         // Return movement action (Execute will only follow pre-calculated path)
         return new MoveAlongPathAction(_owner, this, _pathFinder, Priority);

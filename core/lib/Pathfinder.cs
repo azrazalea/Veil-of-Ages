@@ -137,11 +137,39 @@ public class PathFinder
         }
     }
 
+    /// <summary>
+    /// Returns a compact one-line summary of the current goal state for log messages.
+    /// </summary>
+    public string GetGoalSummary()
+    {
+        var goal = _goalType.ToString();
+        if (_goalType == PathGoalType.Facility)
+        {
+            var positions = _targetFacilityPositions != null
+                ? string.Join(",", _targetFacilityPositions)
+                : _targetFacilityPosition?.ToString() ?? "none";
+            goal += $"[{positions}]";
+        }
+        else if (_goalType == PathGoalType.Room && _targetRoom != null)
+        {
+            goal += $"[{_targetRoom.Name}]";
+        }
+        else if (_goalType == PathGoalType.Position)
+        {
+            goal += $"[{_targetPosition}]";
+        }
+
+        return $"goal={goal}, recalcAttempts={_recalculationAttempts}/{MAXRECALCULATIONATTEMPTS}, " +
+               $"pathNodes={CurrentPath.Count}, pathIdx={PathIndex}, needsCalc={_pathNeedsCalculation}";
+    }
+
     public void ClearPath()
     {
         CurrentPath = [];
         PathIndex = 0;
         _pathNeedsCalculation = true;
+        _recalculationAttempts = 0;
+        _lastRecalculationTick = 0;
         _stepsSinceLastRecalculation = 0;
 
         // Clear cross-area route state — HandleCrossAreaPlanning will re-plan if needed.
@@ -659,6 +687,16 @@ public class PathFinder
                 return false;
             }
         }
+        else if (_pathNeedsCalculation && _recalculationAttempts >= MAXRECALCULATIONATTEMPTS)
+        {
+            // Log once when we've exhausted all recalculation attempts (silent failure otherwise)
+            var facilityInfo = _targetFacilityPositions != null
+                ? string.Join(",", _targetFacilityPositions)
+                : _targetFacilityPosition?.ToString() ?? "none";
+            var msg = $"Gave up pathfinding: goal={_goalType}, pos={entity.GetCurrentGridPosition()}, " +
+                $"attempts={_recalculationAttempts}/{MAXRECALCULATIONATTEMPTS}, facilityPositions={facilityInfo}";
+            Log.EntityDebug(entity.Name, "PATHFIND_STUCK", msg, tickInterval: 50);
+        }
 
         return HasValidPath() || IsGoalReached(entity);
     }
@@ -716,6 +754,16 @@ public class PathFinder
             nextPos = CurrentPath[PathIndex];
         }
 
+        // If the entity is not adjacent to the next path point, the path is stale.
+        // This happens when the entity was displaced (e.g., side-step from a move request)
+        // while the PathFinder still holds the old path. Force recalculation.
+        float distToNext = entity.GetCurrentGridPosition().DistanceSquaredTo(nextPos);
+        if (distToNext > 2) // > sqrt(2) means not adjacent (cardinal=1, diagonal=2)
+        {
+            _pathNeedsCalculation = true;
+            return false;
+        }
+
         bool moveSuccessful = entity.TryMoveToGridPosition(nextPos);
 
         if (moveSuccessful)
@@ -752,6 +800,20 @@ public class PathFinder
             if (!entity.IsInQueue)
             {
                 _pathNeedsCalculation = true;
+            }
+
+            // If blocked by a Being (temporary obstacle), reset recalculation budget.
+            // Beings are dynamic — they may move at any time via the step-aside system.
+            // Only terrain/structure blocks should exhaust the recalculation limit.
+            var gridArea = entity.GetGridArea();
+            if (gridArea != null)
+            {
+                var occupants = gridArea.EntitiesGridSystem.GetCell(nextPos);
+                bool hasBeing = occupants?.OfType<Being>().Any(b => b != entity) == true;
+                if (hasBeing)
+                {
+                    _recalculationAttempts = 0;
+                }
             }
 
             return false;

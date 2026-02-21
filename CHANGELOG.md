@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Storage observation aggregates items by type — "Corpse x10" instead of ten separate "Corpse x1" lines
 
 ### Fixed
+- Pathfinding no longer permanently fails when blocked by other entities — Being-blocked paths reset the recalculation budget instead of exhausting it
+- Entities displaced from their path (e.g., by stepping aside for another entity) now detect the stale path and recalculate instead of getting stuck
+- Navigation activities now detect when an entity has a valid path but can't make progress at runtime, failing after 50 ticks instead of looping forever
+- Work activities (farming, baking) now navigate directly to facilities instead of rooms — fixes pathfinding failures where entities got stuck trying to reach room goals
 - Emergency sleep now works during daytime — entities with critical energy no longer oscillate between sleeping and waking every 2 ticks
 - Sleep no longer self-terminates for unresolvable critical needs (e.g., hunger when no food exists) — the priority system handles interruption correctly
 - All village storage facilities now registered in SharedKnowledge for tag-based lookup — entities can find the granary and other food sources when hungry
