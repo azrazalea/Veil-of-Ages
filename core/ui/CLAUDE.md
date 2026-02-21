@@ -70,6 +70,19 @@ Horizontal command queue strip with node pooling.
 - Uses label pool (grow-only, hide unused) instead of destroy/recreate
 - Subscribes to `CommandQueueChanged` and `UITickFired`
 
+### SkillsPanel.cs
+Toggleable skills panel showing player's skills with level and XP progress bars.
+
+- **Namespace**: `VeilOfAges.Core.UI`
+- **Class**: `SkillsPanel : PanelContainer`
+- Toggled via K key (`toggle_skills_panel` input action)
+- Anchored to right edge, below top bar
+- Pool-based skill rows (grow-only, hide unused — NeedsPanel pattern)
+- Each row: skill name + "Lv N" label, purple XP progress bar below
+- Sorted by category then localized name for stable ordering
+- Subscribes to `UITickFired`, skips updates when not visible
+- Reads `player.SkillSystem.GetAllSkills()` via Services
+
 ## Key Classes/Interfaces
 
 | Class | Description |
@@ -80,6 +93,7 @@ Horizontal command queue strip with node pooling.
 | `CharacterPanel` | Bottom-left: name, activity, MANUAL/AUTO indicator |
 | `NeedsPanel` | Dynamic critical needs display with trend arrows and color coding |
 | `CommandQueuePanel` | Horizontal command queue strip with node pooling |
+| `SkillsPanel` | Toggleable skills panel with level and XP progress (K key) |
 
 ## Important Notes
 

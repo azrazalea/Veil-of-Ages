@@ -28,6 +28,7 @@ public partial class PlayerInputController : Node
     private bool _awaitingLocationSelection;
     private TransitionPoint? _contextTransitionPoint;
     private IFacilityInteractable? _contextFacilityInteractable;
+    private Control? _skillsPanel;
 
     public override void _Ready()
     {
@@ -99,6 +100,16 @@ public partial class PlayerInputController : Node
         {
             var automationTrait = _player?.SelfAsEntity().GetTrait<AutomationTrait>();
             automationTrait?.Toggle();
+        }
+
+        // Skills panel toggle
+        else if (@event.IsActionPressed("toggle_skills_panel"))
+        {
+            _skillsPanel ??= GetNode<Control>("../UILayer/UIRoot/SkillsPanel");
+            if (_skillsPanel != null)
+            {
+                _skillsPanel.Visible = !_skillsPanel.Visible;
+            }
         }
 
         // Right-click context menu

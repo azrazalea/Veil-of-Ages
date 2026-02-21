@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Skills panel UI (press K to toggle) showing player's skills with level and XP progress bars
+
 ### Fixed
 - Building floor tiles now render above ground tiles — wood floors were hidden behind dirt ground layer due to identical Z-index
 - Corrected sprites for dirt terrain, well, and dirt wall tiles

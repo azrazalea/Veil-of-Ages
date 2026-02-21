@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://core/ui/CharacterPanel.cs" id="6_charpanel"]
 [ext_resource type="Script" path="res://core/ui/NeedsPanel.cs" id="7_needspanel"]
 [ext_resource type="Script" path="res://core/ui/CommandQueuePanel.cs" id="8_cmdqueue"]
+[ext_resource type="Script" path="res://core/ui/SkillsPanel.cs" id="9_skillspanel"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_l3ow8"]
 content_margin_left = 8.0
@@ -92,6 +93,18 @@ layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 1
 script = ExtResource("8_cmdqueue")
+
+[node name="SkillsPanel" type="PanelContainer" parent="UILayer/UIRoot"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -208.0
+offset_top = 52.0
+offset_bottom = 400.0
+grow_horizontal = 0
+mouse_filter = 1
+visible = false
+script = ExtResource("9_skillspanel")
 
 [node name="ModalLayer" type="CanvasLayer" parent="."]
 layer = 30
