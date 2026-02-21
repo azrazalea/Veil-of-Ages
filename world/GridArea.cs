@@ -42,6 +42,17 @@ public partial class Area(Vector2I worldSize): Node2D
     /// Is this the area the player is in currently?.
     /// </summary>
     private bool _isPlayerArea;
+
+    /// <summary>
+    /// Guards against double-initialization when an off-tree area later enters the scene tree.
+    /// </summary>
+    private bool _isDataInitialized;
+
+    /// <summary>
+    /// Gets a value indicating whether true while this area is being removed from the scene tree during an area transition.
+    /// StructuralEntity._ExitTree() checks this to avoid corrupting the AStarGrid.
+    /// </summary>
+    public bool IsDeactivating { get; private set; }
     private uint _beingNum;
     public List<Node2D> Entities { get; private set; } = [];
 
@@ -79,13 +90,19 @@ public partial class Area(Vector2I worldSize): Node2D
         _isActive = true;
     }
 
-    public override void _Ready()
+    /// <summary>
+    /// Initialize data structures (TileMapLayers, AStarGrid) without requiring the scene tree.
+    /// Safe to call on areas that will never be added to the tree (e.g., cellar before player enters).
+    /// Guarded by _isDataInitialized to prevent double-init if _Ready() fires later.
+    /// </summary>
+    public void InitializeOffTree()
     {
-        base._Ready();
+        if (_isDataInitialized)
+        {
+            return;
+        }
 
-        // Get TileSet from the main ground layer, or from TileResourceManager for programmatic areas
-        var worldGroundLayer = GetNodeOrNull<TileMapLayer>("/root/World/GroundLayer");
-        var tileSet = worldGroundLayer?.TileSet ?? TileResourceManager.Instance?.GetTileSet();
+        var tileSet = TileResourceManager.Instance?.GetTileSet();
         _groundLayer = new TileMapLayer
         {
             TileSet = tileSet
@@ -95,6 +112,43 @@ public partial class Area(Vector2I worldSize): Node2D
             ZIndex = 5
         };
         AStarGrid = PathFinder.CreateNewAStarGrid(this);
+        _isDataInitialized = true;
+    }
+
+    public override void _Ready()
+    {
+        base._Ready();
+        InitializeOffTree();
+    }
+
+    /// <summary>
+    /// Add this area to the scene tree so it renders. Called during area transitions.
+    /// </summary>
+    public void ActivateInTree(Node container)
+    {
+        if (!IsInsideTree())
+        {
+            container.AddChild(this);
+        }
+
+        _isActive = true;
+    }
+
+    /// <summary>
+    /// Remove this area from the scene tree (stops rendering). Data is preserved in memory.
+    /// Sets IsDeactivating so StructuralEntity._ExitTree() skips grid unregistration.
+    /// </summary>
+    public void DeactivateFromTree(Node container)
+    {
+        IsDeactivating = true;
+        if (IsInsideTree())
+        {
+            container.RemoveChild(this);
+        }
+
+        IsDeactivating = false;
+        _isActive = false;
+        _isPlayerArea = false;
     }
 
     public void MakePlayerArea(Player player, Vector2I playerStartingLocation)

@@ -24,6 +24,7 @@ public partial class World : Node2D
 
     // Entities container
     private Node? _entitiesContainer;
+    private Node? _gridAreasContainer;
     private GridGenerator? _gridGenerator;
     private SensorySystem? _sensorySystem;
     private EventSystem? _eventSystem;
@@ -44,12 +45,12 @@ public partial class World : Node2D
         // Get references to nodes
         _entitiesContainer = GetNode<Node>("Entities");
         _gridGenerator = GetNode<GridGenerator>("GridGenerator");
-        var gridAreasContainer = GetNode<Node>("GridAreas");
+        _gridAreasContainer = GetNode<Node>("GridAreas");
 
         // Initialize grid system with world bounds
         ActiveGridArea = new Grid.Area(WorldSizeInTiles);
         _gridAreas.Add(ActiveGridArea);
-        gridAreasContainer.AddChild(ActiveGridArea);
+        _gridAreasContainer.AddChild(ActiveGridArea);
 
         // Get reference to the Player scene instance
         _player = GetNode<Player>("Entities/Player");
@@ -253,9 +254,12 @@ public partial class World : Node2D
         // 4. Add entity to new area's grid
         newArea.AddEntity(destPos, entity);
 
-        // 5. If this is the player, switch rendering
-        if (entity is Player player)
+        // 5. If this is the player, switch rendering and area tree presence
+        if (entity is Player player && _gridAreasContainer != null)
         {
+            oldArea.DeactivateFromTree(_gridAreasContainer);
+            newArea.ActivateInTree(_gridAreasContainer);
+
             ActiveGridArea = newArea;
             newArea.MakePlayerArea(player, destPos);
 

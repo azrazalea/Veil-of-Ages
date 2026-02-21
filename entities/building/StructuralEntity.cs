@@ -161,7 +161,15 @@ public partial class StructuralEntity : Sprite2D, IEntity<Trait>
 
     public override void _ExitTree()
     {
-        // Unregister from grid when removed from scene tree
+        // Skip grid unregistration when the parent area is being deactivated (removed from tree
+        // for rendering purposes only). Without this guard, removing an area from the tree would
+        // corrupt the AStarGrid by unregistering all walls.
+        if (GridArea is { IsDeactivating: true })
+        {
+            return;
+        }
+
+        // Unregister from grid when genuinely removed from scene tree
         if (GridArea != null)
         {
             if (!IsWalkable)

@@ -75,9 +75,9 @@ public static class CellarGenerator
             AreaName = "area.SCHOLARS_CELLAR"
         };
 
-        // Add to scene tree under GridAreas so _Ready() fires
-        var gridAreasContainer = world.GetNode<Node>("GridAreas");
-        gridAreasContainer.AddChild(cellar);
+        // Initialize off-tree so data structures (TileMapLayers, AStarGrid) are created
+        // without adding to the scene tree — cellar should not render until the player enters
+        cellar.InitializeOffTree();
 
         // Fill cellar with dirt tiles (needed for CanPlaceBuildingAt validation)
         for (int x = 0; x < cellarSize.X; x++)
