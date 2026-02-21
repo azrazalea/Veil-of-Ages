@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 - Skills panel UI (press K to toggle) showing player's skills with level and XP progress bars
 - Welcome overlay on game start showing controls and introduction (press Escape or click "Got it!" to dismiss)
+- Knowledge panel UI (press J to toggle) showing known facilities, storage tags, and remembered item contents with staleness indicators
+- Right-click "Observe Storage" option on storage facilities — player can manually go observe any storage to refresh their memory
+- Room naming disambiguation — multiple buildings of the same type now get numbered names (House 1, House 2, Farm 1, Farm 2, etc.)
+
+### Changed
+- Grid system now supports multiple entities per cell — decorations and facilities can coexist at the same tile position
+- Graveyard storage now spans all tombstone positions (not just one corner tile), and accepts "corpse" tag
+- Storage observation aggregates items by type — "Corpse x10" instead of ten separate "Corpse x1" lines
 
 ### Fixed
 - Emergency sleep now works during daytime — entities with critical energy no longer oscillate between sleeping and waking every 2 ticks

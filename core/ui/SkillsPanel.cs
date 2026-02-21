@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using VeilOfAges.Core;
+using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
 
 namespace VeilOfAges.Core.UI;
@@ -28,7 +29,7 @@ public partial class SkillsPanel : PanelContainer
         var header = new Label
         {
             ThemeTypeVariation = "HeaderLabel",
-            Text = "Skills"
+            Text = L.Tr("ui.skills.HEADER")
         };
         _skillsContainer.AddChild(header);
     }
@@ -81,7 +82,9 @@ public partial class SkillsPanel : PanelContainer
             }
 
             // Update level
-            string levelText = skill.IsMaxLevel ? "MAX" : $"Lv {skill.Level}";
+            string levelText = skill.IsMaxLevel
+                ? L.Tr("ui.skills.MAX_LEVEL")
+                : L.TrFmt("ui.skills.LEVEL", skill.Level);
             if (entry.LevelLabel != null && entry.LevelLabel.Text != levelText)
             {
                 entry.LevelLabel.Text = levelText;

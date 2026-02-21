@@ -243,7 +243,7 @@ public partial class World : Node2D
         Log.Print($"TransitionEntity: {entity.Name} from {oldArea.AreaName} to {newArea.AreaName} at {destPos}");
 
         // 1. Remove entity from old area's grid
-        oldArea.RemoveEntity(entity.GetCurrentGridPosition());
+        oldArea.RemoveEntity(entity, entity.GetCurrentGridPosition());
 
         // 2. Update entity's area reference
         entity.SetGridArea(newArea);

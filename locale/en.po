@@ -642,3 +642,213 @@ msgstr "A shambling corpse, driven by dark magic"
 
 msgid "being.desc.PLAYER"
 msgstr "A mysterious figure with hidden talents"
+
+#
+# === Skills Panel ===
+#
+
+msgid "ui.skills.HEADER"
+msgstr "Skills"
+
+# {0}=level number
+msgid "ui.skills.LEVEL"
+msgstr "Lv {0}"
+
+msgid "ui.skills.MAX_LEVEL"
+msgstr "MAX"
+
+#
+# === Knowledge Panel ===
+#
+
+msgid "ui.knowledge.HEADER"
+msgstr "Knowledge"
+
+# {0}=comma-separated tag list
+msgid "ui.knowledge.TAGS"
+msgstr "Tags: {0}"
+
+msgid "ui.knowledge.NO_STORAGE"
+msgstr "No storage"
+
+msgid "ui.knowledge.STALENESS_FRESH"
+msgstr "Observed just now"
+
+msgid "ui.knowledge.STALENESS_RECENT"
+msgstr "Observed recently"
+
+msgid "ui.knowledge.STALENESS_STALE"
+msgstr "Observed a while ago"
+
+msgid "ui.knowledge.STALENESS_OLD"
+msgstr "Observed long ago"
+
+# {0}=item name, {1}=quantity
+msgid "ui.knowledge.ITEM_QUANTITY"
+msgstr "  {0} x{1}"
+
+# {0}=item name, {1}=quantity (approximate, for old observations)
+msgid "ui.knowledge.ITEM_QUANTITY_APPROX"
+msgstr "  {0} x~{1}"
+
+# {0}=room name, {1}=facility type
+msgid "ui.knowledge.FACILITY_NAME"
+msgstr "{0} {1}"
+
+msgid "ui.knowledge.UNKNOWN_FACILITY"
+msgstr "Unknown"
+
+# Facility interaction options
+msgid "ui.facility.OBSERVE_STORAGE"
+msgstr "Observe Storage"
+
+#
+# === Facility Type Names ===
+#
+
+msgid "facility.storage.NAME"
+msgstr "Storage"
+
+msgid "facility.oven.NAME"
+msgstr "Oven"
+
+msgid "facility.quern.NAME"
+msgstr "Quern"
+
+msgid "facility.necromancy_altar.NAME"
+msgstr "Necromancy Altar"
+
+msgid "facility.ladder.NAME"
+msgstr "Ladder"
+
+msgid "facility.crop.NAME"
+msgstr "Crop"
+
+msgid "facility.single_bed.NAME"
+msgstr "Bed"
+
+msgid "facility.trapdoor.NAME"
+msgstr "Trapdoor"
+
+msgid "facility.bed.NAME"
+msgstr "Bed"
+
+msgid "facility.tombstone.NAME"
+msgstr "Tombstone"
+
+msgid "facility.stone_cross.NAME"
+msgstr "Stone Cross"
+
+msgid "facility.wooden_cross.NAME"
+msgstr "Wooden Cross"
+
+#
+# === Storage Tags ===
+#
+
+msgid "tag.storage.food"
+msgstr "Food"
+
+msgid "tag.storage.grain"
+msgstr "Grain"
+
+msgid "tag.storage.water"
+msgstr "Water"
+
+msgid "tag.storage.zombie_food"
+msgstr "Zombie Food"
+
+msgid "tag.storage.corpse"
+msgstr "Corpse"
+
+msgid "tag.storage.wheat"
+msgstr "Wheat"
+
+#
+# === Building Short Names ===
+#
+
+# Short building type names for room disambiguation
+msgid "building.short.HOUSE"
+msgstr "House"
+
+msgid "building.short.SCHOLARS_HOUSE"
+msgstr "Scholar's House"
+
+msgid "building.short.FARM"
+msgstr "Farm"
+
+msgid "building.short.GRANARY"
+msgstr "Granary"
+
+msgid "building.short.GRAVEYARD"
+msgstr "Graveyard"
+
+msgid "building.short.WELL"
+msgstr "Well"
+
+#
+# === Welcome Overlay ===
+#
+
+msgid "ui.welcome.TITLE"
+msgstr "Veil of Ages: Whispers of\nKalixoria"
+
+msgid "ui.welcome.INTRO"
+msgstr "You are the village scholar \u2014 and secretly, a necromancer. Your character acts on their own: studying, eating, and sleeping. Give commands to take direct control."
+
+msgid "ui.welcome.CONTROLS_HEADER"
+msgstr "Controls"
+
+msgid "ui.welcome.GOT_IT"
+msgstr "Got it!"
+
+# Control key labels (not translated — key names are language-neutral)
+msgid "ui.welcome.KEY_LEFT_CLICK"
+msgstr "Left-click"
+
+msgid "ui.welcome.KEY_RIGHT_CLICK"
+msgstr "Right-click"
+
+msgid "ui.welcome.KEY_ESCAPE"
+msgstr "Escape"
+
+msgid "ui.welcome.KEY_J"
+msgstr "J"
+
+msgid "ui.welcome.KEY_K"
+msgstr "K"
+
+msgid "ui.welcome.KEY_CTRL_T"
+msgstr "Ctrl+T"
+
+msgid "ui.welcome.KEY_CTRL_SPACE"
+msgstr "Ctrl+Space"
+
+msgid "ui.welcome.KEY_SPEED"
+msgstr "+  /  \u2212"
+
+# Control descriptions
+msgid "ui.welcome.DESC_LEFT_CLICK"
+msgstr "Move / Talk (adjacent)"
+
+msgid "ui.welcome.DESC_RIGHT_CLICK"
+msgstr "Context menu"
+
+msgid "ui.welcome.DESC_ESCAPE"
+msgstr "Cancel action / Close panel"
+
+msgid "ui.welcome.DESC_J"
+msgstr "Toggle knowledge panel"
+
+msgid "ui.welcome.DESC_K"
+msgstr "Toggle skills panel"
+
+msgid "ui.welcome.DESC_CTRL_T"
+msgstr "Toggle AUTO / MANUAL mode"
+
+msgid "ui.welcome.DESC_CTRL_SPACE"
+msgstr "Pause / Resume simulation"
+
+msgid "ui.welcome.DESC_SPEED"
+msgstr "Speed up / Slow down"

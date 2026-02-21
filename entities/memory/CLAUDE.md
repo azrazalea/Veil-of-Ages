@@ -149,6 +149,7 @@ Contains the `BuildingReference` class and `SharedKnowledge` base class:
   - `GetFacilitiesOfType(facilityType)` - Get all valid facilities of a type
   - `GetFacilitiesByTag(storageTag)` - Get all valid facilities whose `StorageTrait.Tags` includes the given tag
   - `GetNearestFacilityOfType(facilityType, currentArea, fromPosition)` - Find nearest facility with same-area preference
+  - `GetAllFacilityReferences()` - Get all valid facility references across all facility types
   - `GetAllTransitionPoints()`, `GetTransitionPointsInArea(area)` - Transition point queries
   - `TryGetLandmark()`, `GetAllLandmarkNames()` - Landmark queries
   - `TryGetFact()`, `GetAllFactKeys()` - Fact queries

@@ -1,4 +1,5 @@
 using Godot;
+using VeilOfAges.Core.Lib;
 
 namespace VeilOfAges.Core.UI;
 
@@ -43,7 +44,7 @@ public partial class WelcomeOverlay : PanelContainer
         // Title
         var title = new Label
         {
-            Text = "Veil of Ages: Whispers of\nKalixoria",
+            Text = L.Tr("ui.welcome.TITLE"),
             ThemeTypeVariation = "HeaderLabel",
             HorizontalAlignment = HorizontalAlignment.Center,
         };
@@ -52,9 +53,7 @@ public partial class WelcomeOverlay : PanelContainer
         // Intro paragraph
         var intro = new Label
         {
-            Text = "You are the village scholar \u2014 and secretly, a necromancer. " +
-                   "Your character acts on their own: studying, eating, and sleeping. " +
-                   "Give commands to take direct control.",
+            Text = L.Tr("ui.welcome.INTRO"),
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             HorizontalAlignment = HorizontalAlignment.Center,
         };
@@ -65,7 +64,7 @@ public partial class WelcomeOverlay : PanelContainer
 
         var controlsHeader = new Label
         {
-            Text = "Controls",
+            Text = L.Tr("ui.welcome.CONTROLS_HEADER"),
             ThemeTypeVariation = "HeaderLabel",
             HorizontalAlignment = HorizontalAlignment.Center,
         };
@@ -80,13 +79,14 @@ public partial class WelcomeOverlay : PanelContainer
         grid.AddThemeConstantOverride("v_separation", 6);
         vbox.AddChild(grid);
 
-        AddControlRow(grid, "Left-click", "Move / Talk (adjacent)");
-        AddControlRow(grid, "Right-click", "Context menu");
-        AddControlRow(grid, "Escape", "Cancel action / Close panel");
-        AddControlRow(grid, "K", "Toggle skills panel");
-        AddControlRow(grid, "Ctrl+T", "Toggle AUTO / MANUAL mode");
-        AddControlRow(grid, "Ctrl+Space", "Pause / Resume simulation");
-        AddControlRow(grid, "+  /  \u2212", "Speed up / Slow down");
+        AddControlRow(grid, L.Tr("ui.welcome.KEY_LEFT_CLICK"), L.Tr("ui.welcome.DESC_LEFT_CLICK"));
+        AddControlRow(grid, L.Tr("ui.welcome.KEY_RIGHT_CLICK"), L.Tr("ui.welcome.DESC_RIGHT_CLICK"));
+        AddControlRow(grid, L.Tr("ui.welcome.KEY_ESCAPE"), L.Tr("ui.welcome.DESC_ESCAPE"));
+        AddControlRow(grid, L.Tr("ui.welcome.KEY_J"), L.Tr("ui.welcome.DESC_J"));
+        AddControlRow(grid, L.Tr("ui.welcome.KEY_K"), L.Tr("ui.welcome.DESC_K"));
+        AddControlRow(grid, L.Tr("ui.welcome.KEY_CTRL_T"), L.Tr("ui.welcome.DESC_CTRL_T"));
+        AddControlRow(grid, L.Tr("ui.welcome.KEY_CTRL_SPACE"), L.Tr("ui.welcome.DESC_CTRL_SPACE"));
+        AddControlRow(grid, L.Tr("ui.welcome.KEY_SPEED"), L.Tr("ui.welcome.DESC_SPEED"));
 
         // Got it! button
         var buttonContainer = new HBoxContainer
@@ -97,7 +97,7 @@ public partial class WelcomeOverlay : PanelContainer
 
         var button = new Button
         {
-            Text = "Got it!",
+            Text = L.Tr("ui.welcome.GOT_IT"),
             CustomMinimumSize = new Vector2(120, 36),
         };
         button.Pressed += Dismiss;

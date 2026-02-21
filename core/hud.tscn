@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://core/ui/CommandQueuePanel.cs" id="8_cmdqueue"]
 [ext_resource type="Script" path="res://core/ui/SkillsPanel.cs" id="9_skillspanel"]
 [ext_resource type="Script" path="res://core/ui/WelcomeOverlay.cs" id="10_welcome"]
+[ext_resource type="Script" path="res://core/ui/KnowledgePanel.cs" id="11_knowledge"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_l3ow8"]
 content_margin_left = 8.0
@@ -106,6 +107,16 @@ grow_horizontal = 0
 mouse_filter = 1
 visible = false
 script = ExtResource("9_skillspanel")
+
+[node name="KnowledgePanel" type="PanelContainer" parent="UILayer/UIRoot"]
+anchors_preset = 0
+offset_left = 8.0
+offset_top = 52.0
+offset_right = 280.0
+offset_bottom = 400.0
+mouse_filter = 1
+visible = false
+script = ExtResource("11_knowledge")
 
 [node name="ModalLayer" type="CanvasLayer" parent="."]
 layer = 30

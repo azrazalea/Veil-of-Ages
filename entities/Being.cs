@@ -141,7 +141,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
         // Update grid occupancy - hidden entities don't block pathfinding
         if (_isHidden)
         {
-            GridArea?.RemoveEntity(GetCurrentGridPosition());
+            GridArea?.RemoveEntity(this, GetCurrentGridPosition());
         }
         else
         {
@@ -1871,7 +1871,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             {
                 // Convert FacilityObservation to FacilityReference for consistent API
                 var facility = nearest.Facility;
-                return new FacilityReference(nearest.FacilityType, facility, nearest.Area, nearest.Position);
+                return new FacilityReference(nearest.FacilityType, facility, nearest.Area, nearest.Position, nearest.StorageTags);
             }
         }
 

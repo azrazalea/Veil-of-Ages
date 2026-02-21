@@ -83,6 +83,20 @@ Toggleable skills panel showing player's skills with level and XP progress bars.
 - Subscribes to `UITickFired`, skips updates when not visible
 - Reads `player.SkillSystem.GetAllSkills()` via Services
 
+### KnowledgePanel.cs
+Toggleable knowledge panel showing known facilities and remembered storage contents.
+
+- **Namespace**: `VeilOfAges.Core.UI`
+- **Class**: `KnowledgePanel : PanelContainer`
+- Toggled via J key (`toggle_knowledge_panel` input action)
+- Anchored to left edge, below top bar (272px wide)
+- Two-level pooling: facility rows (name, tags, staleness) and nested item rows
+- Staleness system with four tiers: Fresh (white), Recent (light dim), Stale (dimmer), Old (very dim with ~ quantity prefix)
+- Collects facilities from `player.SharedKnowledge` via `GetAllFacilityReferences()`
+- Collects storage observations from `player.Memory.GetAllStorageObservations()`
+- Sorted: observed facilities first (freshest first), then unobserved alphabetically
+- Subscribes to `UITickFired`, skips updates when not visible
+
 ### WelcomeOverlay.cs
 Semi-transparent welcome overlay shown on game start.
 
@@ -105,6 +119,7 @@ Semi-transparent welcome overlay shown on game start.
 | `NeedsPanel` | Dynamic critical needs display with trend arrows and color coding |
 | `CommandQueuePanel` | Horizontal command queue strip with node pooling |
 | `SkillsPanel` | Toggleable skills panel with level and XP progress (K key) |
+| `KnowledgePanel` | Toggleable knowledge panel with facility and storage observations (J key) |
 | `WelcomeOverlay` | Game-start welcome overlay with controls reference (Escape/button to dismiss) |
 
 ## Important Notes

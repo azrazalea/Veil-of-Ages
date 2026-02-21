@@ -28,7 +28,9 @@ public partial class PlayerInputController : Node
     private bool _awaitingLocationSelection;
     private TransitionPoint? _contextTransitionPoint;
     private IFacilityInteractable? _contextFacilityInteractable;
+    private Facility? _contextStorageFacility;
     private Control? _skillsPanel;
+    private Control? _knowledgePanel;
     private Control? _welcomeOverlay;
 
     public override void _Ready()
@@ -127,6 +129,16 @@ public partial class PlayerInputController : Node
             }
         }
 
+        // Knowledge panel toggle
+        else if (@event.IsActionPressed("toggle_knowledge_panel"))
+        {
+            _knowledgePanel ??= GetNode<Control>("../UILayer/UIRoot/KnowledgePanel");
+            if (_knowledgePanel != null)
+            {
+                _knowledgePanel.Visible = !_knowledgePanel.Visible;
+            }
+        }
+
         // Right-click context menu
         else if (@event.IsActionPressed("context_menu") && @event is InputEventMouseButton contextMouseEvent)
         {
@@ -155,10 +167,10 @@ public partial class PlayerInputController : Node
         // Get all entities from the world
         if (GetTree().GetFirstNodeInGroup("World") is World world)
         {
-            var entity = world.ActiveGridArea?.EntitiesGridSystem.GetCell(position);
-            if (entity is Being being)
+            var entities = world.ActiveGridArea?.EntitiesGridSystem.GetCell(position);
+            if (entities != null)
             {
-                return being;
+                return entities.OfType<Being>().FirstOrDefault();
             }
         }
 
@@ -248,6 +260,7 @@ public partial class PlayerInputController : Node
         MoveHere,
         Enter,
         UseFacility,
+        ObserveStorage,
         BuildHere,
         Cancel
     }
@@ -269,6 +282,7 @@ public partial class PlayerInputController : Node
         _contextGridPos = GetCurrentMouseGridPosition();
         _contextTransitionPoint = null;
         _contextFacilityInteractable = null;
+        _contextStorageFacility = null;
 
         // Determine what's at the clicked position
         var entity = GetEntityAtPosition(_contextGridPos);
@@ -309,6 +323,13 @@ public partial class PlayerInputController : Node
                 AddContextItem(L.TrFmt("ui.context.USE", _contextFacilityInteractable.FacilityDisplayName), ContextAction.UseFacility);
             }
 
+            // Check for storage facility at this position (direct observe, no dialogue)
+            _contextStorageFacility = FindStorageFacilityAtPosition(_contextGridPos);
+            if (_contextStorageFacility != null)
+            {
+                AddContextItem(L.Tr("ui.facility.OBSERVE_STORAGE"), ContextAction.ObserveStorage);
+            }
+
             if (isWalkable && IsValidBuildLocation(_contextGridPos))
             {
                 AddContextItem(Tr("ui.context.BUILD_HERE"), ContextAction.BuildHere);
@@ -330,13 +351,23 @@ public partial class PlayerInputController : Node
         }
 
         // Query the entity grid at the clicked position for a Facility
-        var entityAtPos = gridArea.EntitiesGridSystem.GetCell(position);
-        if (entityAtPos is Facility facility && facility.Interactable != null)
+        var entitiesAtPos = gridArea.EntitiesGridSystem.GetCell(position);
+        return entitiesAtPos?.OfType<Facility>()
+            .Select(f => f.Interactable)
+            .FirstOrDefault(i => i != null);
+    }
+
+    private Facility? FindStorageFacilityAtPosition(Vector2I position)
+    {
+        var gridArea = _player?.GetGridArea();
+        if (gridArea == null)
         {
-            return facility.Interactable;
+            return null;
         }
 
-        return null;
+        var entitiesAtPos = gridArea.EntitiesGridSystem.GetCell(position);
+        return entitiesAtPos?.OfType<Facility>()
+            .FirstOrDefault(f => f.SelfAsEntity().HasTrait<StorageTrait>());
     }
 
     private void HandleContextMenuSelection(long itemId)
@@ -406,6 +437,15 @@ public partial class PlayerInputController : Node
                     var activity = new InteractWithFacilityActivity(
                         facility, _contextFacilityInteractable, _dialogueUI);
                     _player.SetCurrentActivity(activity);
+                }
+
+                break;
+
+            case ContextAction.ObserveStorage:
+                if (_contextStorageFacility != null)
+                {
+                    var observeActivity = new CheckStorageActivity(_contextStorageFacility, priority: 0);
+                    _player.SetCurrentActivity(observeActivity);
                 }
 
                 break;

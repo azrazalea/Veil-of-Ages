@@ -26,9 +26,19 @@ public static class TemplateStamper
     /// <returns>A StampResult containing all created entities.</returns>
     public static StampResult Stamp(BuildingTemplate template, Vector2I gridPosition, Grid.Area area)
     {
+        if (template.Name == null)
+        {
+            Log.Error("TemplateStamper: Template has no Name");
+        }
+
+        if (template.BuildingType == null)
+        {
+            Log.Error("TemplateStamper: Template has no BuildingType");
+        }
+
         var result = new StampResult(
-            template.Name ?? "Unknown",
-            template.BuildingType ?? "Unknown",
+            template.Name ?? string.Empty,
+            template.BuildingType ?? string.Empty,
             template.Capacity,
             gridPosition,
             template.Size,
@@ -69,7 +79,10 @@ public static class TemplateStamper
                     facilityData.Storage.VolumeCapacity,
                     facilityData.Storage.WeightCapacity,
                     facilityData.Storage.DecayRateModifier,
-                    fetchDuration: facilityData.Storage.FetchDuration);
+                    fetchDuration: facilityData.Storage.FetchDuration)
+                {
+                    Tags = facilityData.Storage.Tags
+                };
                 facility.SelfAsEntity().AddTrait(storageTrait, 0);
 
                 // Handle initial items from regeneration config

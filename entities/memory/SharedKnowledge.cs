@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
@@ -46,7 +49,12 @@ public class RoomReference
     public RoomReference(Room room, Area? area = null)
     {
         Room = room;
-        RoomType = room.Type ?? "Unknown";
+        if (room.Type == null)
+        {
+            Log.Error($"RoomReference: Room '{room.Name}' has no Type");
+        }
+
+        RoomType = room.Type ?? string.Empty;
         RoomName = room.Name;
         Area = area ?? room.GridArea;
 
@@ -128,7 +136,12 @@ public class SharedKnowledge
     /// </summary>
     public void RegisterRoom(Room room, Area? area = null)
     {
-        var roomType = room.Type ?? "Unknown";
+        if (room.Type == null)
+        {
+            Log.Error($"SharedKnowledge.RegisterRoom: Room '{room.Name}' has no Type");
+        }
+
+        var roomType = room.Type ?? string.Empty;
         var reference = new RoomReference(room, area);
 
         if (!_rooms.TryGetValue(roomType, out var list))
@@ -146,7 +159,7 @@ public class SharedKnowledge
     /// </summary>
     public void UnregisterRoom(Room room)
     {
-        var roomType = room.Type ?? "Unknown";
+        var roomType = room.Type ?? string.Empty;
         if (_rooms.TryGetValue(roomType, out var list))
         {
             list.RemoveAll(r => r.Room == room);
@@ -287,7 +300,13 @@ public class SharedKnowledge
     /// </summary>
     public void RegisterFacility(string facilityType, Facility facility, Area? area, Vector2I position)
     {
-        var facilityRef = new FacilityReference(facilityType, facility, area, position);
+        // Capture storage tags at registration time so they're available without god-knowledge
+        var storageTrait = facility.SelfAsEntity().GetTrait<StorageTrait>();
+        IReadOnlyList<string> storageTags = storageTrait != null && storageTrait.Tags.Count > 0
+            ? storageTrait.Tags.ToList()
+            : Array.Empty<string>();
+
+        var facilityRef = new FacilityReference(facilityType, facility, area, position, storageTags);
 
         if (!_facilities.TryGetValue(facilityType, out var list))
         {
@@ -298,10 +317,9 @@ public class SharedKnowledge
         list.Add(facilityRef);
 
         // Also index by storage tags if this facility has a StorageTrait with tags
-        var storageTrait = facility.SelfAsEntity().GetTrait<StorageTrait>();
-        if (storageTrait != null && storageTrait.Tags.Count > 0)
+        if (storageTags.Count > 0)
         {
-            foreach (var tag in storageTrait.Tags)
+            foreach (var tag in storageTags)
             {
                 if (!_facilitiesByStorageTag.TryGetValue(tag, out var taggedFacilities))
                 {
@@ -439,6 +457,27 @@ public class SharedKnowledge
     }
 
     /// <summary>
+    /// Get all valid facility references across all facility types.
+    /// Returns a snapshot copy safe for background thread access.
+    /// </summary>
+    public IReadOnlyList<FacilityReference> GetAllFacilityReferences()
+    {
+        var result = new List<FacilityReference>();
+        foreach (var list in _facilities.Values)
+        {
+            foreach (var f in list)
+            {
+                if (f.Facility != null && GodotObject.IsInstanceValid(f.Facility))
+                {
+                    result.Add(f);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Clean up invalid room references.
     /// Call periodically on main thread.
     /// </summary>
@@ -470,7 +509,7 @@ public class SharedKnowledge
 /// <param name="Facility">The facility object. Use Facility.Owner to get the containing building.</param>
 /// <param name="Area">The area this facility is in.</param>
 /// <param name="Position">The grid position of the facility.</param>
-public record FacilityReference(string FacilityType, Facility? Facility, Area? Area, Vector2I Position);
+public record FacilityReference(string FacilityType, Facility? Facility, Area? Area, Vector2I Position, IReadOnlyList<string> StorageTags);
 
 /// <summary>
 /// Reference to a transition point for cross-area routing.

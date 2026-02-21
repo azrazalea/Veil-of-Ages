@@ -70,7 +70,7 @@ public partial class Tree : Node2D, IEntity<Trait>
 
     public override void _ExitTree()
     {
-        GridArea?.RemoveEntity(_gridPosition, GridSize);
+        GridArea?.RemoveEntity(this, _gridPosition, GridSize);
     }
 
     public static void Interact()

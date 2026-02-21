@@ -4,6 +4,7 @@ using System.Linq;
 using Godot;
 using VeilOfAges.Core;
 using VeilOfAges.Entities.Items;
+using VeilOfAges.Entities.Traits;
 using VeilOfAges.Grid;
 
 namespace VeilOfAges.Entities.Memory;
@@ -70,15 +71,14 @@ public class PersonalMemory
     {
         uint currentTick = GameController.CurrentTick;
 
-        var items = new List<ItemSnapshot>();
-        foreach (var item in storage.GetAllItems())
-        {
-            items.Add(new ItemSnapshot(
-                item.Definition.Id ?? string.Empty,
-                item.Definition.LocalizedName ?? string.Empty,
-                item.Quantity,
-                new List<string>(item.Definition.Tags)));
-        }
+        var items = storage.GetAllItems()
+            .GroupBy(i => i.Definition.Id ?? string.Empty)
+            .Select(g => new ItemSnapshot(
+                g.Key,
+                g.First().Definition.LocalizedName ?? string.Empty,
+                g.Sum(i => i.Quantity),
+                new List<string>(g.First().Definition.Tags)))
+            .ToList();
 
         var observation = new StorageObservation(
             facility,
@@ -409,8 +409,14 @@ public class PersonalMemory
             return;
         }
 
+        // Capture storage tags at observation time — the entity can see what this facility stores
+        var storageTrait = facility.SelfAsEntity().GetTrait<StorageTrait>();
+        IReadOnlyList<string> storageTags = storageTrait != null && storageTrait.Tags.Count > 0
+            ? storageTrait.Tags.ToList()
+            : Array.Empty<string>();
+
         _facilityObservations.Add(new FacilityObservation(
-            facilityType, facility, area, position,
+            facilityType, facility, area, position, storageTags,
             currentTick, currentTick + StorageMemoryDuration));
     }
 
@@ -766,6 +772,12 @@ public class FacilityObservation
     public Vector2I Position { get; }
 
     /// <summary>
+    /// Gets the storage tags observed on this facility (e.g., "food", "grain").
+    /// Empty if the facility has no storage.
+    /// </summary>
+    public IReadOnlyList<string> StorageTags { get; }
+
+    /// <summary>
     /// Gets the tick when this observation was made.
     /// </summary>
     public uint ObservedTick { get; private set; }
@@ -783,6 +795,7 @@ public class FacilityObservation
         Facility facility,
         Area? area,
         Vector2I position,
+        IReadOnlyList<string> storageTags,
         uint observedTick,
         uint expirationTick)
     {
@@ -790,6 +803,7 @@ public class FacilityObservation
         Facility = facility;
         Area = area;
         Position = position;
+        StorageTags = storageTags;
         ObservedTick = observedTick;
         ExpirationTick = expirationTick;
     }

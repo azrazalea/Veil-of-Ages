@@ -37,7 +37,7 @@ Handles all player input including mouse clicks, keyboard shortcuts, and context
 - **Input Method**: Uses `_UnhandledInput` for input processing
 - **Dependencies resolved via**: `Services.Get<GameController>()` and `Services.Get<Player>()` — no direct `GetNode` paths
 - **Exports**: Only `_dialogueUI`, `_chooseLocationPrompt`, and `_contextMenu` — no HUD display element exports
-- **Input Actions**: `interact`, `exit`, `toggle_simulation_pause`, `speed_up`, `slow_down`, `context_menu`, `toggle_automation`, `toggle_skills_panel`
+- **Input Actions**: `interact`, `exit`, `toggle_simulation_pause`, `speed_up`, `slow_down`, `context_menu`, `toggle_automation`, `toggle_skills_panel`, `toggle_knowledge_panel`
 - **Important**: Uses `_awaitingLocationSelection` flag for commands that need a target position (like MoveToCommand, GuardCommand).
 
 ### Services.cs

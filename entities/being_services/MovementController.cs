@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Traits;
@@ -128,8 +129,8 @@ public class MovementController
 
         // Check if another Being occupies the target cell
         // (separate from terrain walkability — Beings are walkable for A* but block movement at runtime)
-        var occupant = gridArea.EntitiesGridSystem.GetCell(targetGridPos);
-        if (occupant is Being blockingBeing && blockingBeing != _owner)
+        var occupants = gridArea.EntitiesGridSystem.GetCell(targetGridPos);
+        if (occupants?.OfType<Being>().FirstOrDefault(b => b != _owner) is { } blockingBeing)
         {
             // Store the blocking entity so Think() can decide how to respond
             // (communication action for sapient, push action for mindless)
@@ -151,7 +152,7 @@ public class MovementController
 
         // IMPORTANT: Update grid immediately
         // Remove from current cell first
-        gridArea.RemoveEntity(_currentGridPos);
+        gridArea.RemoveEntity(_owner, _currentGridPos);
 
         // Update current grid position
         _currentGridPos = targetGridPos;

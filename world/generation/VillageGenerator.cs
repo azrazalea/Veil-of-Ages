@@ -42,6 +42,9 @@ public class VillageGenerator
     // Temporary: last StampResult from PlaceBuildingInLot, used to capture PlayerHouseStampResult
     private StampResult? _lastStampResult;
 
+    // Track instance counts per building type for room naming disambiguation
+    private readonly Dictionary<string, int> _buildingTypeCounters = new ();
+
     /// <summary>
     /// Gets the player's house room, placed near the graveyard during generation.
     /// </summary>
@@ -531,6 +534,23 @@ public class VillageGenerator
 
         // Track for PlayerHouseStampResult capture
         _lastStampResult = stampResult;
+
+        // Disambiguate room names by numbering instances of the same building type
+        if (!_buildingTypeCounters.TryGetValue(buildingType, out int count))
+        {
+            count = 0;
+        }
+
+        count++;
+        _buildingTypeCounters[buildingType] = count;
+
+        // Rename all rooms in this stamp result to include building type and instance number,
+        // so the knowledge panel can distinguish e.g. "House 1" from "House 2".
+        string shortType = GetShortBuildingType(buildingType);
+        foreach (var room in stampResult.Rooms)
+        {
+            room.Name = $"{shortType} {count}";
+        }
 
         // Use the first facility's containing room for lot tracking
         var primaryRoom = stampResult.Facilities.Select(f => f.ContainingRoom).FirstOrDefault(r => r != null);
@@ -1329,7 +1349,12 @@ public class VillageGenerator
                     ? room.Doors[0].GridPosition
                     : roomPos;
 
-                buildingInfos.Add((roomPos, entrancePos, room.Type ?? "Unknown"));
+                if (room.Type == null)
+                {
+                    Log.Warn($"VillageGenerator: Room '{room.Name}' has no Type during path creation");
+                }
+
+                buildingInfos.Add((roomPos, entrancePos, room.Type ?? string.Empty));
             }
         }
 
@@ -1443,6 +1468,24 @@ public class VillageGenerator
         }
 
         return path;
+    }
+
+    /// <summary>
+    /// Returns a short localized display label for a building type, used when constructing
+    /// disambiguated room names such as "House 1" or "Farm 2".
+    /// </summary>
+    private static string GetShortBuildingType(string buildingType)
+    {
+        return buildingType switch
+        {
+            "Simple House" => L.Tr("building.short.HOUSE"),
+            "Scholar's House" => L.Tr("building.short.SCHOLARS_HOUSE"),
+            "Simple Farm" => L.Tr("building.short.FARM"),
+            "Granary" => L.Tr("building.short.GRANARY"),
+            "Graveyard" => L.Tr("building.short.GRAVEYARD"),
+            "Well" => L.Tr("building.short.WELL"),
+            _ => buildingType
+        };
     }
 
     /// <summary>

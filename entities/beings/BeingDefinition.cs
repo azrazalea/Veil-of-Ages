@@ -56,15 +56,6 @@ public class BeingDefinition : IResourceDefinition
     public string? SpriteId { get; set; }
 
     /// <summary>
-    /// Gets or sets legacy animation reference. Mapped to SpriteId for backwards compatibility.
-    /// </summary>
-    public string? AnimationId
-    {
-        get => SpriteId;
-        set => SpriteId ??= value;
-    }
-
-    /// <summary>
     /// Gets or sets attribute block defining base stats.
     /// </summary>
     public BeingAttributesDefinition? Attributes { get; set; }

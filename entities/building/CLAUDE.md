@@ -210,7 +210,6 @@ Facilities implement this to provide context-sensitive dialogue options to the p
 
 **Implementors:**
 - `NecromancyAltarInteraction` - Provides "Get Corpse" and "Raise Zombie" options with smart enabled/disabled logic. Constructor takes `(Facility facility)`. Uses `_facility.SelfAsEntity().GetTrait<StorageTrait>()` for storage access.
-
 ### facilities/ subdirectory
 Contains facility interaction implementations.
 

@@ -78,13 +78,26 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
 
     protected override ReactionTrigger ResumedTrigger => ReactionTrigger.Resumed;
 
-    public override string DisplayName => _machine.State switch
+    public override string DisplayName
     {
-        ReactionState.Processing => L.TrFmt("activity.PROCESSING", _reaction.Name ?? string.Empty),
-        ReactionState.GoingToStorageForOutputs => L.TrFmt("activity.STORING_OUTPUTS", _reaction.Name ?? string.Empty),
-        ReactionState.DepositingOutputs => L.TrFmt("activity.STORING_OUTPUTS", _reaction.Name ?? string.Empty),
-        _ => L.TrFmt("activity.PREPARING", _reaction.Name ?? string.Empty)
-    };
+        get
+        {
+            var reactionName = _reaction.Name;
+            if (reactionName == null)
+            {
+                Log.Warn($"ProcessReactionActivity: Reaction '{_reaction.Id}' has no Name");
+                reactionName = _reaction.Id ?? string.Empty;
+            }
+
+            return _machine.State switch
+            {
+                ReactionState.Processing => L.TrFmt("activity.PROCESSING", reactionName),
+                ReactionState.GoingToStorageForOutputs => L.TrFmt("activity.STORING_OUTPUTS", reactionName),
+                ReactionState.DepositingOutputs => L.TrFmt("activity.STORING_OUTPUTS", reactionName),
+                _ => L.TrFmt("activity.PREPARING", reactionName)
+            };
+        }
+    }
 
     public override Room? TargetRoom => _workplaceRoom;
 

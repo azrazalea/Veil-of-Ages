@@ -9,12 +9,12 @@
     "Facilities": [
         {
             "Id": "storage",
-            "Positions": [[1, 1]],
+            "Positions": [[2, 2], [4, 2], [6, 2], [8, 2], [1, 5], [3, 5], [5, 5], [7, 5]],
             "Storage": {
                 "VolumeCapacity": 5.0,
                 "WeightCapacity": -1,
                 "DecayRateModifier": 0.5,
-                "Tags": ["zombie_food"]
+                "Tags": ["zombie_food", "corpse"]
             }
         }
     ],

@@ -64,7 +64,7 @@ Manages a discrete area of the game world with its own tile layers and entity tr
   - Maintains separate grid systems for ground, objects, and entities
   - Static tile definitions: `WaterTile`, `GrassTile`, `DirtTile`, `PathTile`
   - Supports active/inactive states and player area designation
-  - Entity management with automatic pathfinding solid updates
+  - Entity management with automatic pathfinding solid updates; `RemoveEntity(Node2D entity, Vector2I entityPos, Vector2I? entitySize = null)` takes the entity node as its first argument so the correct item can be removed from the multi-entity cell list
   - `AreaName`: Translation key for the area name (e.g., `"area.VILLAGE"`)
   - `AreaDisplayName`: Localized display name via `L.Tr(AreaName)`
 

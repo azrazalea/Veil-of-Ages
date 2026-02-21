@@ -189,7 +189,7 @@ public partial class StructuralEntity : Sprite2D, IEntity<Trait>
         {
             if (!IsWalkable)
             {
-                GridArea.RemoveEntity(GridPosition);
+                GridArea.RemoveEntity(this, GridPosition);
             }
         }
     }

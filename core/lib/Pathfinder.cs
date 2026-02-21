@@ -42,8 +42,9 @@ public class PathFinder
     private int _stepsSinceLastRecalculation;
     private const int STEPSBEFOREPERIODICRECALC = 5;
 
-    // Facility goal tracking - stores the facility position to check adjacency in IsGoalReached
+    // Facility goal tracking - stores the facility position(s) to check adjacency in IsGoalReached
     private Vector2I? _targetFacilityPosition;
+    private List<Vector2I>? _targetFacilityPositions;
 
     // Room goal: if true, entity must be inside; if false, adjacent is acceptable
     private bool _requireInterior;
@@ -156,6 +157,7 @@ public class PathFinder
         ClearPath();
         _goalType = PathGoalType.None;
         _firstGoalCalculation = false;
+        _targetFacilityPositions = null;
 
         // Clear final goal storage (ClearPath preserves these)
         _finalGoalType = PathGoalType.None;
@@ -333,7 +335,8 @@ public class PathFinder
             return true;
         }
 
-        // Same-area: set position directly for pathfinding.
+        // Same-area: set position(s) directly for pathfinding.
+        _targetFacilityPositions = new List<Vector2I>(facility.Positions);
         _targetFacilityPosition = facility.GridPosition;
         _goalType = PathGoalType.Facility;
         _firstGoalCalculation = true;
@@ -380,9 +383,20 @@ public class PathFinder
                 result = Utils.WithinProximityRangeOf(entityPos, _targetPosition, _proximityRange);
                 break;
             case PathGoalType.Facility:
-                if (_targetFacilityPosition.HasValue)
+                if (_targetFacilityPositions is { Count: > 0 })
                 {
-                    // Check if entity is adjacent to the facility (including diagonals)
+                    // Check if entity is adjacent to ANY facility position (including diagonals)
+                    foreach (var facilityPos in _targetFacilityPositions)
+                    {
+                        if (DirectionUtils.IsAdjacent(entityPos, facilityPos))
+                        {
+                            result = true;
+                            break;
+                        }
+                    }
+                }
+                else if (_targetFacilityPosition.HasValue)
+                {
                     result = DirectionUtils.IsAdjacent(entityPos, _targetFacilityPosition.Value);
                 }
 
@@ -444,6 +458,19 @@ public class PathFinder
             case PathGoalType.Area:
                 return entityPos.DistanceSquaredTo(_targetPosition) <= (closeDistance + _proximityRange) * (closeDistance + _proximityRange);
             case PathGoalType.Facility:
+                if (_targetFacilityPositions is { Count: > 0 })
+                {
+                    foreach (var facilityPos in _targetFacilityPositions)
+                    {
+                        if (entityPos.DistanceSquaredTo(facilityPos) <= closeDistance * closeDistance)
+                        {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                }
+
                 if (_targetFacilityPosition.HasValue)
                 {
                     return entityPos.DistanceSquaredTo(_targetFacilityPosition.Value) <= closeDistance * closeDistance;
@@ -492,7 +519,23 @@ public class PathFinder
         switch (_goalType)
         {
             case PathGoalType.Facility:
-                if (_targetFacilityPosition.HasValue)
+                if (_targetFacilityPositions is { Count: > 0 })
+                {
+                    var seen = new HashSet<Vector2I>();
+                    foreach (var facilityPos in _targetFacilityPositions)
+                    {
+                        // Adjacent positions to the facility (cardinal + diagonal)
+                        foreach (var dir in DirectionUtils.All)
+                        {
+                            var pos = facilityPos + dir;
+                            if (pos != entityPos && gridArea != null && gridArea.IsCellWalkable(pos) && seen.Add(pos))
+                            {
+                                result.Add(pos);
+                            }
+                        }
+                    }
+                }
+                else if (_targetFacilityPosition.HasValue)
                 {
                     // Adjacent positions to the facility (cardinal + diagonal)
                     foreach (var dir in DirectionUtils.All)
@@ -865,21 +908,31 @@ public class PathFinder
                     break;
 
                 case PathGoalType.Facility:
-                    if (!_targetFacilityPosition.HasValue)
+                    if (_targetFacilityPositions is not { Count: > 0 } && !_targetFacilityPosition.HasValue)
                     {
                         Log.Error("Facility goal missing target position");
                         return false;
                     }
 
-                    // Facility position is always absolute — path to an adjacent tile.
-                    var facilityAdjacentPositions = GetAdjacentPositions(_targetFacilityPosition.Value)
-                        .Where(pos => IsValidCandidate(astar, pos, perceivedEntityPositions))
-                        .ToList();
+                    // Collect adjacent tiles from ALL facility positions (multi-position support).
+                    var facilityAdjacentPositions = new List<Vector2I>();
+                    var seenAdjacentPositions = new HashSet<Vector2I>();
+                    var positionsToCheck = _targetFacilityPositions ?? (_targetFacilityPosition.HasValue ? [_targetFacilityPosition.Value] : []);
+                    foreach (var facPos in positionsToCheck)
+                    {
+                        foreach (var adjPos in GetAdjacentPositions(facPos))
+                        {
+                            if (IsValidCandidate(astar, adjPos, perceivedEntityPositions) && seenAdjacentPositions.Add(adjPos))
+                            {
+                                facilityAdjacentPositions.Add(adjPos);
+                            }
+                        }
+                    }
 
                     var facilityResult = TryPathToCandidates(astar, startPos, facilityAdjacentPositions, perceivedEntityPositions);
                     if (!facilityResult.Found)
                     {
-                        Log.Error($"No path to facility at {_targetFacilityPosition.Value}: {facilityResult.FailureReason}");
+                        Log.Error($"No path to facility: {facilityResult.FailureReason}");
                         return false;
                     }
 
