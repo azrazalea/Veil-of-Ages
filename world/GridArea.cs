@@ -265,6 +265,31 @@ public partial class Area(Vector2I worldSize): Node2D
         return !hasBlockingEntity && groundWalkable;
     }
 
+    /// <summary>
+    /// Check if a cell can be physically moved into at runtime.
+    /// Unlike IsCellWalkable (for A* where Beings are walkable), this method
+    /// treats Being occupants as blocking. Use this for runtime step-aside,
+    /// alternative position selection, and movement validation.
+    /// </summary>
+    /// <param name="gridPos">The grid position to check.</param>
+    /// <param name="excludeEntity">An entity to ignore when checking occupancy (typically the mover).</param>
+    /// <returns>True if the cell is terrain-walkable and not occupied by another Being.</returns>
+    public bool IsCellPassable(Vector2I gridPos, Being? excludeEntity = null)
+    {
+        if (!IsCellWalkable(gridPos))
+        {
+            return false;
+        }
+
+        var occupant = EntitiesGridSystem.GetCell(gridPos);
+        if (occupant is Being being && being != excludeEntity)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
     public float GetTerrainDifficulty(Vector2I gridPos)
     {
         return _groundGridSystem.GetCell(gridPos)?.WalkDifficulty ?? 1.0f;

@@ -119,21 +119,23 @@ public class MovementController
             return false;
         }
 
-        // Check if target cell is walkable
+        // Check if target cell is walkable (terrain/structures)
         if (!gridArea.IsCellWalkable(targetGridPos))
         {
-            // Check if blocked by an entity (Being) we could interact with
-            var blockingEntity = gridArea.EntitiesGridSystem.GetCell(targetGridPos);
-            if (blockingEntity is Being blockingBeing && blockingBeing != _owner)
-            {
-                // Store the blocking entity so Think() can decide how to respond
-                // (communication action for sapient, push action for mindless)
-                // This costs a turn - the entity must take an action to interact
-                _lastBlockingEntity = blockingBeing;
-                _lastBlockedTargetPosition = targetGridPos;
-            }
+            // Blocked by non-walkable terrain or structure — no entity interaction
+            return false;
+        }
 
-            // Blocked by terrain, building, or entity - fail the move
+        // Check if another Being occupies the target cell
+        // (separate from terrain walkability — Beings are walkable for A* but block movement at runtime)
+        var occupant = gridArea.EntitiesGridSystem.GetCell(targetGridPos);
+        if (occupant is Being blockingBeing && blockingBeing != _owner)
+        {
+            // Store the blocking entity so Think() can decide how to respond
+            // (communication action for sapient, push action for mindless)
+            // This costs a turn - the entity must take an action to interact
+            _lastBlockingEntity = blockingBeing;
+            _lastBlockedTargetPosition = targetGridPos;
             return false;
         }
 

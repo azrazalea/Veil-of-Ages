@@ -353,6 +353,11 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
     /// <summary>Whether we're blocked by an entity that reported it can't move.</summary>
     private bool _blockedByStuckEntity;
 
+    /// <summary>Track the last entity we sent a RequestMoveAction to, for escalation.</summary>
+    private Being? _lastRequestTarget;
+    private int _requestsSentToSameEntity;
+    private const int MAXREQUESTSBEFOREPUSH = 3;
+
     /// <summary>
     /// Set the side-step target position. This will be converted to a MoveAction
     /// at the start of the next Think() cycle, respecting the action queue architecture.
@@ -599,7 +604,7 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
 
         foreach (var pos in candidates)
         {
-            if (GridArea?.IsCellWalkable(pos) == true)
+            if (GridArea?.IsCellPassable(pos, this) == true)
             {
                 _sideStepTarget = pos;
                 return true;
@@ -978,13 +983,13 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
             var target = _sideStepTarget.Value;
             _sideStepTarget = null; // Clear after use
 
-            // Try to move to the side-step target
-            if (GridArea?.IsCellWalkable(target) == true)
+            // Try to move to the side-step target (must be passable — no Being occupant)
+            if (GridArea?.IsCellPassable(target, this) == true)
             {
                 return new MoveAction(this, this, target, priority: 0);
             }
 
-            // If target is no longer walkable, just continue with normal behavior
+            // If target is no longer passable, just continue with normal behavior
         }
 
         // Process queue state
@@ -1091,13 +1096,37 @@ public abstract partial class Being : CharacterBody2D, IEntity<BeingTrait>
                     }
                 }
 
+                // Track how many times we've requested the same entity to move
+                if (blockingEntity == _lastRequestTarget)
+                {
+                    _requestsSentToSameEntity++;
+                }
+                else
+                {
+                    _lastRequestTarget = blockingEntity;
+                    _requestsSentToSameEntity = 1;
+                }
+
+                // After MAX_REQUESTS_BEFORE_PUSH unanswered requests, escalate to push
+                // This handles entities that ignore requests (e.g., mindless beings)
+                if (_requestsSentToSameEntity > MAXREQUESTSBEFOREPUSH)
+                {
+                    var myPos = GetCurrentGridPosition();
+                    var pushDirection = (blockedTarget - myPos).Sign();
+                    _requestsSentToSameEntity = 0;
+                    DebugLog("BLOCKING", $"Escalating to push after {MAXREQUESTSBEFOREPUSH} ignored requests", 0);
+                    return new Actions.PushAction(this, this, blockingEntity, pushDirection, priority: 0);
+                }
+
                 // Default behavior: politely request them to move
                 return new Actions.RequestMoveAction(this, this, blockingEntity, blockedTarget, priority: 0);
             }
         }
 
-        // Clear stuck flag if no blocking entity
+        // Clear stuck flag and escalation tracking if no blocking entity
         _blockedByStuckEntity = false;
+        _lastRequestTarget = null;
+        _requestsSentToSameEntity = 0;
 
         PriorityQueue<EntityAction, int> possibleActions = new ();
 

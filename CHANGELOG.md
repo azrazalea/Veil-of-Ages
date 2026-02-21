@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Entity collision system now triggers correctly — entities no longer walk through each other
+- TryStepAside picks genuinely empty cells instead of stepping into other entities
+- Sapient beings escalate to push after repeated ignored move requests (fixes deadlock with mindless beings)
+
 ### Added
 - Rimworld-style architecture: walls, floors, doors, and fences are now individual StructuralEntity sprites instead of TileMapLayer-based rendering
 - TemplateStamper stamps building templates directly into the grid area as flat entity hierarchies
