@@ -169,8 +169,11 @@ public abstract class Activity : ISubActivityRunner
     /// <returns>True if they want the same target and should queue.</returns>
     public bool RequesterWantsSameTarget(Room? requesterRoom, string? requesterFacility)
     {
+        // Both must target a specific facility — null == null means neither is using
+        // a facility, so they're just in the same room and not competing for a resource.
         return TargetRoom != null &&
                requesterRoom == TargetRoom &&
+               TargetFacilityId != null &&
                requesterFacility == TargetFacilityId;
     }
 
