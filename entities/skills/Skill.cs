@@ -47,7 +47,7 @@ public class Skill
     public Skill(SkillDefinition definition, int level = 1, float currentXp = 0f)
     {
         Definition = definition;
-        Level = Math.Clamp(level, 1, definition.MaxLevel);
+        Level = Math.Clamp(level, 0, definition.MaxLevel);
         CurrentXp = currentXp;
     }
 
