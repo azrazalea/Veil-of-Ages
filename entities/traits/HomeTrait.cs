@@ -1,17 +1,15 @@
 using System.Collections.Generic;
-using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Beings.Health;
 
 namespace VeilOfAges.Entities.Traits;
 
 /// <summary>
-/// Trait that provides home room/building reference for entities.
+/// Trait that provides home room reference for entities.
 /// Centralizes home storage so other traits can query it at runtime.
 /// Home is typically set during entity spawning via SetHome().
 ///
-/// Stores a Room reference internally. For callers that need the Building,
-/// use the HomeBuilding convenience property.
+/// Stores a Room reference internally.
 /// </summary>
 public class HomeTrait : BeingTrait
 {
@@ -21,12 +19,6 @@ public class HomeTrait : BeingTrait
     /// Gets the entity's home room.
     /// </summary>
     public Room? Home => _home;
-
-    /// <summary>
-    /// Gets the entity's home building (convenience for callers that need the Building).
-    /// Returns the building that owns the home room, or null if no home is set.
-    /// </summary>
-    public Building? HomeBuilding => _home?.Owner;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HomeTrait"/> class.
@@ -57,7 +49,7 @@ public class HomeTrait : BeingTrait
     /// </summary>
     public override void Configure(TraitConfiguration config)
     {
-        var home = config.GetBuilding("home");
+        var home = config.GetRoom("home");
         if (home != null)
         {
             SetHome(home);
@@ -85,7 +77,7 @@ public class HomeTrait : BeingTrait
     public void SetHome(Room room)
     {
         _home = room;
-        Log.Print($"{_owner?.Name}: Home set to room '{room.Name}' in {room.Owner.BuildingName}");
+        Log.Print($"{_owner?.Name}: Home set to room '{room.Name}'");
 
         // Register as a resident of the home room directly.
         // Only call AddResident if _owner is already set (i.e., Initialize has run).
@@ -95,22 +87,5 @@ public class HomeTrait : BeingTrait
         {
             room.AddResident(_owner);
         }
-    }
-
-    /// <summary>
-    /// Sets the entity's home building by resolving to its default room.
-    /// Backward-compatible overload for callers that pass a Building.
-    /// Logs a warning if the building has no rooms (defensive, shouldn't happen).
-    /// </summary>
-    public void SetHome(Building building)
-    {
-        var defaultRoom = building.GetDefaultRoom();
-        if (defaultRoom == null)
-        {
-            Log.Warn($"{_owner?.Name}: Cannot set home to {building.BuildingName} — building has no rooms");
-            return;
-        }
-
-        SetHome(defaultRoom);
     }
 }

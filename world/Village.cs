@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Godot;
 using VeilOfAges.Entities;
 using VeilOfAges.Entities.Memory;
+using VeilOfAges.Grid;
 
 namespace VeilOfAges;
 
@@ -20,10 +21,10 @@ public partial class Village : Node
     public SharedKnowledge Knowledge { get; private set; } = null!;
 
     private readonly List<Being> _residents = new ();
-    private readonly List<Building> _buildings = new ();
+    private readonly List<Room> _rooms = new ();
 
     public IReadOnlyList<Being> Residents => _residents;
-    public IReadOnlyList<Building> Buildings => _buildings;
+    public IReadOnlyList<Room> Rooms => _rooms;
 
     /// <summary>
     /// Initialize the village with a name and center position.
@@ -46,26 +47,26 @@ public partial class Village : Node
     }
 
     /// <summary>
-    /// Add a building to this village. Registers it in shared knowledge.
+    /// Add a room to this village. Registers it in shared knowledge.
     /// </summary>
-    public void AddBuilding(Building building)
+    public void AddRoom(Room room, Area? area = null)
     {
-        if (_buildings.Contains(building))
+        if (_rooms.Contains(room))
         {
             return;
         }
 
-        _buildings.Add(building);
-        Knowledge.RegisterBuilding(building);
+        _rooms.Add(room);
+        Knowledge.RegisterRoom(room, area);
     }
 
     /// <summary>
-    /// Remove a building from this village.
+    /// Remove a room from this village.
     /// </summary>
-    public void RemoveBuilding(Building building)
+    public void RemoveRoom(Room room)
     {
-        _buildings.Remove(building);
-        Knowledge.UnregisterBuilding(building);
+        _rooms.Remove(room);
+        Knowledge.UnregisterRoom(room);
     }
 
     /// <summary>
@@ -98,11 +99,11 @@ public partial class Village : Node
     }
 
     /// <summary>
-    /// Clean up invalid building references periodically.
+    /// Clean up invalid room and resident references periodically.
     /// </summary>
     public void CleanupInvalidReferences()
     {
-        _buildings.RemoveAll(b => !GodotObject.IsInstanceValid(b));
+        _rooms.RemoveAll(r => r.IsDestroyed);
         _residents.RemoveAll(r => !GodotObject.IsInstanceValid(r));
         Knowledge.CleanupInvalidReferences();
     }

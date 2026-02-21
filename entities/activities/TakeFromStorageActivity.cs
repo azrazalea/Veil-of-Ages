@@ -39,9 +39,9 @@ public class TakeFromStorageActivity : Activity
     private bool _tagResolved;
 
     /// <inheritdoc/>
-    public override string DisplayName => L.TrFmt("activity.TAKING_FROM_STORAGE", _storageFacility.Owner?.BuildingName ?? _storageFacility.Id);
+    public override string DisplayName => L.TrFmt("activity.TAKING_FROM_STORAGE", _storageFacility.ContainingRoom?.Name ?? _storageFacility.Id);
 
-    public override Building? TargetBuilding => _storageFacility.Owner;
+    public override Room? TargetRoom => _storageFacility.ContainingRoom;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TakeFromStorageActivity"/> class.
@@ -133,7 +133,7 @@ public class TakeFromStorageActivity : Activity
         {
             _navActivity = new GoToFacilityActivity(_storageFacility, Priority);
             _navActivity.Initialize(_owner);
-            DebugLog("TAKE_STORAGE", $"Starting navigation to {_storageFacility.Owner?.BuildingName ?? _storageFacility.Id}", 0);
+            DebugLog("TAKE_STORAGE", $"Starting navigation to {_storageFacility.ContainingRoom?.Name ?? _storageFacility.Id}", 0);
         }
 
         var (result, action) = RunSubActivity(_navActivity, position, perception);
@@ -152,7 +152,7 @@ public class TakeFromStorageActivity : Activity
         // We've arrived — transition to Taking
         _navActivity = null;
         _currentPhase = Phase.Taking;
-        DebugLog("TAKE_STORAGE", $"Arrived at {_storageFacility.Owner?.BuildingName ?? _storageFacility.Id}, starting to take items", 0);
+        DebugLog("TAKE_STORAGE", $"Arrived at {_storageFacility.ContainingRoom?.Name ?? _storageFacility.Id}, starting to take items", 0);
         return new IdleAction(_owner, this, Priority);
     }
 
@@ -209,7 +209,7 @@ public class TakeFromStorageActivity : Activity
         var (itemId, quantity) = _itemsToTake[_currentIndex];
         _currentIndex++;
 
-        DebugLog("TAKE_STORAGE", $"Taking {quantity} {itemId} from {_storageFacility.Owner?.BuildingName ?? _storageFacility.Id}", 0);
+        DebugLog("TAKE_STORAGE", $"Taking {quantity} {itemId} from {_storageFacility.ContainingRoom?.Name ?? _storageFacility.Id}", 0);
 
         return new TakeFromStorageAction(
             _owner,

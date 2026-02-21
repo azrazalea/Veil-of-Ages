@@ -1,6 +1,10 @@
-[gd_scene format=3 uid="uid://cyq2ntvw2iake"]
+[gd_scene format=3 uid="uid://dhqe170g11dff"]
 
-[ext_resource type="Script" uid="uid://u1tq3l3i6e1v" path="res://entities/building/Building.cs" id="1_rdo86"]
+[ext_resource type="Script" path="res://entities/building/Building.cs" id="1_rdo86"]
 
 [node name="Building" type="Node2D" unique_id=134159365]
 script = ExtResource("1_rdo86")
+BuildingType = null
+BuildingName = null
+CanEnter = null
+GridSize = null

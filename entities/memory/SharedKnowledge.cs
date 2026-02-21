@@ -1,4 +1,3 @@
-using System.Globalization;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities;
@@ -8,54 +7,62 @@ using VeilOfAges.Grid;
 namespace VeilOfAges.Entities.Memory;
 
 /// <summary>
-/// Lightweight reference to a building that caches position for thread-safe access.
-/// Buildings are Godot nodes and their properties should only be accessed on main thread,
-/// but the cached position can be safely read from background threads.
+/// Lightweight reference to a room that caches position for thread-safe access.
+/// Rooms are plain C# objects and their cached properties can be safely read from background threads.
 /// </summary>
-public class BuildingReference
+public class RoomReference
 {
     /// <summary>
-    /// Gets the referenced building. May become invalid if building is destroyed.
-    /// Only access Building properties on main thread.
+    /// Gets the referenced room. May become invalid if room is destroyed.
     /// </summary>
-    public Building? Building { get; }
+    public Room? Room { get; }
 
     /// <summary>
-    /// Gets cached grid position of the building entrance (or origin if no entrance).
+    /// Gets cached grid position of the room entrance (first door, or first tile if no doors).
     /// Safe to read from any thread.
     /// </summary>
     public Vector2I Position { get; }
 
     /// <summary>
-    /// Gets cached building type for filtering without accessing the Building object.
+    /// Gets cached room type for filtering without accessing the Room object.
     /// </summary>
-    public string BuildingType { get; }
+    public string RoomType { get; }
 
     /// <summary>
-    /// Gets cached building name for display purposes.
+    /// Gets cached room name for display purposes.
     /// </summary>
-    public string BuildingName { get; }
+    public string RoomName { get; }
 
     /// <summary>
-    /// Gets a value indicating whether whether this reference is still valid (building not destroyed).
-    /// </summary>
-    public bool IsValid => Building != null && GodotObject.IsInstanceValid(Building);
-
-    /// <summary>
-    /// Gets the area this building is in, for cross-area routing.
+    /// Gets the area this room is in, for cross-area routing.
     /// </summary>
     public Area? Area { get; }
 
-    public BuildingReference(Building building, Area? area = null)
-    {
-        Building = building;
-        BuildingType = building.BuildingType;
-        BuildingName = building.BuildingName;
-        Area = area;
+    /// <summary>
+    /// Gets a value indicating whether this reference is still valid (room not destroyed).
+    /// </summary>
+    public bool IsValid => Room != null && !Room.IsDestroyed;
 
-        // Cache the entrance position if available, otherwise use building origin
-        var entrances = building.GetEntrancePositions();
-        Position = entrances.Count > 0 ? entrances[0] : building.GetCurrentGridPosition();
+    public RoomReference(Room room, Area? area = null)
+    {
+        Room = room;
+        RoomType = room.Type ?? "Unknown";
+        RoomName = room.Name;
+        Area = area ?? room.GridArea;
+
+        // Use first door position as entrance, or first tile if no doors
+        if (room.Doors.Count > 0)
+        {
+            Position = room.Doors[0].GridPosition;
+        }
+        else if (room.Tiles.Count > 0)
+        {
+            Position = room.Tiles.First();
+        }
+        else
+        {
+            Position = Vector2I.Zero;
+        }
     }
 }
 
@@ -85,20 +92,20 @@ public class SharedKnowledge
     /// </summary>
     public string ScopeType { get; }
 
-    // Building locations by type - scope-appropriate granularity
-    private readonly Dictionary<string, List<BuildingReference>> _buildings = new ();
+    // Room locations by type - scope-appropriate granularity
+    private readonly Dictionary<string, List<RoomReference>> _rooms = new ();
 
-    // Storage tag tracking - what tags each building stores
-    // This is common knowledge about what types of items each building is INTENDED to store
+    // Storage tag tracking - what tags each room stores
+    // This is common knowledge about what types of items each room is INTENDED to store
     // (e.g., "granary stores food", "well provides water"), NOT current contents
-    private readonly Dictionary<string, HashSet<string>> _buildingStorageTags = new ();  // buildingId -> tags
-    private readonly Dictionary<string, List<BuildingReference>> _buildingsByStorageTag = new ();  // tag -> buildings
+    private readonly Dictionary<string, HashSet<string>> _roomStorageTags = new ();  // roomId -> tags
+    private readonly Dictionary<string, List<RoomReference>> _roomsByStorageTag = new ();  // tag -> rooms
 
     // Facility tracking - facilities by type
     private readonly Dictionary<string, List<FacilityReference>> _facilities = new ();
 
     // Facility storage tag tracking - what tags each facility stores
-    // Parallel to _buildingsByStorageTag but at facility granularity for precise targeting
+    // Parallel to _roomsByStorageTag but at facility granularity for precise targeting
     private readonly Dictionary<string, List<FacilityReference>> _facilitiesByStorageTag = new ();  // tag -> facilities
 
     // Transition point tracking
@@ -111,7 +118,7 @@ public class SharedKnowledge
     private readonly Dictionary<string, object> _facts = new ();
 
     // NOTE: Direct property access removed for thread safety.
-    // Use method-based queries (GetBuildingsOfType, TryGetLandmark, TryGetFact, etc.)
+    // Use method-based queries (GetRoomsOfType, TryGetLandmark, TryGetFact, etc.)
     // which return copies/snapshots safe for background thread access.
     public SharedKnowledge(string id, string name, string scopeType)
     {
@@ -121,72 +128,75 @@ public class SharedKnowledge
     }
 
     /// <summary>
-    /// Register a building in this knowledge scope.
-    /// Called during world generation or when buildings are constructed.
+    /// Register a room in this knowledge scope.
+    /// Called during world generation or when rooms are detected.
     /// Main thread only.
     /// </summary>
-    public void RegisterBuilding(Building building, Area? area = null)
+    public void RegisterRoom(Room room, Area? area = null)
     {
-        var reference = new BuildingReference(building, area);
+        var roomType = room.Type ?? "Unknown";
+        var reference = new RoomReference(room, area);
 
-        if (!_buildings.TryGetValue(building.BuildingType, out var list))
+        if (!_rooms.TryGetValue(roomType, out var list))
         {
-            list = new List<BuildingReference>();
-            _buildings[building.BuildingType] = list;
+            list = new List<RoomReference>();
+            _rooms[roomType] = list;
         }
 
         list.Add(reference);
     }
 
     /// <summary>
-    /// Unregister a building (destroyed, etc.).
+    /// Unregister a room (destroyed, etc.).
     /// Main thread only.
     /// </summary>
-    public void UnregisterBuilding(Building building)
+    public void UnregisterRoom(Room room)
     {
-        if (_buildings.TryGetValue(building.BuildingType, out var list))
+        var roomType = room.Type ?? "Unknown";
+        if (_rooms.TryGetValue(roomType, out var list))
         {
-            list.RemoveAll(r => r.Building == building);
+            list.RemoveAll(r => r.Room == room);
         }
 
         // Also clean up storage tag registrations
-        var buildingId = building.GetInstanceId().ToString(CultureInfo.InvariantCulture);
-        if (_buildingStorageTags.TryGetValue(buildingId, out var tags))
+        var roomId = room.Id;
+        if (_roomStorageTags.TryGetValue(roomId, out var tags))
         {
             foreach (var tag in tags)
             {
-                if (_buildingsByStorageTag.TryGetValue(tag, out var taggedBuildings))
+                if (_roomsByStorageTag.TryGetValue(tag, out var taggedRooms))
                 {
-                    taggedBuildings.RemoveAll(r => r.Building == building);
+                    taggedRooms.RemoveAll(r => r.Room == room);
                 }
             }
 
-            _buildingStorageTags.Remove(buildingId);
+            _roomStorageTags.Remove(roomId);
         }
     }
 
     /// <summary>
-    /// Register a building's storage tags indicating what types of items it stores.
-    /// This represents common knowledge about what a building is INTENDED to store,
+    /// Register a room's storage tags indicating what types of items it stores.
+    /// This represents common knowledge about what a room is INTENDED to store,
     /// not the actual current contents (use PersonalMemory for that).
     /// Example: Granary stores "food", "grain"; Well provides "water".
     /// Main thread only.
     /// </summary>
-    /// <param name="building">The building to register.</param>
-    /// <param name="tags">Tags indicating what this building stores (e.g., "food", "grain", "water").</param>
-    public void RegisterBuildingStorageTags(Building building, IEnumerable<string> tags, Area? area = null)
+    /// <param name="room">The room to register.</param>
+    /// <param name="tags">Tags indicating what this room stores (e.g., "food", "grain", "water").</param>
+    /// <param name="area">The area this room is in (optional, defaults to room.GridArea).</param>
+    public void RegisterRoomStorageTags(Room room, IEnumerable<string> tags, Area? area = null)
     {
-        // First ensure the building is registered normally
-        RegisterBuilding(building, area);
+        // First ensure the room is registered normally
+        RegisterRoom(room, area);
 
-        var buildingId = building.GetInstanceId().ToString(CultureInfo.InvariantCulture);
-        var reference = new BuildingReference(building, area);
+        var roomId = room.Id;
+        var reference = new RoomReference(room, area);
 
-        // Store the tags for this building
-        if (!_buildingStorageTags.TryGetValue(buildingId, out var existingTags))
+        // Store the tags for this room
+        if (!_roomStorageTags.TryGetValue(roomId, out var existingTags))
         {
             existingTags = new HashSet<string>();
-            _buildingStorageTags[buildingId] = existingTags;
+            _roomStorageTags[roomId] = existingTags;
         }
 
         foreach (var tag in tags)
@@ -194,46 +204,46 @@ public class SharedKnowledge
             existingTags.Add(tag);
 
             // Add to the reverse lookup
-            if (!_buildingsByStorageTag.TryGetValue(tag, out var taggedBuildings))
+            if (!_roomsByStorageTag.TryGetValue(tag, out var taggedRooms))
             {
-                taggedBuildings = new List<BuildingReference>();
-                _buildingsByStorageTag[tag] = taggedBuildings;
+                taggedRooms = new List<RoomReference>();
+                _roomsByStorageTag[tag] = taggedRooms;
             }
 
             // Only add if not already present
-            if (!taggedBuildings.Any(r => r.Building == building))
+            if (!taggedRooms.Any(r => r.Room == room))
             {
-                taggedBuildings.Add(reference);
+                taggedRooms.Add(reference);
             }
         }
     }
 
     /// <summary>
-    /// Get all buildings known to store items with a specific tag.
-    /// This is common knowledge about what buildings are INTENDED to store,
+    /// Get all rooms known to store items with a specific tag.
+    /// This is common knowledge about what rooms are INTENDED to store,
     /// not whether they actually have items right now.
     /// Returns a snapshot copy safe for background thread access.
     /// </summary>
     /// <param name="tag">The tag to search for (e.g., "food", "water").</param>
-    /// <returns>List of building references that store this type of item.</returns>
-    public IReadOnlyList<BuildingReference> GetBuildingsByTag(string tag)
+    /// <returns>List of room references that store this type of item.</returns>
+    public IReadOnlyList<RoomReference> GetRoomsByTag(string tag)
     {
-        if (_buildingsByStorageTag.TryGetValue(tag, out var buildings))
+        if (_roomsByStorageTag.TryGetValue(tag, out var rooms))
         {
-            return buildings.Where(b => b.IsValid).ToList(); // Return a copy for thread safety
+            return rooms.Where(r => r.IsValid).ToList(); // Return a copy for thread safety
         }
 
-        return Array.Empty<BuildingReference>();
+        return Array.Empty<RoomReference>();
     }
 
     /// <summary>
-    /// Get all tags registered for a specific building's storage.
+    /// Get all tags registered for a specific room's storage.
     /// Returns a snapshot copy safe for background thread access.
     /// </summary>
-    public IReadOnlyList<string> GetBuildingTags(Building building)
+    public IReadOnlyList<string> GetRoomTags(Room room)
     {
-        var buildingId = building.GetInstanceId().ToString(CultureInfo.InvariantCulture);
-        if (_buildingStorageTags.TryGetValue(buildingId, out var tags))
+        var roomId = room.Id;
+        if (_roomStorageTags.TryGetValue(roomId, out var tags))
         {
             return tags.ToList(); // Return a copy for thread safety
         }
@@ -296,50 +306,50 @@ public class SharedKnowledge
     public IReadOnlyList<string> GetAllFactKeys() => _facts.Keys.ToList();
 
     /// <summary>
-    /// Get all buildings of a specific type.
+    /// Get all rooms of a specific type.
     /// Returns a snapshot copy safe for background thread access.
     /// </summary>
-    public IReadOnlyList<BuildingReference> GetBuildingsOfType(string buildingType)
+    public IReadOnlyList<RoomReference> GetRoomsOfType(string roomType)
     {
-        if (_buildings.TryGetValue(buildingType, out var list))
+        if (_rooms.TryGetValue(roomType, out var list))
         {
             return list.ToList(); // Return a copy for thread safety
         }
 
-        return Array.Empty<BuildingReference>();
+        return Array.Empty<RoomReference>();
     }
 
     /// <summary>
-    /// Try to find any building of the specified type.
+    /// Try to find any room of the specified type.
     /// </summary>
-    public bool TryGetBuildingOfType(string buildingType, out BuildingReference? building)
+    public bool TryGetRoomOfType(string roomType, out RoomReference? room)
     {
-        var buildings = GetBuildingsOfType(buildingType);
-        building = buildings.FirstOrDefault(b => b.IsValid);
-        return building != null;
+        var rooms = GetRoomsOfType(roomType);
+        room = rooms.FirstOrDefault(r => r.IsValid);
+        return room != null;
     }
 
     /// <summary>
-    /// Find the nearest building of a type to a position.
+    /// Find the nearest room of a type to a position.
     /// </summary>
-    public BuildingReference? GetNearestBuildingOfType(string buildingType, Vector2I fromPosition)
+    public RoomReference? GetNearestRoomOfType(string roomType, Vector2I fromPosition)
     {
-        var buildings = GetBuildingsOfType(buildingType);
-        BuildingReference? nearest = null;
+        var rooms = GetRoomsOfType(roomType);
+        RoomReference? nearest = null;
         float nearestDist = float.MaxValue;
 
-        foreach (var building in buildings)
+        foreach (var room in rooms)
         {
-            if (!building.IsValid)
+            if (!room.IsValid)
             {
                 continue;
             }
 
-            float dist = fromPosition.DistanceSquaredTo(building.Position);
+            float dist = fromPosition.DistanceSquaredTo(room.Position);
             if (dist < nearestDist)
             {
                 nearestDist = dist;
-                nearest = building;
+                nearest = room;
             }
         }
 
@@ -347,19 +357,19 @@ public class SharedKnowledge
     }
 
     /// <summary>
-    /// Get all known building types in this scope.
+    /// Get all known room types in this scope.
     /// Returns a snapshot copy safe for background thread access.
     /// </summary>
-    public IReadOnlyList<string> GetKnownBuildingTypes() => _buildings.Keys.ToList();
+    public IReadOnlyList<string> GetKnownRoomTypes() => _rooms.Keys.ToList();
 
     /// <summary>
-    /// Get all buildings in this scope, regardless of type.
+    /// Get all rooms in this scope, regardless of type.
     /// Returns a snapshot copy safe for background thread access.
     /// </summary>
-    public IReadOnlyList<BuildingReference> GetAllBuildings()
+    public IReadOnlyList<RoomReference> GetAllRooms()
     {
-        var result = new List<BuildingReference>();
-        foreach (var list in _buildings.Values)
+        var result = new List<RoomReference>();
+        foreach (var list in _rooms.Values)
         {
             result.AddRange(list);
         }
@@ -463,19 +473,36 @@ public class SharedKnowledge
     }
 
     /// <summary>
-    /// Remove all facility registrations for a specific building.
+    /// Remove all facility registrations for a specific room.
+    /// Matches by checking if facility positions are within the room's tiles.
     /// </summary>
-    public void UnregisterFacilitiesForBuilding(Building building)
+    public void UnregisterFacilitiesForRoom(Room room)
     {
         foreach (var list in _facilities.Values)
         {
-            list.RemoveAll(f => f.Facility?.Owner == building);
+            list.RemoveAll(f =>
+            {
+                if (f.Facility == null)
+                {
+                    return true;
+                }
+
+                return room.ContainsAbsolutePosition(f.Position);
+            });
         }
 
         // Also remove from the tag-based index
         foreach (var list in _facilitiesByStorageTag.Values)
         {
-            list.RemoveAll(f => f.Facility?.Owner == building);
+            list.RemoveAll(f =>
+            {
+                if (f.Facility == null)
+                {
+                    return true;
+                }
+
+                return room.ContainsAbsolutePosition(f.Position);
+            });
         }
     }
 
@@ -510,26 +537,25 @@ public class SharedKnowledge
     }
 
     /// <summary>
-    /// Clean up invalid building references.
+    /// Clean up invalid room references.
     /// Call periodically on main thread.
     /// </summary>
     public void CleanupInvalidReferences()
     {
-        foreach (var list in _buildings.Values)
+        foreach (var list in _rooms.Values)
         {
             list.RemoveAll(r => !r.IsValid);
         }
 
         // Also clean up storage tag references
-        var invalidBuildingIds = new List<string>();
-        foreach (var (buildingId, _) in _buildingStorageTags)
+        var invalidRoomIds = new List<string>();
+        foreach (var (roomId, _) in _roomStorageTags)
         {
-            // Check if any building reference with this ID is still valid
-            // We need to check by iterating through the tagged buildings
+            // Check if any room reference with this ID is still valid
             bool isValid = false;
-            foreach (var taggedList in _buildingsByStorageTag.Values)
+            foreach (var taggedList in _roomsByStorageTag.Values)
             {
-                if (taggedList.Any(r => r.IsValid && r.Building?.GetInstanceId().ToString(CultureInfo.InvariantCulture) == buildingId))
+                if (taggedList.Any(r => r.IsValid && r.Room?.Id == roomId))
                 {
                     isValid = true;
                     break;
@@ -538,17 +564,17 @@ public class SharedKnowledge
 
             if (!isValid)
             {
-                invalidBuildingIds.Add(buildingId);
+                invalidRoomIds.Add(roomId);
             }
         }
 
-        foreach (var buildingId in invalidBuildingIds)
+        foreach (var roomId in invalidRoomIds)
         {
-            _buildingStorageTags.Remove(buildingId);
+            _roomStorageTags.Remove(roomId);
         }
 
-        // Clean up invalid references in the tagged buildings lists
-        foreach (var list in _buildingsByStorageTag.Values)
+        // Clean up invalid references in the tagged rooms lists
+        foreach (var list in _roomsByStorageTag.Values)
         {
             list.RemoveAll(r => !r.IsValid);
         }

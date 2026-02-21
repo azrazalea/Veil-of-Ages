@@ -65,9 +65,9 @@ public class FetchResourceActivity : StatefulActivity<FetchResourceActivity.Fetc
     // Energy cost per tick while working (same as DrawWaterActivity)
     private const float ENERGYCOSTPERTICK = 0.02f;
 
-    // Display name helpers — prefer building name when available, fall back to facility ID
-    private string SourceName => _sourceFacility.Owner?.BuildingName ?? _sourceFacility.Id;
-    private string DestinationName => _destinationFacility.Owner?.BuildingName ?? _destinationFacility.Id;
+    // Display name helpers — prefer room name when available, fall back to facility ID
+    private string SourceName => _sourceFacility.ContainingRoom?.Name ?? _sourceFacility.Id;
+    private string DestinationName => _destinationFacility.ContainingRoom?.Name ?? _destinationFacility.Id;
 
     protected override FetchTrigger InterruptedTrigger => FetchTrigger.Interrupted;
 
@@ -83,11 +83,11 @@ public class FetchResourceActivity : StatefulActivity<FetchResourceActivity.Fetc
         _ => L.TrFmt("activity.FETCHING", _itemId)
     };
 
-    public override Building? TargetBuilding => _machine.State is FetchState.GoingToSource
+    public override Room? TargetRoom => _machine.State is FetchState.GoingToSource
         or FetchState.WorkingAtSource
         or FetchState.TakingResource
-            ? _sourceFacility.Owner
-            : _destinationFacility.Owner;
+            ? _sourceFacility.ContainingRoom
+            : _destinationFacility.ContainingRoom;
 
     public override List<Vector2I> GetAlternativeGoalPositions(Being entity)
     {
@@ -449,7 +449,7 @@ public class FetchResourceActivity : StatefulActivity<FetchResourceActivity.Fetc
 
     private Activity CreateNavigationActivity(Facility targetFacility, string label)
     {
-        DebugLog("FETCH", $"Starting navigation to {label}: {targetFacility.Owner?.BuildingName ?? targetFacility.Id}", 0);
+        DebugLog("FETCH", $"Starting navigation to {label}: {targetFacility.ContainingRoom?.Name ?? targetFacility.Id}", 0);
         return new GoToFacilityActivity(targetFacility, Priority);
     }
 }

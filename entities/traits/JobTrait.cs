@@ -9,7 +9,7 @@ using VeilOfAges.Entities.Sensory;
 namespace VeilOfAges.Entities.Traits;
 
 /// <summary>
-/// Base class for job traits that work at a building during specific hours.
+/// Base class for job traits that work at a facility during specific hours.
 /// Job traits DECIDE when to work by starting activities - they never access storage
 /// or manage navigation directly.
 ///
@@ -66,7 +66,7 @@ public abstract class JobTrait : BeingTrait, IDesiredResources
     protected virtual Facility? GetWorkplace() => _workplace;
 
     /// <summary>
-    /// Gets the configuration key used to get the workplace from TraitConfiguration.
+    /// Gets the configuration key used to get the workplace room from TraitConfiguration.
     /// Default is "workplace". FarmerJobTrait overrides to "farm".
     /// </summary>
     protected virtual string WorkplaceConfigKey => "workplace";
@@ -172,7 +172,8 @@ public abstract class JobTrait : BeingTrait, IDesiredResources
         }
 
         // Check for workplace in config
-        if (config.GetBuilding(WorkplaceConfigKey) == null && config.GetBuilding("workplace") == null)
+        var workRoom = config.GetRoom(WorkplaceConfigKey) ?? config.GetRoom("workplace");
+        if (workRoom == null)
         {
             Log.Warn($"{GetType().Name}: '{WorkplaceConfigKey}' or 'workplace' parameter recommended for proper function");
         }
@@ -182,7 +183,7 @@ public abstract class JobTrait : BeingTrait, IDesiredResources
 
     /// <summary>
     /// Configures the trait from a TraitConfiguration.
-    /// Default implementation resolves workplace building to its storage facility.
+    /// Default implementation resolves workplace room to its storage facility.
     /// Override for custom configuration.
     /// </summary>
     public override void Configure(TraitConfiguration config)
@@ -194,8 +195,8 @@ public abstract class JobTrait : BeingTrait, IDesiredResources
         }
 
         // Try custom key first, then "workplace" as fallback
-        // Resolve Building -> Facility via default room's storage facility
-        var building = config.GetBuilding(WorkplaceConfigKey) ?? config.GetBuilding("workplace");
-        _workplace = building?.GetDefaultRoom()?.GetStorageFacility();
+        // Resolve Room -> Facility via room's storage facility
+        var room = config.GetRoom(WorkplaceConfigKey) ?? config.GetRoom("workplace");
+        _workplace = room?.GetStorageFacility();
     }
 }

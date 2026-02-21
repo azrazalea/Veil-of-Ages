@@ -303,26 +303,11 @@ public partial class PlayerInputController : Node
             return null;
         }
 
-        // Search all buildings in the player's current area
-        foreach (Node child in gridArea.GetChildren())
+        // Query the entity grid at the clicked position for a Facility
+        var entityAtPos = gridArea.EntitiesGridSystem.GetCell(position);
+        if (entityAtPos is Facility facility && facility.Interactable != null)
         {
-            if (child is Building building && building.ContainsPosition(position))
-            {
-                IFacilityInteractable? interactable = null;
-                foreach (var room in building.Rooms)
-                {
-                    interactable = room.GetInteractableFacilityAt(position);
-                    if (interactable != null)
-                    {
-                        break;
-                    }
-                }
-
-                if (interactable != null)
-                {
-                    return interactable;
-                }
-            }
+            return facility.Interactable;
         }
 
         return null;
@@ -391,14 +376,9 @@ public partial class PlayerInputController : Node
                 if (_contextFacilityInteractable != null && _dialogueUI != null)
                 {
                     var facility = _contextFacilityInteractable.Facility;
-                    if (facility.Owner == null)
-                    {
-                        Log.Warn("Cannot interact with facility - no owner building");
-                        break;
-                    }
 
                     var activity = new InteractWithFacilityActivity(
-                        facility.Owner, facility.Id, _contextFacilityInteractable, _dialogueUI);
+                        facility, _contextFacilityInteractable, _dialogueUI);
                     _player.SetCurrentActivity(activity);
                 }
 

@@ -71,11 +71,11 @@ public class BakerJobTrait : JobTrait
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BakerJobTrait"/> class.
-    /// Constructor for direct instantiation with a workplace.
+    /// Constructor for direct instantiation with a workplace room.
     /// </summary>
-    public BakerJobTrait(Building workplace)
+    public BakerJobTrait(Room workRoom)
     {
-        _workplace = workplace.GetDefaultRoom()?.GetStorageFacility();
+        _workplace = workRoom.GetStorageFacility();
     }
 
     /// <summary>
@@ -117,7 +117,7 @@ public class BakerJobTrait : JobTrait
             return null;
         }
 
-        var facilities = _workplace.Owner?.GetDefaultRoom()?.Facilities
+        var facilities = _workplace.ContainingRoom?.Facilities
             .Select(f => f.Id).Distinct() ?? Enumerable.Empty<string>();
 
         // Track missing inputs for potential water fetch or storage check
@@ -287,33 +287,25 @@ public class BakerJobTrait : JobTrait
             return null;
         }
 
-        // We need water - try to find a well via SharedKnowledge
-        if (!_owner.TryFindBuildingOfType("Well", out BuildingReference? wellRef) || wellRef?.Building == null)
+        // We need water - find a well facility via SharedKnowledge
+        // (the well has no enclosing room, so we look it up by facility type rather than room type)
+        var wellFacilityRef = _owner.FindFacilityOfType("Well");
+        if (wellFacilityRef?.Facility == null)
         {
             DebugLog("BAKER", "Need water but no well found via SharedKnowledge");
             return null;
         }
 
-        var well = wellRef.Building;
+        var wellStorageFacility = wellFacilityRef.Facility;
 
         // Check if well has water available (from memory or go check it)
-        int wellWater = _owner.GetStorageItemCount(well, "water");
+        int wellWater = _owner.GetStorageItemCount(wellStorageFacility, "water");
         if (wellWater <= 0)
         {
             // We don't remember seeing water at the well
-            // Storage observations are keyed by Facility — look up the storage facility first
-            var wellStorageFacility = well.GetDefaultRoom()?.GetStorageFacility();
-            var wellMemory = wellStorageFacility != null
-                ? _owner.Memory?.RecallStorageContents(wellStorageFacility)
-                : null;
+            var wellMemory = _owner.Memory?.RecallStorageContents(wellStorageFacility);
             if (wellMemory == null)
             {
-                if (wellStorageFacility == null)
-                {
-                    DebugLog("BAKER", "Well has no storage facility");
-                    return null;
-                }
-
                 // No memory of well - go check it
                 DebugLog("BAKER", "Need water, no memory of well storage, going to check well", 0);
                 return new CheckStorageActivity(wellStorageFacility, priority: 0);
@@ -325,13 +317,6 @@ public class BakerJobTrait : JobTrait
         }
 
         // Calculate how much water to fetch
-        var wellStorage = well.GetDefaultRoom()?.GetStorageFacility();
-        if (wellStorage == null)
-        {
-            DebugLog("BAKER", "Well has no storage facility for water fetch");
-            return null;
-        }
-
         var workplace = _workplace;
         if (workplace == null)
         {
@@ -343,12 +328,12 @@ public class BakerJobTrait : JobTrait
 
         DebugLog("BAKER", $"Workplace water low ({currentWater}/{DESIREDWATERATWORKPLACE}), fetching {amountToFetch} from well", 0);
 
-        return new FetchResourceActivity(wellStorage, workplace, "water", amountToFetch, priority: 0);
+        return new FetchResourceActivity(wellStorageFacility, workplace, "water", amountToFetch, priority: 0);
     }
 
     /// <summary>
     /// Try to create a wheat fetch activity if wheat is low at the workplace.
-    /// Uses personal memory and SharedKnowledge to find buildings with wheat.
+    /// Uses personal memory and SharedKnowledge to find rooms with wheat.
     /// Pattern from ItemConsumptionBehaviorTrait for finding items.
     /// Returns a FetchResourceActivity if wheat should be fetched, null otherwise.
     /// </summary>
@@ -374,82 +359,79 @@ public class BakerJobTrait : JobTrait
             return null;
         }
 
-        // We need wheat - find a building that has it
-        // Strategy 1: Check personal memory for buildings where we saw wheat
+        // We need wheat - find a room that has it
+        // Strategy 1: Check personal memory for facilities where we saw wheat
         var rememberedWheatLocations = _owner.Memory?.RecallStorageWithItemById("wheat") ?? [];
 
-        // Strategy 2: Check SharedKnowledge for buildings tagged as storing grain
+        // Strategy 2: Check SharedKnowledge for rooms tagged as storing grain
         // (Farmer homes with IDesiredResources wheat would be tagged as "grain" storage)
-        var grainBuildings = _owner.SharedKnowledge
-            .SelectMany(k => k.GetBuildingsByTag("grain"))
-            .Where(b => b.IsValid && b.Building != null && b.Building != _workplace?.Owner)
-            .Select(b => b.Building)
-            .OfType<Building>()
+        var grainRoomRefs = _owner.SharedKnowledge
+            .SelectMany(k => k.GetRoomsByTag("grain"))
+            .Where(r => r.IsValid && r.Room != null && r.Room != _workplace?.ContainingRoom)
             .ToList();
 
-        // Build list of candidate buildings to fetch from
-        // Priority: buildings we remember having wheat > buildings known to store grain
-        Building? sourceBuilding = null;
+        // Build list of candidate facilities to fetch from
+        // Priority: facilities we remember having wheat > rooms known to store grain
+        Facility? sourceFacility = null;
         int rememberedQuantity = 0;
 
         // First, check remembered locations (highest confidence)
-        // RecallStorageWithItemById returns (Facility, int); use facility.Owner for the Building.
+        // RecallStorageWithItemById returns (Facility, int); use facility directly.
         foreach (var (facility, quantity) in rememberedWheatLocations)
         {
-            var ownerBuilding = facility.Owner;
-
-            // Skip if no owner building (shouldn't happen for building-owned facilities)
-            if (ownerBuilding == null)
-            {
-                continue;
-            }
-
             // Skip our own workplace
-            if (ownerBuilding == _workplace?.Owner)
+            if (facility == _workplace)
             {
                 continue;
             }
 
-            // Skip invalid buildings
-            if (!GodotObject.IsInstanceValid(ownerBuilding))
+            // Skip invalid facilities
+            if (!GodotObject.IsInstanceValid(facility))
             {
                 continue;
             }
 
-            // Use the building with the most remembered wheat
+            // Use the facility with the most remembered wheat
             if (quantity > rememberedQuantity)
             {
-                sourceBuilding = ownerBuilding;
+                sourceFacility = facility;
                 rememberedQuantity = quantity;
             }
         }
 
-        // If we found a building with remembered wheat, use it
-        if (sourceBuilding != null && rememberedQuantity > 0)
+        // If we found a facility with remembered wheat, use it
+        if (sourceFacility != null && rememberedQuantity > 0)
         {
-            var sourceStorage = sourceBuilding.GetDefaultRoom()?.GetStorageFacility();
             var workplace = _workplace;
-            if (sourceStorage == null || workplace == null)
+            if (workplace == null)
             {
-                DebugLog("BAKER", "Source or workplace has no storage facility for wheat fetch");
+                DebugLog("BAKER", "Workplace has no storage facility for wheat fetch");
                 return null;
             }
+
+            var sourceName = sourceFacility.ContainingRoom?.Name ?? sourceFacility.Id;
 
             int amountToFetch = System.Math.Min(WHEATFETCHAMOUNT, DESIREDWHEATATWORKPLACE - currentWheat);
             amountToFetch = System.Math.Min(amountToFetch, rememberedQuantity); // Don't try to take more than we remember
             amountToFetch = System.Math.Max(1, amountToFetch);
 
-            DebugLog("BAKER", $"Workplace wheat low ({currentWheat}/{DESIREDWHEATATWORKPLACE}), fetching {amountToFetch} from {sourceBuilding.BuildingName} (remembered {rememberedQuantity})", 0);
+            DebugLog("BAKER", $"Workplace wheat low ({currentWheat}/{DESIREDWHEATATWORKPLACE}), fetching {amountToFetch} from {sourceName} (remembered {rememberedQuantity})", 0);
 
-            return new FetchResourceActivity(sourceStorage, workplace, "wheat", amountToFetch, priority: 0);
+            return new FetchResourceActivity(sourceFacility, workplace, "wheat", amountToFetch, priority: 0);
         }
 
-        // No remembered wheat - check if there are grain buildings we haven't observed
-        foreach (var building in grainBuildings)
+        // No remembered wheat - check if there are grain rooms we haven't observed
+        foreach (var roomRef in grainRoomRefs)
         {
-            // Check if we have any memory of this building's storage
+            var room = roomRef.Room;
+            if (room == null)
+            {
+                continue;
+            }
+
+            // Check if we have any memory of this room's storage
             // Storage observations are keyed by Facility — look up the storage facility first
-            var storageFacility = building.GetDefaultRoom()?.GetStorageFacility();
+            var storageFacility = room.GetStorageFacility();
             var observation = storageFacility != null
                 ? _owner.Memory?.RecallStorageContents(storageFacility)
                 : null;
@@ -460,13 +442,13 @@ public class BakerJobTrait : JobTrait
                     continue; // No storage facility, skip
                 }
 
-                // No memory of this building - go check it
-                DebugLog("BAKER", $"Need wheat, no memory of {building.BuildingName} storage, going to check", 0);
+                // No memory of this room - go check it
+                DebugLog("BAKER", $"Need wheat, no memory of {room.Name} storage, going to check", 0);
                 return new CheckStorageActivity(storageFacility, priority: 0);
             }
 
             // We have memory but it showed no wheat (or we already checked above)
-            // Continue to next building
+            // Continue to next room
         }
 
         // No wheat sources found or all checked and empty

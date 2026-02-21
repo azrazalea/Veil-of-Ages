@@ -5,7 +5,7 @@ using VeilOfAges.Entities.Memory;
 namespace VeilOfAges.Entities.Traits;
 
 /// <summary>
-/// Building trait for granaries that manages standing delivery orders.
+/// Trait for granaries that manages standing delivery orders.
 /// Distributors read orders from this trait to know what to deliver where.
 /// </summary>
 public class GranaryTrait : Trait
@@ -17,46 +17,46 @@ public class GranaryTrait : Trait
 
     /// <summary>
     /// Initialize standing orders based on village households.
-    /// Called after all village buildings are placed.
+    /// Called after all village rooms are placed.
     /// </summary>
     /// <param name="village">The village containing the households.</param>
     public void InitializeOrdersFromVillage(Village village)
     {
-        foreach (var building in village.Buildings)
+        foreach (var room in village.Rooms)
         {
             // Skip non-houses
-            if (building.BuildingType != "House")
+            if (room.Type != "House")
             {
                 continue;
             }
 
             // Check if this house has a baker resident
-            bool hasBaker = HasBakerResident(building);
+            bool hasBaker = HasBakerResident(room);
 
             // Check if this house has a scholar resident (can't produce own food)
-            bool hasScholar = HasScholarResident(building);
+            bool hasScholar = HasScholarResident(room);
 
             if (hasBaker)
             {
                 // Baker houses get wheat for baking
-                Orders.SetDeliveryTarget(building, "wheat", 10, priority: 1);
+                Orders.SetDeliveryTarget(room, "wheat", 10, priority: 1);
             }
             else
             {
                 // Scholar houses get higher priority for bread delivery
                 // (scholars can't produce their own food)
                 int priority = hasScholar ? -1 : 0;
-                Orders.SetDeliveryTarget(building, "bread", 5, priority: priority);
+                Orders.SetDeliveryTarget(room, "bread", 5, priority: priority);
             }
         }
     }
 
     /// <summary>
-    /// Check if a building has a baker resident.
+    /// Check if a room has a baker resident.
     /// </summary>
-    private static bool HasBakerResident(Building building)
+    private static bool HasBakerResident(Room room)
     {
-        foreach (var resident in building.Rooms.SelectMany(r => r.Residents))
+        foreach (var resident in room.Residents)
         {
             if (resident.SelfAsEntity().HasTrait<BakerJobTrait>())
             {
@@ -68,12 +68,12 @@ public class GranaryTrait : Trait
     }
 
     /// <summary>
-    /// Check if a building has a scholar resident (who can't produce their own food).
+    /// Check if a room has a scholar resident (who can't produce their own food).
     /// Scholars include the player character and any other entities with ScholarJobTrait.
     /// </summary>
-    private static bool HasScholarResident(Building building)
+    private static bool HasScholarResident(Room room)
     {
-        foreach (var resident in building.Rooms.SelectMany(r => r.Residents))
+        foreach (var resident in room.Residents)
         {
             if (resident.SelfAsEntity().HasTrait<ScholarJobTrait>())
             {
@@ -88,25 +88,25 @@ public class GranaryTrait : Trait
     /// Update standing order for a specific household.
     /// Call this when a new resident is added to a house after initial setup.
     /// </summary>
-    /// <param name="building">The household to update.</param>
-    public void UpdateHouseholdOrder(Building building)
+    /// <param name="room">The household room to update.</param>
+    public void UpdateHouseholdOrder(Room room)
     {
-        if (building.BuildingType != "House")
+        if (room.Type != "House")
         {
             return;
         }
 
-        bool hasBaker = HasBakerResident(building);
-        bool hasScholar = HasScholarResident(building);
+        bool hasBaker = HasBakerResident(room);
+        bool hasScholar = HasScholarResident(room);
 
         if (hasBaker)
         {
-            Orders.SetDeliveryTarget(building, "wheat", 10, priority: 1);
+            Orders.SetDeliveryTarget(room, "wheat", 10, priority: 1);
         }
         else
         {
             int priority = hasScholar ? -1 : 0;
-            Orders.SetDeliveryTarget(building, "bread", 5, priority: priority);
+            Orders.SetDeliveryTarget(room, "bread", 5, priority: priority);
         }
     }
 
@@ -122,7 +122,7 @@ public class GranaryTrait : Trait
         }
 
         var summary = targets
-            .Select(t => $"{t.Household.BuildingName}: {t.DesiredQuantity}x {t.ItemId}")
+            .Select(t => $"{t.Household.Name}: {t.DesiredQuantity}x {t.ItemId}")
             .ToList();
         return string.Join(", ", summary);
     }

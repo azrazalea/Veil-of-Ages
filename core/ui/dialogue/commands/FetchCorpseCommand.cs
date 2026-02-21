@@ -51,36 +51,36 @@ public class FetchCorpseCommand : EntityCommand
         {
             // Find graveyard via SharedKnowledge (BDI-compliant — entity only knows
             // what their knowledge sources tell them)
-            var graveyardRef = _owner.FindNearestBuildingOfType("Graveyard", _owner.GetCurrentGridPosition());
+            var graveyardRef = _owner.FindNearestRoomOfType("Graveyard", _owner.GetCurrentGridPosition());
             if (graveyardRef == null || !graveyardRef.IsValid)
             {
-                Log.Warn($"{_owner.Name}: Graveyard building reference is invalid");
+                Log.Warn($"{_owner.Name}: FetchCorpseCommand: Graveyard room reference is invalid");
                 return null;
             }
 
-            var graveyardBuilding = graveyardRef.Building;
-            if (graveyardBuilding == null || !GodotObject.IsInstanceValid(graveyardBuilding))
+            var graveyardRoom = graveyardRef.Room;
+            if (graveyardRoom == null || graveyardRoom.IsDestroyed)
             {
-                Log.Warn($"{_owner.Name}: FetchCorpseCommand: Graveyard building reference is invalid");
+                Log.Warn($"{_owner.Name}: FetchCorpseCommand: Graveyard room is invalid");
                 return null;
             }
 
-            // Resolve buildings to their storage facilities for FetchResourceActivity
-            var graveyardStorage = graveyardBuilding.GetDefaultRoom()?.GetStorageFacility();
+            // Resolve rooms to their storage facilities for FetchResourceActivity
+            var graveyardStorage = graveyardRoom.GetStorageFacility();
             if (graveyardStorage == null)
             {
                 Log.Warn($"{_owner.Name}: FetchCorpseCommand: Graveyard has no storage facility");
                 return null;
             }
 
-            var altarBuilding = _altarFacility.Owner;
-            if (altarBuilding == null || !GodotObject.IsInstanceValid(altarBuilding))
+            var altarRoom = _altarFacility.ContainingRoom;
+            if (altarRoom == null || altarRoom.IsDestroyed)
             {
-                Log.Warn($"{_owner.Name}: FetchCorpseCommand: Altar facility has no valid owner building");
+                Log.Warn($"{_owner.Name}: FetchCorpseCommand: Altar facility has no valid containing room");
                 return null;
             }
 
-            var altarStorage = altarBuilding.GetDefaultRoom()?.GetStorageFacility();
+            var altarStorage = altarRoom.GetStorageFacility();
             if (altarStorage == null)
             {
                 Log.Warn($"{_owner.Name}: FetchCorpseCommand: Cellar has no storage facility");

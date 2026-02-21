@@ -5,7 +5,6 @@ using Godot;
 using VeilOfAges.Core;
 using VeilOfAges.Entities.Items;
 using VeilOfAges.Grid;
-using BuildingEntity = VeilOfAges.Entities.Building;
 
 namespace VeilOfAges.Entities.Memory;
 
@@ -397,13 +396,13 @@ public class PersonalMemory
     /// Record an observation of a facility at a specific location.
     /// Call this when entity discovers or visits a facility.
     /// </summary>
-    public void ObserveFacility(string facilityType, BuildingEntity building, Area? area, Vector2I position)
+    public void ObserveFacility(string facilityType, Facility facility, Area? area, Vector2I position)
     {
         uint currentTick = GameController.CurrentTick;
 
         // Update existing observation if found
         var existing = _facilityObservations.FirstOrDefault(f =>
-            f.FacilityType == facilityType && f.Building == building);
+            f.FacilityType == facilityType && f.Facility == facility);
         if (existing != null)
         {
             existing.Update(currentTick, currentTick + StorageMemoryDuration);
@@ -411,7 +410,7 @@ public class PersonalMemory
         }
 
         _facilityObservations.Add(new FacilityObservation(
-            facilityType, building, area, position,
+            facilityType, facility, area, position,
             currentTick, currentTick + StorageMemoryDuration));
     }
 
@@ -752,9 +751,9 @@ public class FacilityObservation
     public string FacilityType { get; }
 
     /// <summary>
-    /// Gets the building containing the facility.
+    /// Gets the facility that was observed.
     /// </summary>
-    public BuildingEntity Building { get; }
+    public Facility Facility { get; }
 
     /// <summary>
     /// Gets the area the facility is in.
@@ -781,14 +780,14 @@ public class FacilityObservation
     /// </summary>
     public FacilityObservation(
         string facilityType,
-        BuildingEntity building,
+        Facility facility,
         Area? area,
         Vector2I position,
         uint observedTick,
         uint expirationTick)
     {
         FacilityType = facilityType;
-        Building = building;
+        Facility = facility;
         Area = area;
         Position = position;
         ObservedTick = observedTick;
@@ -803,9 +802,9 @@ public class FacilityObservation
     public bool IsExpired(uint currentTick) => currentTick > ExpirationTick;
 
     /// <summary>
-    /// Gets a value indicating whether the building reference is still valid (not freed).
+    /// Gets a value indicating whether the facility reference is still valid (not freed).
     /// </summary>
-    public bool IsValid => GodotObject.IsInstanceValid(Building);
+    public bool IsValid => GodotObject.IsInstanceValid(Facility);
 
     /// <summary>
     /// Update this observation with new timing information.

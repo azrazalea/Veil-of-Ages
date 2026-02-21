@@ -136,6 +136,18 @@ public partial class Area(Vector2I worldSize): Node2D
         return _beingNum > 0;
     }
 
+    /// <summary>
+    /// Set A* walkability and weight for a position without painting the ground TileMapLayer visual.
+    /// Used by walkable StructuralEntities (floors) that render via their own Sprite2D nodes.
+    /// </summary>
+    public void SetGroundWalkability(Vector2I pos, bool walkable, float weight = 1.0f)
+    {
+        var entityAtPos = EntitiesGridSystem.GetCell(pos);
+        bool hasBlockingEntity = entityAtPos is IEntity { IsWalkable: false };
+        AStarGrid?.SetPointSolid(pos, !walkable || hasBlockingEntity);
+        AStarGrid?.SetPointWeightScale(pos, weight);
+    }
+
     public void SetGroundCell(Vector2I groundPos, Tile tile)
     {
         _groundGridSystem.SetCell(groundPos, tile);

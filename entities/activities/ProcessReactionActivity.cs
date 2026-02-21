@@ -67,7 +67,7 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
 
     private readonly ReactionDefinition _reaction;
     private readonly Facility? _workplaceStorage;
-    private readonly Building? _workplaceBuilding;
+    private readonly Room? _workplaceRoom;
 
     // Progress tracking (preserved across interruptions)
     private uint _processTimer;
@@ -86,7 +86,7 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
         _ => L.TrFmt("activity.PREPARING", _reaction.Name ?? string.Empty)
     };
 
-    public override Building? TargetBuilding => _workplaceBuilding;
+    public override Room? TargetRoom => _workplaceRoom;
 
     public override string? TargetFacilityId => _machine.State is ReactionState.GoingToFacility
         or ReactionState.ExecutingReaction
@@ -121,7 +121,7 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
     {
         _reaction = reaction;
         _workplaceStorage = workplaceStorage;
-        _workplaceBuilding = workplaceStorage?.Owner;
+        _workplaceRoom = workplaceStorage?.ContainingRoom;
         Priority = priority;
 
         // Apply reaction's hunger multiplier (defaults to 1.0 if not specified)
@@ -207,10 +207,10 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
             return null;
         }
 
-        // Check workplace still exists (if we have one)
-        if (_workplaceBuilding != null && !GodotObject.IsInstanceValid(_workplaceBuilding))
+        // Check workplace room still exists (if we have one)
+        if (_workplaceRoom != null && _workplaceRoom.IsDestroyed)
         {
-            Log.Warn($"{_owner.Name}: {_workplaceBuilding?.BuildingName ?? "workplace"} destroyed while processing {_reaction.Name}");
+            Log.Warn($"{_owner.Name}: {_workplaceRoom.Name} destroyed while processing {_reaction.Name}");
             Fail();
             return null;
         }
@@ -237,18 +237,18 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
         }
 
         // No workplace needed - skip directly to storage for inputs
-        if (_workplaceBuilding == null)
+        if (_workplaceRoom == null)
         {
             _machine.Fire(ReactionTrigger.ArrivedAtBuilding);
             return new IdleAction(_owner, this, Priority);
         }
 
-        var building = _workplaceBuilding; // Local capture for lambda (guaranteed non-null by check above)
+        var room = _workplaceRoom; // Local capture for lambda (guaranteed non-null by check above)
         var (result, action) = RunCurrentSubActivity(
             () =>
             {
-                DebugLog("REACTION", $"Navigating to {building.BuildingName} to process {_reaction.Name}", 0);
-                return new GoToBuildingActivity(building, Priority);
+                DebugLog("REACTION", $"Navigating to {room.Name} to process {_reaction.Name}", 0);
+                return new GoToRoomActivity(room, Priority);
             },
             position, perception);
         switch (result)
@@ -262,8 +262,8 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
                 break;
         }
 
-        // Arrived at building
-        DebugLog("REACTION", $"Arrived at {building.BuildingName} to process {_reaction.Name}", 0);
+        // Arrived at room
+        DebugLog("REACTION", $"Arrived at {room.Name} to process {_reaction.Name}", 0);
         _machine.Fire(ReactionTrigger.ArrivedAtBuilding);
         return new IdleAction(_owner, this, Priority);
     }
@@ -378,19 +378,28 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
         }
 
         // No facility required - skip to executing reaction
-        if (_workplaceBuilding == null || _reaction.RequiredFacilities.Count == 0)
+        if (_workplaceRoom == null || _reaction.RequiredFacilities.Count == 0)
         {
             _machine.Fire(ReactionTrigger.ArrivedAtFacility);
             return new IdleAction(_owner, this, Priority);
         }
 
-        var building = _workplaceBuilding; // Local capture for lambda (guaranteed non-null by check above)
+        var room = _workplaceRoom; // Local capture for lambda (guaranteed non-null by check above)
         var (result, action) = RunCurrentSubActivity(
             () =>
             {
                 string facilityId = _reaction.RequiredFacilities[0];
                 DebugLog("REACTION", $"Navigating to {facilityId} to execute {_reaction.Name}", 0);
-                return new GoToFacilityActivity(building, facilityId, Priority);
+
+                // Find the facility in the room, then navigate to it directly
+                var targetFacility = room.GetFacility(facilityId);
+                if (targetFacility != null)
+                {
+                    return new GoToFacilityActivity(targetFacility, Priority);
+                }
+
+                // Fall back: just go to the room
+                return new GoToRoomActivity(room, Priority);
             },
             position, perception);
         switch (result)
@@ -459,7 +468,7 @@ public class ProcessReactionActivity : StatefulActivity<ProcessReactionActivity.
         if (_workplaceStorage == null)
         {
             // No workplace storage means we can't deposit - just complete
-            Log.Print($"{_owner.Name}: Completed {_reaction.Name} at {_workplaceBuilding?.BuildingName ?? "workplace"}");
+            Log.Print($"{_owner.Name}: Completed {_reaction.Name} at {_workplaceRoom?.Name ?? "workplace"}");
             Complete();
             return null;
         }

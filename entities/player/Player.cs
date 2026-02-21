@@ -34,9 +34,9 @@ public partial class Player : GenericBeing
     public AutonomyConfig AutonomyConfig { get; private set; } = new ();
 
     /// <summary>
-    /// Gets the player's home building from HomeTrait.
+    /// Gets the player's home room from HomeTrait.
     /// </summary>
-    public Building? Home => SelfAsEntity().GetTrait<HomeTrait>()?.HomeBuilding;
+    public Room? Home => SelfAsEntity().GetTrait<HomeTrait>()?.Home;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Player"/> class.
@@ -48,19 +48,19 @@ public partial class Player : GenericBeing
     }
 
     /// <summary>
-    /// Sets the player's home building via HomeTrait and notifies ScholarJobTrait.
+    /// Sets the player's home room via HomeTrait and notifies ScholarJobTrait.
     /// Called by World after player initialization when assigning the player's house.
     /// </summary>
-    /// <param name="home">The building to set as home.</param>
-    public void SetHome(Building home)
+    /// <param name="homeRoom">The room to set as home.</param>
+    public void SetHome(Room homeRoom)
     {
         // Set home via HomeTrait (single source of truth)
         var homeTrait = SelfAsEntity().GetTrait<HomeTrait>();
-        homeTrait?.SetHome(home);
+        homeTrait?.SetHome(homeRoom);
 
         // Notify ScholarJobTrait (needs to know workplace location)
         var scholarJobTrait = SelfAsEntity().GetTrait<ScholarJobTrait>();
-        scholarJobTrait?.SetHome(home);
+        scholarJobTrait?.SetHome(homeRoom);
 
         // Apply autonomy config now that we have a home
         // (traits added by autonomy may need the home reference)

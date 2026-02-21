@@ -21,7 +21,7 @@ public class ScholarJobTrait : JobTrait
     private const uint WORKDURATION = 400; // ~50 seconds real time at 8 ticks/sec
 
     // Scholar uses home as workplace - this is set via Configure or SetHome
-    private Building? _home;
+    private Room? _homeRoom;
 
     /// <summary>
     /// Gets the activity type for studying work.
@@ -36,7 +36,7 @@ public class ScholarJobTrait : JobTrait
     /// <summary>
     /// Scholars use their home as the workplace.
     /// </summary>
-    protected override Facility? GetWorkplace() => _home?.GetDefaultRoom()?.GetStorageFacility();
+    protected override Facility? GetWorkplace() => _homeRoom?.GetStorageFacility();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ScholarJobTrait"/> class.
@@ -49,20 +49,20 @@ public class ScholarJobTrait : JobTrait
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ScholarJobTrait"/> class.
-    /// Constructor for direct instantiation with a home/study building.
+    /// Constructor for direct instantiation with a home/study room.
     /// </summary>
-    public ScholarJobTrait(Building home)
+    public ScholarJobTrait(Room homeRoom)
     {
-        _home = home;
+        _homeRoom = homeRoom;
     }
 
     /// <summary>
-    /// Sets the home/study building where the scholar conducts their research.
+    /// Sets the home/study room where the scholar conducts their research.
     /// </summary>
-    /// <param name="home">The building to use as the study location.</param>
-    public void SetHome(Building home)
+    /// <param name="homeRoom">The room to use as the study location.</param>
+    public void SetHome(Room homeRoom)
     {
-        _home = home;
+        _homeRoom = homeRoom;
     }
 
     /// <summary>
@@ -71,13 +71,13 @@ public class ScholarJobTrait : JobTrait
     public override bool ValidateConfiguration(TraitConfiguration config)
     {
         // If already set via constructor, we're good
-        if (_home != null)
+        if (_homeRoom != null)
         {
             return true;
         }
 
         // home is recommended but we handle null gracefully
-        if (config.GetBuilding("home") == null)
+        if (config.GetRoom("home") == null)
         {
             Log.Warn("ScholarJobTrait: 'home' parameter recommended for proper function");
         }
@@ -91,12 +91,12 @@ public class ScholarJobTrait : JobTrait
     public override void Configure(TraitConfiguration config)
     {
         // If already set via constructor or SetHome, skip configuration
-        if (_home != null)
+        if (_homeRoom != null)
         {
             return;
         }
 
-        _home = config.GetBuilding("home");
+        _homeRoom = config.GetRoom("home");
     }
 
     /// <summary>
@@ -105,7 +105,12 @@ public class ScholarJobTrait : JobTrait
     /// </summary>
     protected override Activity? CreateWorkActivity()
     {
-        return new StudyActivity(_home!, WORKDURATION, priority: 0);
+        if (_homeRoom == null)
+        {
+            return null;
+        }
+
+        return new StudyActivity(_homeRoom, WORKDURATION, priority: 0);
     }
 
     // ===== Dialogue Methods (not part of job pattern, kept in subclass) =====

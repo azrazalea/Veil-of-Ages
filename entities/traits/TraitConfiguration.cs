@@ -308,14 +308,14 @@ public class TraitConfiguration
     }
 
     /// <summary>
-    /// Gets a Building reference from the configuration.
-    /// The value should be stored directly as a Building object in runtime parameters.
+    /// Gets a Room reference from the configuration.
+    /// The value should be stored directly as a Room object in runtime parameters.
     /// </summary>
     /// <param name="key">The parameter key.</param>
-    /// <returns>The Building, or null if not found or wrong type.</returns>
-    public Entities.Building? GetBuilding(string key)
+    /// <returns>The Room, or null if not found or wrong type.</returns>
+    public Entities.Room? GetRoom(string key)
     {
-        return Get<Entities.Building>(key);
+        return Get<Entities.Room>(key);
     }
 
     /// <summary>

@@ -49,12 +49,12 @@ public class FarmerJobTrait : JobTrait
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FarmerJobTrait"/> class.
-    /// Constructor for direct instantiation with a farm building.
-    /// Resolves the building to its storage facility for the base _workplace field.
+    /// Constructor for direct instantiation with a farm room.
+    /// Resolves the room to its storage facility for the base _workplace field.
     /// </summary>
-    public FarmerJobTrait(Building farm)
+    public FarmerJobTrait(Room farmRoom)
     {
-        _workplace = farm.GetDefaultRoom()?.GetStorageFacility();
+        _workplace = farmRoom.GetStorageFacility();
     }
 
     /// <summary>
@@ -63,9 +63,9 @@ public class FarmerJobTrait : JobTrait
     /// </summary>
     protected override Activity? CreateWorkActivity()
     {
-        // _workplace is Facility? (from JobTrait base); we need its owner Building
-        var workplaceBuilding = _workplace?.Owner;
-        if (workplaceBuilding == null)
+        // _workplace is Facility? (from JobTrait base); we need its containing room
+        var workRoom = _workplace?.ContainingRoom;
+        if (workRoom == null)
         {
             return null;
         }
@@ -74,7 +74,7 @@ public class FarmerJobTrait : JobTrait
         var homeTrait = _owner?.SelfAsEntity().GetTrait<HomeTrait>();
         Facility? homeStorage = homeTrait?.Home?.GetStorageFacility();
 
-        return new WorkFieldActivity(workplaceBuilding, homeStorage, WORKDURATION, priority: 0);
+        return new WorkFieldActivity(workRoom, homeStorage, WORKDURATION, priority: 0);
     }
 
     // ===== Dialogue Methods (not part of job pattern, kept in subclass) =====

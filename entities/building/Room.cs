@@ -39,9 +39,37 @@ public class Room
     public bool IsSecret { get; set; }
 
     /// <summary>
-    /// Gets the building that contains this room.
+    /// Gets or sets the room type (from template BuildingType — "House", "Farm", etc.).
     /// </summary>
-    public Building Owner { get; }
+    public string? Type { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this room has been destroyed
+    /// (e.g., walls removed opening it to the outside). Used for validity checking
+    /// since Room is a plain C# class, not a GodotObject.
+    /// </summary>
+    public bool IsDestroyed { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this room is fully enclosed by walls/fences/doors.
+    /// False for outdoor areas or rooms with missing walls.
+    /// </summary>
+    public bool IsEnclosed { get; set; }
+
+    /// <summary>
+    /// Gets the wall/fence/window/column structural entities forming this room's boundary.
+    /// </summary>
+    public List<StructuralEntity> Walls { get; } = [];
+
+    /// <summary>
+    /// Gets the floor structural entities inside this room.
+    /// </summary>
+    public List<StructuralEntity> Floors { get; } = [];
+
+    /// <summary>
+    /// Gets the door/gate structural entities on this room's boundary.
+    /// </summary>
+    public List<StructuralEntity> Doors { get; } = [];
 
     /// <summary>
     /// Gets or sets the grid area this room exists in.
@@ -87,11 +115,14 @@ public class Room
     /// </summary>
     public int Capacity { get; set; }
 
-    public Room(string id, Building owner, HashSet<Vector2I> tiles)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Room"/> class.
+    /// Tiles are stored as absolute positions.
+    /// </summary>
+    public Room(string id, HashSet<Vector2I> tiles)
     {
         Id = id;
         Name = id;
-        Owner = owner;
         _tiles = tiles;
     }
 
@@ -128,12 +159,14 @@ public class Room
 
     /// <summary>
     /// Register a facility as belonging to this room.
+    /// Also sets the facility's back-reference to this room.
     /// </summary>
     public void AddFacility(Facility facility)
     {
         if (!_facilities.Contains(facility))
         {
             _facilities.Add(facility);
+            facility.ContainingRoom = this;
         }
     }
 
@@ -206,14 +239,13 @@ public class Room
 
     /// <summary>
     /// Find an interactable facility at the given absolute position within this room.
+    /// Facility positions are always absolute.
     /// </summary>
     public IFacilityInteractable? GetInteractableFacilityAt(Vector2I absolutePos)
     {
-        var buildingPos = Owner.GetCurrentGridPosition();
-        var relativePos = absolutePos - buildingPos;
         foreach (var facility in _facilities)
         {
-            if (facility.Interactable != null && facility.Positions.Contains(relativePos))
+            if (facility.Interactable != null && facility.Positions.Contains(absolutePos))
             {
                 return facility.Interactable;
             }
@@ -225,17 +257,12 @@ public class Room
     // --- Position queries ---
 
     /// <summary>
-    /// Check if a position (relative to building origin) is within this room.
-    /// </summary>
-    public bool ContainsRelativePosition(Vector2I relativePos) => _tiles.Contains(relativePos);
-
-    /// <summary>
     /// Check if an absolute grid position is within this room.
+    /// Tiles are always stored as absolute positions.
     /// </summary>
     public bool ContainsAbsolutePosition(Vector2I absolutePos)
     {
-        var buildingPos = Owner.GetCurrentGridPosition();
-        return _tiles.Contains(absolutePos - buildingPos);
+        return _tiles.Contains(absolutePos);
     }
 
     // --- Secret room support ---

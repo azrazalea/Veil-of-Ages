@@ -42,7 +42,7 @@ public class StudyNecromancyActivity : Activity
         _ => L.Tr("activity.STUDYING_DARK_ARTS")
     };
 
-    public override Building? TargetBuilding => _facilityRef.Facility?.Owner;
+    public override Room? TargetRoom => _facilityRef.Facility?.ContainingRoom;
 
     public StudyNecromancyActivity(FacilityReference facilityRef, uint studyDuration = 400, int priority = 0)
     {
@@ -58,7 +58,7 @@ public class StudyNecromancyActivity : Activity
     {
         base.Initialize(owner);
         _energyNeed = owner.NeedsSystem?.GetNeed("energy");
-        DebugLog("ACTIVITY", $"Started StudyNecromancyActivity at altar in {_facilityRef.Facility?.Owner?.BuildingName ?? "unknown"}, priority: {Priority}, study duration: {_studyDuration} ticks", 0);
+        DebugLog("ACTIVITY", $"Started StudyNecromancyActivity at altar in {_facilityRef.Facility?.ContainingRoom?.Name ?? "unknown"}, priority: {Priority}, study duration: {_studyDuration} ticks", 0);
     }
 
     protected override void OnResume()
@@ -76,8 +76,9 @@ public class StudyNecromancyActivity : Activity
             return null;
         }
 
-        var building = _facilityRef.Facility?.Owner;
-        if (building == null || !GodotObject.IsInstanceValid(building))
+        // Validate facility still exists (Facility is a GodotObject/Sprite2D)
+        var facility = _facilityRef.Facility;
+        if (facility == null || !GodotObject.IsInstanceValid(facility))
         {
             Fail();
             return null;
@@ -108,14 +109,14 @@ public class StudyNecromancyActivity : Activity
 
         if (_navigationActivity == null)
         {
-            var building = _facilityRef.Facility?.Owner;
-            if (building == null || !Godot.GodotObject.IsInstanceValid(building))
+            var navFacility = _facilityRef.Facility;
+            if (navFacility == null || !Godot.GodotObject.IsInstanceValid(navFacility))
             {
                 Fail();
                 return null;
             }
 
-            _navigationActivity = new GoToFacilityActivity(building, _facilityRef.FacilityType, Priority);
+            _navigationActivity = new GoToFacilityActivity(navFacility, Priority);
             _navigationActivity.Initialize(_owner);
         }
 
@@ -131,7 +132,7 @@ public class StudyNecromancyActivity : Activity
                 break;
         }
 
-        var buildingName = _facilityRef.Facility?.Owner?.BuildingName ?? "altar";
+        var buildingName = _facilityRef.Facility?.ContainingRoom?.Name ?? "altar";
         Log.Print($"{_owner.Name}: Arrived at {buildingName} to study dark arts");
         DebugLog("ACTIVITY", $"Arrived at necromancy altar, starting study phase (duration: {_studyDuration} ticks)", 0);
 

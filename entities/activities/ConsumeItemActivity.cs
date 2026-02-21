@@ -41,7 +41,7 @@ public class ConsumeItemActivity : Activity
     public override string DisplayName => _isConsuming
         ? L.Tr("activity.EATING")
         : _homeStorage != null ? L.Tr("activity.GOING_HOME_TO_EAT") : L.Tr("activity.LOOKING_FOR_FOOD");
-    public override Building? TargetBuilding => _homeStorage?.Owner;
+    public override Room? TargetRoom => _homeStorage?.ContainingRoom;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ConsumeItemActivity"/> class.
@@ -121,7 +121,7 @@ public class ConsumeItemActivity : Activity
                 {
                     _hiddenStorageConsumeIssued = true;
                     _isConsuming = true;
-                    var storageName = _homeStorage.Owner?.BuildingName ?? "home";
+                    var storageName = _homeStorage.ContainingRoom?.Name ?? "home";
                     DebugLog("EATING", $"Hidden: Found food at {storageName}, consuming directly", 0);
                     var storage = _homeStorage;
 
@@ -140,7 +140,7 @@ public class ConsumeItemActivity : Activity
             }
             else
             {
-                Log.Warn($"{_owner.Name}: Hidden but no food at {_homeStorage.Owner?.BuildingName ?? "home"}");
+                Log.Warn($"{_owner.Name}: Hidden but no food at {_homeStorage.ContainingRoom?.Name ?? "home"}");
                 Fail();
                 return null;
             }
@@ -162,14 +162,14 @@ public class ConsumeItemActivity : Activity
                 var storage = _homeStorage;
                 _fetchActivity = new TakeFromStorageActivity(storage, _foodTag, 1, Priority);
                 _fetchActivity.Initialize(_owner);
-                DebugLog("EATING", $"Starting fetch from {_homeStorage.Owner?.BuildingName ?? "home"}", 0);
+                DebugLog("EATING", $"Starting fetch from {_homeStorage.ContainingRoom?.Name ?? "home"}", 0);
             }
 
             var (result, action) = RunSubActivity(_fetchActivity, position, perception);
             switch (result)
             {
                 case SubActivityResult.Failed:
-                    DebugLog("EATING", $"Failed to fetch food from {_homeStorage.Owner?.BuildingName ?? "home"}", 0);
+                    DebugLog("EATING", $"Failed to fetch food from {_homeStorage.ContainingRoom?.Name ?? "home"}", 0);
                     Fail();
                     return null;
                 case SubActivityResult.Continue:
@@ -185,7 +185,7 @@ public class ConsumeItemActivity : Activity
             {
                 _foodItemId = foodItem.Definition.Id;
                 _isConsuming = true;
-                DebugLog("EATING", $"Fetched {foodItem.Definition.Name} from {_homeStorage.Owner?.BuildingName ?? "home"}, starting to eat", 0);
+                DebugLog("EATING", $"Fetched {foodItem.Definition.Name} from {_homeStorage.ContainingRoom?.Name ?? "home"}, starting to eat", 0);
             }
             else
             {

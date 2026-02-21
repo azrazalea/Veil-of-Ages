@@ -69,28 +69,29 @@ Manages a discrete area of the game world with its own tile layers and entity tr
   - `AreaDisplayName`: Localized display name via `L.Tr(AreaName)`
 
 ### Village.cs
-Represents a village settlement with shared knowledge about buildings and landmarks. Entities that are residents share access to the village's knowledge by reference.
+Represents a village settlement with shared knowledge about rooms and landmarks. Entities that are residents share access to the village's knowledge by reference.
 
 - **Namespace**: `VeilOfAges`
 - **Class**: `Village` (extends `Node`)
 - **Key Properties**:
   - `VillageName`: Human-readable name of the village
   - `Center`: Grid position of the village center
-  - `Knowledge`: `SharedKnowledge` instance containing building locations and landmarks
+  - `Knowledge`: `SharedKnowledge` instance containing room locations and landmarks
   - `Residents`: Read-only list of `Being` entities that are village members
-  - `Buildings`: Read-only list of `Building` instances in the village
+  - `Rooms`: Read-only list of `Room` instances registered in the village
 - **Key Methods**:
   - `Initialize(name, center)`: Set up the village with name and center position
-  - `AddBuilding(building)`: Register a building and add to shared knowledge
-  - `RemoveBuilding(building)`: Unregister a building from the village
+  - `AddRoom(room, area?)`: Register a room and add to shared knowledge
+  - `RemoveRoom(room)`: Unregister a room from the village
   - `AddResident(being)`: Add a resident and give them access to village knowledge
   - `RemoveResident(being)`: Remove a resident and their knowledge access
-  - `CleanupInvalidReferences()`: Remove destroyed buildings/beings from tracking
+  - `CleanupInvalidReferences()`: Remove destroyed rooms/beings from tracking
 - **Integration with SharedKnowledge**:
   - Village creates a `SharedKnowledge` instance with scope "village"
   - Landmarks include "center" and "square" (village center position)
-  - All registered buildings are automatically added to shared knowledge
+  - All registered rooms are automatically added to shared knowledge via `Knowledge.RegisterRoom()`
   - Residents receive the village's `SharedKnowledge` reference via `Being.AddSharedKnowledge()`
+- **Important**: The village's `SharedKnowledge` is PUBLIC knowledge for all residents. The cellar is NOT registered here — only entities with explicit personal cellar knowledge know about it.
 
 ## Key Classes/Interfaces
 
@@ -131,7 +132,7 @@ Represents a village settlement with shared knowledge about buildings and landma
 
 ### This Module Depends On
 - `VeilOfAges.Core.Lib` - `PathFinder` for A* grid creation
-- `VeilOfAges.Entities` - `Being`, `Player`, `Building` classes
+- `VeilOfAges.Entities` - `Being`, `Player`, `Room` classes
 - `VeilOfAges.Entities.Memory` - `SharedKnowledge` for village knowledge system
 - `VeilOfAges.Entities.Sensory` - `SensorySystem`
 - `VeilOfAges.WorldGeneration` - `GridGenerator`

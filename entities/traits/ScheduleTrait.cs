@@ -151,15 +151,15 @@ public class ScheduleTrait : BeingTrait
 
         // Step 6+7: shouldSleep is true, handle home navigation and sleep
         var homeTrait = _owner.SelfAsEntity().GetTrait<HomeTrait>();
-        var home = homeTrait?.HomeBuilding;
+        var homeRoom = homeTrait?.Home;
 
-        if (home != null && GodotObject.IsInstanceValid(home))
+        if (homeRoom != null && !homeRoom.IsDestroyed)
         {
             // Step 6a: If GoingHome, verify the current activity is still our go-home activity
             if (_sleepState == SleepState.GoingHome)
             {
-                if (currentActivity is GoToBuildingActivity goToBuilding &&
-                    goToBuilding.TargetBuilding == home)
+                if (currentActivity is GoToRoomActivity goHome &&
+                    goHome.TargetRoom == homeRoom)
                 {
                     // Still navigating home, let it run
                     return null;
@@ -173,7 +173,7 @@ public class ScheduleTrait : BeingTrait
             }
 
             // Step 6b: At home? Start sleeping
-            if (homeTrait!.IsEntityAtHome())
+            if (homeTrait != null && homeTrait.IsEntityAtHome())
             {
                 DebugLog("SCHEDULE", "At home, starting SleepActivity", 0);
                 _sleepState = SleepState.Sleeping;
@@ -184,7 +184,7 @@ public class ScheduleTrait : BeingTrait
             // Step 6c: Not at home, navigate there
             DebugLog("SCHEDULE", "Not at home, navigating home", 0);
             _sleepState = SleepState.GoingHome;
-            var goHomeActivity = new GoToBuildingActivity(home, priority: sleepPriority);
+            var goHomeActivity = new GoToRoomActivity(homeRoom, priority: sleepPriority);
             return new StartActivityAction(_owner, this, goHomeActivity, priority: sleepPriority);
         }
 

@@ -167,13 +167,32 @@ public partial class World : Node2D
 
     /// <summary>
     /// Deferred player initialization that runs after world generation.
-    /// This ensures the player doesn't block building placement during generation.
-    /// Note: Player home is assigned during village generation (VillageGenerator.PlacePlayerHouseNearGraveyard)
-    /// so that the player is registered as a resident before granary standing orders are initialized.
+    /// This ensures the player doesn't block building placement during generation,
+    /// and that player traits are loaded (via Initialize) before SetHome is called.
+    /// Player home is set here (not in VillageGenerator) because traits aren't ready
+    /// until after Initialize() runs.
     /// </summary>
     private void InitializePlayerAfterGeneration()
     {
         InitializePlayer();
+
+        // Assign player home after traits are initialized.
+        // VillageGenerator already registered the player as a village resident so
+        // GranaryTrait can detect them via HasScholarResident(); now we need to
+        // actually set the home room so HomeTrait and ScholarJobTrait know where home is.
+        if (_player != null && _gridGenerator != null)
+        {
+            var playerHouseRoom = _gridGenerator.PlayerHouseRoom;
+            if (playerHouseRoom != null)
+            {
+                _player.SetHome(playerHouseRoom);
+                Log.Print($"World: Assigned player home to {playerHouseRoom.Name}");
+            }
+            else
+            {
+                Log.Warn("World: No player house room found after generation — player has no home");
+            }
+        }
     }
 
     public Player? Player => _player;
@@ -290,25 +309,23 @@ public partial class World : Node2D
 
     /// <summary>
     /// Process decay and regeneration for all storage containers in the world.
-    /// This includes building storage (StorageTrait) and being inventory (InventoryTrait).
-    /// Buildings with regeneration configured (e.g., wells) will also regenerate their items.
+    /// This includes facility storage (StorageTrait) in village rooms and being inventory (InventoryTrait).
+    /// Facilities with RegenerationTrait (e.g., wells) handle their own regeneration.
     /// Called periodically (not every tick) for performance.
     /// </summary>
     /// <param name="tickMultiplier">Number of ticks since last decay processing.</param>
     public void ProcessDecay(int tickMultiplier)
     {
+        // Process storage decay for all rooms in all villages
         foreach (Node entity in _entitiesContainer?.GetChildren() ?? [])
         {
-            if (entity is Building building)
+            if (entity is Village village)
             {
-                // Process storage decay for all rooms in the building
-                foreach (var room in building.Rooms)
+                // Process storage decay for all rooms in the village
+                foreach (var room in village.Rooms)
                 {
                     room.GetStorage()?.ProcessDecay(tickMultiplier);
                 }
-
-                // Process building regeneration (e.g., wells regenerating water)
-                building.ProcessRegeneration(tickMultiplier);
             }
             else if (entity is Being being)
             {

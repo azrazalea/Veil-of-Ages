@@ -31,9 +31,9 @@ public class CheckStorageActivity : Activity
     private bool _hasObserved;
 
     public override string DisplayName => _hasObserved
-        ? L.TrFmt("activity.CHECKED_STORAGE", _storageFacility.Owner?.BuildingName ?? _storageFacility.Id)
-        : L.TrFmt("activity.GOING_TO_CHECK_STORAGE", _storageFacility.Owner?.BuildingName ?? _storageFacility.Id);
-    public override Building? TargetBuilding => _storageFacility.Owner;
+        ? L.TrFmt("activity.CHECKED_STORAGE", _storageFacility.ContainingRoom?.Name ?? _storageFacility.Id)
+        : L.TrFmt("activity.GOING_TO_CHECK_STORAGE", _storageFacility.ContainingRoom?.Name ?? _storageFacility.Id);
+    public override Room? TargetRoom => _storageFacility.ContainingRoom;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CheckStorageActivity"/> class.
@@ -93,7 +93,7 @@ public class CheckStorageActivity : Activity
         {
             _navActivity = new GoToFacilityActivity(_storageFacility, Priority);
             _navActivity.Initialize(_owner);
-            DebugLog("CHECK_STORAGE", $"Starting navigation to {_storageFacility.Owner?.BuildingName ?? _storageFacility.Id}", 0);
+            DebugLog("CHECK_STORAGE", $"Starting navigation to {_storageFacility.ContainingRoom?.Name ?? _storageFacility.Id}", 0);
         }
 
         var (result, action) = RunSubActivity(_navActivity, position, perception);
@@ -111,7 +111,7 @@ public class CheckStorageActivity : Activity
 
         _navActivity = null;
         _currentPhase = Phase.Observing;
-        DebugLog("CHECK_STORAGE", $"Arrived at {_storageFacility.Owner?.BuildingName ?? _storageFacility.Id}", 0);
+        DebugLog("CHECK_STORAGE", $"Arrived at {_storageFacility.ContainingRoom?.Name ?? _storageFacility.Id}", 0);
         return ProcessObserving();
     }
 

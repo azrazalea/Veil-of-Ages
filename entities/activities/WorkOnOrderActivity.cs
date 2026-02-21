@@ -81,15 +81,15 @@ public class WorkOnOrderActivity : Activity
     {
         if (_navigationActivity == null)
         {
-            var building = _facilityRef.Facility?.Owner;
-            if (building == null || !Godot.GodotObject.IsInstanceValid(building))
+            var facility = _facilityRef.Facility;
+            if (facility == null || !Godot.GodotObject.IsInstanceValid(facility))
             {
-                DebugLog("WORK_ORDER", "Facility building no longer valid", 0);
+                DebugLog("WORK_ORDER", "Facility no longer valid", 0);
                 Fail();
                 return null;
             }
 
-            _navigationActivity = new GoToFacilityActivity(building, _facilityRef.FacilityType, Priority);
+            _navigationActivity = new GoToFacilityActivity(facility, Priority);
             _navigationActivity.Initialize(_owner!);
         }
 

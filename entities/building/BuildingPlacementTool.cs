@@ -34,7 +34,7 @@ public partial class BuildingPlacementTool : Node
     private BuildingManager? _buildingManager;
 
     // Callback for when a building is placed
-    public delegate void BuildingPlacedDelegate(Building building, Vector2I position);
+    public delegate void BuildingPlacedDelegate(StampResult result, Vector2I position);
     public BuildingPlacedDelegate? OnBuildingPlaced;
 
     public override void _Ready()
@@ -110,7 +110,7 @@ public partial class BuildingPlacementTool : Node
     /// </summary>
     private void SetupPreviewTileMap()
     {
-        if (_previewTileMap == null || _currentTemplate == null || _currentTemplate.Name == null)
+        if (_previewTileMap == null || _currentTemplate == null)
         {
             return;
         }
@@ -118,19 +118,8 @@ public partial class BuildingPlacementTool : Node
         // Clear existing tiles
         _previewTileMap.Clear();
 
-        // Set the same tileset as used by buildings
-        var building = _buildingManager?.PlaceBuilding(_currentTemplate.Name, new Vector2I(0, 0), null!);
-        if (building != null)
-        {
-            var buildingTileMap = building.GetNode<TileMapLayer>("TileMap");
-            if (buildingTileMap != null)
-            {
-                _previewTileMap.TileSet = buildingTileMap.TileSet;
-            }
-
-            // Remove the temporary building
-            building.QueueFree();
-        }
+        // Set up tileset from TileResourceManager
+        TileResourceManager.Instance.SetupTileSet(_previewTileMap);
 
         // Add preview tiles based on template
         foreach (var tileData in _currentTemplate.Tiles)
@@ -217,12 +206,12 @@ public partial class BuildingPlacementTool : Node
         }
 
         // Place the building
-        var building = _buildingManager.PlaceBuilding(_currentTemplate.Name, _currentGridPosition, _gridArea);
+        var result = _buildingManager.StampBuilding(_currentTemplate.Name, _currentGridPosition, _gridArea);
 
-        if (building != null)
+        if (result != null)
         {
             // Notify listeners
-            OnBuildingPlaced?.Invoke(building, _currentGridPosition);
+            OnBuildingPlaced?.Invoke(result, _currentGridPosition);
 
             // Hide preview
             if (_previewTileMap != null)

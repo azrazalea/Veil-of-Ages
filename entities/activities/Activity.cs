@@ -56,11 +56,11 @@ public abstract class Activity : ISubActivityRunner
     public int Priority { get; protected set; }
 
     /// <summary>
-    /// Gets the building this activity is using, if any.
+    /// Gets the room this activity is targeting, if any.
     /// Used for queue communication - when another entity asks us to move,
-    /// we tell them what building we're using so they can queue.
+    /// we tell them what room we're using so they can queue.
     /// </summary>
-    public virtual Building? TargetBuilding => null;
+    public virtual Room? TargetRoom => null;
 
     /// <summary>
     /// Gets the facility ID this activity is using within the building, if any.
@@ -161,28 +161,28 @@ public abstract class Activity : ISubActivityRunner
     public virtual bool TryFindAlternatePath(Perception perception) => false;
 
     /// <summary>
-    /// Check if a requester wants to access the same building and facility as this activity.
+    /// Check if a requester wants to access the same room and facility as this activity.
     /// Used to determine if they should queue behind us or find another path.
     /// </summary>
-    /// <param name="requesterBuilding">The building the requester is heading to.</param>
+    /// <param name="requesterRoom">The room the requester is heading to.</param>
     /// <param name="requesterFacility">The facility the requester wants to use.</param>
     /// <returns>True if they want the same target and should queue.</returns>
-    public bool RequesterWantsSameTarget(Building? requesterBuilding, string? requesterFacility)
+    public bool RequesterWantsSameTarget(Room? requesterRoom, string? requesterFacility)
     {
-        return TargetBuilding != null &&
-               requesterBuilding == TargetBuilding &&
+        return TargetRoom != null &&
+               requesterRoom == TargetRoom &&
                requesterFacility == TargetFacilityId;
     }
 
     /// <summary>
     /// Handle a move request from another entity trying to pass through our position.
-    /// Default behavior: if same building+facility, they queue. Otherwise try to step aside.
+    /// Default behavior: if same room+facility, they queue. Otherwise try to step aside.
     /// </summary>
     /// <param name="requester">The entity requesting us to move.</param>
-    /// <param name="requesterBuilding">The building the requester is heading to.</param>
+    /// <param name="requesterRoom">The room the requester is heading to.</param>
     /// <param name="requesterFacility">The facility the requester wants to use.</param>
     /// <returns>True if handled, false if Being should use default step-aside.</returns>
-    public virtual bool HandleMoveRequest(Being requester, Building? requesterBuilding, string? requesterFacility)
+    public virtual bool HandleMoveRequest(Being requester, Room? requesterRoom, string? requesterFacility)
     {
         if (_owner == null)
         {
@@ -192,9 +192,9 @@ public abstract class Activity : ISubActivityRunner
         // If not interruptible, only queue them if they want the same target
         if (!IsInterruptible)
         {
-            if (RequesterWantsSameTarget(requesterBuilding, requesterFacility))
+            if (RequesterWantsSameTarget(requesterRoom, requesterFacility))
             {
-                requester.QueueEvent(EntityEventType.QueueRequest, _owner, new QueueResponseData(TargetBuilding));
+                requester.QueueEvent(EntityEventType.QueueRequest, _owner, new QueueResponseData(TargetRoom));
             }
             else
             {
@@ -204,10 +204,10 @@ public abstract class Activity : ISubActivityRunner
             return true;
         }
 
-        // If requester wants the same building AND facility, they must queue
-        if (RequesterWantsSameTarget(requesterBuilding, requesterFacility))
+        // If requester wants the same room AND facility, they must queue
+        if (RequesterWantsSameTarget(requesterRoom, requesterFacility))
         {
-            requester.QueueEvent(EntityEventType.QueueRequest, _owner, new QueueResponseData(TargetBuilding));
+            requester.QueueEvent(EntityEventType.QueueRequest, _owner, new QueueResponseData(TargetRoom));
             return true;
         }
 
@@ -221,15 +221,15 @@ public abstract class Activity : ISubActivityRunner
             return true;
         }
 
-        // Can't step aside - only tell them to queue if they want the same building AND facility
+        // Can't step aside - only tell them to queue if they want the same room AND facility
         // (Don't queue random passers-by who are going somewhere else)
-        if (RequesterWantsSameTarget(requesterBuilding, requesterFacility))
+        if (RequesterWantsSameTarget(requesterRoom, requesterFacility))
         {
-            requester.QueueEvent(EntityEventType.QueueRequest, _owner, new QueueResponseData(TargetBuilding));
+            requester.QueueEvent(EntityEventType.QueueRequest, _owner, new QueueResponseData(TargetRoom));
             return true;
         }
 
-        // Either no building, or requester wants different destination - let Being handle step-aside
+        // Either no room, or requester wants different destination - let Being handle step-aside
         return false;
     }
 

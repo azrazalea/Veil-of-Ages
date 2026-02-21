@@ -34,8 +34,8 @@ A* pathfinding system that wraps Godot's `AStarGrid2D`.
   - `Position`: Navigate to exact grid position
   - `EntityProximity`: Get within range of a moving entity
   - `Area`: Reach any position within a circular area
-  - `Building`: Navigate to a building. Has `requireInterior` parameter (default `true`):
-    - When `true`: Entity must reach a walkable interior position; no perimeter fallback
+  - `Room`: Navigate to a room. Has `requireInterior` parameter (default `true`):
+    - When `true`: Entity must reach a walkable interior position (from `room.Tiles`); no perimeter fallback
     - When `false`: Entity can reach either an interior position or an adjacent perimeter position
   - `Facility`: Navigate adjacent to a specific facility within a building
 
@@ -63,13 +63,12 @@ return _pathFinder.FollowPath(entity);  // No A* here, just follows
 ```
 
 - **Key Methods**:
-  - `SetBuildingGoal(entity, building, requireInterior = true)`: Sets building navigation goal with interior/adjacency control. Now detects cross-area targets and defers to cross-area routing when entity and building are in different areas.
+  - `SetRoomGoal(entity, room, requireInterior = true)`: Sets room navigation goal with interior/adjacency control. Detects cross-area targets using `room.GridArea` and defers to cross-area routing when entity and room are in different areas.
   - `CalculatePathIfNeeded(entity, perception)`: **Call from Think thread**. Calculates path if needed, avoiding perceived entities.
   - `FollowPath(entity)`: **Call from Execute thread**. Follows pre-calculated path only.
-  - `IsGoalReached(entity)`: Checks if entity has reached goal, respects `requireInterior` flag for Building goals
+  - `IsGoalReached(entity)`: Checks if entity has reached goal; for Room goals uses `_targetRoom.Tiles` for interior position checks
   - `GetBuildingPerimeterPositions(buildingPos, buildingSize)`: Helper method that returns all positions one tile outside the building bounds
-  - `SetFacilityGoal(entity, building, facilityId)`: Sets facility navigation goal. Takes entity parameter for cross-area detection; when entity and building are in different areas, defers to cross-area routing.
-  - `SetFacilityGoal(entity, facility)`: Overload taking a `Facility` directly. If the facility has an `Owner` building, delegates to the `(Being, Building, string)` overload; standalone facilities (no owner) use direct position targeting.
+  - `SetFacilityGoal(entity, facility)`: Sets facility navigation goal taking a `Facility` directly. Uses the facility's associated room/area for cross-area detection; standalone facilities (no owner) use direct position targeting.
   - `NeedsAreaTransition` (bool property): True when PathFinder has reached a transition point and needs the caller to execute a ChangeAreaAction.
   - `PendingTransition` (TransitionPoint? property): The transition point to use when `NeedsAreaTransition` is true.
   - `CompleteTransition(entity)`: Call after ChangeAreaAction executes. Advances the cross-area route and clears transition state.
@@ -90,7 +89,7 @@ return _pathFinder.FollowPath(entity);  // No A* here, just follows
   - Uses `entity.MaxSenseRange` to determine perception radius
   - `CloneAStarGrid(source)`: Helper that deep-clones an AStarGrid2D with all solid/weight states
 - **Cross-Area Navigation**:
-  - When a Building or Facility goal is in a different area than the entity, PathFinder internally plans the route using `WorldNavigator.FindRouteToArea(entity, ...)` (BDI-compliant — uses entity's known transitions only).
+  - When a Room or Facility goal is in a different area than the entity, PathFinder internally plans the route using `WorldNavigator.FindRouteToArea(entity, ...)` (BDI-compliant — uses entity's known transitions only). The room's `GridArea` property is used to determine the target area.
   - PathFinder walks to each transition point, then signals `NeedsAreaTransition = true`.
   - NavigationActivity checks this flag and returns a `ChangeAreaAction`, then calls `CompleteTransition()`.
   - All navigation activities (GoToLocation, GoToBuilding, GoToFacility) get cross-area support automatically with zero code changes to the activities themselves.

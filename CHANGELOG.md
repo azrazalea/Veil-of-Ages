@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Rimworld-style architecture: walls, floors, doors, and fences are now individual StructuralEntity sprites instead of TileMapLayer-based rendering
+- TemplateStamper stamps building templates directly into the grid area as flat entity hierarchies
+- StampResult captures all created entities, rooms, door positions, and facilities from stamping
+- TileType enum extracted to standalone file for structural tile classification
+- GranaryTrait now lives on the granary's storage Facility (accessible via Room.GetStorageFacility())
+- Room detection seeds flood fill from enclosed facilities (Rimworld-style); rooms only exist where facilities are enclosed by walls/fences
+- Standalone outdoor facilities (well) registered directly via SharedKnowledge.RegisterFacility()
 - Room system: buildings automatically detect rooms via flood fill of walkable interior positions
 - Room-based home tracking: HomeTrait now references a Room instead of a Building
 - Room secrecy: cellar uses Room.IsSecret with its own SharedKnowledge scope instead of manual setup
@@ -34,10 +41,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Storage operations now target facilities directly instead of buildings (internal architecture improvement — no behavior change)
 - PersonalMemory storage observations keyed by Facility instead of Building
 - SharedKnowledge FacilityReference stores Facility directly, eliminating double-dereference pattern
+- Building class eliminated: all callers migrated to Room, Facility, and StampResult (Phase 5C architecture refactor)
+- Village now tracks Rooms instead of Buildings
+- SharedKnowledge uses RoomReference instead of BuildingReference
+- PathFinder navigates to Rooms instead of Buildings (SetRoomGoal replaces SetBuildingGoal)
+- GoToRoomActivity replaces GoToBuildingActivity for all navigation
+- All activities and traits reference Room/Facility directly (no Building indirection)
 - Building stripped of behavioral methods: all storage, facility, and resident queries now go through Room (Phase 4 architecture refactor)
 - Activity constructors (WorkFieldActivity, ConsumeItemActivity, ProcessReactionActivity, FetchResourceActivity, CheckStorageActivity) accept Facility parameters directly instead of Building
 
 ### Fixed
+- Player home correctly assigned after trait initialization (SetHome called with proper timing)
+- Baker finds well via facility-based SharedKnowledge lookup (well has no room, only a facility)
+- Farm storage facility spans all crop positions so farmers can produce wheat from any crop
+- CanAccessFacility checks all facility positions for multi-tile facilities, not just the primary position
 - Entities no longer walk through ovens, altars, chests, querns, and tombstones (facilities and decorations now block pathfinding)
 - Cross-area navigation for all activities: studying, working, eating, baking, hiding, and distribution rounds now navigate across area boundaries
 - Entities in cellar can now navigate back to village for any activity (eating, studying, working, etc.)
@@ -54,6 +71,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - UI panels use event-driven updates (UITickFired every 2 sim ticks) instead of per-frame _PhysicsProcess
 
 ### Removed
+- Building class and Building.cs (replaced by Room + StructuralEntity + Facility)
+- BuildingTile.cs (replaced by StructuralEntity)
+- GoToBuildingActivity.cs (replaced by GoToRoomActivity)
+- TintableTileMapLayer.cs (was only used by Building)
+- RoofSystem.cs (dead code)
+- IFoodStrategies.cs (unused legacy interfaces)
+- ConsumptionBehaviorTrait.cs (dead code, replaced by ItemConsumptionBehaviorTrait)
+- EatActivity.cs (dead code, only used by deleted ConsumptionBehaviorTrait)
+- Building scene (entities/building/scene.tscn)
 - NavigateToBuildingActivity (replaced by cross-area capable GoToBuildingActivity)
 - GoToWorldPositionActivity (PathFinder handles cross-area routing internally)
 - NavigationHelper utility (no longer needed; use GoToBuildingActivity/GoToFacilityActivity directly)

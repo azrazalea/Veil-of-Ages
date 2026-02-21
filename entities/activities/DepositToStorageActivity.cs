@@ -17,7 +17,7 @@ public class DepositToStorageActivity : Activity
     private int _currentIndex;
 
     /// <inheritdoc/>
-    public override string DisplayName => L.TrFmt("activity.DEPOSITING_TO_STORAGE", _storageFacility.Owner?.BuildingName ?? _storageFacility.Id);
+    public override string DisplayName => L.TrFmt("activity.DEPOSITING_TO_STORAGE", _storageFacility.ContainingRoom?.Name ?? _storageFacility.Id);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DepositToStorageActivity"/> class.
@@ -63,7 +63,7 @@ public class DepositToStorageActivity : Activity
         var (itemId, quantity) = _itemsToDeposit[_currentIndex];
         _currentIndex++;
 
-        DebugLog("DEPOSIT_STORAGE", $"Depositing {quantity} {itemId} to {_storageFacility.Owner?.BuildingName ?? _storageFacility.Id}", 0);
+        DebugLog("DEPOSIT_STORAGE", $"Depositing {quantity} {itemId} to {_storageFacility.ContainingRoom?.Name ?? _storageFacility.Id}", 0);
 
         return new DepositToStorageAction(
             _owner,

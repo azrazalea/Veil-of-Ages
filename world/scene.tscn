@@ -4,7 +4,6 @@
 [ext_resource type="PackedScene" uid="uid://cljvkvv6tomyu" path="res://entities/player/scene.tscn" id="2_2fjkk"]
 [ext_resource type="Script" uid="uid://d3b0rnoskomhw" path="res://world/generation/GridGenerator.cs" id="2_ob0ca"]
 [ext_resource type="PackedScene" uid="uid://d1mvtyih4100e" path="res://entities/beings/generic_being.tscn" id="7_generic"]
-[ext_resource type="PackedScene" uid="uid://cyq2ntvw2iake" path="res://entities/building/scene.tscn" id="7_ivx4l"]
 [ext_resource type="Script" uid="uid://cmcja60hfpcen" path="res://entities/building/BuildingManager.cs" id="10_liapn"]
 [ext_resource type="Script" uid="uid://barxyo8p3oyvt" path="res://entities/EntityThinkingSystem.cs" id="11_bad00"]
 [ext_resource type="PackedScene" uid="uid://dnseqlvnfuids" path="res://core/GameController.tscn" id="13_liapn"]
@@ -17,7 +16,6 @@ script = ExtResource("1_qt6d3")
 
 [node name="GridGenerator" type="Node" parent="." unique_id=1543928062]
 script = ExtResource("2_ob0ca")
-BuildingScene = ExtResource("7_ivx4l")
 GenericBeingScene = ExtResource("7_generic")
 
 [node name="EntityThinkingSystem" type="Node" parent="." unique_id=1769350613]

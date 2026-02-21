@@ -9,65 +9,58 @@ namespace VeilOfAges.WorldGeneration;
 
 /// <summary>
 /// Generates cellar areas beneath buildings and links them via transition points.
-/// Places the cellar building from a JSON template and sets up the necromancy altar
+/// Stamps the cellar from a JSON template and sets up the necromancy altar
 /// interaction handler programmatically.
 /// </summary>
 public static class CellarGenerator
 {
     /// <summary>
     /// Create a cellar area beneath a building, linked by transition points.
-    /// Finds the trapdoor decoration automatically from the building's decorations.
-    /// Places the cellar building from template and configures the altar interaction.
+    /// Finds the trapdoor decoration automatically from the StampResult's decorations.
+    /// Stamps the cellar from template and configures the altar interaction.
     /// Registers cellar knowledge (transition points, facility) with the player's
     /// personal SharedKnowledge so the cellar remains secret from the village.
     /// </summary>
     /// <param name="world">The world to register the cellar with.</param>
-    /// <param name="building">The building that contains the trapdoor.</param>
-    public static void CreateCellar(World world, Building building)
+    /// <param name="overworldStampResult">The StampResult of the overworld building that contains the trapdoor.</param>
+    public static void CreateCellar(World world, StampResult overworldStampResult)
     {
-        var overworldArea = building.GridArea;
-        if (overworldArea == null)
-        {
-            Log.Error("CellarGenerator: Building has no GridArea");
-            return;
-        }
+        var overworldArea = overworldStampResult.GridArea;
 
-        // Find the trapdoor decoration in the building
-        var trapdoorDecoration = building.Decorations
+        // Find the trapdoor decoration in the stamp result
+        var trapdoorDecoration = overworldStampResult.Decorations
             .FirstOrDefault(d => d.DecorationId == "trapdoor");
         if (trapdoorDecoration == null)
         {
-            Log.Error($"CellarGenerator: Building '{building.BuildingName}' has no trapdoor decoration");
+            Log.Error($"CellarGenerator: StampResult '{overworldStampResult.TemplateName}' has no trapdoor decoration");
             return;
         }
 
-        // The trapdoor decoration may be on a non-walkable tile (e.g., a wall).
-        // Find the nearest walkable interior position for the transition point.
-        var buildingPos = building.GetCurrentGridPosition();
-        var trapdoorRelativePos = trapdoorDecoration.GridPosition;
-        var trapdoorAbsPos = buildingPos + trapdoorRelativePos;
+        // The trapdoor decoration stores its absolute grid position
+        var trapdoorAbsPos = trapdoorDecoration.AbsoluteGridPosition;
 
         // Check if the trapdoor tile itself is walkable
         if (!overworldArea.IsCellWalkable(trapdoorAbsPos))
         {
-            // Find nearest walkable interior position
-            var walkablePositions = building.GetWalkableInteriorPositions();
+            // Find nearest walkable tile from the building's structural entities (floors)
             Vector2I? nearest = null;
             int bestDist = int.MaxValue;
-            foreach (var pos in walkablePositions)
+            foreach (var entity in overworldStampResult.StructuralEntities)
             {
-                var absPos = buildingPos + pos;
-                var dist = Mathf.Abs(absPos.X - trapdoorAbsPos.X) + Mathf.Abs(absPos.Y - trapdoorAbsPos.Y);
-                if (dist < bestDist)
+                if (entity.IsWalkable && !entity.IsRoomDivider)
                 {
-                    bestDist = dist;
-                    nearest = absPos;
+                    var dist = Mathf.Abs(entity.GridPosition.X - trapdoorAbsPos.X) + Mathf.Abs(entity.GridPosition.Y - trapdoorAbsPos.Y);
+                    if (dist < bestDist)
+                    {
+                        bestDist = dist;
+                        nearest = entity.GridPosition;
+                    }
                 }
             }
 
             if (nearest == null)
             {
-                Log.Error($"CellarGenerator: No walkable tile near trapdoor in '{building.BuildingName}'");
+                Log.Error($"CellarGenerator: No walkable tile near trapdoor in '{overworldStampResult.TemplateName}'");
                 return;
             }
 
@@ -112,19 +105,19 @@ public static class CellarGenerator
         world.RegisterTransitionPoint(ladder);
         world.RegisterGridArea(cellar);
 
-        // Place the cellar building from JSON template
-        var cellarBuilding = BuildingManager.Instance?.PlaceBuilding("Scholar's Cellar", Vector2I.Zero, cellar);
-        if (cellarBuilding == null)
+        // Stamp the cellar building from JSON template using TemplateStamper
+        var cellarStampResult = BuildingManager.Instance?.StampBuilding("Scholar's Cellar", Vector2I.Zero, cellar);
+        if (cellarStampResult == null)
         {
-            Log.Error("CellarGenerator: Failed to place cellar building from template");
+            Log.Error("CellarGenerator: Failed to stamp cellar building from template");
             return;
         }
 
         // Register cellar knowledge with the player's PERSONAL SharedKnowledge.
         // The cellar is SECRET - village SharedKnowledge must NOT know about it.
-        RegisterCellarWithPlayer(world, cellar, trapdoor, ladder, cellarBuilding);
+        RegisterCellarWithPlayer(world, cellar, trapdoor, ladder, cellarStampResult);
 
-        Log.Print($"CellarGenerator: Created cellar ({cellarSize.X}x{cellarSize.Y}) beneath {building.BuildingName}, transition at {trapdoorAbsPos}");
+        Log.Print($"CellarGenerator: Created cellar ({cellarSize.X}x{cellarSize.Y}) beneath {overworldStampResult.TemplateName}, transition at {trapdoorAbsPos}");
     }
 
     /// <summary>
@@ -137,13 +130,13 @@ public static class CellarGenerator
     /// <param name="cellar">The cellar area.</param>
     /// <param name="trapdoor">The trapdoor transition point (overworld side).</param>
     /// <param name="ladder">The ladder transition point (cellar side).</param>
-    /// <param name="cellarBuilding">The cellar building containing the altar.</param>
+    /// <param name="cellarStampResult">The stamp result of the cellar containing rooms and facilities.</param>
     private static void RegisterCellarWithPlayer(
         World world,
         Area cellar,
         TransitionPoint trapdoor,
         TransitionPoint ladder,
-        Building cellarBuilding)
+        StampResult cellarStampResult)
     {
         var player = world.GetNode<Player>("Entities/Player");
         if (player == null)
@@ -152,15 +145,18 @@ public static class CellarGenerator
             return;
         }
 
-        // Get the cellar room (detected via flood fill during Building.Initialize)
-        var cellarRoom = cellarBuilding.GetDefaultRoom();
+        // Get the cellar room via the necromancy_altar facility, with fallback to any facility's room
+        var cellarRoom = cellarStampResult.Facilities
+            .FirstOrDefault(f => f.Id == "necromancy_altar")
+            ?.ContainingRoom
+            ?? cellarStampResult.Facilities.Select(f => f.ContainingRoom).FirstOrDefault(r => r != null);
         if (cellarRoom == null)
         {
-            Log.Error("CellarGenerator: Cellar building has no rooms");
+            Log.Error("CellarGenerator: Cellar stamp result has no rooms");
             return;
         }
 
-        // Room was already marked IsSecret by template hint matching in DetectRooms().
+        // Room was already marked IsSecret by template hint matching in RoomSystem.
         // Initialize its SharedKnowledge scope so we can register facilities and transitions.
         cellarRoom.InitializeSecrecy("player_cellar", "Secret Cellar");
 
@@ -175,23 +171,23 @@ public static class CellarGenerator
         roomKnowledge.RegisterTransitionPoint(trapdoor);
         roomKnowledge.RegisterTransitionPoint(ladder);
 
-        // Register the cellar building so the player knows about it
-        roomKnowledge.RegisterBuilding(cellarBuilding, cellar);
+        // Register the cellar room so the player knows about it
+        roomKnowledge.RegisterRoom(cellarRoom, cellar);
 
         // Register the necromancy_altar facility so FindNearestFacilityOfType works
         // Use the actual altar tile position, not the building origin (which is a wall tile)
-        var altarFacility = cellarBuilding.GetDefaultRoom()?.GetFacility("necromancy_altar");
+        var altarFacility = cellarRoom.GetFacility("necromancy_altar");
         var altarAbsolutePositions = altarFacility?.GetAbsolutePositions();
         var altarPos = altarAbsolutePositions != null && altarAbsolutePositions.Count > 0
             ? altarAbsolutePositions[0]
-            : cellarBuilding.GetCurrentGridPosition();
+            : cellarStampResult.Origin;
         if (altarFacility != null)
         {
             roomKnowledge.RegisterFacility("necromancy_altar", altarFacility, cellar, altarPos);
         }
         else
         {
-            Log.Warn("CellarGenerator: necromancy_altar facility not found in cellar building; facility registration skipped");
+            Log.Warn("CellarGenerator: necromancy_altar facility not found in cellar stamp result; facility registration skipped");
         }
 
         // Give this knowledge to the player (permanent - will persist for the game)

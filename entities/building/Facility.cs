@@ -19,8 +19,13 @@ public partial class Facility : Sprite2D, IEntity<Trait>
     public string Id { get; }
     public List<Vector2I> Positions { get; }
     public bool RequireAdjacent { get; }
-    public new Building? Owner { get; }
     public SortedSet<Trait> Traits { get; } = [];
+
+    /// <summary>
+    /// Gets or sets the room this facility belongs to.
+    /// Set when Room.AddFacility() is called.
+    /// </summary>
+    public Room? ContainingRoom { get; set; }
 
     /// <summary>
     /// Gets the absolute grid position of this facility's primary tile (Positions[0]).
@@ -49,12 +54,15 @@ public partial class Facility : Sprite2D, IEntity<Trait>
     /// </summary>
     public Dictionary<SenseType, float> DetectionDifficulties { get; private set; } = [];
 
-    public Facility(string id, List<Vector2I> positions, bool requireAdjacent, Building owner)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Facility"/> class.
+    /// Positions are always absolute grid coordinates.
+    /// </summary>
+    public Facility(string id, List<Vector2I> positions, bool requireAdjacent)
     {
         Id = id;
         Positions = positions;
         RequireAdjacent = requireAdjacent;
-        Owner = owner;
     }
 
     /// <summary>
@@ -79,7 +87,7 @@ public partial class Facility : Sprite2D, IEntity<Trait>
             SetupStatic(definition);
         }
 
-        // Position relative to parent Building node
+        // Position relative to parent node
         Position = new Vector2(
             (gridPosition.X * VeilOfAges.Grid.Utils.TileSize) + pixelOffset.X,
             (gridPosition.Y * VeilOfAges.Grid.Utils.TileSize) + pixelOffset.Y);
@@ -142,19 +150,11 @@ public partial class Facility : Sprite2D, IEntity<Trait>
 
     /// <summary>
     /// Get all absolute grid positions of this facility.
-    /// If the facility has an owner building, positions are relative to the building.
-    /// Otherwise, positions are already absolute.
+    /// Positions are always absolute in the new architecture.
     /// </summary>
     /// <returns>The absolute grid positions.</returns>
     public List<Vector2I> GetAbsolutePositions()
     {
-        if (Owner != null)
-        {
-            var buildingPos = Owner.GetCurrentGridPosition();
-            return Positions.Select(p => buildingPos + p).ToList();
-        }
-
-        // Standalone facility — positions are already absolute
         return new List<Vector2I>(Positions);
     }
 
@@ -177,7 +177,7 @@ public partial class Facility : Sprite2D, IEntity<Trait>
 
     /// <summary>
     /// Sets the absolute grid position of this facility's primary tile.
-    /// Called by Building during initialization after placement.
+    /// Called during initialization after placement.
     /// </summary>
     internal void SetGridPosition(Vector2I absolutePosition)
     {

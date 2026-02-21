@@ -3,7 +3,6 @@ using System.Linq;
 using Godot;
 using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
-using VeilOfAges.Entities.Items;
 using VeilOfAges.Entities.Memory;
 using VeilOfAges.Entities.Sensory;
 using VeilOfAges.Entities.Traits;
@@ -71,12 +70,12 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
     private const int BREADEXCESSTHRESHOLD = 2;
     private const int WHEATEXCESSTHRESHOLD = 5;
 
-    private readonly Building _granary;
+    private readonly Room _granaryRoom;
 
     private uint _phaseTimer;
 
     // All households to visit (from standing orders)
-    private readonly List<Building> _householdsToVisit = new ();
+    private readonly List<Room> _householdsToVisit = new ();
     private int _currentHouseholdIndex;
 
     // What we're carrying to deliver (loaded from granary)
@@ -134,17 +133,19 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         _ => L.Tr("activity.DISTRIBUTING")
     };
 
-    public override Building? TargetBuilding => _machine.State switch
+    public override Room? TargetRoom => _machine.State switch
     {
         DistributionState.CheckingHousehold or DistributionState.ExchangingItems
-            => _currentHouseholdIndex < _householdsToVisit.Count ? _householdsToVisit[_currentHouseholdIndex] : _granary,
-        _ => _granary
+            => _currentHouseholdIndex < _householdsToVisit.Count
+                ? _householdsToVisit[_currentHouseholdIndex]
+                : _granaryRoom,
+        _ => _granaryRoom
     };
 
-    public DistributorRoundActivity(Building granary, int priority = 0)
+    public DistributorRoundActivity(Room granaryRoom, int priority = 0)
         : base(DistributionState.CheckingGranaryStock)
     {
-        _granary = granary;
+        _granaryRoom = granaryRoom;
         Priority = priority;
 
         // Distributors get hungry faster (lots of walking)
@@ -204,7 +205,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
             .Permit(DistributionTrigger.BreakComplete, DistributionState.CheckingHousehold)
             .Permit(DistributionTrigger.Interrupted, DistributionState.CheckingHousehold);
 
-        // ReturningToGranary: navigation via GoToBuildingActivity (cross-area capable)
+        // ReturningToGranary: navigation via GoToRoomActivity (cross-area capable)
         _machine.Configure(DistributionState.ReturningToGranary)
             .Permit(DistributionTrigger.ArrivedBackAtGranary, DistributionState.DepositingCollected)
             .PermitReentry(DistributionTrigger.Interrupted)
@@ -218,7 +219,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
     public override void Initialize(Being owner)
     {
         base.Initialize(owner);
-        DebugLog("DISTRIBUTOR", $"Started distribution round at {_granary.BuildingName}", 0);
+        DebugLog("DISTRIBUTOR", $"Started distribution round at {_granaryRoom.Name}", 0);
     }
 
     public override EntityAction? GetNextAction(Vector2I position, Perception perception)
@@ -229,7 +230,8 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
             return null;
         }
 
-        if (!GodotObject.IsInstanceValid(_granary))
+        // Check if granary room still exists (Room is plain C#, not GodotObject)
+        if (_granaryRoom.IsDestroyed)
         {
             Fail();
             return null;
@@ -257,7 +259,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         }
 
         // Resolve granary to its storage facility for CheckStorageActivity
-        var granaryStorage = _granary.GetDefaultRoom()?.GetStorageFacility();
+        var granaryStorage = _granaryRoom.GetStorageFacility();
         if (granaryStorage == null)
         {
             DebugLog("DISTRIBUTOR", "Granary has no storage facility", 0);
@@ -269,7 +271,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         var (result, action) = RunCurrentSubActivity(
             () =>
             {
-                DebugLog("DISTRIBUTOR", $"Starting CheckStorageActivity for granary: {_granary.BuildingName}", 0);
+                DebugLog("DISTRIBUTOR", $"Starting CheckStorageActivity for granary: {_granaryRoom.Name}", 0);
                 return new CheckStorageActivity(granaryStorage, Priority);
             },
             position, perception);
@@ -304,7 +306,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
             return new IdleAction(_owner, this, Priority);
         }
 
-        var granaryTrait = _granary.Traits.OfType<GranaryTrait>().FirstOrDefault();
+        var granaryTrait = _granaryRoom.GetStorageFacility()?.SelfAsEntity().GetTrait<GranaryTrait>();
         if (granaryTrait == null)
         {
             DebugLog("DISTRIBUTOR", "Granary has no GranaryTrait, completing round", 0);
@@ -320,18 +322,19 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         DebugLog("DISTRIBUTOR", $"Standing orders has {targets.Count} delivery targets", 0);
         foreach (var target in targets)
         {
-            DebugLog("DISTRIBUTOR", $"  Order: {target.Household.BuildingName} (hash: {target.Household.GetHashCode()}) wants {target.DesiredQuantity}x {target.ItemId}", 0);
-            if (!_householdsToVisit.Contains(target.Household) && GodotObject.IsInstanceValid(target.Household))
+            var householdName = target.Household.Name;
+            DebugLog("DISTRIBUTOR", $"  Order: {householdName} (hash: {target.Household.GetHashCode()}) wants {target.DesiredQuantity}x {target.ItemId}", 0);
+            if (!_householdsToVisit.Contains(target.Household) && !target.Household.IsDestroyed)
             {
                 _householdsToVisit.Add(target.Household);
-                DebugLog("DISTRIBUTOR", $"  Added to visit list: {target.Household.BuildingName} (hash: {target.Household.GetHashCode()})", 0);
+                DebugLog("DISTRIBUTOR", $"  Added to visit list: {householdName} (hash: {target.Household.GetHashCode()})", 0);
             }
         }
 
         DebugLog("DISTRIBUTOR", $"Will visit {_householdsToVisit.Count} households", 0);
         foreach (var h in _householdsToVisit)
         {
-            DebugLog("DISTRIBUTOR", $"  To visit: {h.BuildingName} (hash: {h.GetHashCode()})", 0);
+            DebugLog("DISTRIBUTOR", $"  To visit: {h.Name} (hash: {h.GetHashCode()})", 0);
         }
 
         _machine.Fire(DistributionTrigger.OrdersRead);
@@ -365,7 +368,11 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
                 var neededByItem = new Dictionary<string, int>();
                 foreach (var target in targets)
                 {
-                    int householdHas = _owner.GetStorageItemCount(target.Household, target.ItemId);
+                    // Resolve household room to its storage facility for memory-based item count
+                    var householdFacility = target.Household.GetStorageFacility();
+                    int householdHas = householdFacility != null
+                        ? _owner.GetStorageItemCount(householdFacility, target.ItemId)
+                        : 0;
                     int needed = target.DesiredQuantity - householdHas;
                     if (needed > 0)
                     {
@@ -421,7 +428,11 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         // Load next item type from granary
         var (nextItemId, neededQuantity) = _itemsToLoad[_currentLoadIndex];
 
-        int available = _owner.GetStorageItemCount(_granary, nextItemId);
+        // Get available count from granary room's storage facility via memory
+        var granaryStorageFacility = _granaryRoom.GetStorageFacility();
+        int available = granaryStorageFacility != null
+            ? _owner.GetStorageItemCount(granaryStorageFacility, nextItemId)
+            : 0;
         if (available == 0)
         {
             _currentLoadIndex++;
@@ -430,7 +441,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
 
         int amountToLoad = System.Math.Min(neededQuantity, available);
 
-        var granaryFacility = _granary.GetDefaultRoom()?.GetStorageFacility();
+        var granaryFacility = granaryStorageFacility;
         if (granaryFacility == null)
         {
             DebugLog("DISTRIBUTOR", "Granary has no storage facility", 0);
@@ -468,8 +479,9 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         }
 
         var household = _householdsToVisit[_currentHouseholdIndex];
+        var householdName = household.Name;
 
-        if (!GodotObject.IsInstanceValid(household))
+        if (household.IsDestroyed)
         {
             _currentHouseholdIndex++;
             _currentSubActivity = null;
@@ -477,10 +489,10 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         }
 
         // Resolve household to its storage facility for CheckStorageActivity
-        var householdStorage = household.GetDefaultRoom()?.GetStorageFacility();
+        var householdStorage = household.GetStorageFacility();
         if (householdStorage == null)
         {
-            DebugLog("DISTRIBUTOR", $"Household {household.BuildingName} has no storage facility, skipping", 0);
+            DebugLog("DISTRIBUTOR", $"Household {householdName} has no storage facility, skipping", 0);
             _currentHouseholdIndex++;
             _currentSubActivity = null;
             return new IdleAction(_owner, this, Priority);
@@ -490,7 +502,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         var (result, action) = RunCurrentSubActivity(
             () =>
             {
-                DebugLog("DISTRIBUTOR", $"Starting CheckStorageActivity for household: {household.BuildingName}", 0);
+                DebugLog("DISTRIBUTOR", $"Starting CheckStorageActivity for household: {householdName}", 0);
                 return new CheckStorageActivity(householdStorage, Priority);
             },
             position, perception);
@@ -507,7 +519,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
                 break;
         }
 
-        DebugLog("DISTRIBUTOR", $"Checked {household.BuildingName}", 0);
+        DebugLog("DISTRIBUTOR", $"Checked {householdName}", 0);
         _machine.Fire(DistributionTrigger.HouseholdChecked);
         return new IdleAction(_owner, this, Priority);
     }
@@ -526,7 +538,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         }
 
         var household = _householdsToVisit[_currentHouseholdIndex];
-        if (!GodotObject.IsInstanceValid(household))
+        if (household.IsDestroyed)
         {
             MoveToNextHousehold();
             return new IdleAction(_owner, this, Priority);
@@ -543,7 +555,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
                 _currentHouseholdTargets = _standingOrders.GetDeliveryTargets()
                     .Where(t => t.Household == household)
                     .ToList();
-                DebugLog("DISTRIBUTOR", $"Matched {_currentHouseholdTargets.Count} targets for {household.BuildingName}", 0);
+                DebugLog("DISTRIBUTOR", $"Matched {_currentHouseholdTargets.Count} targets for {household.Name}", 0);
             }
             else
             {
@@ -561,12 +573,14 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         };
     }
 
-    private EntityAction? ProcessDelivering(Building household)
+    private EntityAction? ProcessDelivering(Room household)
     {
         if (_owner == null || _currentHouseholdTargets == null)
         {
             return null;
         }
+
+        var hhName = household.Name;
 
         // Check if previous delivery action completed
         if (_deliverAction != null)
@@ -575,7 +589,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
             if (_lastDeliveredQuantity > 0)
             {
                 var target = _currentHouseholdTargets[_currentDeliveryTargetIndex];
-                DebugLog("DISTRIBUTOR", $"Delivered {_lastDeliveredQuantity}x {target.ItemId} to {household.BuildingName}", 0);
+                DebugLog("DISTRIBUTOR", $"Delivered {_lastDeliveredQuantity}x {target.ItemId} to {hhName}", 0);
             }
 
             _deliverAction = null;
@@ -595,7 +609,10 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         var nextTarget = _currentHouseholdTargets[_currentDeliveryTargetIndex];
 
         // Check how much household already has (from memory observation in CheckingHousehold phase)
-        int householdHas = _owner.GetStorageItemCount(household, nextTarget.ItemId);
+        var deliverFacility = household.GetStorageFacility();
+        int householdHas = deliverFacility != null
+            ? _owner.GetStorageItemCount(deliverFacility, nextTarget.ItemId)
+            : 0;
         int needed = nextTarget.DesiredQuantity - householdHas;
 
         if (needed <= 0)
@@ -624,10 +641,10 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         int amountToDeliver = System.Math.Min(needed, haveInInventory);
 
         // Create deposit action to deliver items
-        var householdFacility = household.GetDefaultRoom()?.GetStorageFacility();
+        var householdFacility = deliverFacility;
         if (householdFacility == null)
         {
-            DebugLog("DISTRIBUTOR", $"Household {household.BuildingName} has no storage facility", 0);
+            DebugLog("DISTRIBUTOR", $"Household {hhName} has no storage facility", 0);
             return new IdleAction(_owner, this, Priority);
         }
 
@@ -649,12 +666,14 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         return _deliverAction;
     }
 
-    private EntityAction? ProcessCollectingBread(Building household)
+    private EntityAction? ProcessCollectingBread(Room household)
     {
         if (_owner == null)
         {
             return null;
         }
+
+        var hhName = household.Name;
 
         // Check if previous collect action completed
         if (_collectAction != null)
@@ -664,7 +683,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
                 // Track collected items for later deposit
                 _collectedItems.TryGetValue("bread", out int existing);
                 _collectedItems["bread"] = existing + _lastCollectedQuantity;
-                DebugLog("DISTRIBUTOR", $"Collected {_lastCollectedQuantity}x excess bread from {household.BuildingName}", 0);
+                DebugLog("DISTRIBUTOR", $"Collected {_lastCollectedQuantity}x excess bread from {hhName}", 0);
             }
 
             _collectAction = null;
@@ -676,7 +695,10 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         }
 
         // Check how much bread household has
-        int breadCount = _owner.GetStorageItemCount(household, "bread");
+        var householdFacilityBread = household.GetStorageFacility();
+        int breadCount = householdFacilityBread != null
+            ? _owner.GetStorageItemCount(householdFacilityBread, "bread")
+            : 0;
         if (breadCount <= BREADEXCESSTHRESHOLD)
         {
             // No excess bread to collect
@@ -685,11 +707,9 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         }
 
         int excessBread = breadCount - BREADEXCESSTHRESHOLD;
-
-        var householdFacilityBread = household.GetDefaultRoom()?.GetStorageFacility();
         if (householdFacilityBread == null)
         {
-            DebugLog("DISTRIBUTOR", $"Household {household.BuildingName} has no storage facility for bread collection", 0);
+            DebugLog("DISTRIBUTOR", $"Household {hhName} has no storage facility for bread collection", 0);
             _exchangeSubPhase = ExchangeSubPhase.CollectingWheat;
             return new IdleAction(_owner, this, Priority);
         }
@@ -712,12 +732,14 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         return _collectAction;
     }
 
-    private EntityAction? ProcessCollectingWheat(Building household)
+    private EntityAction? ProcessCollectingWheat(Room household)
     {
         if (_owner == null)
         {
             return null;
         }
+
+        var hhName = household.Name;
 
         // Check if previous collect action completed
         if (_collectAction != null)
@@ -727,7 +749,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
                 // Track collected items for later deposit
                 _collectedItems.TryGetValue("wheat", out int existing);
                 _collectedItems["wheat"] = existing + _lastCollectedQuantity;
-                DebugLog("DISTRIBUTOR", $"Collected {_lastCollectedQuantity}x excess wheat from {household.BuildingName}", 0);
+                DebugLog("DISTRIBUTOR", $"Collected {_lastCollectedQuantity}x excess wheat from {hhName}", 0);
             }
 
             _collectAction = null;
@@ -739,7 +761,10 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         }
 
         // Check how much wheat household has
-        int wheatCount = _owner.GetStorageItemCount(household, "wheat");
+        var householdFacilityWheat = household.GetStorageFacility();
+        int wheatCount = householdFacilityWheat != null
+            ? _owner.GetStorageItemCount(householdFacilityWheat, "wheat")
+            : 0;
         if (wheatCount <= WHEATEXCESSTHRESHOLD)
         {
             // No excess wheat to collect
@@ -748,11 +773,9 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
         }
 
         int excessWheat = wheatCount - WHEATEXCESSTHRESHOLD;
-
-        var householdFacilityWheat = household.GetDefaultRoom()?.GetStorageFacility();
         if (householdFacilityWheat == null)
         {
-            DebugLog("DISTRIBUTOR", $"Household {household.BuildingName} has no storage facility for wheat collection", 0);
+            DebugLog("DISTRIBUTOR", $"Household {hhName} has no storage facility for wheat collection", 0);
             _exchangeSubPhase = ExchangeSubPhase.Done;
             return new IdleAction(_owner, this, Priority);
         }
@@ -836,12 +859,12 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
             return null;
         }
 
-        // Use GoToBuildingActivity for cross-area capable navigation back to granary
+        // Use GoToRoomActivity for cross-area capable navigation back to granary
         var (result, action) = RunCurrentSubActivity(
             () =>
             {
-                DebugLog("DISTRIBUTOR", $"Starting navigation back to granary: {_granary.BuildingName}", 0);
-                return new GoToBuildingActivity(_granary, Priority, targetStorage: true);
+                DebugLog("DISTRIBUTOR", $"Starting navigation back to granary: {_granaryRoom.Name}", 0);
+                return new GoToRoomActivity(_granaryRoom, Priority, targetStorage: true);
             },
             position, perception);
         switch (result)
@@ -943,7 +966,7 @@ public class DistributorRoundActivity : StatefulActivity<DistributorRoundActivit
             return new IdleAction(_owner, this, Priority);
         }
 
-        var granaryDepositFacility = _granary.GetDefaultRoom()?.GetStorageFacility();
+        var granaryDepositFacility = _granaryRoom.GetStorageFacility();
         if (granaryDepositFacility == null)
         {
             DebugLog("DISTRIBUTOR", "Granary has no storage facility for deposit", 0);

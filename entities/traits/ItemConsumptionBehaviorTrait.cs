@@ -7,6 +7,7 @@ using VeilOfAges.Core.Lib;
 using VeilOfAges.Entities.Actions;
 using VeilOfAges.Entities.Activities;
 using VeilOfAges.Entities.Beings.Health;
+using VeilOfAges.Entities.Memory;
 using VeilOfAges.Entities.Needs;
 using VeilOfAges.Entities.Sensory;
 
@@ -38,12 +39,12 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
     }
 
     /// <summary>
-    /// Gets the home building from the HomeTrait.
+    /// Gets the home room from the HomeTrait.
     /// Returns null if owner doesn't have HomeTrait or no home is set.
     /// </summary>
-    private Building? GetHome()
+    private Room? GetHome()
     {
-        return _owner?.SelfAsEntity().GetTrait<HomeTrait>()?.HomeBuilding;
+        return _owner?.SelfAsEntity().GetTrait<HomeTrait>()?.Home;
     }
 
     /// <summary>
@@ -141,37 +142,37 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
             // Determine priority - use same logic as eating
             int checkPriority = _need.IsCritical() ? -2 : -1;
 
-            // Build list of potential food sources to check (home first, then known food buildings)
-            var buildingsToCheck = new List<Building>();
+            // Build list of potential food source rooms to check (home first, then known food rooms)
+            var roomsToCheck = new List<Room>();
 
             // Add home if exists
-            var home = GetHome();
-            if (home != null && GodotObject.IsInstanceValid(home))
+            var homeRoom = GetHome();
+            if (homeRoom != null && !homeRoom.IsDestroyed)
             {
-                buildingsToCheck.Add(home);
+                roomsToCheck.Add(homeRoom);
             }
 
-            // Add buildings that SharedKnowledge says store food
-            var foodBuildings = _owner.SharedKnowledge
-                .SelectMany(k => k.GetBuildingsByTag(_foodTag))
-                .Where(b => b.IsValid && b.Building != null)
-                .Select(b => b.Building!)
+            // Add rooms that SharedKnowledge says store food
+            var foodRoomRefs = _owner.SharedKnowledge
+                .SelectMany(k => k.GetRoomsByTag(_foodTag))
+                .Where(r => r.IsValid && r.Room != null)
                 .ToList();
 
-            foreach (var building in foodBuildings)
+            foreach (var roomRef in foodRoomRefs)
             {
-                if (!buildingsToCheck.Contains(building))
+                var room = roomRef.Room;
+                if (room != null && !roomsToCheck.Contains(room))
                 {
-                    buildingsToCheck.Add(building);
+                    roomsToCheck.Add(room);
                 }
             }
 
-            // Find a building we haven't recently checked (no observation or observation expired)
+            // Find a room we haven't recently checked (no observation or observation expired)
             // This prevents infinite loops when home is empty - we'll try granary next
-            foreach (var building in buildingsToCheck)
+            foreach (var room in roomsToCheck)
             {
-                // Storage observations are keyed by Facility — check via the building's storage facility
-                var storageFacility = building.GetDefaultRoom()?.GetStorageFacility();
+                // Storage observations are keyed by Facility — check via the room's storage facility
+                var storageFacility = room.GetStorageFacility();
                 var observation = storageFacility != null
                     ? _owner.Memory?.RecallStorageContents(storageFacility)
                     : null;
@@ -179,17 +180,17 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
                 {
                     if (storageFacility == null)
                     {
-                        continue; // No storage facility in this building, skip
+                        continue; // No storage facility in this room, skip
                     }
 
-                    // Never checked this building or observation expired - go check it
-                    DebugLog("EATING", $"No food memory, going to check {building.BuildingName} (priority {checkPriority})", 0);
+                    // Never checked this room or observation expired - go check it
+                    DebugLog("EATING", $"No food memory, going to check {room.Name} (priority {checkPriority})", 0);
                     var checkActivity = new CheckStorageActivity(storageFacility, priority: checkPriority);
                     return new StartActivityAction(_owner, this, checkActivity, priority: checkPriority);
                 }
 
                 // If observation exists, we already checked it and found no food (or we'd have food memory)
-                // Skip to next building
+                // Skip to next room
             }
 
             // All known food sources were recently checked and found no food
@@ -203,36 +204,37 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
         // Low hunger: priority -1 (interrupts work but not sleep)
         int actionPriority = _need.IsCritical() ? -2 : -1;
 
-        // Find the building that actually has food (may not be home!)
-        // First check if food is in inventory (targetBuilding can be null)
-        Building? targetBuilding = null;
+        // Find the facility that actually has food (may not be home!)
+        // First check if food is in inventory (targetStorage can be null)
+        Facility? targetStorage = null;
+        string targetName = "inventory";
         var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
         if (inventory?.FindItemByTag(_foodTag) == null)
         {
-            // Not in inventory - find which building has the remembered food
-            // RecallStorageWithItem now returns (Facility, int); use facility.Owner for the Building.
+            // Not in inventory - find which facility has the remembered food
+            // RecallStorageWithItem returns (Facility, int); use facility directly.
             var facilitiesWithFood = _owner.Memory?.RecallStorageWithItem(_foodTag) ?? [];
             if (facilitiesWithFood.Count > 0)
             {
-                // Use the first facility's owner building (could optimize to pick nearest)
-                targetBuilding = facilitiesWithFood[0].facility.Owner;
-                DebugLog("EATING", $"Found remembered food at {targetBuilding?.BuildingName ?? "unknown"}");
+                // Use the first facility (could optimize to pick nearest)
+                targetStorage = facilitiesWithFood[0].facility;
+                targetName = targetStorage.ContainingRoom?.Name ?? targetStorage.Id;
+                DebugLog("EATING", $"Found remembered food at {targetName}");
             }
             else
             {
                 // No remembered food - this shouldn't happen since HasFoodAvailable() returned true
-                // Fall back to home as last resort
-                targetBuilding = GetHome();
-                DebugLog("EATING", $"No remembered food location, falling back to home: {targetBuilding?.BuildingName ?? "null"}");
+                // Fall back to home storage as last resort
+                var homeRoom = GetHome();
+                targetStorage = homeRoom?.GetStorageFacility();
+                targetName = homeRoom?.Name ?? "null";
+                DebugLog("EATING", $"No remembered food location, falling back to home: {targetName}");
             }
         }
         else
         {
             DebugLog("EATING", "Food is in inventory, no travel needed");
         }
-
-        // Resolve target building to its storage facility for ConsumeItemActivity
-        Facility? targetStorage = targetBuilding?.GetDefaultRoom()?.GetStorageFacility();
 
         // Start consume activity
         var consumeActivity = new ConsumeItemActivity(
@@ -243,7 +245,7 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
             _consumptionDuration,
             priority: actionPriority);
 
-        DebugLog("EATING", $"Starting ConsumeItemActivity (priority {actionPriority}), target: {targetBuilding?.BuildingName ?? "inventory"}", 0);
+        DebugLog("EATING", $"Starting ConsumeItemActivity (priority {actionPriority}), target: {targetName}", 0);
         return new StartActivityAction(_owner, this, consumeActivity, priority: actionPriority);
     }
 
@@ -261,28 +263,28 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
 
         var inventory = _owner.SelfAsEntity().GetTrait<InventoryTrait>();
         var inventoryFood = inventory?.FindItemByTag(_foodTag);
-        var home = GetHome();
+        var homeRoom = GetHome();
 
         // Check memory for remembered food
         var remembersFood = _owner.Memory?.RemembersItemAvailable(_foodTag) == true;
         var rememberedLocations = _owner.Memory?.RecallStorageWithItem(_foodTag) ?? [];
 
         var invInfo = inventoryFood != null ? $"{inventoryFood.Quantity} {inventoryFood.Definition.Name}" : "none";
-        var homeInfo = home?.BuildingName ?? "null";
+        var homeInfo = homeRoom?.Name ?? "null";
         var memoryInfo = remembersFood ? $"yes ({rememberedLocations.Count} locations)" : "no";
 
         // Add real vs remembered storage comparison for home
         var storageComparison = string.Empty;
-        if (home != null && GodotObject.IsInstanceValid(home))
+        if (homeRoom != null && !homeRoom.IsDestroyed)
         {
-            var homeStorage = home.GetDefaultRoom()?.GetStorage();
+            var homeStorage = homeRoom.GetStorage();
             if (homeStorage != null)
             {
                 var realFood = homeStorage.FindItemByTag(_foodTag);
                 var realInfo = realFood != null ? $"{realFood.Quantity} {realFood.Definition.Name}" : "none";
 
                 var memoryContents = "nothing (no memory)";
-                var homeStorageFacility = home.GetDefaultRoom()?.GetStorageFacility();
+                var homeStorageFacility = homeRoom.GetStorageFacility();
                 var storageMemory = homeStorageFacility != null
                     ? _owner.Memory?.RecallStorageContents(homeStorageFacility)
                     : null;
@@ -301,7 +303,7 @@ public class ItemConsumptionBehaviorTrait : BeingTrait
                     }
                 }
 
-                storageComparison = $", [{home.BuildingName}] Real: {realInfo} | Remembered: {memoryContents}";
+                storageComparison = $", [{homeRoom.Name}] Real: {realInfo} | Remembered: {memoryContents}";
             }
         }
 

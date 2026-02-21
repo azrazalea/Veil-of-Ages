@@ -34,11 +34,6 @@ public class NavigationPlan
     /// </summary>
     public FacilityReference? TargetFacility { get; init; }
 
-    /// <summary>
-    /// Gets the building reference at the destination, if navigating to a building.
-    /// </summary>
-    public BuildingReference? TargetBuilding { get; init; }
-
     public bool IsEmpty => Steps.Count == 0;
 
     public bool IsCrossArea => Steps.Any(s => s is TransitionStep);
@@ -200,19 +195,10 @@ public static class WorldNavigator
                 return null;
             }
 
-            // Wrap the steps with facility/building metadata
-            // Derive BuildingReference from the facility's owner building, if available
-            BuildingReference? targetBuildingRef = null;
-            var ownerBuilding = bestFacility.Facility?.Owner;
-            if (ownerBuilding != null && GodotObject.IsInstanceValid(ownerBuilding))
-            {
-                targetBuildingRef = new BuildingReference(ownerBuilding, bestFacility.Area);
-            }
-
+            // Wrap the steps with facility metadata
             var result = new NavigationPlan
             {
                 TargetFacility = bestFacility,
-                TargetBuilding = targetBuildingRef,
             };
             foreach (var step in plan.Steps)
             {
@@ -260,67 +246,6 @@ public static class WorldNavigator
 
         var targetArea = nearestObs.Area ?? currentArea;
         return NavigateToPosition(entity, currentArea, currentPos, targetArea, nearestObs.Position);
-    }
-
-    /// <summary>
-    /// Create a navigation plan to reach the nearest building of a given type.
-    /// </summary>
-    public static NavigationPlan? NavigateToBuilding(Being entity, string buildingType)
-    {
-        var currentArea = entity.GridArea;
-        var currentPos = entity.GetCurrentGridPosition();
-        if (currentArea == null)
-        {
-            return null;
-        }
-
-        // Search SharedKnowledge for buildings
-        BuildingReference? bestBuilding = null;
-        float bestDist = float.MaxValue;
-
-        foreach (var knowledge in entity.SharedKnowledge)
-        {
-            foreach (var building in knowledge.GetBuildingsOfType(buildingType))
-            {
-                if (!building.IsValid)
-                {
-                    continue;
-                }
-
-                float dist = currentPos.DistanceSquaredTo(building.Position);
-                if (building.Area != null && building.Area != currentArea)
-                {
-                    dist += CROSSAREAPENALTY;
-                }
-
-                if (dist < bestDist)
-                {
-                    bestDist = dist;
-                    bestBuilding = building;
-                }
-            }
-        }
-
-        if (bestBuilding == null)
-        {
-            return null;
-        }
-
-        var targetArea = bestBuilding.Area ?? currentArea;
-        var plan = NavigateToPosition(entity, currentArea, currentPos, targetArea, bestBuilding.Position);
-        if (plan == null)
-        {
-            return null;
-        }
-
-        // Wrap the steps with building metadata
-        var result = new NavigationPlan { TargetBuilding = bestBuilding };
-        foreach (var step in plan.Steps)
-        {
-            result.Steps.Add(step);
-        }
-
-        return result;
     }
 
     /// <summary>

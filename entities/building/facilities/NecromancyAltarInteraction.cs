@@ -64,20 +64,20 @@ public class NecromancyAltarInteraction : IFacilityInteractable
         bool remembersGraveyardEmpty = false;
         if (interactor.Memory != null)
         {
-            // Find graveyard buildings and check if any remembered storage has corpses
-            var graveyardBuildings = interactor.GetAllBuildingsOfType("Graveyard");
+            // Find graveyard rooms and check if any remembered storage has corpses
+            var graveyardRooms = interactor.GetAllRoomsOfType("Graveyard");
             bool hasAnyGraveyardMemory = false;
             bool remembersCorpses = false;
 
-            foreach (var graveyardRef in graveyardBuildings)
+            foreach (var graveyardRef in graveyardRooms)
             {
-                if (graveyardRef.Building == null)
+                if (graveyardRef.Room == null)
                 {
                     continue;
                 }
 
                 // Storage observations are keyed by Facility — look up the storage facility first
-                var storageFacility = graveyardRef.Building.GetDefaultRoom()?.GetStorageFacility();
+                var storageFacility = graveyardRef.Room?.GetStorageFacility();
                 if (storageFacility == null)
                 {
                     continue;

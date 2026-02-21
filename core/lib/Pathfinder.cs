@@ -29,7 +29,6 @@ public class PathFinder
     private PathGoalType _goalType = PathGoalType.None;
     private Being? _targetEntity;
     private Vector2I _targetPosition;
-    private Building? _targetBuilding;
     private int _proximityRange = 1;
     private bool _pathNeedsCalculation = true;
     private int _recalculationAttempts;
@@ -45,11 +44,12 @@ public class PathFinder
 
     // Facility goal tracking - stores the facility position to check adjacency in IsGoalReached
     private Vector2I? _targetFacilityPosition;
-    private Building? _targetFacilityBuilding;
-    private string? _targetFacilityId;
 
-    // Building goal: if true, entity must be inside; if false, adjacent is acceptable
+    // Room goal: if true, entity must be inside; if false, adjacent is acceptable
     private bool _requireInterior;
+
+    // Room goal tracking (new Rimworld-style architecture)
+    private Room? _targetRoom;
 
     // Cross-area navigation state
     // When the target building/facility is in a different area, PathFinder internally
@@ -63,7 +63,7 @@ public class PathFinder
     // Final goal storage — the real goal, restored after all area transitions complete.
     // While cross-area navigation is active, _goalType is set to intermediate Position goals.
     private PathGoalType _finalGoalType = PathGoalType.None;
-    private Building? _finalGoalBuilding;
+    private Room? _finalGoalRoom;
     private string? _finalGoalFacilityId;
     private bool _finalRequireInterior;
 
@@ -85,8 +85,8 @@ public class PathFinder
         Position,
         EntityProximity,
         Area,
-        Building,
-        Facility
+        Facility,
+        Room
     }
 
     /// <summary>
@@ -119,28 +119,13 @@ public class PathFinder
                 sb.AppendLine(culture, $"HasValidPath: {HasValidPath()}");
             }
 
-            if (_goalType == PathGoalType.Building && _targetBuilding != null)
+            if (_goalType == PathGoalType.Room && _targetRoom != null)
             {
-                var buildingPos = _targetBuilding.GetCurrentGridPosition();
-                var buildingSize = _targetBuilding.GridSize;
-                sb.AppendLine(culture, $"--- Building Goal Details ---");
-                sb.AppendLine(culture, $"Building: {_targetBuilding.BuildingType} at {buildingPos}, size {buildingSize}");
+                sb.AppendLine(culture, $"--- Room Goal Details ---");
+                sb.AppendLine(culture, $"Room: {_targetRoom.Name} (Id: {_targetRoom.Id})");
                 sb.AppendLine(culture, $"RequireInterior: {_requireInterior}");
-
-                // Interior positions (from tile definitions)
-                var interiorPositions = _targetBuilding.GetInteriorPositions();
-                sb.AppendLine(culture, $"Interior positions ({interiorPositions.Count}): [{string.Join(", ", interiorPositions.Select(p => $"{p}->abs{buildingPos + p}"))}]");
-
-                // Walkable interior positions (filtered by walkability)
-                var walkableInterior = _targetBuilding.GetWalkableInteriorPositions();
-                sb.AppendLine(culture, $"Walkable interior ({walkableInterior.Count}): [{string.Join(", ", walkableInterior.Select(p => $"{p}->abs{buildingPos + p}"))}]");
-
-                // Perimeter positions if adjacency allowed
-                if (!_requireInterior)
-                {
-                    var perimeterPositions = GetBuildingPerimeterPositions(buildingPos, buildingSize).ToList();
-                    sb.AppendLine(culture, $"Perimeter positions ({perimeterPositions.Count}): [{string.Join(", ", perimeterPositions)}]");
-                }
+                sb.AppendLine(culture, $"Tiles: {_targetRoom.Tiles.Count}");
+                sb.AppendLine(culture, $"Doors: {_targetRoom.Doors.Count}");
             }
 
             return sb.ToString();
@@ -174,7 +159,7 @@ public class PathFinder
 
         // Clear final goal storage (ClearPath preserves these)
         _finalGoalType = PathGoalType.None;
-        _finalGoalBuilding = null;
+        _finalGoalRoom = null;
         _finalGoalFacilityId = null;
         _finalRequireInterior = false;
     }
@@ -286,15 +271,23 @@ public class PathFinder
         _recalculationAttempts = 0;
     }
 
-    public void SetBuildingGoal(Being entity, Building targetBuilding, bool requireInterior = true)
+    /// <summary>
+    /// Set goal to navigate into a room (Rimworld-style architecture).
+    /// Uses room's walkable tiles as candidates, with doors as entrance points.
+    /// Cross-area capable via WorldNavigator.
+    /// </summary>
+    /// <param name="entity">The entity navigating (used for cross-area detection).</param>
+    /// <param name="room">The room to navigate to.</param>
+    /// <param name="requireInterior">If true, entity must reach interior; if false, adjacent to door is acceptable.</param>
+    public void SetRoomGoal(Being entity, Room room, bool requireInterior = true)
     {
-        // Cross-area detection: if entity and building are in different areas,
+        // Cross-area detection: if entity and room are in different areas,
         // store the final goal and defer route planning to CalculatePathIfNeeded.
-        if (entity.GridArea != null && targetBuilding.GridArea != null
-            && entity.GridArea != targetBuilding.GridArea)
+        if (entity.GridArea != null && room.GridArea != null
+            && entity.GridArea != room.GridArea)
         {
-            _finalGoalType = PathGoalType.Building;
-            _finalGoalBuilding = targetBuilding;
+            _finalGoalType = PathGoalType.Room;
+            _finalGoalRoom = room;
             _finalRequireInterior = requireInterior;
             _finalGoalFacilityId = null;
             _goalType = PathGoalType.None;
@@ -304,9 +297,9 @@ public class PathFinder
             return;
         }
 
-        // Same-area: existing behavior
-        _goalType = PathGoalType.Building;
-        _targetBuilding = targetBuilding;
+        // Same-area: set room goal directly
+        _goalType = PathGoalType.Room;
+        _targetRoom = room;
         _requireInterior = requireInterior;
         _firstGoalCalculation = true;
         _pathNeedsCalculation = true;
@@ -315,59 +308,23 @@ public class PathFinder
 
     /// <summary>
     /// Set goal to navigate adjacent to a specific facility.
-    /// Delegates to the building-based overload if the facility has an owner building,
-    /// leveraging all existing cross-area and candidate-finding logic.
-    /// For standalone facilities (no owner), sets the goal position directly (same-area only).
+    /// Cross-area capable: detects if facility is in a different area and defers routing.
     /// </summary>
     /// <param name="entity">The entity navigating (used for cross-area detection).</param>
     /// <param name="facility">The facility to navigate to.</param>
     /// <returns>True if a valid facility goal was established, false otherwise.</returns>
     public bool SetFacilityGoal(Being entity, Facility facility)
     {
-        // If the facility has an owner building, delegate to the full overload.
-        // This preserves all cross-area routing and candidate-finding logic.
-        if (facility.Owner != null)
-        {
-            return SetFacilityGoal(entity, facility.Owner, facility.Id);
-        }
+        var facilityArea = facility.ContainingRoom?.GridArea ?? facility.GridArea;
 
-        // Standalone facility (no owner building) — set position directly, same-area only.
-        _targetFacilityBuilding = null;
-        _targetFacilityId = null;
-        _targetFacilityPosition = facility.GridPosition;
-        _goalType = PathGoalType.Facility;
-        _firstGoalCalculation = true;
-        _pathNeedsCalculation = true;
-        _recalculationAttempts = 0;
-        return true;
-    }
-
-    /// <summary>
-    /// Set goal to navigate adjacent to a specific facility in a building.
-    /// </summary>
-    /// <param name="entity">The entity navigating (used for cross-area detection).</param>
-    /// <param name="building">The building containing the facility.</param>
-    /// <param name="facilityId">The facility ID (e.g., "oven", "quern", "storage", "crop").</param>
-    /// <returns>True if a valid facility position was found, false otherwise.</returns>
-    public bool SetFacilityGoal(Being entity, Building building, string facilityId)
-    {
-        // Get facility positions from building's rooms
-        var defaultRoom = building.GetDefaultRoom();
-        var facilityPositions = defaultRoom?.GetFacilities(facilityId)
-            .SelectMany(f => f.Positions).ToList() ?? [];
-        if (facilityPositions.Count == 0)
-        {
-            return false;
-        }
-
-        // Cross-area detection: if entity and building are in different areas,
+        // Cross-area detection: if entity and facility are in different areas,
         // store the final goal and defer route planning to CalculatePathIfNeeded.
-        if (entity.GridArea != null && building.GridArea != null
-            && entity.GridArea != building.GridArea)
+        if (entity.GridArea != null && facilityArea != null
+            && entity.GridArea != facilityArea)
         {
             _finalGoalType = PathGoalType.Facility;
-            _finalGoalBuilding = building;
-            _finalGoalFacilityId = facilityId;
+            _finalGoalRoom = facility.ContainingRoom;
+            _finalGoalFacilityId = facility.Id;
             _finalRequireInterior = false;
             _goalType = PathGoalType.None;
             _pathNeedsCalculation = true;
@@ -376,16 +333,12 @@ public class PathFinder
             return true;
         }
 
-        // Same-area: existing behavior
-        _targetFacilityBuilding = building;
-        _targetFacilityId = facilityId;
+        // Same-area: set position directly for pathfinding.
+        _targetFacilityPosition = facility.GridPosition;
         _goalType = PathGoalType.Facility;
         _firstGoalCalculation = true;
         _pathNeedsCalculation = true;
         _recalculationAttempts = 0;
-
-        // Actual facility selection happens in CalculatePathForCurrentGoal
-        // which tries all facilities and finds one with a valid path
         return true;
     }
 
@@ -426,39 +379,32 @@ public class PathFinder
             case PathGoalType.Area:
                 result = Utils.WithinProximityRangeOf(entityPos, _targetPosition, _proximityRange);
                 break;
-            case PathGoalType.Building:
-                if (_targetBuilding != null)
-                {
-                    Vector2I buildingPos = _targetBuilding.GetCurrentGridPosition();
-                    Vector2I buildingSize = _targetBuilding.GridSize;
-
-                    // Build list of valid positions - interior, plus perimeter if adjacency allowed
-                    var validPositions = new HashSet<Vector2I>();
-
-                    // Interior positions (based on tile definitions, ignores current occupancy)
-                    foreach (var relativePos in _targetBuilding.GetInteriorPositions())
-                    {
-                        validPositions.Add(buildingPos + relativePos);
-                    }
-
-                    // Perimeter positions if adjacency is acceptable
-                    if (!_requireInterior)
-                    {
-                        foreach (var pos in GetBuildingPerimeterPositions(buildingPos, buildingSize))
-                        {
-                            validPositions.Add(pos);
-                        }
-                    }
-
-                    result = validPositions.Contains(entityPos);
-                }
-
-                break;
             case PathGoalType.Facility:
                 if (_targetFacilityPosition.HasValue)
                 {
                     // Check if entity is adjacent to the facility (including diagonals)
                     result = DirectionUtils.IsAdjacent(entityPos, _targetFacilityPosition.Value);
+                }
+
+                break;
+            case PathGoalType.Room:
+                if (_targetRoom != null)
+                {
+                    // Check if entity is inside the room
+                    result = _targetRoom.ContainsAbsolutePosition(entityPos);
+
+                    // If adjacency is acceptable, also check adjacent to any door
+                    if (!result && !_requireInterior)
+                    {
+                        foreach (var door in _targetRoom.Doors)
+                        {
+                            if (DirectionUtils.IsAdjacent(entityPos, door.GridPosition))
+                            {
+                                result = true;
+                                break;
+                            }
+                        }
+                    }
                 }
 
                 break;
@@ -497,25 +443,27 @@ public class PathFinder
                 return false;
             case PathGoalType.Area:
                 return entityPos.DistanceSquaredTo(_targetPosition) <= (closeDistance + _proximityRange) * (closeDistance + _proximityRange);
-            case PathGoalType.Building:
-                if (_targetBuilding != null)
-                {
-                    // Use IsAdjacentToBuilding-style check with larger tolerance
-                    Vector2I buildingPos = _targetBuilding.GetCurrentGridPosition();
-                    Vector2I buildingSize = _targetBuilding.GridSize;
-                    int minX = buildingPos.X - closeDistance;
-                    int maxX = buildingPos.X + buildingSize.X + closeDistance - 1;
-                    int minY = buildingPos.Y - closeDistance;
-                    int maxY = buildingPos.Y + buildingSize.Y + closeDistance - 1;
-                    return entityPos.X >= minX && entityPos.X <= maxX &&
-                           entityPos.Y >= minY && entityPos.Y <= maxY;
-                }
-
-                return false;
             case PathGoalType.Facility:
                 if (_targetFacilityPosition.HasValue)
                 {
                     return entityPos.DistanceSquaredTo(_targetFacilityPosition.Value) <= closeDistance * closeDistance;
+                }
+
+                return false;
+            case PathGoalType.Room:
+                if (_targetRoom != null)
+                {
+                    // Check if close to any door (primary entrance points)
+                    foreach (var door in _targetRoom.Doors)
+                    {
+                        if (entityPos.DistanceSquaredTo(door.GridPosition) <= closeDistance * closeDistance)
+                        {
+                            return true;
+                        }
+                    }
+
+                    // Also check if already inside the room
+                    return _targetRoom.ContainsAbsolutePosition(entityPos);
                 }
 
                 return false;
@@ -559,23 +507,6 @@ public class PathFinder
 
                 break;
 
-            case PathGoalType.Building:
-                if (_targetBuilding != null)
-                {
-                    var walkableInterior = _targetBuilding.GetWalkableInteriorPositions();
-                    var buildingPos = _targetBuilding.GetCurrentGridPosition();
-                    foreach (var relPos in walkableInterior)
-                    {
-                        var absPos = buildingPos + relPos;
-                        if (absPos != entityPos && gridArea != null && gridArea.IsCellWalkable(absPos))
-                        {
-                            result.Add(absPos);
-                        }
-                    }
-                }
-
-                break;
-
             case PathGoalType.Area:
                 // Positions within the area radius
                 for (int dx = -_proximityRange; dx <= _proximityRange; dx++)
@@ -589,6 +520,21 @@ public class PathFinder
                             {
                                 result.Add(pos);
                             }
+                        }
+                    }
+                }
+
+                break;
+
+            case PathGoalType.Room:
+                if (_targetRoom != null)
+                {
+                    // Walkable tiles inside the room
+                    foreach (var tile in _targetRoom.Tiles)
+                    {
+                        if (tile != entityPos && gridArea != null && gridArea.IsCellWalkable(tile))
+                        {
+                            result.Add(tile);
                         }
                     }
                 }
@@ -918,91 +864,75 @@ public class PathFinder
 
                     break;
 
-                case PathGoalType.Building:
-                    if (_targetBuilding == null)
-                    {
-                        Log.Error("Target building is null");
-                        return false;
-                    }
-
-                    Vector2I buildingPos = _targetBuilding.GetCurrentGridPosition();
-                    Vector2I buildingSize = _targetBuilding.GridSize;
-
-                    // Collect candidates - interior positions, plus perimeter if allowed
-                    var buildingCandidates = CollectBuildingCandidates(
-                        astar, buildingPos, _targetBuilding.GetWalkableInteriorPositions(),
-                        buildingSize, _requireInterior, perceivedEntityPositions);
-
-                    var buildingResult = TryPathToCandidates(astar, startPos, buildingCandidates, perceivedEntityPositions);
-                    if (!buildingResult.Found)
-                    {
-                        Log.Error($"No path to building {_targetBuilding.BuildingType} at {buildingPos}: {buildingResult.FailureReason} (tried {buildingResult.CandidatesTried}/{buildingCandidates.Count} candidates)");
-                        return false;
-                    }
-
-                    CurrentPath = buildingResult.Path;
-
-                    break;
-
                 case PathGoalType.Facility:
-                    if (_targetFacilityPosition.HasValue && _targetFacilityBuilding == null)
+                    if (!_targetFacilityPosition.HasValue)
                     {
-                        // Standalone facility: position already known, path to an adjacent tile.
-                        var standaloneAdjacentPositions = GetAdjacentPositions(_targetFacilityPosition.Value)
-                            .Where(pos => IsValidCandidate(astar, pos, perceivedEntityPositions))
-                            .ToList();
-
-                        var standaloneResult = TryPathToCandidates(astar, startPos, standaloneAdjacentPositions, perceivedEntityPositions);
-                        if (!standaloneResult.Found)
-                        {
-                            Log.Error($"No path to standalone facility at {_targetFacilityPosition.Value}: {standaloneResult.FailureReason}");
-                            return false;
-                        }
-
-                        if (standaloneResult.SuccessIndex >= 0 && standaloneResult.SuccessIndex < standaloneAdjacentPositions.Count)
-                        {
-                            _targetPosition = standaloneAdjacentPositions[standaloneResult.SuccessIndex];
-                        }
-
-                        CurrentPath = standaloneResult.Path;
-                        break;
-                    }
-
-                    if (_targetFacilityBuilding == null || _targetFacilityId == null)
-                    {
-                        Log.Error("Facility goal missing building or facility ID");
+                        Log.Error("Facility goal missing target position");
                         return false;
                     }
 
-                    // Collect facility candidates with entrance-blocking info
-                    var (facilityCandidates, facilityPositionMap) = CollectFacilityCandidates(
-                        astar, _targetFacilityBuilding, _targetFacilityId, perceivedEntityPositions);
-
-                    // Extract just the adjacent positions for pathfinding
-                    var facilityAdjacentPositions = facilityCandidates.Select(c => c.adjacentPos).ToList();
+                    // Facility position is always absolute — path to an adjacent tile.
+                    var facilityAdjacentPositions = GetAdjacentPositions(_targetFacilityPosition.Value)
+                        .Where(pos => IsValidCandidate(astar, pos, perceivedEntityPositions))
+                        .ToList();
 
                     var facilityResult = TryPathToCandidates(astar, startPos, facilityAdjacentPositions, perceivedEntityPositions);
                     if (!facilityResult.Found)
                     {
-                        Log.Error($"No path to '{_targetFacilityId}' facility: {facilityResult.FailureReason}");
+                        Log.Error($"No path to facility at {_targetFacilityPosition.Value}: {facilityResult.FailureReason}");
                         return false;
                     }
 
-                    // Set the facility position based on which candidate succeeded
-                    if (facilityResult.SuccessIndex >= 0 && facilityResult.SuccessIndex < facilityCandidates.Count)
+                    if (facilityResult.SuccessIndex >= 0 && facilityResult.SuccessIndex < facilityAdjacentPositions.Count)
                     {
-                        var (facilityPos, adjacentPos, _) = facilityCandidates[facilityResult.SuccessIndex];
-                        _targetFacilityPosition = facilityPos;
-                        _targetPosition = adjacentPos;
-                    }
-                    else if (facilityCandidates.Count > 0)
-                    {
-                        // Partial path - use first candidate's facility position
-                        _targetFacilityPosition = facilityCandidates[0].facilityPos;
-                        _targetPosition = facilityCandidates[0].adjacentPos;
+                        _targetPosition = facilityAdjacentPositions[facilityResult.SuccessIndex];
                     }
 
                     CurrentPath = facilityResult.Path;
+
+                    break;
+
+                case PathGoalType.Room:
+                    if (_targetRoom == null)
+                    {
+                        Log.Error("Target room is null");
+                        return false;
+                    }
+
+                    // Collect walkable tiles in the room as candidates
+                    var roomCandidates = new List<Vector2I>();
+                    foreach (var tile in _targetRoom.Tiles)
+                    {
+                        if (IsValidCandidate(astar, tile, perceivedEntityPositions))
+                        {
+                            roomCandidates.Add(tile);
+                        }
+                    }
+
+                    // If not requiring interior, also add positions adjacent to doors
+                    if (!_requireInterior)
+                    {
+                        foreach (var door in _targetRoom.Doors)
+                        {
+                            foreach (var adjacentPos in GetAdjacentPositions(door.GridPosition))
+                            {
+                                if (!_targetRoom.ContainsAbsolutePosition(adjacentPos) &&
+                                    IsValidCandidate(astar, adjacentPos, perceivedEntityPositions))
+                                {
+                                    roomCandidates.Add(adjacentPos);
+                                }
+                            }
+                        }
+                    }
+
+                    var roomResult = TryPathToCandidates(astar, startPos, roomCandidates, perceivedEntityPositions);
+                    if (!roomResult.Found)
+                    {
+                        Log.Error($"No path to room {_targetRoom.Name}: {roomResult.FailureReason} (tried {roomResult.CandidatesTried}/{roomCandidates.Count} candidates)");
+                        return false;
+                    }
+
+                    CurrentPath = roomResult.Path;
 
                     break;
             }
@@ -1105,21 +1035,6 @@ public class PathFinder
         foreach (var dir in DirectionUtils.All)
         {
             yield return pos + dir;
-        }
-    }
-
-    // Get perimeter positions around a building (one tile outside the building bounds)
-    private static IEnumerable<Vector2I> GetBuildingPerimeterPositions(Vector2I buildingPos, Vector2I buildingSize)
-    {
-        for (int x = -1; x <= buildingSize.X; x++)
-        {
-            for (int y = -1; y <= buildingSize.Y; y++)
-            {
-                if (x == -1 || y == -1 || x == buildingSize.X || y == buildingSize.Y)
-                {
-                    yield return new Vector2I(buildingPos.X + x, buildingPos.Y + y);
-                }
-            }
         }
     }
 
@@ -1228,44 +1143,6 @@ public class PathFinder
     }
 
     /// <summary>
-    /// Collect valid candidate positions for a building goal.
-    /// </summary>
-    private static List<Vector2I> CollectBuildingCandidates(
-        AStarGrid2D astar,
-        Vector2I buildingPos,
-        List<Vector2I> walkableInterior,
-        Vector2I buildingSize,
-        bool requireInterior,
-        HashSet<Vector2I>? perceivedBlocked)
-    {
-        var candidates = new List<Vector2I>();
-
-        // Add walkable interior positions
-        foreach (var relativePos in walkableInterior)
-        {
-            Vector2I absolutePos = buildingPos + relativePos;
-            if (IsValidCandidate(astar, absolutePos, perceivedBlocked))
-            {
-                candidates.Add(absolutePos);
-            }
-        }
-
-        // Add perimeter positions if adjacency is acceptable
-        if (!requireInterior)
-        {
-            foreach (var pos in GetBuildingPerimeterPositions(buildingPos, buildingSize))
-            {
-                if (IsValidCandidate(astar, pos, perceivedBlocked))
-                {
-                    candidates.Add(pos);
-                }
-            }
-        }
-
-        return candidates;
-    }
-
-    /// <summary>
     /// Check if a position is a valid pathfinding candidate.
     /// </summary>
     private static bool IsValidCandidate(AStarGrid2D astar, Vector2I pos, HashSet<Vector2I>? perceivedBlocked)
@@ -1286,55 +1163,6 @@ public class PathFinder
         }
 
         return true;
-    }
-
-    /// <summary>
-    /// Collect valid candidate positions for a facility goal.
-    /// Returns candidates sorted by entrance-blocking priority (non-blocking first).
-    /// </summary>
-    private static (List<(Vector2I facilityPos, Vector2I adjacentPos, bool blocksEntrance)> candidates,
-                    Dictionary<Vector2I, Vector2I> positionMap)
-        CollectFacilityCandidates(
-            AStarGrid2D astar,
-            Building building,
-            string facilityId,
-            HashSet<Vector2I>? perceivedBlocked)
-    {
-        var candidates = new List<(Vector2I facilityPos, Vector2I adjacentPos, bool blocksEntrance)>();
-        var positionMap = new Dictionary<Vector2I, Vector2I>(); // adjacentPos -> facilityPos
-
-        var defaultRoom = building.GetDefaultRoom();
-        var facilityPositions = defaultRoom?.GetFacilities(facilityId)
-            .SelectMany(f => f.Positions).ToList() ?? [];
-        Vector2I buildingPos = building.GetCurrentGridPosition();
-
-        // Get entrance positions to avoid blocking doorways
-        var entrancePositions = new HashSet<Vector2I>(building.GetEntrancePositions());
-        var entranceAdjacentPositions = building.GetEntranceAdjacentPositions();
-
-        foreach (var relativePos in facilityPositions)
-        {
-            Vector2I absoluteFacilityPos = buildingPos + relativePos;
-
-            foreach (var adjacentPos in GetAdjacentPositions(absoluteFacilityPos))
-            {
-                if (!IsValidCandidate(astar, adjacentPos, perceivedBlocked))
-                {
-                    continue;
-                }
-
-                bool blocksEntrance = entrancePositions.Contains(adjacentPos) ||
-                                      entranceAdjacentPositions.Contains(adjacentPos);
-
-                candidates.Add((absoluteFacilityPos, adjacentPos, blocksEntrance));
-                positionMap[adjacentPos] = absoluteFacilityPos;
-            }
-        }
-
-        // Sort: non-entrance-blocking positions first
-        candidates.Sort((a, b) => a.blocksEntrance.CompareTo(b.blocksEntrance));
-
-        return (candidates, positionMap);
     }
 
     /// <summary>
@@ -1368,10 +1196,10 @@ public class PathFinder
     /// false if no route could be found.</returns>
     private bool HandleCrossAreaPlanning(Being entity)
     {
-        var targetArea = _finalGoalBuilding?.GridArea;
+        var targetArea = _finalGoalRoom?.GridArea;
         if (targetArea == null)
         {
-            Log.Error("HandleCrossAreaPlanning: final goal building has no GridArea");
+            Log.Error("HandleCrossAreaPlanning: final goal has no GridArea");
             return false;
         }
 
@@ -1431,33 +1259,48 @@ public class PathFinder
     }
 
     /// <summary>
-    /// Restores the real goal (Building or Facility) after all area transitions are done.
+    /// Restores the real goal (Room or Facility) after all area transitions are done.
     /// Called from HandleCrossAreaPlanning when entity has arrived in the target area.
     /// </summary>
     private void SetFinalGoal(Being entity)
     {
         var goalType = _finalGoalType;
-        var building = _finalGoalBuilding;
+        var room = _finalGoalRoom;
         var facilityId = _finalGoalFacilityId;
         var requireInterior = _finalRequireInterior;
 
         // Clear all cross-area state
         _finalGoalType = PathGoalType.None;
-        _finalGoalBuilding = null;
+        _finalGoalRoom = null;
         _finalGoalFacilityId = null;
         _finalRequireInterior = false;
         _crossAreaRoute = null;
         _crossAreaRouteIndex = 0;
 
-        // Set the real goal — entity is now in the same area as the building,
+        // Set the real goal — entity is now in the same area as the target,
         // so these will NOT detect cross-area and will use normal pathfinding.
         switch (goalType)
         {
-            case PathGoalType.Building:
-                SetBuildingGoal(entity, building!, requireInterior);
-                break;
             case PathGoalType.Facility:
-                SetFacilityGoal(entity, building!, facilityId!);
+                // Resolve the facility from the room to restore the position-based goal
+                if (room != null && facilityId != null)
+                {
+                    var facility = room.GetFacility(facilityId);
+                    if (facility != null)
+                    {
+                        SetFacilityGoal(entity, facility);
+                        return;
+                    }
+                }
+
+                Log.Error($"SetFinalGoal: Could not resolve facility '{facilityId}' in room '{room?.Name}'");
+                break;
+            case PathGoalType.Room:
+                if (room != null)
+                {
+                    SetRoomGoal(entity, room, requireInterior);
+                }
+
                 break;
         }
     }

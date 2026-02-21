@@ -6,30 +6,6 @@ This directory contains all trait implementations for Being entities. Traits are
 
 ## Files
 
-### ConsumptionBehaviorTrait.cs
-Generic trait for satisfying needs by consuming from sources.
-
-**Features:**
-- Strategy-based food source identification
-- Path-based movement to sources
-- Timed consumption with configurable duration
-- Critical state handling
-
-**State Machine:**
-1. Check if need is low
-2. Find food source using identifier strategy
-3. Move to source using acquisition strategy
-4. Consume (timer-based idle)
-5. Apply effects using consumption strategy
-
-**Constructor Parameters:**
-- `needId` - ID of the need to satisfy
-- `sourceIdentifier` - IFoodSourceIdentifier implementation
-- `acquisitionStrategy` - IFoodAcquisitionStrategy implementation
-- `consumptionEffect` - IConsumptionEffect implementation
-- `criticalStateHandler` - ICriticalStateHandler implementation
-- `consumptionDuration` - Ticks to consume (default 30)
-
 ### ItemConsumptionBehaviorTrait.cs
 Trait that handles need satisfaction by consuming items from inventory or home storage.
 
@@ -56,7 +32,7 @@ Trait that handles need satisfaction by consuming items from inventory or home s
 - `consumptionDuration` - Ticks to spend eating (default 244)
 
 **Home Resolution:**
-Internally calls `HomeTrait?.HomeBuilding` to get the home building (no longer takes a `getHome` function parameter).
+Internally calls `HomeTrait?.Home` to get the home `Room`. Storage is accessed via the room's storage facility.
 
 **Usage:**
 ```csharp
@@ -135,14 +111,14 @@ Storage trait for buildings and non-being entities.
 
 **Usage:**
 ```csharp
-// In Building class
+// In Room/Facility setup
 var storage = new StorageTrait(
     volumeCapacity: 10.0f,
     weightCapacity: -1,
     decayRateModifier: 0.5f,  // Cold storage
     facilities: ["oven", "counter"]
 );
-building.SelfAsEntity().AddTraitToQueue(storage, 0);
+facility.SelfAsEntity().AddTraitToQueue(storage, 0);
 ```
 
 ### LivingTrait.cs
@@ -153,7 +129,7 @@ Base trait for living entities.
 - Hunger: 75 initial, 0.02 decay, thresholds 15/40/90
 - Energy: 100 initial, 0.008 decay, thresholds 20/40/80
 
-Simple trait that adds needs - actual consumption behavior is handled by ConsumptionBehaviorTrait or ItemConsumptionBehaviorTrait, energy is restored by SleepActivity.
+Simple trait that adds needs - actual consumption behavior is handled by ItemConsumptionBehaviorTrait, energy is restored by SleepActivity.
 
 ### MindlessTrait.cs
 Trait for non-sapient entities.
@@ -280,38 +256,38 @@ Hunger-driven behavior for zombie entities.
 Autonomous village life behavior (non-sleep daily routine).
 
 **Features:**
-- Uses SharedKnowledge for building awareness (via Village)
+- Uses SharedKnowledge for building/room awareness (via Village)
 - State-based daily routine (sleep is handled by ScheduleTrait)
 - Home-based food acquisition
-- Uses GoToBuildingActivity for visiting buildings (home, other buildings)
+- Uses GoToRoomActivity for visiting rooms (home, other rooms)
 - Uses GoToLocationActivity for going to village square
 - Defers to SleepActivity when detected (returns null)
 
 **States:**
-- `IdleAtHome` - At home position, may wander; uses GoToBuildingActivity to navigate home
-- `IdleAtSquare` - At village center, social time; uses GoToBuildingActivity to navigate to well
-- `VisitingBuilding` - At a specific building; uses GoToBuildingActivity to navigate
+- `IdleAtHome` - At home position, may wander; uses GoToRoomActivity to navigate home
+- `IdleAtSquare` - At village center, social time; uses GoToRoomActivity to navigate to well
+- `VisitingBuilding` - At a specific room; uses GoToRoomActivity to navigate
 
 **Navigation Pattern:**
-- Uses `GoToBuildingActivity` for building-based navigation (home, visiting buildings)
+- Uses `GoToRoomActivity` for room-based navigation (home, visiting rooms)
 - Uses `GoToLocationActivity` for position-based navigation (village square)
 - Pattern: start activity with `StartActivityAction`, then check if activity is running and return `null` to let activity handle navigation
 - Example: `return new StartActivityAction(_owner, this, visitActivity, priority: 1);`
-- Then check: `if (_owner.GetCurrentActivity() is GoToBuildingActivity) return null;`
+- Then check: `if (_owner.GetCurrentActivity() is GoToRoomActivity) return null;`
 
-**Building Knowledge:**
-Uses SharedKnowledge from Village to find buildings to visit:
+**Room Knowledge:**
+Uses SharedKnowledge from Village to find rooms to visit. SharedKnowledge stores `RoomReference` entries rather than `BuildingReference`:
 ```csharp
-var home = _owner?.SelfAsEntity().GetTrait<HomeTrait>()?.HomeBuilding;
-var knownBuildings = _owner.SharedKnowledge
-    .SelectMany(k => k.GetAllBuildings())
-    .Where(b => b.IsValid && b.Building != home)
+var home = _owner?.SelfAsEntity().GetTrait<HomeTrait>()?.Home;
+var knownRooms = _owner.SharedKnowledge
+    .SelectMany(k => k.GetAllRooms())
+    .Where(r => r.IsValid && r.Room != home)
     .ToList();
 ```
 Villagers receive SharedKnowledge when added as village residents via `Village.AddResident()`.
 
 ### JobTrait.cs (IMPORTANT - Base Class)
-Abstract base class for all job traits that work at a building during specific hours.
+Abstract base class for all job traits that work at a room/facility during specific hours.
 
 **Purpose:**
 JobTrait **structurally enforces** the correct pattern for job traits:
@@ -323,7 +299,7 @@ Instead, they must implement `CreateWorkActivity()` to define the actual work.
 
 **Why This Exists:**
 This prevents the "baker bug" pattern where traits accessed storage directly before
-the entity had arrived at the building. By sealing SuggestAction and forcing work
+the entity had arrived at the workplace. By sealing SuggestAction and forcing work
 through CreateWorkActivity, we guarantee that:
 1. Only time/status checks happen in the trait
 2. All storage access happens in activities (which have navigation phases)
@@ -334,10 +310,13 @@ through CreateWorkActivity, we guarantee that:
 
 **Virtual Members (Override to Customize):**
 - `WorkPhases` - Day phases when work happens (default: Dawn, Day)
-- `GetWorkplace()` - Get the workplace building (default: `_workplace` field)
+- `GetWorkplace()` - Get the workplace room (default: `_workplace` field)
 - `WorkplaceConfigKey` - Config key for workplace (default: "workplace")
 - `DesiredResources` - IDesiredResources implementation (default: empty)
 - `GetJobName()` - Human-readable name for debug logging
+
+**Workplace Field:**
+`_workplace` is `Room?` (not Building). TraitConfiguration resolves it via `GetRoom()` rather than `GetBuilding()`.
 
 **Usage:**
 ```csharp
@@ -357,7 +336,7 @@ Job trait for farmers who work at assigned farms during daytime.
 **Inherits from JobTrait** - enforces the correct pattern.
 
 **Features:**
-- Assigned to a specific farm building on construction
+- Assigned to a specific farm room on construction
 - Starts WorkFieldActivity during Dawn/Day phases
 - Returns null at night (VillagerTrait handles sleep)
 - Context-aware dialogue based on time of day
@@ -373,7 +352,7 @@ Job trait for farmers who work at assigned farms during daytime.
 
 **Usage:**
 ```csharp
-var farmerTrait = new FarmerJobTrait(assignedFarm);
+var farmerTrait = new FarmerJobTrait(assignedFarmRoom);
 typedBeing.SelfAsEntity().AddTraitToQueue(farmerTrait, priority: -1);
 ```
 
@@ -384,7 +363,7 @@ Job trait for bakers who work at bakeries during daytime.
 **Inherits from JobTrait** - enforces the correct pattern.
 
 **Features:**
-- Assigned to a specific workplace (bakery) building
+- Assigned to a specific workplace room (bakery)
 - Starts BakingActivity during Dawn/Day phases
 - Returns null at night (VillagerTrait handles sleep)
 - Context-aware dialogue based on time of day
@@ -398,25 +377,49 @@ Job trait for bakers who work at bakeries during daytime.
 
 **Usage:**
 ```csharp
-var bakerTrait = new BakerJobTrait(assignedBakery);
+var bakerTrait = new BakerJobTrait(assignedBakeryRoom);
 typedBeing.SelfAsEntity().AddTraitToQueue(bakerTrait, priority: -1);
 ```
 
 **Priority:** -1 (runs before VillagerTrait at priority 1)
 
-### HomeTrait.cs
-Trait that provides home room/building reference for entities.
+### DistributorJobTrait.cs
+Job trait for distributors who move resources between rooms/facilities.
+**Inherits from JobTrait** - enforces the correct pattern.
 
 **Features:**
-- Stores a `Room` reference internally (not a Building reference)
-- `Home` property returns the home `Room`
-- `HomeBuilding` convenience property returns `_home?.Owner` for callers that need the `Building`
+- `_workplace` is `Room?` (not Building)
+- Finds GranaryTrait via `_workplace.GetStorageFacility()?.SelfAsEntity().GetTrait<GranaryTrait>()`
+- Distributes resources to other rooms during work phases
+
+### HomeTrait.cs
+Trait that provides home room reference for entities.
+
+**Features:**
+- Stores a `Room` reference internally (`_home`)
+- `Home` property returns the home `Room?`
 - `IsEntityAtHome()` checks if the entity's current position is inside the home room
 - `SetHome(Room)` sets the home room directly and calls `Room.AddResident()` (not Building.AddResident)
-- `SetHome(Building)` backward-compatible overload that resolves to the building's default room
+
+**Note:** The `HomeBuilding` convenience property has been removed. Callers that previously used `HomeTrait?.HomeBuilding` must now use `HomeTrait?.Home` and resolve the building via `Room.Owner` if needed.
+
+**Both `SetHome` overloads take `Room`** - there is no longer a `SetHome(Building)` overload.
 
 **Resident Registration:**
 HomeTrait calls `Room.AddResident(being)` directly when setting a home. This happens either in `SetHome()` (if `_owner` is already set) or deferred to `Initialize()` (if `Configure()` was called before `Initialize()`). Building.AddResident no longer exists -- all resident management is on Room.
+
+### DormantUndeadTrait.cs
+Trait for undead that remain dormant until animated.
+
+**Features:**
+- Uses `HomeTrait?.Home` (`Room?`) instead of the removed `HomeTrait?.HomeBuilding`
+- Checks `home.IsDestroyed` instead of `GodotObject.IsInstanceValid(home)` for room validity
+
+**Key Pattern:**
+```csharp
+var home = _owner?.SelfAsEntity().GetTrait<HomeTrait>()?.Home;
+if (home == null || home.IsDestroyed) return null;
+```
 
 ### AutomationTrait.cs
 Trait that allows toggling between automated and manual behavior.
@@ -446,7 +449,7 @@ Job trait for necromancer's nighttime study of dark arts.
 **JobTrait Overrides:**
 - `WorkActivityType`: `StudyNecromancyActivity`
 - `WorkPhases`: Night only
-- `GetWorkplace()`: Returns altar's building (found dynamically)
+- `GetWorkplace()`: Returns altar's room (found dynamically)
 
 **Constants:**
 - `WORKDURATION`: 400 ticks (~50 seconds real time)
@@ -464,8 +467,9 @@ Unified sleep/scheduling trait for all living entities (players and NPCs).
 - Min-awake cooldown (200 ticks) prevents sleep oscillation after waking
 - Night work deferral: entities with `allowNightWork` and an active night JobTrait skip sleep during Night
 - Emergency sleep at critical energy regardless of time/location
-- Uses HomeTrait.IsEntityAtHome() for at-home detection
-- Verifies GoToBuildingActivity target matches home (won't confuse other navigation with "going home")
+- Uses HomeTrait.IsEntityAtHome() and `HomeTrait?.Home` (Room?) for at-home detection
+- Uses GoToRoomActivity for navigating home to sleep
+- Verifies GoToRoomActivity target matches home room (won't confuse other navigation with "going home")
 
 **Sleep Triggers:**
 1. Critical energy (any phase) → emergency sleep, priority -1
@@ -477,7 +481,7 @@ Unified sleep/scheduling trait for all living entities (players and NPCs).
 
 **States:**
 - `Awake` → entity is not sleeping
-- `GoingHome` → navigating to home building for sleep
+- `GoingHome` → navigating to home room for sleep via GoToRoomActivity
 - `Sleeping` → SleepActivity is active
 
 **Constants:**
@@ -489,7 +493,7 @@ Job trait for scholars who study at their home during daytime.
 **Inherits from JobTrait** - enforces the correct pattern.
 
 **Features:**
-- Uses home as workplace (special case - overrides GetWorkplace())
+- Uses home room as workplace (special case - overrides GetWorkplace())
 - Starts StudyActivity during Dawn/Day phases
 - Returns null at night (ScheduleTrait/NecromancyStudyJobTrait handle night behavior)
 - Context-aware dialogue based on time of day
@@ -497,17 +501,17 @@ Job trait for scholars who study at their home during daytime.
 **JobTrait Overrides:**
 - `WorkActivityType`: `StudyActivity`
 - `WorkplaceConfigKey`: "home"
-- `GetWorkplace()`: Returns `_home` instead of `_workplace`
+- `GetWorkplace()`: Returns `_home` (a `Room`) instead of `_workplace`
 
 **Constants:**
 - `WORKDURATION`: 400 ticks (~50 seconds real time)
 
 **Usage:**
 ```csharp
-var scholarTrait = new ScholarJobTrait(home);
+var scholarTrait = new ScholarJobTrait(homeRoom);
 // or
 var scholarTrait = new ScholarJobTrait();
-scholarTrait.SetHome(home);
+scholarTrait.SetHome(homeRoom);
 ```
 
 ### IDesiredResources.cs
@@ -534,7 +538,7 @@ Interface for traits that specify desired resource levels at home storage.
 if (trait is IDesiredResources desiredResources)
 {
     var homeRoom = _owner?.SelfAsEntity().GetTrait<HomeTrait>()?.Home;
-    var homeStorage = homeRoom?.GetStorage();
+    var homeStorage = homeRoom?.GetStorageFacility()?.GetStorage();
     var missing = desiredResources.GetMissingResources(homeStorage);
 
     foreach (var (itemId, neededQty) in missing)
@@ -551,23 +555,24 @@ Trait (base)
   +-- BeingTrait (Being-specific helpers)
         +-- LivingTrait (hunger + energy needs)
         +-- MindlessTrait (dialogue limits)
-        +-- ConsumptionBehaviorTrait (strategy-based need satisfaction)
         +-- ItemConsumptionBehaviorTrait (item-based need satisfaction)
         +-- InventoryTrait (personal item storage, implements IStorageContainer)
         +-- AutomationTrait (toggle automated/manual behavior)
         +-- ScheduleTrait (unified sleep/scheduling for all living entities)
         +-- VillagerTrait (village daily routine, non-sleep)
-        +-- HomeTrait (home room/building reference + IsEntityAtHome)
+        +-- HomeTrait (home Room reference + IsEntityAtHome)
+        +-- DormantUndeadTrait (dormant until animated, uses Room-based home)
         +-- JobTrait (ABSTRACT - sealed SuggestAction, implements IDesiredResources)
               +-- FarmerJobTrait (farming work, WorkFieldActivity)
               +-- BakerJobTrait (baking work, BakingActivity)
+              +-- DistributorJobTrait (resource distribution, Room/Facility-based)
               +-- ScholarJobTrait (studying work, StudyActivity)
               +-- NecromancyStudyJobTrait (necromancy study, StudyNecromancyActivity/WorkOnOrderActivity)
         +-- UndeadTrait (undead properties)
               +-- UndeadBehaviorTrait (abstract, wandering)
                     +-- SkeletonTrait (territorial)
                     +-- ZombieTrait (hunger-driven)
-  +-- StorageTrait (building storage, implements IStorageContainer)
+  +-- StorageTrait (building/facility storage, implements IStorageContainer)
 
 Interfaces:
   +-- IDesiredResources (desired resource stockpile specification)
@@ -577,10 +582,9 @@ Interfaces:
 
 | Trait | Description |
 |-------|-------------|
-| `ConsumptionBehaviorTrait` | Strategy-based need satisfaction |
 | `ItemConsumptionBehaviorTrait` | Item-based need satisfaction from inventory/home |
 | `InventoryTrait` | Personal item storage for beings |
-| `StorageTrait` | Building/entity item storage |
+| `StorageTrait` | Building/facility item storage |
 | `LivingTrait` | Living entity needs (hunger, energy) |
 | `MindlessTrait` | Non-sapient dialogue limits |
 | `AutomationTrait` | Toggle between automated and manual behavior |
@@ -590,11 +594,13 @@ Interfaces:
 | `ZombieTrait` | Hunger-driven zombie behavior |
 | `ScheduleTrait` | Unified sleep/scheduling for all living entities |
 | `VillagerTrait` | Village daily routine (non-sleep) |
-| `HomeTrait` | Home room/building reference + IsEntityAtHome() |
+| `HomeTrait` | Home Room reference + IsEntityAtHome() |
+| `DormantUndeadTrait` | Dormant undead using Room-based home |
 | `JobTrait` | **Abstract base for all job traits** - sealed SuggestAction enforces pattern |
-| `FarmerJobTrait` | Work at assigned farm during day (extends JobTrait) |
-| `BakerJobTrait` | Work at assigned bakery during day (extends JobTrait) |
-| `ScholarJobTrait` | Study at home during day (extends JobTrait) |
+| `FarmerJobTrait` | Work at assigned farm room during day (extends JobTrait) |
+| `BakerJobTrait` | Work at assigned bakery room during day (extends JobTrait) |
+| `DistributorJobTrait` | Distribute resources between rooms/facilities (extends JobTrait) |
+| `ScholarJobTrait` | Study at home room during day (extends JobTrait) |
 | `NecromancyStudyJobTrait` | Study necromancy at altar during night (extends JobTrait) |
 | `IDesiredResources` | Interface for traits that specify desired home stockpile levels |
 
@@ -680,7 +686,7 @@ public override EntityAction? SuggestAction(...)
     if (gameTime.CurrentDayPhase is not(DayPhaseType.Dawn or DayPhaseType.Day)) return null;
 
     // Create activity - it handles ALL work logic (navigation, storage, work phases)
-    var workActivity = new WorkFieldActivity(_workplace, WORKDURATION, priority: 0);
+    var workActivity = new WorkFieldActivity(_workplace!, WORKDURATION, priority: 0);
     return new StartActivityAction(_owner, this, workActivity, priority: 0);
 }
 ```
@@ -699,7 +705,7 @@ public override EntityAction? SuggestAction(...)
 ```
 
 **Why This Matters:**
-- `AccessStorage()` returns null if entity isn't adjacent to building
+- `AccessStorage()` returns null if entity isn't adjacent to the facility
 - Traits run every tick; navigation takes many ticks
 - Phase-based activities ensure storage access only happens when entity has arrived
 
@@ -713,6 +719,30 @@ public override EntityAction? SuggestAction(...)
 3. Start appropriate work activity (activity handles everything else)
 4. Return null at night (let VillagerTrait handle sleep)
 
+### Room/Facility vs Building (Phase 5C)
+
+All job traits and home-tracking traits now use `Room` and `Facility` instead of `Building` directly:
+
+- `_workplace` in all JobTrait subclasses is `Room?` (not `Building?`)
+- TraitConfiguration resolves workplace via `GetRoom()` instead of `GetBuilding()`
+- `HomeTrait.Home` returns `Room?` - the `HomeBuilding` property was removed
+- Storage access goes through `room.GetStorageFacility()` to get the Facility
+- `DistributorJobTrait` accesses GranaryTrait via `_workplace.GetStorageFacility()?.SelfAsEntity().GetTrait<GranaryTrait>()`
+
+**Correct patterns post-Phase-5C:**
+```csharp
+// Home as Room
+var homeRoom = _owner?.SelfAsEntity().GetTrait<HomeTrait>()?.Home;
+if (homeRoom == null || homeRoom.IsDestroyed) return null;
+
+// Accessing storage via Facility
+var facility = homeRoom.GetStorageFacility();
+var storage = entity.CanAccessFacility(facility) ? facility.GetStorage() : null;
+
+// Finding granary via facility trait
+var granary = _workplace?.GetStorageFacility()?.SelfAsEntity().GetTrait<GranaryTrait>();
+```
+
 ### Undead Detection
 Checking if an entity is undead:
 ```csharp
@@ -720,7 +750,7 @@ if (entity.SelfAsEntity().HasTrait<UndeadTrait>())
 ```
 
 ### Activity-Based Navigation Pattern
-Traits should use activities (GoToBuildingActivity, GoToLocationActivity) for navigation instead of manual pathfinding. This centralizes navigation logic and handles edge cases.
+Traits should use activities for navigation instead of manual pathfinding. This centralizes navigation logic and handles edge cases.
 
 **Pattern for starting navigation:**
 ```csharp
@@ -739,8 +769,10 @@ if (_owner.GetCurrentActivity() is GoToLocationActivity)
 ```
 
 **Common navigation activities:**
-- `GoToBuildingActivity` - Navigate to a building's interior (finds door, enters)
+- `GoToRoomActivity` - Navigate to a room's interior (finds door, enters)
 - `GoToLocationActivity` - Navigate to a specific grid position
+
+**Note:** `GoToBuildingActivity` has been replaced by `GoToRoomActivity` in VillagerTrait and ScheduleTrait. Use `GoToRoomActivity` for room-based navigation in new code.
 
 **Activity state checking (for traits that manage activities directly):**
 ```csharp
@@ -888,23 +920,7 @@ var consumptionTrait = new ItemConsumptionBehaviorTrait(
     consumptionDuration: 244
 );
 _owner?.SelfAsEntity().AddTraitToQueue(consumptionTrait, Priority - 1, initQueue);
-// Home is resolved automatically via HomeTrait.HomeBuilding
-```
-
-**Adding a need with strategy-based consumption behavior**:
-```csharp
-// In Initialize():
-_owner?.NeedsSystem.AddNeed(new Need("thirst", "Thirst", 80f, 0.01f, 15f, 30f, 90f));
-
-var consumptionTrait = new ConsumptionBehaviorTrait(
-    "thirst",
-    new WellSourceIdentifier(),      // You implement these
-    new WellAcquisitionStrategy(),
-    new DrinkingEffect(),
-    new ThirstCriticalHandler(),
-    120  // Duration in ticks
-);
-_owner?.SelfAsEntity().AddTraitToQueue(consumptionTrait, Priority - 1, initQueue);
+// Home Room is resolved automatically via HomeTrait.Home
 ```
 
 **Detecting other entities**:
@@ -926,6 +942,7 @@ public class MyJobTrait : JobTrait
     protected override Type WorkActivityType => typeof(MyWorkActivity);
 
     // Optional: customize the config key (default is "workplace")
+    // TraitConfiguration will resolve this via GetRoom()
     protected override string WorkplaceConfigKey => "workplace";
 
     // Optional: specify desired resources for home storage
@@ -937,7 +954,7 @@ public class MyJobTrait : JobTrait
 
     public MyJobTrait() { }
 
-    public MyJobTrait(Building workplace)
+    public MyJobTrait(Room workplace)
     {
         _workplace = workplace;
     }
@@ -958,18 +975,18 @@ public class MyJobTrait : JobTrait
 - Movement interruption checking is handled automatically
 - The pattern is enforced at compile time, not just by convention
 
-**Navigating to a building using activity**:
+**Navigating to a room using activity**:
 ```csharp
-// Start navigation to a building
-var goToBuildingActivity = new GoToBuildingActivity(targetBuilding, priority: 1);
-return new StartActivityAction(_owner, this, goToBuildingActivity, priority: 1);
+// Start navigation to a room
+var goToRoomActivity = new GoToRoomActivity(targetRoom, priority: 1);
+return new StartActivityAction(_owner, this, goToRoomActivity, priority: 1);
 
 // In subsequent calls, check if activity is still running
-if (_owner.GetCurrentActivity() is GoToBuildingActivity)
+if (_owner.GetCurrentActivity() is GoToRoomActivity)
 {
     return null;  // Let activity handle navigation
 }
-// Activity completed - we've arrived at the building
+// Activity completed - we've arrived at the room
 ```
 
 **Navigating to a position using activity**:
@@ -1028,7 +1045,7 @@ public override EntityAction? SuggestAction(Vector2I pos, Perception perception)
 ### Depends On
 - `VeilOfAges.Entities.BeingTrait` - Base class
 - `VeilOfAges.Entities.Actions` - Action types
-- `VeilOfAges.Entities.Activities` - Activity types (WorkFieldActivity, ConsumeItemActivity, etc.)
+- `VeilOfAges.Entities.Activities` - Activity types (WorkFieldActivity, ConsumeItemActivity, GoToRoomActivity, etc.)
 - `VeilOfAges.Entities.Beings.Health` - Body systems
 - `VeilOfAges.Entities.Items` - Item and ItemDefinition classes
 - `VeilOfAges.Entities.Needs` - Need system

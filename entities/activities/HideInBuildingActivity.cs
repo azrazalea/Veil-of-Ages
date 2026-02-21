@@ -6,30 +6,30 @@ using VeilOfAges.Entities.Sensory;
 namespace VeilOfAges.Entities.Activities;
 
 /// <summary>
-/// Activity that moves an entity to their home building and then hides them.
+/// Activity that moves an entity to a room and then hides them.
 /// Used by undead to retreat to the graveyard at dawn.
 /// </summary>
 public class HideInBuildingActivity : Activity
 {
-    private readonly Building _targetBuilding;
+    private readonly Room _targetRoom;
     private Activity? _goToPhase;
     private bool _hasArrived;
 
     public override string DisplayName => _hasArrived
         ? L.Tr("activity.HIDING")
-        : L.TrFmt("activity.RETREATING_TO", _targetBuilding.BuildingType);
+        : L.TrFmt("activity.RETREATING_TO", _targetRoom.Type ?? _targetRoom.Name);
 
-    public override Building? TargetBuilding => _targetBuilding;
+    public override Room? TargetRoom => _targetRoom;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HideInBuildingActivity"/> class.
-    /// Creates an activity to navigate to a building and hide inside.
+    /// Creates an activity to navigate to a room and hide inside.
     /// </summary>
-    /// <param name="targetBuilding">The building to hide in.</param>
+    /// <param name="targetRoom">The room to hide in.</param>
     /// <param name="priority">Action priority.</param>
-    public HideInBuildingActivity(Building targetBuilding, int priority = 0)
+    public HideInBuildingActivity(Room targetRoom, int priority = 0)
     {
-        _targetBuilding = targetBuilding;
+        _targetRoom = targetRoom;
         Priority = priority;
     }
 
@@ -47,20 +47,20 @@ public class HideInBuildingActivity : Activity
             return null;
         }
 
-        // Check if building still exists
-        if (!GodotObject.IsInstanceValid(_targetBuilding))
+        // Check if room still exists (Room is plain C#, not GodotObject)
+        if (_targetRoom.IsDestroyed)
         {
-            DebugLog("HIDE", "Target building no longer valid", 0);
+            DebugLog("HIDE", "Target room no longer valid", 0);
             Fail();
             return null;
         }
 
-        // Phase 1: Navigate to building interior
+        // Phase 1: Navigate to room interior
         if (!_hasArrived)
         {
             if (_goToPhase == null)
             {
-                _goToPhase = new GoToBuildingActivity(_targetBuilding, Priority, requireInterior: true);
+                _goToPhase = new GoToRoomActivity(_targetRoom, Priority, requireInterior: true);
                 _goToPhase.Initialize(_owner);
             }
 
@@ -68,14 +68,14 @@ public class HideInBuildingActivity : Activity
             switch (result)
             {
                 case SubActivityResult.Failed:
-                    DebugLog("HIDE", "Failed to reach building", 0);
+                    DebugLog("HIDE", "Failed to reach room", 0);
                     Fail();
                     return null;
                 case SubActivityResult.Continue:
                     return action;
                 case SubActivityResult.Completed:
                     _hasArrived = true;
-                    DebugLog("HIDE", $"Arrived at {_targetBuilding.BuildingName}, now hiding", 0);
+                    DebugLog("HIDE", $"Arrived at {_targetRoom.Name}, now hiding", 0);
                     break;
             }
         }

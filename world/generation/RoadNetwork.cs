@@ -280,12 +280,12 @@ public class RoadNetwork
     }
 
     /// <summary>
-    /// Mark a lot as occupied by a building.
+    /// Mark a lot as occupied by a building (identified by its default room).
     /// </summary>
-    public static void MarkLotOccupied(VillageLot lot, Building building)
+    public static void MarkLotOccupied(VillageLot lot, Room? room)
     {
         lot.State = LotState.Occupied;
-        lot.OccupyingBuilding = building;
+        lot.OccupyingRoom = room;
     }
 
     /// <summary>
