@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Skills panel UI (press K to toggle) showing player's skills with level and XP progress bars
+- Welcome overlay on game start showing controls and introduction (press Escape or click "Got it!" to dismiss)
 
 ### Fixed
 - Building floor tiles now render above ground tiles — wood floors were hidden behind dirt ground layer due to identical Z-index

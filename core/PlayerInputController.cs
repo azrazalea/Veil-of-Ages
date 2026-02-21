@@ -29,6 +29,7 @@ public partial class PlayerInputController : Node
     private TransitionPoint? _contextTransitionPoint;
     private IFacilityInteractable? _contextFacilityInteractable;
     private Control? _skillsPanel;
+    private Control? _welcomeOverlay;
 
     public override void _Ready()
     {
@@ -57,6 +58,20 @@ public partial class PlayerInputController : Node
         {
             TryResolveServices();
             if (_gameController == null || _player == null)
+            {
+                return;
+            }
+        }
+
+        // Block all input except Escape while welcome overlay is showing
+        _welcomeOverlay ??= GetNodeOrNull<Control>("../ModalLayer/WelcomeOverlay");
+        if (_welcomeOverlay != null)
+        {
+            if (!IsInstanceValid(_welcomeOverlay))
+            {
+                _welcomeOverlay = null;
+            }
+            else if (_welcomeOverlay.Visible)
             {
                 return;
             }

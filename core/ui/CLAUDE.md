@@ -83,6 +83,17 @@ Toggleable skills panel showing player's skills with level and XP progress bars.
 - Subscribes to `UITickFired`, skips updates when not visible
 - Reads `player.SkillSystem.GetAllSkills()` via Services
 
+### WelcomeOverlay.cs
+Semi-transparent welcome overlay shown on game start.
+
+- **Namespace**: `VeilOfAges.Core.UI`
+- **Class**: `WelcomeOverlay : PanelContainer`
+- Centered overlay on ModalLayer (layer 30), does NOT pause the game
+- Built programmatically in `_Ready()` with NecromancerTheme styling
+- Shows game title, intro text, and controls reference
+- Dismissed by Escape key or "Got it!" button → QueueFree()
+- PlayerInputController blocks all other input while overlay is visible
+
 ## Key Classes/Interfaces
 
 | Class | Description |
@@ -94,6 +105,7 @@ Toggleable skills panel showing player's skills with level and XP progress bars.
 | `NeedsPanel` | Dynamic critical needs display with trend arrows and color coding |
 | `CommandQueuePanel` | Horizontal command queue strip with node pooling |
 | `SkillsPanel` | Toggleable skills panel with level and XP progress (K key) |
+| `WelcomeOverlay` | Game-start welcome overlay with controls reference (Escape/button to dismiss) |
 
 ## Important Notes
 

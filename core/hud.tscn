@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://core/ui/NeedsPanel.cs" id="7_needspanel"]
 [ext_resource type="Script" path="res://core/ui/CommandQueuePanel.cs" id="8_cmdqueue"]
 [ext_resource type="Script" path="res://core/ui/SkillsPanel.cs" id="9_skillspanel"]
+[ext_resource type="Script" path="res://core/ui/WelcomeOverlay.cs" id="10_welcome"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_l3ow8"]
 content_margin_left = 8.0
@@ -108,6 +109,21 @@ script = ExtResource("9_skillspanel")
 
 [node name="ModalLayer" type="CanvasLayer" parent="."]
 layer = 30
+
+[node name="WelcomeOverlay" type="PanelContainer" parent="ModalLayer"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -250.0
+offset_top = -250.0
+offset_right = 250.0
+offset_bottom = 250.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+script = ExtResource("10_welcome")
 
 [node name="Dialogue" parent="ModalLayer" node_paths=PackedStringArray("_nameLabel", "_dialogueText", "_optionsContainer") instance=ExtResource("1_rn0xv")]
 visible = false
